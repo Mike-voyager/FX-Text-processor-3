@@ -1,25 +1,38 @@
-## Description
-Brief description of changes.
+## Описание
+Краткое описание изменений в этом PR.
 
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
+## Тип изменений
+- [ ] Bug fix (исправление бага)
+- [ ] New feature (новая функциональность)
+- [ ] Breaking change (изменения ломающие обратную совместимость)
+- [ ] Documentation update (обновление документации)
+- [ ] Refactoring (рефакторинг без изменения функциональности)
 
-## Related Issues
-Closes #ISSUE_NUMBER
+## Связанные Issues
+Closes #[ISSUE_NUMBER]
 
 ## Checklist
-- [ ] Tests added/updated
-- [ ] Documentation updated
-- [ ] Code follows style guidelines
-- [ ] All tests pass
-- [ ] Mypy strict passes
-- [ ] No new warnings
+- [ ] Код следует style guidelines проекта
+- [ ] Self-review выполнен
+- [ ] Код прокомментирован в сложных местах
+- [ ] Документация обновлена
+- [ ] Изменения не генерируют новых warnings
+- [ ] Добавлены тесты для новой функциональности
+- [ ] Все новые и существующие unit tests проходят
+- [ ] Coverage не упал (>90%)
+- [ ] `mypy --strict` проходит без ошибок
 
-## Testing
-How was this tested?
+## Тестирование
+Как было протестировано?
 
-## Screenshots (if applicable)
-Add screenshots for UI changes.
+Команды для тестирования
+pytest tests/unit/... -v
+mypy --strict src/...
+
+text
+
+## Скриншоты (если применимо)
+Добавьте скриншоты для UI changes.
+
+## Дополнительные заметки
+Любая дополнительная информация для ревьюера.

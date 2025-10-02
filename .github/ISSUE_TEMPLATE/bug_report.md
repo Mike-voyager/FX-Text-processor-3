@@ -1,30 +1,39 @@
 ---
 name: Bug Report
-about: Report a bug
+about: Сообщить об ошибке
 title: '[BUG] '
 labels: bug
 assignees: ''
 ---
 
-**Describe the bug**
-A clear description of the bug.
+## Описание бага
+Чёткое описание что не работает.
 
-**To Reproduce**
-Steps to reproduce:
-1. Go to '...'
-2. Click on '....'
-3. See error
+## Воспроизведение
+Шаги для воспроизведения:
+1. Перейти в '...'
+2. Нажать на '....'
+3. Выполнить '....'
+4. Увидеть ошибку
 
-**Expected behavior**
-What you expected to happen.
+## Ожидаемое поведение
+Что должно было произойти.
 
-**Screenshots**
-If applicable, add screenshots.
+## Актуальное поведение
+Что произошло на самом деле.
 
-**Environment:**
- - OS: [e.g. Windows 11]
- - Python version: [e.g. 3.11.5]
- - Project version: [e.g. 0.1.0]
+## Скриншоты
+Если применимо, добавьте скриншоты.
 
-**Additional context**
-Add any other context.
+## Окружение
+- **OS:** [например, Windows 11]
+- **Python версия:** [например, 3.11.5]
+- **Версия проекта:** [например, 0.1.0]
+
+## Traceback
+[Вставьте полный traceback если есть]
+
+text
+
+## Дополнительный контекст
+Любая дополнительная информация об ошибке.

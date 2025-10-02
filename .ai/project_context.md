@@ -2,7 +2,7 @@
 
 ## Quick Facts
 - **Name**: ESC/P Text Editor
-- **Purpose**: WYSIWYG editor for Epson FX-890 matrix printer
+- **Purpose**: WYSIWYG editor for Epson FX-890 dot matrix printer
 - **Language**: Python 3.11+
 - **Architecture**: MVC (Model-View-Controller)
 - **GUI**: Tkinter
@@ -10,51 +10,57 @@
 - **Status**: Active Development (10% complete)
 
 ## Key Design Decisions
-1. **Src-layout**: Code in `src/`, not root
-2. **Strict typing**: mypy --strict required
-3. **TDD**: Tests first, then implementation
-4. **PC866**: Primary encoding for Russian
-5. **Direct printing**: WritePrinter API, bypass driver
+
+1. **Src-layout**: Код в `src/`, не в корне
+2. **Strict typing**: `mypy --strict` обязательно
+3. **TDD**: Тесты пишутся первыми
+4. **PC866**: Основная кодировка для русского языка
+5. **Direct printing**: WritePrinter API, обход драйвера Windows
+6. **Google-style docstrings**: На русском языке
+7. **100% coverage**: Для всех модулей
+8. **Black formatting**: Line length 100
 
 ## Current Progress
-- ✅ Project structure
-- ✅ Core module (`src/__init__.py`)
-- ✅ Testing infrastructure
+- ✅ Project structure (100%)
+- ✅ Core module `src/__init__.py` (100%)
+- ✅ Testing infrastructure (100%)
 - ⏳ Model layer (10%)
 - ❌ ESC/P commands (0%)
 - ❌ GUI (0%)
 
 ## Next Priorities
-1. Complete `src/model/enums.py`
-2. Implement `src/model/run.py`
-3. Implement `src/model/paragraph.py`
-4. Implement `src/model/document.py`
+1. Завершить `src/model/enums.py`
+2. Реализовать `src/model/run.py`
+3. Реализовать `src/model/paragraph.py`
+4. Реализовать `src/model/document.py`
+5. Начать `src/escp/escp_builder.py`
 
 ## Important Files for Context
-- `src/__init__.py` - Example of code style
-- `tests/unit/test_init.py` - Example of tests
-- `docs/ARCHITECTURE.md` - System design
-- `docs/PROMPT_TEMPLATES.md` - How to generate code
+- `src/__init__.py` — Пример стиля кода
+- `tests/unit/test_init.py` — Пример тестов
+- `docs/ARCHITECTURE.md` — Дизайн системы
+- `docs/PROMPT_TEMPLATES.md` — Как генерировать код
 
 ## Code Style Examples
 
 ### Type Hints
 def process_text(text: str, bold: bool = False) -> bytes:
+"""Обработать текст."""
 ...
 
 text
 
-### Docstrings
+### Docstrings (Google-style, Russian)
 def get_logger(module_name: str) -> logging.Logger:
 """
 Получить настроенный логгер для модуля.
 
 text
 Args:
-    module_name: Имя модуля
+    module_name: Имя модуля, обычно `__name__`
 
 Returns:
-    Экземпляр Logger
+    Настроенный экземпляр Logger
 
 Example:
     >>> logger = get_logger(__name__)
@@ -71,42 +77,21 @@ return default_value
 
 text
 
-## Common Patterns
-
-### Model Class
-from dataclasses import dataclass
+### Dataclasses
+from dataclasses import dataclass, field
 from typing import List
 
 @dataclass
-class ModelClass:
-"""Краткое описание."""
+class Document:
+"""Класс документа."""
 
 text
-field1: str
-field2: int
-children: List['ChildClass'] = field(default_factory=list)
+title: str
+sections: List['Section'] = field(default_factory=list)
 
-def method(self) -> None:
-    """Метод описание."""
-    ...
-text
-
-### Builder Pattern
-class CommandBuilder:
-"""Строитель команд."""
-
-text
-def __init__(self) -> None:
-    self._commands: bytearray = bytearray()
-
-def add_text(self, text: str) -> 'CommandBuilder':
-    """Добавить текст."""
-    self._commands.extend(text.encode('cp866'))
-    return self
-
-def build(self) -> bytes:
-    """Собрать команды."""
-    return bytes(self._commands)
+def add_section(self, section: 'Section') -> None:
+    """Добавить секцию."""
+    self.sections.append(section)
 text
 
 ## Testing Pattern
@@ -126,5 +111,117 @@ def test_basic_functionality(self) -> None:
 
     # Assert
     assert result == expected
+
+def test_edge_case_empty_input(self) -> None:
+    """Тест с пустым вводом."""
+    obj = MyClass(param="")
+
+    with pytest.raises(ValueError, match="param не может быть пустым"):
+        obj.method()
 text
-undefined
+
+## Common Imports
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, field
+from pathlib import Path
+import logging
+
+from src import get_logger
+from src.model.enums import Alignment, FontFamily
+
+text
+
+## Architecture Rules
+
+### Model Layer
+- **NO** imports from View or Controller
+- **NO** external dependencies (только stdlib)
+- **YES** dataclasses where possible
+- **YES** immutable where possible
+
+### View Layer
+- **NO** business logic
+- **YES** imports from Model (readonly)
+- **YES** callbacks to Controller
+
+### Controller Layer
+- **YES** imports from Model
+- **YES** imports from View (для обновления)
+- **YES** business logic
+
+## Naming Conventions
+- Classes: `PascalCase`
+- Functions/methods: `snake_case`
+- Constants: `UPPER_CASE`
+- Private: `_leading_underscore`
+- Type variables: `T`, `K`, `V`
+
+## File Structure Template
+"""
+Module short description.
+
+Detailed description of module purpose and usage.
+"""
+
+from typing import List, Optional
+import logging
+
+from src import get_logger
+
+logger = get_logger(name)
+
+Constants
+DEFAULT_VALUE = 42
+
+Type aliases
+ConfigDict = Dict[str, Any]
+
+Classes
+class MyClass:
+"""Class description."""
+
+text
+def __init__(self, param: str) -> None:
+    """Initialize."""
+    self.param = param
+
+def method(self) -> str:
+    """Method description."""
+    return self.param
+Functions
+def helper_function(arg: int) -> int:
+"""Helper function description."""
+return arg * 2
+
+text
+
+## Error Messages
+- **Russian** for user-facing errors
+- **English** for developer errors
+- Include context in error messages
+- Use f-strings for formatting
+
+Good
+raise ValueError(f"Недопустимое значение для параметра 'cpi': {cpi}. Ожидается от 10 до 20.")
+
+Bad
+raise ValueError("Invalid value")
+
+text
+
+## Performance Considerations
+- Use `bytearray` for building ESC/P commands
+- Cache frequently used commands
+- Lazy load heavy resources
+- Use generators for large collections
+
+## Security Considerations
+- Validate all user inputs
+- Sanitize file paths
+- Limit image sizes (max 10 MB)
+- Timeout for printer operations (30s)
+
+---
+
+**Last Updated:** October 2025
+**Version:** 1.0

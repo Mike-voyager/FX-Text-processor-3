@@ -1,22 +1,31 @@
 ---
 name: Feature Request
-about: Suggest new feature
+about: Предложить новую функциональность
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
 ---
 
-**Feature Description**
-Clear description of the feature.
+## Описание фичи
+Чёткое описание новой функциональности.
 
-**Use Case**
-Why is this feature needed?
+## Use Case
+Зачем нужна эта функциональность? Какую проблему решает?
 
-**Proposed Solution**
-How should it work?
+**As a** [тип пользователя]
+**I want** [действие]
+**So that** [цель]
 
-**Alternatives**
-Alternative solutions considered.
+## Предлагаемое решение
+Как должна работать эта функциональность?
 
-**Additional context**
-Mockups, examples, etc.
+## Альтернативы
+Какие альтернативные решения рассматривались?
+
+## Дополнительный контекст
+Mockups, примеры из других проектов, и т.д.
+
+## Acceptance Criteria
+- [ ] Критерий 1
+- [ ] Критерий 2
+- [ ] Критерий 3

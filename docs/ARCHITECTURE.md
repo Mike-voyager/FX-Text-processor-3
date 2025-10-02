@@ -1,54 +1,66 @@
-# ESC/P Text Editor - Architecture
+# ESC/P Text Editor - Архитектура
 
-## Overview
+## Обзор
 
-ESC/P Text Editor follows strict MVC (Model-View-Controller) architecture with clear separation of concerns.
+ESC/P Text Editor следует строгой архитектуре MVC (Model-View-Controller) с чётким разделением ответственности.
 
-## Layer Responsibilities
+## Слои приложения
 
 ### Model Layer (`src/model/`)
-- **Purpose**: Data structures and business entities
-- **Key Classes**:
-  - `Document`: Root document container
-  - `Section`: Page settings and content grouping
-  - `Paragraph`: Text block with alignment
-  - `Run`: Formatted text fragment
-  - `Table`: Table structure with cells
-- **No Dependencies**: Model layer is independent from View and Controller
+
+**Назначение:** Структуры данных и бизнес-сущности
+
+**Ключевые классы:**
+- `Document`: Корневой контейнер документа
+- `Section`: Настройки страницы и группировка контента
+- `Paragraph`: Текстовый блок с выравниванием
+- `Run`: Форматированный текстовый фрагмент
+- `Table`: Структура таблицы с ячейками
+- `Enums`: Перечисления (Alignment, FontFamily и т.д.)
+
+**Зависимости:** Model слой полностью независим от View и Controller
 
 ### View Layer (`src/view/`)
-- **Purpose**: UI components and rendering
-- **Technology**: Tkinter
-- **Key Components**:
-  - `MainWindow`: Application window
-  - `PagedCanvas`: WYSIWYG rendering
-  - `FormatToolbar`: Formatting controls
-  - Dialogs: Settings, table insertion, etc.
+
+**Назначение:** UI компоненты и рендеринг
+
+**Технология:** Tkinter
+
+**Ключевые компоненты:**
+- `MainWindow`: Главное окно приложения
+- `PagedCanvas`: WYSIWYG рендеринг
+- `FormatToolbar`: Панель форматирования
+- `Dialogs`: Настройки, вставка таблиц и т.д.
 
 ### Controller Layer (`src/controller/`)
-- **Purpose**: Business logic and event handling
-- **Patterns**:
-  - Command pattern (Undo/Redo)
-  - Observer pattern (Document changes)
-- **Key Classes**:
-  - `DocumentController`: Document manipulation
-  - `CommandManager`: Undo/Redo stack
+
+**Назначение:** Бизнес-логика и обработка событий
+
+**Паттерны:**
+- Command pattern (Undo/Redo)
+- Observer pattern (изменения документа)
+
+**Ключевые классы:**
+- `DocumentController`: Манипуляция документом
+- `CommandManager`: Стек Undo/Redo
 
 ### ESC/P Layer (`src/escp/`)
-- **Purpose**: ESC/P command generation
-- **Key Classes**:
-  - `EscpCommandBuilder`: Command generator
-  - Specialized builders for fonts, positioning, etc.
 
-## Data Flow
+**Назначение:** Генерация ESC/P команд
 
-User Input → View → Controller → Model → ESC/P Builder → Printer
+**Ключевые классы:**
+- `EscpCommandBuilder`: Генератор команд
+- Специализированные builders для шрифтов, позиционирования и т.д.
+
+## Поток данных
+
+Ввод пользователя → View → Controller → Model → ESC/P Builder → Принтер
 ↑ ↓
-└──────── Observer ────┘
+└────── Observer ──────┘
 
 text
 
-## Module Dependencies
+## Зависимости модулей
 
 view → controller → model
 ↓
@@ -56,316 +68,94 @@ escp → printer
 
 text
 
-## File Format
+## Формат файлов
 
-Documents are stored as JSON with this structure:
+Документы хранятся в JSON со следующей структурой:
 
 {
 "version": "0.1.0",
-"metadata": {...},
+"metadata": {
+"title": "Document Title",
+"author": "Author Name",
+"created": "2025-10-02T22:00:00"
+},
 "sections": [
 {
-"page_settings": {...},
-"paragraphs": [...]
+"page_settings": {
+"paper_type": "A4",
+"orientation": "portrait",
+"margins": {"top": 20, "bottom": 20, "left": 15, "right": 15}
+},
+"paragraphs": [
+{
+"alignment": "left",
+"runs": [
+{"text": "Hello", "bold": true, "cpi": 12}
+]
+}
+]
 }
 ]
 }
 
 text
 
-See `docs/FILE_FORMAT.md` for complete specification.
-2. docs/PROMPT_TEMPLATES.md
-text
-# AI Prompt Templates for ESC/P Text Editor
+## Принципы проектирования
 
-This document contains ready-to-use prompt templates for AI-assisted development.
+### 1. Separation of Concerns
+Каждый слой имеет чёткую ответственность и не зависит от других слоёв напрямую.
 
-## Template 1: Module Generation
+### 2. Dependency Injection
+Controller получает Model через конструктор, View получает Controller.
 
-CONTEXT
-Project: https://github.com/Mike-voyager/FX-Text-processor-3
-Architecture: docs/ARCHITECTURE.md
-Example: src/init.py
+### 3. Immutability
+Model объекты максимально immutable, изменения через методы.
 
-TASK
-Generate module: src/model/[MODULE_NAME].py
+### 4. Type Safety
+Все модули строго типизированы (mypy strict).
 
-REQUIREMENTS
-Follow MVC architecture
+### 5. Testability
+Каждый модуль тестируется изолированно с моками зависимостей.
 
-Python 3.11+ with type hints
+## Расширяемость
 
-Google-style docstrings (Russian)
+### Добавление нового формата вывода
 
-Mypy strict compliance
+1. Создать новый builder в `src/output_format/`
+2. Реализовать интерфейс `OutputBuilder`
+3. Зарегистрировать в `OutputFactory`
 
-Unit tests with 100% coverage
+### Добавление нового типа элемента
 
-No external dependencies in model layer
+1. Создать класс в `src/model/`
+2. Добавить в `Document.elements`
+3. Реализовать рендеринг в `PagedCanvas`
+4. Добавить генерацию команд в `EscpBuilder`
 
-DELIVERABLES
-src/model/[MODULE_NAME].py - implementation
+## Производительность
 
-tests/unit/model/test_[MODULE_NAME].py - tests
+### Критичные операции
 
-Brief implementation notes
+- **Рендеринг Canvas**: используется кэширование растрированных страниц
+- **Генерация ESC/P**: commands собираются в `bytearray` для минимизации аллокаций
+- **Undo/Redo**: используется Command pattern с memento
+- **Загрузка документов**: lazy loading секций
 
-text
+### Оптимизации
 
-## Template 2: Code Review
+- Растеризация страниц в фоновом потоке
+- Инкрементальный рендеринг (только изменённые области)
+- Пул объектов для Run instances
+- Кэширование ESC/P команд для повторяющихся фрагментов
 
-CONTEXT
-Project: https://github.com/Mike-voyager/FX-Text-processor-3
-PR: [PR_URL]
+## Безопасность
 
-TASK
-Review code changes in this Pull Request
+- Валидация всех пользовательских вводов
+- Sanitization путей файлов
+- Ограничение размера загружаемых изображений (10 MB)
+- Timeout для printer operations (30 секунд)
 
-CHECK FOR
-Type safety (mypy strict)
+---
 
-Test coverage (>90%)
-
-Documentation (Google-style docstrings)
-
-Code style (black, isort)
-
-Architecture compliance (MVC)
-
-No circular dependencies
-
-Error handling
-
-Performance considerations
-
-FORMAT
-Provide structured review with:
-
-Summary
-
-Issues found (severity: critical/major/minor)
-
-Suggestions for improvement
-
-Approval status
-
-text
-
-## Template 3: Bug Fix
-
-CONTEXT
-Project: https://github.com/Mike-voyager/FX-Text-processor-3
-Issue: [ISSUE_URL]
-
-BUG DESCRIPTION
-[Paste error traceback or description]
-
-TASK
-Fix the bug while maintaining:
-
-Existing functionality
-
-Test coverage
-
-Type safety
-
-Code style
-
-DELIVERABLES
-Bug fix implementation
-
-Regression test
-
-Explanation of root cause
-
-text
-
-## Template 4: Feature Implementation
-
-CONTEXT
-Project: https://github.com/Mike-voyager/FX-Text-processor-3
-Architecture: docs/ARCHITECTURE.md
-Feature request: [ISSUE_URL]
-
-FEATURE DESCRIPTION
-[Describe feature]
-
-ACCEPTANCE CRITERIA
- Criterion 1
-
- Criterion 2
-
- Unit tests
-
- Documentation
-
-TECHNICAL APPROACH
-[Optional: suggest implementation strategy]
-
-DELIVERABLES
-Implementation code
-
-Tests
-
-Documentation updates
-
-Example usage
-
-text
-
-## Using Templates
-
-1. Copy template
-2. Replace [PLACEHOLDERS] with actual values
-3. Paste to Claude/ChatGPT
-4. Review and apply generated code
-3. docs/DEVELOPMENT.md
-text
-# Development Guide
-
-## Setup Development Environment
-
-### 1. Install Prerequisites
-Python 3.11+
-winget install Python.Python.3.11
-
-Git
-winget install Git.Git
-
-VS Code (recommended)
-winget install Microsoft.VisualStudioCode
-
-text
-
-### 2. Clone and Setup
-git clone https://github.com/Mike-voyager/FX-Text-processor-3.git
-cd FX-Text-processor-3
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e ".[dev]"
-
-text
-
-### 3. Configure IDE
-
-**VS Code Extensions:**
-- Python (Microsoft)
-- Pylance
-- Python Test Explorer
-- GitHub Copilot (optional)
-- Continue (optional)
-
-**Settings (`.vscode/settings.json`):**
-{
-"python.analysis.typeCheckingMode": "strict",
-"python.formatting.provider": "black",
-"python.linting.enabled": true,
-"python.linting.mypyEnabled": true,
-"python.testing.pytestEnabled": true,
-"editor.formatOnSave": true
-}
-
-text
-
-## Development Workflow
-
-### 1. Create Feature Branch
-git checkout -b feature/module-name
-
-text
-
-### 2. Implement Module
-
-Follow this order:
-1. Write tests first (TDD)
-2. Implement module
-3. Run tests: `pytest tests/unit/model/test_module.py -v`
-4. Type check: `mypy --strict src/model/module.py`
-5. Format: `black src/model/module.py`
-
-### 3. Commit Changes
-git add .
-git commit -m "feat: Add module-name with XYZ functionality"
-
-text
-
-Commit message format:
-- `feat:` - new feature
-- `fix:` - bug fix
-- `docs:` - documentation
-- `test:` - tests
-- `refactor:` - code refactoring
-- `style:` - formatting
-
-### 4. Push and Create PR
-git push origin feature/module-name
-gh pr create --title "Add module-name" --body "Implements #ISSUE_NUMBER"
-
-text
-
-## Testing Guidelines
-
-### Unit Tests
-- Located in `tests/unit/`
-- Test single module in isolation
-- Use mocks for dependencies
-- Aim for 100% coverage
-
-### Integration Tests
-- Located in `tests/integration/`
-- Test multiple modules together
-- Test with real dependencies
-- Aim for critical paths
-
-### Running Tests
-All tests
-pytest
-
-Specific module
-pytest tests/unit/model/test_document.py -v
-
-With coverage
-pytest --cov=src --cov-report=html
-
-Watch mode
-pytest-watch
-
-text
-
-## Code Quality Checks
-
-Type checking
-mypy --strict src/
-
-Linting
-flake8 src/ tests/
-
-Formatting
-black --check src/ tests/
-isort --check src/ tests/
-
-Fix formatting
-black src/ tests/
-isort src/ tests/
-
-text
-
-## AI-Assisted Development
-
-### Using Continue.dev
-1. Install Continue extension in VS Code
-2. Open file to work on
-3. Press `Ctrl+L` to open chat
-4. Ask: "Generate unit tests for this module"
-
-### Using Claude/ChatGPT
-1. Open browser: https://claude.ai or https://chat.openai.com
-2. Paste prompt from `docs/PROMPT_TEMPLATES.md`
-3. Replace placeholders
-4. Copy generated code to project
-
-### Using GitHub Copilot
-1. Install Copilot in VS Code
-2. Start typing function signature
-3. Accept suggestions with `Tab`
-4. Use `Ctrl+Enter` for alternatives
+**Последнее обновление:** October 2025
+**Версия:** 0.1.0
