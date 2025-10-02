@@ -1,0 +1,29 @@
+# UI
+tk>=0.1.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Barcode/QR
+qrcode>=7.4.2
+python-barcode>=0.15.1
+
+# Markdown
+python-markdown>=3.5.0
+mistune>=3.0.0
+
+# Excel
+openpyxl>=3.1.0
+pandas>=2.1.0
+
+# Windows printer access
+pywin32>=306
+
+# HTML parsing (for clipboard)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Database (optional)
+# SQLAlchemy>=2.0.0
+# psycopg2-binary>=2.9.0  # PostgreSQL
+# mysql-connector-python>=8.0.0  # MySQL

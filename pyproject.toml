@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "escp-editor"
+version = "0.1.0"
+description = "Professional WYSIWYG text editor for Epson FX-890 dot matrix printer"
+authors = [
+    {name = "ESC/P Text Editor Development Team"}
+]
+requires-python = ">=3.11"
+license = {text = "MIT"}
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+]
+keywords = ["escp", "epson", "fx-890", "printer", "editor"]
+
+dependencies = [
+    "pillow>=10.0.0",
+    "qrcode>=7.4.2",
+    "python-barcode>=0.15.1",
+    "Markdown>=3.5.0",
+    "openpyxl>=3.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.8.0",
+    "flake8>=7.0.0",
+    "black>=24.0.0",
+    "types-Markdown>=3.5.0",
+]
+
+windows = [
+    "pywin32>=306",
+]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+pythonpath = ["."]
+
+[tool.mypy]
+mypy_path = "."
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+python_version = "3.11"
+
+[[tool.mypy.overrides]]
+module = "src.*"
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*", "**/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
