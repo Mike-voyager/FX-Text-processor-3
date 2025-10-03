@@ -757,3 +757,36 @@ class TestRunIntegration:
 
         assert merged.text == "FirstSecond"
         assert run1.text == "First"  # Original unchanged
+
+
+class TestLogging:
+    """Test logging functionality."""
+
+    def test_merge_consecutive_runs_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that merge operation logs correctly."""
+        runs = [
+            Run(text="Part1", bold=True),
+            Run(text="Part2", bold=True),
+        ]
+
+        with caplog.at_level(logging.INFO):
+            result = merge_consecutive_runs(runs)
+
+        assert "Merged 2 runs into 1 runs" in caplog.text
+        assert len(result) == 1
+
+    def test_split_by_formatting_debug_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that split_by_formatting logs debug information."""
+        text = "HelloWorld"
+        template = [
+            Run(text="x" * 5, bold=True),
+            Run(text="y" * 5, bold=False),
+        ]
+
+        with caplog.at_level(logging.DEBUG):
+            result = split_by_formatting(text, template)
+
+        # Проверяем, что DEBUG-сообщение записано
+        assert "Split text into" in caplog.text
+        assert "original: 2 templates" in caplog.text
+        assert len(result) == 2
