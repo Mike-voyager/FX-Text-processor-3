@@ -74,8 +74,6 @@ FX-Text-processor-3/
 ├── pytest.ini # Pytest configuration
 └── README.md # This file
 
-text
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -119,13 +117,30 @@ text
 
 | Module | Status | Coverage | Notes |
 |--------|--------|----------|-------|
-| Core (`__init__.py`) | ✅ Done | 86% | Logging, config, dependencies |
-| Model Layer | ⏳ 10% | - | `enums.py` in progress |
-| ESC/P Commands | ❌ 0% | - | Planned |
-| GUI (View) | ❌ 0% | - | Planned |
-| Printer Access | ❌ 0% | - | Planned |
-| Form Builder | ❌ 0% | - | Planned |
-| Image Processing | ❌ 0% | - | Planned |
+| Core (`__init__.py`) | ✅ Done | 100% | Logging, config, dependencies |
+| **Model Layer** | **✅ 71%** | **~92%** | **5/7 modules complete** |
+| ├─ `table.py` | ✅ Done | 96% | Grid structure, cells, borders (77 tests) |
+| ├─ `section.py` | ✅ Done | 100% | Document sections, page breaks (75 tests) |
+| ├─ `paragraph.py` | ✅ Done | 100% | Text blocks, alignment, spacing (87 tests) |
+| ├─ `run.py` | ✅ Done | 97% | Inline formatting, encoding (71 tests) |
+| ├─ `enums.py` | ⚠️ Partial | 68% | ESC/P constants - needs improvement |
+| └─ `document.py` | 🚧 Blocked | 43% | Root container - awaiting refactor |
+| ESC/P Commands | ❌ 0% | - | Printer command generation |
+| GUI (View) | ❌ 0% | - | Main window, text editor |
+| Printer Access | ❌ 0% | - | Windows printer API |
+| Form Builder | ❌ 0% | - | Table/form templates |
+| Image Processing | ❌ 0% | - | Graphics for matrix printers |
+
+**Progress Summary:**
+- ✅ **404 tests passing** (100% pass rate)
+- 📊 **Model Layer: 71% complete** (5/7 modules production-ready)
+- 🎯 **Next Priority:** Improve `enums.py` (68% → 90%+), then refactor `document.py`
+- 🏗️ **Overall Project:** ~35% complete (5/14 major modules)
+
+**Recent Additions:**
+- ✨ `table.py` - Grid/cell structure with borders (96% coverage)
+- ✨ `section.py` - Document sections with page breaks (100% coverage)
+- ✨ `paragraph.py` - Text formatting with alignment (100% coverage)
 
 ## 🤖 AI-Assisted Development
 
