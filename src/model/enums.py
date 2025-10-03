@@ -1221,6 +1221,25 @@ class CodePage(str, Enum):
     CUSTOM = "custom"
 
     @property
+    def is_fx890_compatible(self) -> bool:
+        """
+        Проверяет совместимость кодовой страницы с FX-890.
+
+        FX-890 не поддерживает ESC ( t команду. Поддерживаются только:
+        - PC437 (USA) через ESC t 0
+        - PC850 (Multilingual) через ESC t 2
+        - PC858 (Multilingual с Euro) через ESC t 2
+
+        Returns:
+            True если кодировка поддерживается на FX-890
+        """
+        return self in (
+            CodePage.PC437,
+            CodePage.PC850,
+            CodePage.PC858,
+        )
+
+    @property
     def escp_code(self) -> int:
         """Целочисленный код для команды ESC/P кодовой страницы."""
         mapping = {
@@ -1276,6 +1295,47 @@ class CodePage(str, Enum):
             CodePage.CUSTOM: "Пользовательская кодировка",
         }
         return mapping[self]
+
+    def to_escp_fx890(self) -> bytes:
+        """
+        Генерирует команду для FX-890 (ESC t вместо ESC ( t).
+
+        FX-890 не поддерживает ESC ( t (Assign character table),
+        используем ESC t n (Select character table) из диапазона 0-3.
+
+        Маппинг кодировок на таблицы FX-890:
+        - PC437 (USA) → ESC t 0
+        - PC850/PC858 (Multilingual) → ESC t 2
+        - PC866/PC852 (не поддерживаются) → fallback на PC437
+
+        Returns:
+            Байтовая последовательность ESC t n
+
+        Examples:
+            >>> CodePage.PC437.to_escp_fx890()
+            b'\\x1b\\x74\\x00'  # ESC t 0
+
+            >>> CodePage.PC850.to_escp_fx890()
+            b'\\x1b\\x74\\x02'  # ESC t 2
+
+            >>> CodePage.PC866.to_escp_fx890()  # Fallback на PC437
+            b'\\x1b\\x74\\x00'  # ESC t 0
+
+        References:
+            FX-890 User's Guide, Section 5.2 "Character Tables"
+        """
+        # Маппинг кодировок на ESC t (0-3) для FX-890
+        fx890_table_map = {
+            CodePage.PC437: 0,  # USA standard
+            CodePage.PC850: 2,  # Multilingual (Latin 1)
+            CodePage.PC858: 2,  # Multilingual with Euro (совместима с PC850)
+            CodePage.PC866: 0,  # Cyrillic → fallback на USA (нет поддержки)
+            CodePage.PC852: 0,  # Eastern Europe → fallback на USA (нет поддержки)
+            CodePage.CUSTOM: 0,  # Custom → fallback на USA
+        }
+
+        table_id = fx890_table_map.get(self, 0)
+        return b"\x1b\x74" + bytes([table_id])  # ESC t n
 
     def to_escp(self) -> bytes:
         """
@@ -2191,6 +2251,66 @@ class GraphicsMode(str, Enum):
     CRT_III_24PIN = "crt_iii_24pin"
 
     @property
+    def is_fx890_compatible(self) -> bool:
+        """
+        Проверяет совместимость режима с Epson FX-890 (9-pin).
+
+        FX-890 поддерживает только базовые 8-bit режимы:
+        - ESC K (60 dpi single-density)
+        - ESC L (120 dpi double-density)
+        - ESC Y (120 dpi double-speed)
+        - ESC Z (240 dpi quad-density)
+
+        Returns:
+            True если режим поддерживается на FX-890
+        """
+        return self in (
+            GraphicsMode.SINGLE_DENSITY,
+            GraphicsMode.DOUBLE_DENSITY,
+            GraphicsMode.DOUBLE_SPEED,
+            GraphicsMode.QUAD_DENSITY,
+        )
+
+    def to_escp_fx890(self, num_columns: int = 0) -> bytes:
+        """
+        Генерирует ESC/P команду, совместимую с FX-890.
+
+        Для несовместимых режимов (ESC * m) использует fallback
+        на ближайший поддерживаемый режим.
+
+        Args:
+            num_columns: Количество столбцов графических данных (0-65535)
+
+        Returns:
+            Байтовая последовательность ESC/P команды
+
+        Examples:
+            >>> # Совместимый режим
+            >>> GraphicsMode.DOUBLE_DENSITY.to_escp_fx890(100)
+            b'\\x1b\\x4c\\x64\\x00'
+
+            >>> # Несовместимый режим → fallback на QUAD_DENSITY
+            >>> GraphicsMode.HEXADECIMAL.to_escp_fx890(100)
+            b'\\x1b\\x5a\\x64\\x00'
+        """
+        if not self.is_fx890_compatible:
+            # Fallback на ближайший поддерживаемый режим
+            fallback_map = {
+                GraphicsMode.CRT_I: GraphicsMode.SINGLE_DENSITY,  # 60 dpi → ESC K
+                GraphicsMode.CRT_II: GraphicsMode.DOUBLE_DENSITY,  # 120 dpi → ESC L
+                GraphicsMode.CRT_III: GraphicsMode.DOUBLE_DENSITY,  # 120 dpi → ESC L
+                GraphicsMode.TRIPLE_DENSITY: GraphicsMode.QUAD_DENSITY,  # 180 dpi → ESC Z (240 dpi)
+                GraphicsMode.HEXADECIMAL: GraphicsMode.QUAD_DENSITY,  # 360 dpi → ESC Z (240 dpi)
+                GraphicsMode.CRT_III_24PIN: GraphicsMode.QUAD_DENSITY,  # 24-pin → ESC Z
+            }
+            fallback = fallback_map.get(self)
+            if fallback:
+                return fallback.to_escp(num_columns)
+
+        # Для совместимых режимов используем стандартную команду
+        return self.to_escp(num_columns)
+
+    @property
     def resolution_dpi(self) -> Tuple[int, int]:
         """Разрешение как (горизонтальное, вертикальное) в DPI."""
         mapping = {
@@ -2357,6 +2477,38 @@ def _validate_module_constants() -> None:
     assert validate_quality_font_combination(
         DEFAULT_PRINT_QUALITY, DEFAULT_FONT_FAMILY
     ), "DEFAULT_PRINT_QUALITY incompatible with DEFAULT_FONT_FAMILY"
+
+
+def validate_fx890_compatibility(
+    graphics_mode: GraphicsMode,
+    codepage: CodePage,
+) -> tuple[bool, Optional[str]]:
+    """
+    Валидирует совместимость с Epson FX-890.
+
+    Args:
+        graphics_mode: Режим графики
+        codepage: Кодовая страница
+
+    Returns:
+        (valid, error_message) — если valid=False, error_message объясняет причину
+    """
+    if not graphics_mode.is_fx890_compatible:
+        return (
+            False,
+            f"Graphics mode '{graphics_mode.value}' requires 24-pin printer. "
+            f"FX-890 supports: single_density, double_density, double_speed, quad_density.",
+        )
+
+    if not codepage.is_fx890_compatible:
+        return (
+            False,
+            f"Codepage '{codepage.value}' has limited support on FX-890. "
+            f"Recommended: PC437 (USA), PC850 (Multilingual), or PC858 (Euro). "
+            f"'{codepage.value}' will fallback to PC437.",
+        )
+
+    return True, None
 
 
 # Вызываем валидацию при импорте модуля
