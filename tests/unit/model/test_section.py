@@ -12,14 +12,8 @@ import pytest
 
 from src.model.paragraph import Paragraph
 from src.model.run import Run
-from src.model.section import (
-    MAX_PAGE_NUMBER,
-    MIN_PAGE_NUMBER,
-    Section,
-    SectionBreak,
-    merge_sections,
-    split_section_at,
-)
+from src.model.section import (MAX_PAGE_NUMBER, MIN_PAGE_NUMBER, Section,
+                               SectionBreak, merge_sections, split_section_at)
 
 
 class TestSectionBreak:

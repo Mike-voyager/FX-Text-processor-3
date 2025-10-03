@@ -10,18 +10,10 @@ from typing import Any
 
 import pytest
 
-from src.model.paragraph import (
-    MAX_INDENT,
-    MAX_LINE_SPACING,
-    MAX_SPACE,
-    MIN_INDENT,
-    MIN_LINE_SPACING,
-    MIN_SPACE,
-    Alignment,
-    Paragraph,
-    merge_paragraphs,
-    split_paragraph_at,
-)
+from src.model.paragraph import (MAX_INDENT, MAX_LINE_SPACING, MAX_SPACE,
+                                 MIN_INDENT, MIN_LINE_SPACING, MIN_SPACE,
+                                 Alignment, Paragraph, merge_paragraphs,
+                                 split_paragraph_at)
 from src.model.run import Run
 
 
