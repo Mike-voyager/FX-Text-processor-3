@@ -41,7 +41,7 @@ from __future__ import annotations
 
 from enum import Enum, Flag, auto
 from typing import Dict, List, Optional, Tuple
-
+from dataclasses import dataclass
 
 # =============================================================================
 # КОНСТАНТЫ УРОВНЯ МОДУЛЯ
@@ -50,7 +50,8 @@ from typing import Dict, List, Optional, Tuple
 # Максимальные аппаратные возможности
 MAX_MULTIPART_COPIES: int = 6
 MAX_PRINT_WIDTH_INCHES: float = 8.0
-MAX_PRINT_HEIGHT_INCHES: float = 22.0  # НОВОЕ в v2.0
+MAX_PRINT_HEIGHT_INCHES_SINGLE: float = 14.3  # ✅ НОВАЯ константа
+MAX_PRINT_HEIGHT_INCHES_CONTINUOUS: float = 22.0  # Для тракторной бумаги
 MAX_CPI: int = 20
 MIN_CPI: int = 10
 MAX_LPI: int = 8
@@ -68,6 +69,42 @@ FF: bytes = b"\x0c"  # НОВОЕ - Form Feed
 CR: bytes = b"\x0d"  # НОВОЕ - Carriage Return
 LF: bytes = b"\x0a"  # НОВОЕ - Line Feed
 BEL: bytes = b"\x07"  # НОВОЕ - Bell
+
+
+@dataclass(frozen=True)
+class CustomPageSize:
+    """Пользовательский размер бумаги."""
+
+    width_inches: float
+    height_inches: float
+    name: str = "Custom"
+
+    def __post_init__(self) -> None:
+        """Валидация размеров."""
+        if not (0.1 <= self.width_inches <= MAX_PRINT_WIDTH_INCHES):
+            raise ValueError(f"Width must be 0.1-{MAX_PRINT_WIDTH_INCHES} inches")
+        # Используем CONTINUOUS для кастомных размеров (предполагаем тракторную бумагу)
+        if not (0.1 <= self.height_inches <= MAX_PRINT_HEIGHT_INCHES_CONTINUOUS):
+            raise ValueError(f"Height must be 0.1-{MAX_PRINT_HEIGHT_INCHES_CONTINUOUS} inches")
+
+    @property
+    def dimensions_inches(self) -> tuple[float, float]:
+        return (self.width_inches, self.height_inches)
+
+    @property
+    def max_characters_10cpi(self) -> int:
+        return int(self.width_inches * 10) - 2
+
+    @property
+    def is_compatible_with_tractor(self) -> bool:
+        """Предполагаем, что кастомные размеры для тракторной подачи."""
+        return True
+
+    @classmethod
+    def from_mm(cls, width_mm: float, height_mm: float, name: str = "Custom") -> "CustomPageSize":
+        """Создает размер из миллиметров."""
+        return cls(width_inches=width_mm / 25.4, height_inches=height_mm / 25.4, name=name)
+
 
 # =============================================================================
 # ПЕРЕЧИСЛЕНИЯ СТРУКТУРЫ ДОКУМЕНТА
@@ -437,7 +474,7 @@ class PrintQuality(str, Enum):
             PrintQuality.USD: 566,
             PrintQuality.HSD: 283,
             PrintQuality.DRAFT: 283,
-            PrintQuality.NLQ: 104,
+            PrintQuality.NLQ: 94,
         }
         return mapping[self]
 
@@ -1893,18 +1930,29 @@ class PageSize(str, Enum):
         Руководство по FX-890, Приложение B "Спецификации бумаги"
     """
 
+    # Международные стандарты
     A4 = "a4"
     A5 = "a5"
     LETTER = "letter"
     LEGAL = "legal"
     EXECUTIVE = "executive"
-    FANFOLD_8_5 = "fanfold_8_5"
-    FANFOLD_11 = "fanfold_11"
+
+    # Тракторная бумага (US)
+    FANFOLD_8_5 = "fanfold_8_5"  # 8.5×11" (216×279 мм)
+    FANFOLD_9_5 = "fanfold_9_5"  # 9.5×11" (241×279 мм)
+    FANFOLD_11 = "fanfold_11"  # 11×8.5" (279×216 мм)
+
+    # Тракторная бумага (РФ/Европа)
+    FANFOLD_190x305 = "fanfold_190x305"  # 190×305 мм (7.48×12")
+    FANFOLD_190x152 = "fanfold_190x152"  # 190×152.5 мм (половина)
+    FANFOLD_190x102 = "fanfold_190x102"  # 190×101.67 мм (треть)
+    FANFOLD_240x305 = "fanfold_240x305"  # 240×305 мм (9.45×12")
+
     CUSTOM = "custom"
 
     @property
-    def dimensions_inches(self) -> Tuple[float, float]:
-        """Размеры страницы как (ширина, высота) в дюймах."""
+    def dimensions_inches(self) -> tuple[float, float]:
+        """Размеры в дюймах."""
         mapping = {
             PageSize.A4: (8.27, 11.69),
             PageSize.A5: (5.83, 8.27),
@@ -1912,7 +1960,13 @@ class PageSize(str, Enum):
             PageSize.LEGAL: (8.5, 14.0),
             PageSize.EXECUTIVE: (7.25, 10.5),
             PageSize.FANFOLD_8_5: (8.5, 11.0),
+            PageSize.FANFOLD_9_5: (9.5, 11.0),  # ✅ НОВЫЙ
             PageSize.FANFOLD_11: (11.0, 8.5),
+            # ✅ НОВЫЕ РФ/ЕВРОПА ФОРМАТЫ
+            PageSize.FANFOLD_190x305: (7.48, 12.01),  # 190×305 мм
+            PageSize.FANFOLD_190x152: (7.48, 6.00),  # 190×152.5 мм
+            PageSize.FANFOLD_190x102: (7.48, 4.00),  # 190×101.67 мм
+            PageSize.FANFOLD_240x305: (9.45, 12.01),  # 240×305 мм
             PageSize.CUSTOM: (0.0, 0.0),
         }
         return mapping[self]
@@ -1924,9 +1978,11 @@ class PageSize(str, Enum):
 
     @property
     def max_characters_10cpi(self) -> int:
-        """Максимальное количество символов при 10 CPI."""
+        """Максимальное количество символов на строке при 10 CPI."""
         width = self.dimensions_inches[0]
-        return int(width * 10) - 2
+        # FX-890: минимальные поля 0.13" слева + 0.13" справа = 0.26" = 2.6 символов
+        usable_width = width - 0.26
+        return max(1, int(usable_width * 10))  # Минимум 1 символ
 
     @property
     def description_en(self) -> str:
@@ -1959,8 +2015,17 @@ class PageSize(str, Enum):
         return mapping[self]
 
     def is_compatible_with_tractor(self) -> bool:
-        """Проверяет совместимость с тракторной подачей."""
-        return self in (PageSize.FANFOLD_8_5, PageSize.FANFOLD_11, PageSize.CUSTOM)
+        """Совместимость с тракторной подачей."""
+        return self in (
+            PageSize.FANFOLD_8_5,
+            PageSize.FANFOLD_9_5,
+            PageSize.FANFOLD_11,
+            PageSize.FANFOLD_190x305,
+            PageSize.FANFOLD_190x152,
+            PageSize.FANFOLD_190x102,
+            PageSize.FANFOLD_240x305,
+            PageSize.CUSTOM,
+        )
 
     def localized_name(self, lang: str = "ru") -> str:
         """Возвращает локализованное название для отображения в UI."""
@@ -2316,7 +2381,7 @@ class GraphicsMode(str, Enum):
         mapping = {
             GraphicsMode.SINGLE_DENSITY: (60, 60),
             GraphicsMode.DOUBLE_DENSITY: (120, 60),
-            GraphicsMode.DOUBLE_SPEED: (120, 60),
+            GraphicsMode.DOUBLE_SPEED: (120, 72),
             GraphicsMode.QUAD_DENSITY: (240, 60),
             GraphicsMode.CRT_I: (60, 60),
             GraphicsMode.CRT_II: (120, 60),

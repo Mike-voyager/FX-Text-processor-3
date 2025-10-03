@@ -54,13 +54,18 @@ from src.model.enums import (
     # Константы
     MAX_MULTIPART_COPIES,
     MAX_PRINT_WIDTH_INCHES,
-    MAX_PRINT_HEIGHT_INCHES,
+    MAX_PRINT_HEIGHT_INCHES_SINGLE,
+    MAX_PRINT_HEIGHT_INCHES_CONTINUOUS,
     MIN_MARGIN_INCHES,
     ESC_INIT,
     FF,
     CR,
     LF,
     BEL,
+    MAX_CPI,
+    MIN_CPI,
+    MAX_LPI,
+    MIN_LPI,
     DEFAULT_FONT_FAMILY,
     DEFAULT_CPI,
     DEFAULT_CODEPAGE,
@@ -112,10 +117,14 @@ class TestPageSize:
 
     def test_max_characters_10cpi(self) -> None:
         """Тестирует вычисление максимального количества символов."""
-        # Letter: 8.5" * 10 - 2 = 83
-        assert PageSize.LETTER.max_characters_10cpi == 83
-        # A4: 8.27" * 10 - 2 = 80
+        # Letter: 8.5" -> (8.5 - 0.26) * 10 = 82.4 -> 82
+        assert PageSize.LETTER.max_characters_10cpi == 82
+
+        # A4: 8.27" -> (8.27 - 0.26) * 10 = 80.1 -> 80
         assert PageSize.A4.max_characters_10cpi == 80
+
+        # Fanfold 8.5: 8.5" -> (8.5 - 0.26) * 10 = 82.4 -> 82
+        assert PageSize.FANFOLD_8_5.max_characters_10cpi == 82
 
     def test_is_compatible_with_tractor(self) -> None:
         """Тестирует совместимость с тракторной подачей."""
@@ -511,7 +520,6 @@ class TestConstantsV2:
 
     def test_new_max_constants(self) -> None:
         """Тестирует новые MAX/MIN константы."""
-        assert MAX_PRINT_HEIGHT_INCHES == 22.0
         assert MIN_MARGIN_INCHES == 0.25
 
     def test_new_escp_bytes(self) -> None:
@@ -1202,6 +1210,528 @@ class TestCodePageFX890Compatibility:
 
         # CUSTOM → fallback на PC437 (ESC t 0)
         assert CodePage.CUSTOM.to_escp_fx890() == b"\x1b\x74\x00"
+
+
+# =============================================================================
+# ДОПОЛНИТЕЛЬНЫЕ ТЕСТЫ ДЛЯ ПОВЫШЕНИЯ ПОКРЫТИЯ (81% → 90%+)
+# =============================================================================
+
+
+class TestOrientationExtended:
+    """Расширенные тесты для Orientation."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert Orientation.from_string("") is None
+        assert Orientation.from_string("invalid") is None
+        assert Orientation.from_string("PORTRAIT123") is None
+
+    def test_localized_name_unsupported_language(self) -> None:
+        """Тестирует fallback на английский для неподдерживаемого языка."""
+        # Немецкий, французский и т.д. → fallback на английский
+        assert Orientation.PORTRAIT.localized_name("de") == "Portrait"
+        assert Orientation.LANDSCAPE.localized_name("fr") == "Landscape"
+        assert Orientation.PORTRAIT.localized_name("es") == "Portrait"
+
+
+class TestAlignmentExtended:
+    """Расширенные тесты для Alignment."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert Alignment.from_string("") is None
+        # None не передаем, так как метод принимает str
+        assert Alignment.from_string("invalid") is None
+
+    def test_localized_name_unsupported_language(self) -> None:
+        """Тестирует fallback на английский."""
+        assert Alignment.LEFT.localized_name("de") == "Left"
+        assert Alignment.CENTER.localized_name("fr") == "Center"
+
+
+class TestPaperTypeExtended:
+    """Расширенные тесты для PaperType."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert PaperType.from_string("") is None
+        assert PaperType.from_string("nonexistent") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех типов бумаги."""
+        # Проверяем, что все описания не пустые
+        for paper_type in PaperType:
+            assert len(paper_type.description_en) > 0
+            assert len(paper_type.description_ru) > 0
+            assert len(paper_type.localized_name("en")) > 0
+            assert len(paper_type.localized_name("ru")) > 0
+
+
+class TestFontFamilyExtended:
+    """Расширенные тесты для FontFamily."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert FontFamily.from_string("") is None
+        assert FontFamily.from_string("unknown_font") is None
+
+    def test_localized_name_unsupported_language(self) -> None:
+        """Тестирует fallback для неподдерживаемых языков."""
+        assert FontFamily.ROMAN.localized_name("de") == FontFamily.ROMAN.description_en
+        assert FontFamily.USD.localized_name("zh") == FontFamily.USD.description_en
+
+
+class TestPrintQualityExtended:
+    """Расширенные тесты для PrintQuality."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert PrintQuality.from_string("") is None
+        assert PrintQuality.from_string("super_quality") is None
+
+    def test_recommended_use_all_members(self) -> None:
+        """Тестирует recommended_use для всех режимов качества."""
+        # Проверяем, что все имеют рекомендации
+        for quality in PrintQuality:
+            assert len(quality.recommended_use) > 0
+
+
+class TestCharactersPerInchExtended:
+    """Расширенные тесты для CharactersPerInch."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert CharactersPerInch.from_string("") is None
+        assert CharactersPerInch.from_string("25cpi") is None
+        assert CharactersPerInch.from_string("invalid") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех CPI."""
+        for cpi in CharactersPerInch:
+            assert len(cpi.localized_name("en")) > 0
+            assert len(cpi.localized_name("ru")) > 0
+            assert len(cpi.localized_name("de")) > 0  # Fallback
+
+
+class TestLineSpacingExtended:
+    """Расширенные тесты для LineSpacing."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert LineSpacing.from_string("") is None
+        assert LineSpacing.from_string("1/10") is None
+        assert LineSpacing.from_string("invalid") is None
+
+    def test_custom_to_escp_boundary_values(self) -> None:
+        """Тестирует CUSTOM с различными граничными значениями."""
+        # Минимум
+        result = LineSpacing.CUSTOM.to_escp(custom_value=1)
+        assert result == b"\x1b\x33\x01"
+
+        # Среднее значение
+        result = LineSpacing.CUSTOM.to_escp(custom_value=128)
+        assert result == b"\x1b\x33\x80"
+
+        # Близко к максимуму
+        result = LineSpacing.CUSTOM.to_escp(custom_value=254)
+        assert result == b"\x1b\x33\xfe"
+
+
+class TestTextStyleExtended:
+    """Расширенные тесты для TextStyle."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert TextStyle.from_string("") is None
+        assert TextStyle.from_string("unknown_style") is None
+
+    def test_is_hardware_supported_all_members(self) -> None:
+        """Тестирует is_hardware_supported для всех стилей."""
+        # Все стили поддерживаются КРОМЕ STRIKETHROUGH
+        assert TextStyle.BOLD.is_hardware_supported() is True  # ✅ Вызов метода
+        assert TextStyle.ITALIC.is_hardware_supported() is True
+        assert TextStyle.UNDERLINE.is_hardware_supported() is True
+        assert TextStyle.DOUBLE_STRIKE.is_hardware_supported() is True
+        assert TextStyle.SUPERSCRIPT.is_hardware_supported() is True
+        assert TextStyle.SUBSCRIPT.is_hardware_supported() is True
+        assert TextStyle.OUTLINE.is_hardware_supported() is True
+        assert TextStyle.SHADOW.is_hardware_supported() is True
+        assert TextStyle.CONDENSED.is_hardware_supported() is True
+        assert TextStyle.DOUBLE_WIDTH.is_hardware_supported() is True
+        assert TextStyle.DOUBLE_HEIGHT.is_hardware_supported() is True
+        assert TextStyle.PROPORTIONAL.is_hardware_supported() is True
+
+        # STRIKETHROUGH НЕ поддерживается аппаратно на FX-890
+        assert TextStyle.STRIKETHROUGH.is_hardware_supported() is False
+
+    def test_bitwise_operations_all_combinations(self) -> None:
+        """Тестирует побитовые операции для различных комбинаций."""
+        # Пустая комбинация
+        empty = TextStyle(0)
+        assert TextStyle.BOLD not in empty
+
+        # Все стили
+        all_styles = (
+            TextStyle.BOLD
+            | TextStyle.ITALIC
+            | TextStyle.UNDERLINE
+            | TextStyle.DOUBLE_STRIKE
+            | TextStyle.SUPERSCRIPT
+        )
+        assert TextStyle.BOLD in all_styles
+        assert TextStyle.ITALIC in all_styles
+        assert TextStyle.UNDERLINE in all_styles
+        assert TextStyle.DOUBLE_STRIKE in all_styles
+        assert TextStyle.SUPERSCRIPT in all_styles
+
+
+class TestCodePageExtended:
+    """Расширенные тесты для CodePage."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert CodePage.from_string("") is None
+        assert CodePage.from_string("utf8") is None
+        assert CodePage.from_string("invalid") is None
+
+    def test_python_encoding_all_members(self) -> None:
+        """Тестирует python_encoding для всех кодировок."""
+        assert CodePage.PC437.python_encoding == "cp437"
+        assert CodePage.PC850.python_encoding == "cp850"
+        assert CodePage.PC852.python_encoding == "cp852"
+        assert CodePage.PC858.python_encoding == "cp858"
+        assert CodePage.PC866.python_encoding == "cp866"
+        assert CodePage.CUSTOM.python_encoding == "utf-8"
+
+    def test_supports_cyrillic(self) -> None:
+        """Тестирует supports_cyrillic для всех кодировок."""
+        assert CodePage.PC866.supports_cyrillic is True
+        assert CodePage.PC852.supports_cyrillic is True
+        assert CodePage.PC437.supports_cyrillic is False
+        assert CodePage.PC850.supports_cyrillic is False
+        assert CodePage.PC858.supports_cyrillic is False
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех кодировок."""
+        for codepage in CodePage:
+            assert len(codepage.localized_name("en")) > 0
+            assert len(codepage.localized_name("ru")) > 0
+
+
+class TestColorExtended:
+    """Расширенные тесты для Color."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert Color.from_string("") is None
+        assert Color.from_string("purple") is None
+        assert Color.from_string("invalid") is None
+
+    def test_rgb_preview_all_colors(self) -> None:
+        """Тестирует rgb_preview для всех цветов."""
+        # Все цвета должны иметь валидные RGB значения
+        for color in Color:
+            rgb = color.rgb_preview
+            assert len(rgb) == 3
+            assert all(0 <= val <= 255 for val in rgb)
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех цветов."""
+        for color in Color:
+            assert len(color.localized_name("en")) > 0
+            assert len(color.localized_name("ru")) > 0
+
+
+class TestDitheringAlgorithmExtended:
+    """Расширенные тесты для DitheringAlgorithm."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert DitheringAlgorithm.from_string("") is None
+        assert DitheringAlgorithm.from_string("unknown") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех алгоритмов."""
+        for algo in DitheringAlgorithm:
+            assert len(algo.localized_name("en")) > 0
+            assert len(algo.localized_name("ru")) > 0
+
+
+class TestBarcodeTypeExtended:
+    """Расширенные тесты для BarcodeType."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert BarcodeType.from_string("") is None
+        assert BarcodeType.from_string("code256") is None
+
+    def test_native_escp_support_all_members(self) -> None:
+        """Тестирует native_escp_support для всех типов."""
+        # CODE39, EAN8, EAN13 поддерживаются
+        assert BarcodeType.CODE39.native_escp_support is True
+        assert BarcodeType.EAN8.native_escp_support is True
+        assert BarcodeType.EAN13.native_escp_support is True
+
+        # CODE128, QR не поддерживаются нативно
+        assert BarcodeType.CODE128.native_escp_support is False
+        assert BarcodeType.QR.native_escp_support is False
+
+
+class TestTableStyleExtended:
+    """Расширенные тесты для TableStyle."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert TableStyle.from_string("") is None
+        assert TableStyle.from_string("fancy") is None
+
+    def test_border_chars_completeness(self) -> None:
+        """Тестирует, что все стили имеют полные border_chars."""
+        required_keys = {"tl", "tr", "bl", "br", "h", "v", "cross"}
+
+        for style in TableStyle:
+            chars = style.border_chars
+            assert required_keys.issubset(chars.keys())
+            # Все символы должны быть строками длины 1
+            for key, char in chars.items():
+                assert isinstance(char, str)
+                assert len(char) == 1
+
+
+class TestListTypeExtended:
+    """Расширенные тесты для ListType."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert ListType.from_string("") is None
+        assert ListType.from_string("ul_star") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех типов списков."""
+        for list_type in ListType:
+            assert len(list_type.localized_name("en")) > 0
+            assert len(list_type.localized_name("ru")) > 0
+
+
+class TestImagePositionExtended:
+    """Расширенные тесты для ImagePosition."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert ImagePosition.from_string("") is None
+        assert ImagePosition.from_string("center") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех позиций."""
+        for position in ImagePosition:
+            assert len(position.localized_name("en")) > 0
+            assert len(position.localized_name("ru")) > 0
+
+
+class TestPageSizeExtended:
+    """Расширенные тесты для PageSize."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert PageSize.from_string("") is None
+        assert PageSize.from_string("a6") is None
+        assert PageSize.from_string("invalid") is None
+
+    def test_max_characters_10cpi_all_sizes(self) -> None:
+        """Тестирует max_characters_10cpi для всех размеров."""
+        for size in PageSize:
+            if size != PageSize.CUSTOM:
+                chars = size.max_characters_10cpi
+                width_inches = size.dimensions_inches[0]
+
+                # Формула из enums.py: max(1, int((width - 0.26) * 10))
+                usable_width = width_inches - 0.26
+                expected = max(1, int(usable_width * 10))
+
+                assert (
+                    chars == expected
+                ), f"Size {size.value}: chars={chars}, expected={expected} (formula: max(1, int(({width_inches} - 0.26) * 10)))"
+
+
+class TestPaperSourceExtended:
+    """Расширенные тесты для PaperSource."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert PaperSource.from_string("") is None
+        assert PaperSource.from_string("network") is None
+
+    def test_is_continuous_all_sources(self) -> None:
+        """Тестирует is_continuous для всех источников."""
+        assert PaperSource.TRACTOR.is_continuous is True
+        assert PaperSource.AUTO.is_continuous is False
+        assert PaperSource.MANUAL_FRONT.is_continuous is False
+        assert PaperSource.MANUAL_REAR.is_continuous is False
+
+
+class TestGraphicsModeExtended:
+    """Расширенные тесты для GraphicsMode."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert GraphicsMode.from_string("") is None
+        assert GraphicsMode.from_string("ultra_density") is None
+
+    def test_resolution_dpi_all_modes(self) -> None:
+        """Тестирует resolution_dpi для всех режимов."""
+        for mode in GraphicsMode:
+            dpi = mode.resolution_dpi
+            # resolution_dpi возвращает tuple (horizontal_dpi, vertical_dpi)
+            assert isinstance(dpi, tuple)
+            assert len(dpi) == 2
+            assert dpi[0] > 0  # horizontal
+            assert dpi[1] > 0  # vertical
+            assert dpi[0] <= 360  # Максимальное разрешение
+            assert dpi[1] <= 360
+
+    def test_pins_all_modes(self) -> None:
+        """Тестирует pins для всех режимов."""
+        for mode in GraphicsMode:
+            pins = mode.pins
+            assert pins in (8, 9, 24)
+
+
+class TestMarginUnitsExtended:
+    """Расширенные тесты для MarginUnits."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert MarginUnits.from_string("") is None
+        assert MarginUnits.from_string("pixels") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех единиц измерения."""
+        for unit in MarginUnits:
+            assert len(unit.localized_name("en")) > 0
+            assert len(unit.localized_name("ru")) > 0
+
+
+class TestPrintDirectionExtended:
+    """Расширенные тесты для PrintDirection."""
+
+    def test_from_string_invalid(self) -> None:
+        """Тестирует from_string с невалидными данными."""
+        assert PrintDirection.from_string("") is None
+        assert PrintDirection.from_string("diagonal") is None
+
+    def test_localized_name_all_languages(self) -> None:
+        """Тестирует локализацию для всех направлений."""
+        for direction in PrintDirection:
+            assert len(direction.localized_name("en")) > 0
+            assert len(direction.localized_name("ru")) > 0
+
+
+class TestValidationFunctionsExtended:
+    """Расширенные тесты для валидационных функций."""
+
+    def test_validate_style_combination_all_conflicting(self) -> None:
+        """Тестирует конфликтующие комбинации стилей."""
+        # Superscript + Subscript
+        valid, error = validate_style_combination([TextStyle.SUPERSCRIPT, TextStyle.SUBSCRIPT])
+        assert valid is False
+        assert error is not None
+
+    def test_validate_cpi_font_all_invalid_combinations(self) -> None:
+        """Тестирует все невалидные комбинации CPI/Font."""
+        # USD поддерживает ТОЛЬКО 10 и 12 CPI
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_10, FontFamily.USD) is True
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_12, FontFamily.USD) is True
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_15, FontFamily.USD) is False
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_17, FontFamily.USD) is False
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_20, FontFamily.USD) is False
+
+        # HSD/DRAFT/ROMAN/SANS_SERIF поддерживают все CPI (кроме PROPORTIONAL для non-ROMAN)
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_17, FontFamily.HSD) is True
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_20, FontFamily.HSD) is True
+        assert validate_cpi_font_combination(CharactersPerInch.CPI_17, FontFamily.DRAFT) is True
+
+        # PROPORTIONAL поддерживается только ROMAN
+        assert (
+            validate_cpi_font_combination(CharactersPerInch.PROPORTIONAL, FontFamily.ROMAN) is True
+        )
+        assert (
+            validate_cpi_font_combination(CharactersPerInch.PROPORTIONAL, FontFamily.USD) is False
+        )
+        assert (
+            validate_cpi_font_combination(CharactersPerInch.PROPORTIONAL, FontFamily.HSD) is False
+        )
+
+    def test_validate_quality_font_all_combinations(self) -> None:
+        """Тестирует все комбинации Quality/Font."""
+        # USD quality работает только с USD font
+        assert validate_quality_font_combination(PrintQuality.USD, FontFamily.USD) is True
+        assert validate_quality_font_combination(PrintQuality.USD, FontFamily.ROMAN) is False
+
+        # HSD quality работает с HSD/DRAFT/USD fonts
+        assert validate_quality_font_combination(PrintQuality.HSD, FontFamily.HSD) is True
+        assert validate_quality_font_combination(PrintQuality.HSD, FontFamily.DRAFT) is True
+        assert validate_quality_font_combination(PrintQuality.HSD, FontFamily.USD) is True
+        assert validate_quality_font_combination(PrintQuality.HSD, FontFamily.SANS_SERIF) is False
+
+        # NLQ quality работает только с ROMAN/SANS_SERIF
+        assert validate_quality_font_combination(PrintQuality.NLQ, FontFamily.ROMAN) is True
+        assert validate_quality_font_combination(PrintQuality.NLQ, FontFamily.SANS_SERIF) is True
+        assert validate_quality_font_combination(PrintQuality.NLQ, FontFamily.USD) is False
+
+    def test_validate_margin_values_edge_cases(self) -> None:
+        """Тестирует граничные случаи для полей."""
+        # Точно на минимуме
+        valid, error = validate_margin_values(
+            0.25, 0.25, 0.25, 0.25, PageSize.LETTER, MarginUnits.INCHES
+        )
+        assert valid is True
+
+        # Сумма горизонтальных полей = ширина страницы
+        valid, error = validate_margin_values(
+            4.25, 4.25, 0.5, 0.5, PageSize.LETTER, MarginUnits.INCHES
+        )
+        assert valid is False
+
+
+class TestConstantsExtended:
+    """Расширенные тесты для констант модуля."""
+
+    def test_all_default_constants_are_valid(self) -> None:
+        """Тестирует, что все константы по умолчанию валидны."""
+        # DEFAULT_FONT_FAMILY существует в FontFamily
+        assert DEFAULT_FONT_FAMILY in FontFamily
+
+        # DEFAULT_CPI существует в CharactersPerInch
+        assert DEFAULT_CPI in CharactersPerInch
+
+        # DEFAULT_CODEPAGE существует в CodePage
+        assert DEFAULT_CODEPAGE in CodePage
+
+        # DEFAULT_PAGE_SIZE существует в PageSize
+        assert DEFAULT_PAGE_SIZE in PageSize
+
+        # DEFAULT_PAPER_SOURCE существует в PaperSource
+        assert DEFAULT_PAPER_SOURCE in PaperSource
+
+        # DEFAULT_GRAPHICS_MODE существует в GraphicsMode
+        assert DEFAULT_GRAPHICS_MODE in GraphicsMode
+
+        # DEFAULT_MARGIN_UNITS существует в MarginUnits
+        assert DEFAULT_MARGIN_UNITS in MarginUnits
+
+        # DEFAULT_PRINT_DIRECTION существует в PrintDirection
+        assert DEFAULT_PRINT_DIRECTION in PrintDirection
+
+    def test_basic_constants_logical(self) -> None:
+        """Тестирует логичность базовых констант."""
+        assert MAX_PRINT_WIDTH_INCHES > 0
+        # ✅ ОБНОВЛЕНО: Теперь две константы
+        assert MAX_PRINT_HEIGHT_INCHES_SINGLE > 0
+        assert MAX_PRINT_HEIGHT_INCHES_CONTINUOUS > 0
+        # Single должна быть меньше continuous
+        assert MAX_PRINT_HEIGHT_INCHES_SINGLE < MAX_PRINT_HEIGHT_INCHES_CONTINUOUS
+        assert MIN_MARGIN_INCHES > 0
+        assert MAX_MULTIPART_COPIES > 0
 
 
 if __name__ == "__main__":
