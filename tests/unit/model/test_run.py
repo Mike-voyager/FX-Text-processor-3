@@ -3,6 +3,8 @@ Unit tests for src/model/run.py module.
 
 Tests cover Run class functionality, validation, serialization,
 merging, and utility functions with comprehensive edge case coverage.
+
+Version: 2.0 (updated for enums.py integration)
 """
 
 import logging
@@ -11,11 +13,17 @@ from typing import Any
 import pytest
 
 from src.model.run import (
-    SUPPORTED_ENCODINGS,
-    SUPPORTED_FONTS,
     Run,
     merge_consecutive_runs,
     split_by_formatting,
+)
+
+from src.model.enums import (
+    FontFamily,
+    CharactersPerInch,
+    TextStyle,
+    Color,
+    CodePage,
 )
 
 
@@ -27,57 +35,65 @@ class TestRunInitialization:
         run = Run(text="Hello")
 
         assert run.text == "Hello"
-        assert run.bold is False
-        assert run.italic is False
-        assert run.underline is False
-        assert run.double_width is False
-        assert run.double_height is False
-        assert run.font_name == "draft"
-        assert run.encoding == "cp866"
+        assert run.font == FontFamily.DRAFT
+        assert run.cpi == CharactersPerInch.CPI_10
+        assert run.style == TextStyle(0)  # Empty flags
+        assert run.color == Color.BLACK
+        assert run.codepage == CodePage.PC866
 
     def test_full_initialization(self) -> None:
         """Test creating run with all parameters specified."""
         run = Run(
             text="Test",
-            bold=True,
-            italic=True,
-            underline=True,
-            double_width=True,
-            double_height=True,
-            font_name="roman",
-            encoding="ascii",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE,
+            color=Color.RED,
+            codepage=CodePage.PC437,
         )
 
         assert run.text == "Test"
-        assert run.bold is True
-        assert run.italic is True
-        assert run.underline is True
-        assert run.double_width is True
-        assert run.double_height is True
-        assert run.font_name == "roman"
-        assert run.encoding == "ascii"
+        assert run.font == FontFamily.ROMAN
+        assert run.cpi == CharactersPerInch.CPI_12
+        assert TextStyle.BOLD in run.style
+        assert TextStyle.ITALIC in run.style
+        assert TextStyle.UNDERLINE in run.style
+        assert run.color == Color.RED
+        assert run.codepage == CodePage.PC437
 
-    def test_unsupported_font_fallback(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test that unsupported font triggers warning and fallback."""
+    def test_invalid_cpi_font_combination_fallback(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that invalid CPI/Font combination triggers warning and fallback."""
         with caplog.at_level(logging.WARNING):
-            run = Run(text="Test", font_name="invalid_font")
+            # USD font only supports 10 and 12 CPI
+            run = Run(
+                text="Test",
+                font=FontFamily.USD,
+                cpi=CharactersPerInch.CPI_17,  # Invalid for USD
+            )
 
-        assert run.font_name == "draft"
-        assert "not in SUPPORTED_FONTS" in caplog.text
-
-    def test_unsupported_encoding_fallback(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test that unsupported encoding triggers warning and fallback."""
-        with caplog.at_level(logging.WARNING):
-            run = Run(text="Test", encoding="invalid_encoding")
-
-        assert run.encoding == "cp866"
-        assert "not in SUPPORTED_ENCODINGS" in caplog.text
+        assert run.cpi == CharactersPerInch.CPI_10  # Fallback
+        assert "Invalid CPI/Font combination" in caplog.text
 
     def test_cyrillic_text(self) -> None:
         """Test initialization with Cyrillic text."""
-        run = Run(text="Привет мир", bold=True)
+        run = Run(text="Привет мир", style=TextStyle.BOLD, codepage=CodePage.PC866)
         assert run.text == "Привет мир"
-        assert run.bold is True
+        assert TextStyle.BOLD in run.style
+
+    def test_multiple_styles_with_flags(self) -> None:
+        """Test initialization with multiple text styles using Flag operations."""
+        run = Run(
+            text="Multi-style",
+            style=(
+                TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE | TextStyle.DOUBLE_STRIKE
+            ),
+        )
+
+        assert TextStyle.BOLD in run.style
+        assert TextStyle.ITALIC in run.style
+        assert TextStyle.UNDERLINE in run.style
+        assert TextStyle.DOUBLE_STRIKE in run.style
+        assert TextStyle.SUPERSCRIPT not in run.style
 
 
 class TestRunValidation:
@@ -85,7 +101,7 @@ class TestRunValidation:
 
     def test_validate_valid_run(self) -> None:
         """Test validation passes for valid run."""
-        run = Run(text="Hello", bold=True)
+        run = Run(text="Hello", style=TextStyle.BOLD)
         run.validate()  # Should not raise
 
     def test_validate_empty_text(self) -> None:
@@ -97,7 +113,6 @@ class TestRunValidation:
 
     def test_validate_non_string_text(self) -> None:
         """Test validation fails for non-string text."""
-        # Bypass dataclass type checking by direct assignment
         run = Run(text="test")
         object.__setattr__(run, "text", 123)
 
@@ -107,35 +122,67 @@ class TestRunValidation:
     def test_validate_encoding_incompatible_text(self) -> None:
         """Test validation fails when text cannot be encoded."""
         # Create run with Unicode emoji (incompatible with cp866)
-        run = Run(text="Hello 😀", encoding="cp866")
+        run = Run(text="Hello 😀", codepage=CodePage.PC866)
 
-        with pytest.raises(ValueError, match="incompatible with cp866"):
+        with pytest.raises(ValueError, match="incompatible with pc866"):
             run.validate()
 
     def test_validate_cyrillic_cp866(self) -> None:
-        """Test validation passes for Cyrillic with cp866."""
-        run = Run(text="Тест кириллицы", encoding="cp866")
+        """Test validation passes for Cyrillic with pc866."""
+        run = Run(text="Тест кириллицы", codepage=CodePage.PC866)
         run.validate()  # Should not raise
 
-    def test_validate_non_boolean_attribute(self) -> None:
-        """Test validation fails for non-boolean formatting attribute."""
+    def test_validate_enum_type_font(self) -> None:
+        """Test validation fails for non-enum font."""
         run = Run(text="Test")
-        object.__setattr__(run, "bold", "yes")
+        object.__setattr__(run, "font", "not_an_enum")
 
-        with pytest.raises(TypeError, match="must be bool"):
+        with pytest.raises(TypeError, match="font must be FontFamily"):
+            run.validate()
+
+    def test_validate_enum_type_cpi(self) -> None:
+        """Test validation fails for non-enum cpi."""
+        run = Run(text="Test")
+        object.__setattr__(run, "cpi", "10")
+
+        with pytest.raises(TypeError, match="cpi must be CharactersPerInch"):
+            run.validate()
+
+    def test_validate_enum_type_style(self) -> None:
+        """Test validation fails for non-enum style."""
+        run = Run(text="Test")
+        object.__setattr__(run, "style", True)
+
+        with pytest.raises(TypeError, match="style must be TextStyle"):
+            run.validate()
+
+    def test_validate_enum_type_color(self) -> None:
+        """Test validation fails for non-enum color."""
+        run = Run(text="Test")
+        object.__setattr__(run, "color", "red")
+
+        with pytest.raises(TypeError, match="color must be Color"):
+            run.validate()
+
+    def test_validate_enum_type_codepage(self) -> None:
+        """Test validation fails for non-enum codepage."""
+        run = Run(text="Test")
+        object.__setattr__(run, "codepage", "cp866")
+
+        with pytest.raises(TypeError, match="codepage must be CodePage"):
             run.validate()
 
     @pytest.mark.parametrize(
-        "text,encoding",
+        "text,codepage",
         [
-            ("Hello", "ascii"),
-            ("Привет", "cp866"),
-            ("Café", "latin1"),
+            ("Hello", CodePage.PC437),
+            ("Привет", CodePage.PC866),
+            ("Café", CodePage.PC850),
         ],
     )
-    def test_validate_various_encodings(self, text: str, encoding: str) -> None:
-        """Test validation with various text-encoding combinations."""
-        run = Run(text=text, encoding=encoding)
+    def test_validate_various_codepages(self, text: str, codepage: CodePage) -> None:
+        """Test validation with various text-codepage combinations."""
+        run = Run(text=text, codepage=codepage)
         run.validate()
 
 
@@ -144,7 +191,7 @@ class TestRunCopy:
 
     def test_copy_creates_independent_instance(self) -> None:
         """Test that copy creates a new independent instance."""
-        original = Run(text="Original", bold=True)
+        original = Run(text="Original", style=TextStyle.BOLD)
         copied = original.copy()
 
         assert copied == original
@@ -154,37 +201,33 @@ class TestRunCopy:
         """Test that copy preserves all formatting attributes."""
         original = Run(
             text="Test",
-            bold=True,
-            italic=True,
-            underline=True,
-            double_width=True,
-            double_height=True,
-            font_name="roman",
-            encoding="ascii",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
+            color=Color.RED,
+            codepage=CodePage.PC437,
         )
         copied = original.copy()
 
         assert copied.text == original.text
-        assert copied.bold == original.bold
-        assert copied.italic == original.italic
-        assert copied.underline == original.underline
-        assert copied.double_width == original.double_width
-        assert copied.double_height == original.double_height
-        assert copied.font_name == original.font_name
-        assert copied.encoding == original.encoding
+        assert copied.font == original.font
+        assert copied.cpi == original.cpi
+        assert copied.style == original.style
+        assert copied.color == original.color
+        assert copied.codepage == original.codepage
 
     def test_copy_modification_does_not_affect_original(self) -> None:
         """Test that modifying copy doesn't affect original."""
-        original = Run(text="Original", bold=False)
+        original = Run(text="Original", style=TextStyle(0))
         copied = original.copy()
 
         # Modify copy
         copied.text = "Modified"
-        copied.bold = True
+        copied.style = TextStyle.BOLD
 
         # Original unchanged
         assert original.text == "Original"
-        assert original.bold is False
+        assert original.style == TextStyle(0)
 
 
 class TestRunMerging:
@@ -192,29 +235,43 @@ class TestRunMerging:
 
     def test_can_merge_identical_formatting(self) -> None:
         """Test that runs with identical formatting can merge."""
-        run1 = Run(text="Hello", bold=True, italic=False)
-        run2 = Run(text=" World", bold=True, italic=False)
+        run1 = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
+        run2 = Run(text=" World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
 
         assert run1.can_merge_with(run2) is True
 
-    def test_cannot_merge_different_bold(self) -> None:
-        """Test that runs with different bold cannot merge."""
-        run1 = Run(text="Hello", bold=True)
-        run2 = Run(text=" World", bold=False)
+    def test_cannot_merge_different_font(self) -> None:
+        """Test that runs with different fonts cannot merge."""
+        run1 = Run(text="Hello", font=FontFamily.ROMAN)
+        run2 = Run(text=" World", font=FontFamily.DRAFT)
 
         assert run1.can_merge_with(run2) is False
 
-    def test_cannot_merge_different_italic(self) -> None:
-        """Test that runs with different italic cannot merge."""
-        run1 = Run(text="Hello", italic=True)
-        run2 = Run(text=" World", italic=False)
+    def test_cannot_merge_different_cpi(self) -> None:
+        """Test that runs with different CPI cannot merge."""
+        run1 = Run(text="Hello", cpi=CharactersPerInch.CPI_10)
+        run2 = Run(text=" World", cpi=CharactersPerInch.CPI_12)
 
         assert run1.can_merge_with(run2) is False
 
-    def test_cannot_merge_different_encoding(self) -> None:
-        """Test that runs with different encodings cannot merge."""
-        run1 = Run(text="Hello", encoding="cp866")
-        run2 = Run(text=" World", encoding="ascii")
+    def test_cannot_merge_different_style(self) -> None:
+        """Test that runs with different styles cannot merge."""
+        run1 = Run(text="Hello", style=TextStyle.BOLD)
+        run2 = Run(text=" World", style=TextStyle.ITALIC)
+
+        assert run1.can_merge_with(run2) is False
+
+    def test_cannot_merge_different_color(self) -> None:
+        """Test that runs with different colors cannot merge."""
+        run1 = Run(text="Hello", color=Color.BLACK)
+        run2 = Run(text=" World", color=Color.RED)
+
+        assert run1.can_merge_with(run2) is False
+
+    def test_cannot_merge_different_codepage(self) -> None:
+        """Test that runs with different codepages cannot merge."""
+        run1 = Run(text="Hello", codepage=CodePage.PC866)
+        run2 = Run(text=" World", codepage=CodePage.PC437)
 
         assert run1.can_merge_with(run2) is False
 
@@ -225,53 +282,66 @@ class TestRunMerging:
         assert run.can_merge_with(None) is False
         assert run.can_merge_with(123) is False
 
+    def test_can_merge_non_strict_mode(self) -> None:
+        """Test non-strict merge (only compares styles)."""
+        run1 = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
+        run2 = Run(
+            text=" World",
+            font=FontFamily.DRAFT,  # Different font
+            style=TextStyle.BOLD,  # Same style
+        )
+
+        # Strict mode: cannot merge
+        assert run1.can_merge_with(run2, strict=True) is False
+
+        # Non-strict mode: can merge (same style)
+        assert run1.can_merge_with(run2, strict=False) is True
+
     def test_merge_concatenates_text(self) -> None:
         """Test that merge_with concatenates text correctly."""
-        run1 = Run(text="Hello", bold=True)
-        run2 = Run(text=" World", bold=True)
+        run1 = Run(text="Hello", style=TextStyle.BOLD)
+        run2 = Run(text=" World", style=TextStyle.BOLD)
 
         merged = run1.merge_with(run2)
 
         assert merged.text == "Hello World"
-        assert merged.bold is True
+        assert TextStyle.BOLD in merged.style
 
     def test_merge_preserves_formatting(self) -> None:
         """Test that merge preserves all formatting attributes."""
         run1 = Run(
             text="Part1",
-            bold=True,
-            italic=True,
-            underline=True,
-            font_name="roman",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
         )
         run2 = Run(
             text="Part2",
-            bold=True,
-            italic=True,
-            underline=True,
-            font_name="roman",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
         )
 
         merged = run1.merge_with(run2)
 
         assert merged.text == "Part1Part2"
-        assert merged.bold is True
-        assert merged.italic is True
-        assert merged.underline is True
-        assert merged.font_name == "roman"
+        assert merged.font == FontFamily.ROMAN
+        assert merged.cpi == CharactersPerInch.CPI_12
+        assert TextStyle.BOLD in merged.style
+        assert TextStyle.ITALIC in merged.style
 
     def test_merge_incompatible_raises_error(self) -> None:
         """Test that merging incompatible runs raises ValueError."""
-        run1 = Run(text="Hello", bold=True)
-        run2 = Run(text=" World", bold=False)
+        run1 = Run(text="Hello", style=TextStyle.BOLD)
+        run2 = Run(text=" World", style=TextStyle.ITALIC)
 
         with pytest.raises(ValueError, match="Cannot merge runs"):
             run1.merge_with(run2)
 
     def test_merge_creates_new_instance(self) -> None:
         """Test that merge creates a new instance, leaving originals unchanged."""
-        run1 = Run(text="Hello", bold=True)
-        run2 = Run(text=" World", bold=True)
+        run1 = Run(text="Hello", style=TextStyle.BOLD)
+        run2 = Run(text=" World", style=TextStyle.BOLD)
 
         merged = run1.merge_with(run2)
 
@@ -291,37 +361,31 @@ class TestRunSerialization:
 
         assert data == {
             "text": "Test",
-            "bold": False,
-            "italic": False,
-            "underline": False,
-            "double_width": False,
-            "double_height": False,
-            "font_name": "draft",
-            "encoding": "cp866",
+            "font": "draft",
+            "cpi": "10cpi",
+            "style": 0,  # Empty TextStyle flags
+            "color": "black",
+            "codepage": "pc866",
         }
 
     def test_to_dict_full(self) -> None:
         """Test serialization with all attributes specified."""
         run = Run(
             text="Test",
-            bold=True,
-            italic=True,
-            underline=True,
-            double_width=True,
-            double_height=True,
-            font_name="roman",
-            encoding="ascii",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE,
+            color=Color.RED,
+            codepage=CodePage.PC437,
         )
         data = run.to_dict()
 
         assert data["text"] == "Test"
-        assert data["bold"] is True
-        assert data["italic"] is True
-        assert data["underline"] is True
-        assert data["double_width"] is True
-        assert data["double_height"] is True
-        assert data["font_name"] == "roman"
-        assert data["encoding"] == "ascii"
+        assert data["font"] == "roman"
+        assert data["cpi"] == "12cpi"
+        assert data["style"] > 0  # Has flags
+        assert data["color"] == "red"
+        assert data["codepage"] == "pc437"
 
     def test_from_dict_minimal(self) -> None:
         """Test deserialization with only required 'text' field."""
@@ -329,37 +393,35 @@ class TestRunSerialization:
         run = Run.from_dict(data)
 
         assert run.text == "Hello"
-        assert run.bold is False
-        assert run.italic is False
-        assert run.font_name == "draft"
-        assert run.encoding == "cp866"
+        assert run.font == FontFamily.DRAFT
+        assert run.cpi == CharactersPerInch.CPI_10
+        assert run.style == TextStyle(0)
+        assert run.color == Color.BLACK
+        assert run.codepage == CodePage.PC866
 
     def test_from_dict_full(self) -> None:
         """Test deserialization with all fields."""
         data = {
             "text": "Test",
-            "bold": True,
-            "italic": True,
-            "underline": True,
-            "double_width": True,
-            "double_height": True,
-            "font_name": "roman",
-            "encoding": "ascii",
+            "font": "roman",
+            "cpi": "12cpi",
+            "style": TextStyle.BOLD.value | TextStyle.ITALIC.value,
+            "color": "red",
+            "codepage": "pc437",
         }
         run = Run.from_dict(data)
 
         assert run.text == "Test"
-        assert run.bold is True
-        assert run.italic is True
-        assert run.underline is True
-        assert run.double_width is True
-        assert run.double_height is True
-        assert run.font_name == "roman"
-        assert run.encoding == "ascii"
+        assert run.font == FontFamily.ROMAN
+        assert run.cpi == CharactersPerInch.CPI_12
+        assert TextStyle.BOLD in run.style
+        assert TextStyle.ITALIC in run.style
+        assert run.color == Color.RED
+        assert run.codepage == CodePage.PC437
 
     def test_from_dict_missing_text_raises(self) -> None:
         """Test that missing 'text' key raises KeyError."""
-        data: dict[str, Any] = {"bold": True}
+        data: dict[str, Any] = {"font": "roman"}
 
         with pytest.raises(KeyError, match="Missing required key 'text'"):
             Run.from_dict(data)
@@ -376,16 +438,69 @@ class TestRunSerialization:
         """Test that to_dict/from_dict roundtrip preserves data."""
         original = Run(
             text="Roundtrip test",
-            bold=True,
-            italic=False,
-            underline=True,
-            font_name="roman",
+            font=FontFamily.ROMAN,
+            style=TextStyle.BOLD | TextStyle.UNDERLINE,
         )
 
         data = original.to_dict()
         restored = Run.from_dict(data)
 
         assert restored == original
+
+
+class TestRunToESCP:
+    """Test Run.to_escp() method."""
+
+    def test_to_escp_plain_text(self) -> None:
+        """Test ESC/P generation for plain text."""
+        run = Run(text="Hello", codepage=CodePage.PC437)
+        escp = run.to_escp()
+
+        assert isinstance(escp, bytes)
+        assert b"Hello" in escp
+
+    def test_to_escp_with_bold(self) -> None:
+        """Test ESC/P generation with bold style."""
+        run = Run(text="Bold", style=TextStyle.BOLD)
+        escp = run.to_escp()
+
+        # Should contain bold on/off commands
+        assert isinstance(escp, bytes)
+        assert b"Bold" in escp
+        assert len(escp) > len(b"Bold")  # Has ESC/P commands
+
+    def test_to_escp_with_font(self) -> None:
+        """Test ESC/P generation with font selection."""
+        run = Run(text="Roman", font=FontFamily.ROMAN)
+        escp = run.to_escp()
+
+        assert isinstance(escp, bytes)
+        assert b"Roman" in escp
+
+    def test_to_escp_complex_formatting(self) -> None:
+        """Test ESC/P generation with multiple formatting attributes."""
+        run = Run(
+            text="Complex",
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
+            color=Color.RED,
+        )
+        escp = run.to_escp()
+
+        assert isinstance(escp, bytes)
+        assert b"Complex" in escp
+        # Should contain multiple ESC/P commands
+        assert escp.count(b"\x1b") >= 3  # At least 3 ESC commands
+
+    def test_to_escp_cyrillic(self) -> None:
+        """Test ESC/P generation with Cyrillic text."""
+        run = Run(text="Тест", codepage=CodePage.PC866)
+        escp = run.to_escp()
+
+        assert isinstance(escp, bytes)
+        # Cyrillic encoded in cp866
+        assert run.text.encode("cp866") in escp
 
 
 class TestRunMagicMethods:
@@ -404,22 +519,22 @@ class TestRunMagicMethods:
 
     def test_equality_identical_runs(self) -> None:
         """Test that identical runs are equal."""
-        run1 = Run(text="Test", bold=True, italic=False)
-        run2 = Run(text="Test", bold=True, italic=False)
+        run1 = Run(text="Test", font=FontFamily.ROMAN, style=TextStyle.BOLD)
+        run2 = Run(text="Test", font=FontFamily.ROMAN, style=TextStyle.BOLD)
 
         assert run1 == run2
 
     def test_equality_different_text(self) -> None:
         """Test that runs with different text are not equal."""
-        run1 = Run(text="Hello", bold=True)
-        run2 = Run(text="World", bold=True)
+        run1 = Run(text="Hello", style=TextStyle.BOLD)
+        run2 = Run(text="World", style=TextStyle.BOLD)
 
         assert run1 != run2
 
     def test_equality_different_formatting(self) -> None:
         """Test that runs with different formatting are not equal."""
-        run1 = Run(text="Test", bold=True)
-        run2 = Run(text="Test", bold=False)
+        run1 = Run(text="Test", style=TextStyle.BOLD)
+        run2 = Run(text="Test", style=TextStyle.ITALIC)
 
         assert run1 != run2
 
@@ -433,13 +548,12 @@ class TestRunMagicMethods:
 
     def test_repr_short_text(self) -> None:
         """Test __repr__ with short text."""
-        run = Run(text="Short", bold=True)
+        run = Run(text="Short", style=TextStyle.BOLD)
         repr_str = repr(run)
 
         assert "Run(" in repr_str
         assert "text='Short'" in repr_str
         assert "len=5" in repr_str
-        assert "formatting='B'" in repr_str
 
     def test_repr_long_text(self) -> None:
         """Test __repr__ truncates long text."""
@@ -453,13 +567,13 @@ class TestRunMagicMethods:
         """Test __repr__ with multiple formatting attributes."""
         run = Run(
             text="Test",
-            bold=True,
-            italic=True,
-            underline=True,
+            font=FontFamily.ROMAN,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
         )
         repr_str = repr(run)
 
-        assert "B+I+U" in repr_str or all(x in repr_str for x in ["B", "I", "U"])
+        assert "font=roman" in repr_str
+        assert "B" in repr_str or "I" in repr_str
 
 
 class TestMergeConsecutiveRuns:
@@ -472,7 +586,7 @@ class TestMergeConsecutiveRuns:
 
     def test_merge_single_run(self) -> None:
         """Test merging single run returns copy."""
-        run = Run(text="Only", bold=True)
+        run = Run(text="Only", style=TextStyle.BOLD)
         result = merge_consecutive_runs([run])
 
         assert len(result) == 1
@@ -482,42 +596,42 @@ class TestMergeConsecutiveRuns:
     def test_merge_identical_consecutive_runs(self) -> None:
         """Test merging runs with identical formatting."""
         runs = [
-            Run(text="Part1", bold=True),
-            Run(text="Part2", bold=True),
-            Run(text="Part3", bold=True),
+            Run(text="Part1", style=TextStyle.BOLD),
+            Run(text="Part2", style=TextStyle.BOLD),
+            Run(text="Part3", style=TextStyle.BOLD),
         ]
 
         result = merge_consecutive_runs(runs)
 
         assert len(result) == 1
         assert result[0].text == "Part1Part2Part3"
-        assert result[0].bold is True
+        assert TextStyle.BOLD in result[0].style
 
     def test_merge_mixed_formatting(self) -> None:
         """Test merging with alternating formatting."""
         runs = [
-            Run(text="Bold1", bold=True),
-            Run(text="Bold2", bold=True),
-            Run(text="Normal", bold=False),
-            Run(text="Bold3", bold=True),
+            Run(text="Bold1", style=TextStyle.BOLD),
+            Run(text="Bold2", style=TextStyle.BOLD),
+            Run(text="Normal", style=TextStyle(0)),
+            Run(text="Bold3", style=TextStyle.BOLD),
         ]
 
         result = merge_consecutive_runs(runs)
 
         assert len(result) == 3
         assert result[0].text == "Bold1Bold2"
-        assert result[0].bold is True
+        assert TextStyle.BOLD in result[0].style
         assert result[1].text == "Normal"
-        assert result[1].bold is False
+        assert result[1].style == TextStyle(0)
         assert result[2].text == "Bold3"
-        assert result[2].bold is True
+        assert TextStyle.BOLD in result[2].style
 
     def test_merge_no_mergeable_runs(self) -> None:
         """Test with no consecutive runs having same formatting."""
         runs = [
-            Run(text="Bold", bold=True),
-            Run(text="Italic", italic=True),
-            Run(text="Under", underline=True),
+            Run(text="Bold", style=TextStyle.BOLD),
+            Run(text="Italic", style=TextStyle.ITALIC),
+            Run(text="Under", style=TextStyle.UNDERLINE),
         ]
 
         result = merge_consecutive_runs(runs)
@@ -530,8 +644,8 @@ class TestMergeConsecutiveRuns:
     def test_merge_preserves_original_list(self) -> None:
         """Test that original list is not modified."""
         runs = [
-            Run(text="A", bold=True),
-            Run(text="B", bold=True),
+            Run(text="A", style=TextStyle.BOLD),
+            Run(text="B", style=TextStyle.BOLD),
         ]
         original_length = len(runs)
 
@@ -552,56 +666,60 @@ class TestSplitByFormatting:
     def test_split_single_segment(self) -> None:
         """Test splitting with single formatting segment."""
         text = "Hello"
-        template = [Run(text="x" * 5, bold=True)]
+        template = [Run(text="x" * 5, style=TextStyle.BOLD)]
 
         result = split_by_formatting(text, template)
 
         assert len(result) == 1
         assert result[0].text == "Hello"
-        assert result[0].bold is True
+        assert TextStyle.BOLD in result[0].style
 
     def test_split_multiple_segments(self) -> None:
         """Test splitting text into multiple formatted segments."""
         text = "HelloWorld"
         template = [
-            Run(text="x" * 5, bold=True),
-            Run(text="y" * 5, bold=False),
+            Run(text="x" * 5, style=TextStyle.BOLD),
+            Run(text="y" * 5, style=TextStyle(0)),
         ]
 
         result = split_by_formatting(text, template)
 
         assert len(result) == 2
         assert result[0].text == "Hello"
-        assert result[0].bold is True
+        assert TextStyle.BOLD in result[0].style
         assert result[1].text == "World"
-        assert result[1].bold is False
+        assert result[1].style == TextStyle(0)
 
     def test_split_complex_formatting(self) -> None:
         """Test splitting with complex formatting patterns."""
         text = "ABCDEFGH"
         template = [
-            Run(text="1" * 2, bold=True, italic=False),
-            Run(text="2" * 3, bold=False, italic=True),
-            Run(text="3" * 3, bold=True, italic=True),
+            Run(text="1" * 2, font=FontFamily.ROMAN, style=TextStyle.BOLD),
+            Run(text="2" * 3, font=FontFamily.DRAFT, style=TextStyle.ITALIC),
+            Run(
+                text="3" * 3,
+                font=FontFamily.ROMAN,
+                style=TextStyle.BOLD | TextStyle.ITALIC,
+            ),
         ]
 
         result = split_by_formatting(text, template)
 
         assert len(result) == 3
         assert result[0].text == "AB"
-        assert result[0].bold is True
-        assert result[0].italic is False
+        assert result[0].font == FontFamily.ROMAN
+        assert TextStyle.BOLD in result[0].style
         assert result[1].text == "CDE"
-        assert result[1].bold is False
-        assert result[1].italic is True
+        assert result[1].font == FontFamily.DRAFT
+        assert TextStyle.ITALIC in result[1].style
         assert result[2].text == "FGH"
-        assert result[2].bold is True
-        assert result[2].italic is True
+        assert TextStyle.BOLD in result[2].style
+        assert TextStyle.ITALIC in result[2].style
 
     def test_split_length_mismatch_raises(self) -> None:
         """Test that length mismatch raises ValueError."""
         text = "HelloWorld"
-        template = [Run(text="x" * 5, bold=True)]  # Only 5 chars, but text is 10
+        template = [Run(text="x" * 5, style=TextStyle.BOLD)]  # Only 5 chars, but text is 10
 
         with pytest.raises(ValueError, match="does not match"):
             split_by_formatting(text, template)
@@ -612,25 +730,22 @@ class TestSplitByFormatting:
         template = [
             Run(
                 text="t" * 4,
-                bold=True,
-                italic=True,
-                underline=True,
-                double_width=True,
-                double_height=True,
-                font_name="roman",
-                encoding="ascii",
+                font=FontFamily.ROMAN,
+                cpi=CharactersPerInch.CPI_12,
+                style=TextStyle.BOLD | TextStyle.ITALIC,
+                color=Color.RED,
+                codepage=CodePage.PC437,
             )
         ]
 
         result = split_by_formatting(text, template)
 
-        assert result[0].bold is True
-        assert result[0].italic is True
-        assert result[0].underline is True
-        assert result[0].double_width is True
-        assert result[0].double_height is True
-        assert result[0].font_name == "roman"
-        assert result[0].encoding == "ascii"
+        assert result[0].font == FontFamily.ROMAN
+        assert result[0].cpi == CharactersPerInch.CPI_12
+        assert TextStyle.BOLD in result[0].style
+        assert TextStyle.ITALIC in result[0].style
+        assert result[0].color == Color.RED
+        assert result[0].codepage == CodePage.PC437
 
 
 class TestRunEdgeCases:
@@ -644,65 +759,69 @@ class TestRunEdgeCases:
 
     def test_run_with_special_characters(self) -> None:
         """Test run with special characters."""
-        run = Run(text="Tab\there\nNewline", encoding="ascii")
+        run = Run(text="Tab\there\nNewline", codepage=CodePage.PC437)
         run.validate()
         assert "\t" in run.text
         assert "\n" in run.text
 
     def test_run_with_cyrillic_and_latin(self) -> None:
         """Test run mixing Cyrillic and Latin characters."""
-        run = Run(text="Привет Hello", encoding="cp866")
+        run = Run(text="Привет Hello", codepage=CodePage.PC866)
         run.validate()
 
     def test_merge_three_runs_consecutively(self) -> None:
         """Test merging multiple runs in sequence."""
-        run1 = Run(text="A", bold=True)
-        run2 = Run(text="B", bold=True)
-        run3 = Run(text="C", bold=True)
+        run1 = Run(text="A", style=TextStyle.BOLD)
+        run2 = Run(text="B", style=TextStyle.BOLD)
+        run3 = Run(text="C", style=TextStyle.BOLD)
 
         merged_12 = run1.merge_with(run2)
         merged_all = merged_12.merge_with(run3)
 
         assert merged_all.text == "ABC"
-        assert merged_all.bold is True
+        assert TextStyle.BOLD in merged_all.style
 
-    @pytest.mark.parametrize("font", list(SUPPORTED_FONTS))
-    def test_all_supported_fonts(self, font: str) -> None:
-        """Test that all supported fonts work correctly."""
-        run = Run(text="Test", font_name=font)
-        assert run.font_name == font
+    @pytest.mark.parametrize("font", list(FontFamily))
+    def test_all_supported_fonts(self, font: FontFamily) -> None:
+        """Test that all FontFamily values work correctly."""
+        run = Run(text="Test", font=font)
+        assert run.font == font
         run.validate()
 
-    @pytest.mark.parametrize("encoding", list(SUPPORTED_ENCODINGS))
-    def test_all_supported_encodings(self, encoding: str) -> None:
-        """Test that all supported encodings work correctly."""
+    @pytest.mark.parametrize("codepage", list(CodePage))
+    def test_all_supported_codepages(self, codepage: CodePage) -> None:
+        """Test that all CodePage values work correctly."""
         # Use text compatible with all encodings
-        run = Run(text="Test", encoding=encoding)
-        assert run.encoding == encoding
+        run = Run(text="Test", codepage=codepage)
+        assert run.codepage == codepage
         run.validate()
 
     def test_format_summary_plain(self) -> None:
         """Test _format_summary for plain text."""
         run = Run(text="Plain")
-        assert run._format_summary() == "plain"
+        summary = run._format_summary()
+        assert "font=draft" in summary
+        assert "cpi=10cpi" in summary
 
     def test_format_summary_complex(self) -> None:
         """Test _format_summary with multiple attributes."""
         run = Run(
             text="Complex",
-            bold=True,
-            italic=True,
-            underline=True,
-            double_width=True,
-            double_height=True,
+            font=FontFamily.ROMAN,
+            cpi=CharactersPerInch.CPI_12,
+            style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE | TextStyle.DOUBLE_STRIKE,
+            color=Color.RED,
+            codepage=CodePage.PC437,
         )
         summary = run._format_summary()
 
+        assert "font=roman" in summary
+        assert "cpi=12cpi" in summary
         assert "B" in summary
         assert "I" in summary
         assert "U" in summary
-        assert "DW" in summary
-        assert "DH" in summary
+        assert "color=red" in summary
+        assert "cp=pc437" in summary
 
 
 class TestRunIntegration:
@@ -712,9 +831,8 @@ class TestRunIntegration:
         """Test complete workflow: create, validate, serialize, deserialize."""
         original = Run(
             text="Integration test",
-            bold=True,
-            italic=False,
-            font_name="roman",
+            font=FontFamily.ROMAN,
+            style=TextStyle.BOLD,
         )
 
         original.validate()
@@ -727,9 +845,9 @@ class TestRunIntegration:
     def test_merge_and_split_workflow(self) -> None:
         """Test merging runs then splitting back."""
         runs = [
-            Run(text="Part1", bold=True),
-            Run(text="Part2", bold=True),
-            Run(text="Part3", bold=False),
+            Run(text="Part1", style=TextStyle.BOLD),
+            Run(text="Part2", style=TextStyle.BOLD),
+            Run(text="Part3", style=TextStyle(0)),
         ]
 
         merged = merge_consecutive_runs(runs)
@@ -738,8 +856,8 @@ class TestRunIntegration:
         # Recreate split using the merged runs as templates
         full_text = "Part1Part2Part3"
         templates = [
-            Run(text="x" * 10, bold=True),
-            Run(text="y" * 5, bold=False),
+            Run(text="x" * 10, style=TextStyle.BOLD),
+            Run(text="y" * 5, style=TextStyle(0)),
         ]
 
         split_result = split_by_formatting(full_text, templates)
@@ -748,15 +866,32 @@ class TestRunIntegration:
 
     def test_copy_merge_sequence(self) -> None:
         """Test copying and merging in sequence."""
-        run1 = Run(text="First", bold=True)
+        run1 = Run(text="First", style=TextStyle.BOLD)
         run1_copy = run1.copy()
 
-        run2 = Run(text="Second", bold=True)
+        run2 = Run(text="Second", style=TextStyle.BOLD)
 
         merged = run1_copy.merge_with(run2)
 
         assert merged.text == "FirstSecond"
         assert run1.text == "First"  # Original unchanged
+
+    def test_to_escp_and_validate(self) -> None:
+        """Test ESC/P generation with validation."""
+        run = Run(
+            text="Тест ESC/P",
+            font=FontFamily.ROMAN,
+            style=TextStyle.BOLD | TextStyle.ITALIC,
+            codepage=CodePage.PC866,
+        )
+
+        run.validate()
+        escp = run.to_escp()
+
+        assert isinstance(escp, bytes)
+        assert len(escp) > 0
+        # Text should be encoded in cp866
+        assert "Тест ESC/P".encode("cp866") in escp
 
 
 class TestLogging:
@@ -765,8 +900,8 @@ class TestLogging:
     def test_merge_consecutive_runs_logging(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test that merge operation logs correctly."""
         runs = [
-            Run(text="Part1", bold=True),
-            Run(text="Part2", bold=True),
+            Run(text="Part1", style=TextStyle.BOLD),
+            Run(text="Part2", style=TextStyle.BOLD),
         ]
 
         with caplog.at_level(logging.INFO):
@@ -779,14 +914,22 @@ class TestLogging:
         """Test that split_by_formatting logs debug information."""
         text = "HelloWorld"
         template = [
-            Run(text="x" * 5, bold=True),
-            Run(text="y" * 5, bold=False),
+            Run(text="x" * 5, style=TextStyle.BOLD),
+            Run(text="y" * 5, style=TextStyle(0)),
         ]
 
         with caplog.at_level(logging.DEBUG):
             result = split_by_formatting(text, template)
 
-        # Проверяем, что DEBUG-сообщение записано
         assert "Split text into" in caplog.text
         assert "original: 2 templates" in caplog.text
         assert len(result) == 2
+
+    def test_validation_debug_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that validation logs debug information."""
+        run = Run(text="Test", style=TextStyle.BOLD)
+
+        with caplog.at_level(logging.DEBUG):
+            run.validate()
+
+        assert "Validated Run" in caplog.text

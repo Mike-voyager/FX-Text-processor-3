@@ -448,6 +448,141 @@ def merge_sections(sections: list[Section], preserve_breaks: bool = False) -> Se
     return result
 
 
+@dataclass(frozen=True, slots=True)
+class Margins:
+    """
+    Page margins configuration.
+
+    All margins are specified in inches. FX-890 supports margins
+    from 0" to 8" (page width limit).
+
+    Attributes:
+        top: Top margin in inches (default: 0.5").
+        bottom: Bottom margin in inches (default: 0.5").
+        left: Left margin in inches (default: 0.5").
+        right: Right margin in inches (default: 0.5").
+
+    Example:
+        >>> margins = Margins(top=1.0, bottom=1.0, left=1.5, right=1.5)
+        >>> margins.top
+        1.0
+    """
+
+    top: float = 0.5
+    bottom: float = 0.5
+    left: float = 0.5
+    right: float = 0.5
+
+    def validate(self) -> None:
+        """Validate margin values."""
+        for name, value in [
+            ("top", self.top),
+            ("bottom", self.bottom),
+            ("left", self.left),
+            ("right", self.right),
+        ]:
+            if value < 0:
+                raise ValueError(f"{name} margin cannot be negative, got {value}")
+            if value > 8.0:
+                raise ValueError(f"{name} margin exceeds maximum 8.0 inches, got {value}")
+
+    def to_dict(self) -> dict[str, float]:
+        """Serialize margins to dictionary."""
+        return {
+            "top": self.top,
+            "bottom": self.bottom,
+            "left": self.left,
+            "right": self.right,
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "Margins":
+        """Deserialize margins from dictionary."""
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected dict, got {type(data).__name__}")
+
+        return Margins(
+            top=data.get("top", 0.5),
+            bottom=data.get("bottom", 0.5),
+            left=data.get("left", 0.5),
+            right=data.get("right", 0.5),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PageSettings:
+    """
+    Page configuration for a section.
+
+    Defines physical page properties including size and margins.
+    FX-890 supports various paper sizes up to 8" width.
+
+    Attributes:
+        width: Page width in inches (default: 8.5" US Letter).
+        height: Page height in inches (default: 11.0" US Letter).
+        margins: Margin configuration (default: 0.5" all sides).
+
+    Example:
+        >>> settings = PageSettings(width=8.5, height=11.0)
+        >>> settings.get_printable_width()
+        7.5
+    """
+
+    width: float = 8.5
+    height: float = 11.0
+    margins: Margins = field(default_factory=Margins)
+
+    def validate(self) -> None:
+        """Validate page settings."""
+        if self.width <= 0:
+            raise ValueError(f"Page width must be positive, got {self.width}")
+        if self.height <= 0:
+            raise ValueError(f"Page height must be positive, got {self.height}")
+        if self.width > 8.0:
+            raise ValueError(f"FX-890 max width is 8.0 inches, got {self.width}")
+
+        # Validate margins
+        self.margins.validate()
+
+        # Check margins don't exceed page dimensions
+        if self.margins.left + self.margins.right >= self.width:
+            raise ValueError(
+                f"Horizontal margins ({self.margins.left} + {self.margins.right}) "
+                f"exceed page width ({self.width})"
+            )
+
+    def get_printable_width(self) -> float:
+        """Calculate printable width (page width minus margins)."""
+        return self.width - self.margins.left - self.margins.right
+
+    def get_printable_height(self) -> float:
+        """Calculate printable height (page height minus margins)."""
+        return self.height - self.margins.top - self.margins.bottom
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize page settings to dictionary."""
+        return {
+            "width": self.width,
+            "height": self.height,
+            "margins": self.margins.to_dict(),
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "PageSettings":
+        """Deserialize page settings from dictionary."""
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected dict, got {type(data).__name__}")
+
+        margins_data = data.get("margins", {})
+        margins = Margins.from_dict(margins_data) if margins_data else Margins()
+
+        return PageSettings(
+            width=data.get("width", 8.5),
+            height=data.get("height", 11.0),
+            margins=margins,
+        )
+
+
 def split_section_at(section: Section, paragraph_index: int) -> tuple[Section, Section]:
     """
     Split a section into two at the specified paragraph index.

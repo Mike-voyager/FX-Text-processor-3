@@ -10,30 +10,19 @@ Project: ESC/P Text Editor
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final
 
+from src.model.enums import (
+    FontFamily,
+    CharactersPerInch,
+    TextStyle,
+    Color,
+    CodePage,
+    validate_cpi_font_combination,
+)
+
 logger: Final = logging.getLogger(__name__)
-
-
-# Supported font names for Epson FX-890
-SUPPORTED_FONTS: Final[frozenset[str]] = frozenset(
-    [
-        "draft",  # 10 CPI draft
-        "roman",  # Roman font
-        "sans_serif",  # Sans Serif
-        "script",  # Script
-    ]
-)
-
-# Supported encodings
-SUPPORTED_ENCODINGS: Final[frozenset[str]] = frozenset(
-    [
-        "cp866",  # PC866 Cyrillic (primary)
-        "ascii",  # ASCII
-        "latin1",  # Latin-1
-    ]
-)
 
 
 @dataclass(frozen=False, slots=True)
@@ -46,163 +35,169 @@ class Run:
 
     Attributes:
         text: The text content of the run.
-        bold: Whether text is bold.
-        italic: Whether text is italic (slanted).
-        underline: Whether text is underlined.
-        double_width: Whether text uses double-width characters.
-        double_height: Whether text uses double-height characters.
-        font_name: Font name from SUPPORTED_FONTS.
-        encoding: Character encoding from SUPPORTED_ENCODINGS.
+        font: Font family from FontFamily enum.
+        cpi: Characters per inch from CharactersPerInch enum.
+        style: Text styling flags (TextStyle is a Flag enum).
+        color: Text color from Color enum.
+        codepage: Character encoding from CodePage enum.
 
     Example:
-        >>> run = Run(text="Hello", bold=True)
+        >>> run = Run(
+        ...     text="Hello",
+        ...     font=FontFamily.ROMAN,
+        ...     style=TextStyle.BOLD | TextStyle.ITALIC
+        ... )
         >>> run.validate()
-        >>> print(len(run))
-        5
-        >>> run2 = Run(text=" World", bold=True)
-        >>> merged = run.merge_with(run2)
-        >>> print(merged.text)
-        Hello World
+        >>> escp = run.to_escp()
     """
 
     text: str
-    bold: bool = False
-    italic: bool = False
-    underline: bool = False
-    double_width: bool = False
-    double_height: bool = False
-    font_name: str = "draft"
-    encoding: str = "cp866"
+    font: FontFamily = FontFamily.DRAFT
+    cpi: CharactersPerInch = CharactersPerInch.CPI_10
+    style: TextStyle = TextStyle(0)  # Empty flags
+    color: Color = Color.BLACK
+    codepage: CodePage = CodePage.PC866
 
     def __post_init__(self) -> None:
         """Validate attributes after initialization."""
-        if self.font_name not in SUPPORTED_FONTS:
+        # Validate CPI/Font combination
+        if not validate_cpi_font_combination(self.cpi, self.font):
             logger.warning(
-                f"Font '{self.font_name}' not in SUPPORTED_FONTS, " f"using 'draft' fallback"
+                f"Invalid CPI/Font combination: {self.cpi.value}/{self.font.value}, "
+                f"using fallback CPI_10"
             )
-            object.__setattr__(self, "font_name", "draft")
-
-        if self.encoding not in SUPPORTED_ENCODINGS:
-            logger.warning(
-                f"Encoding '{self.encoding}' not in SUPPORTED_ENCODINGS, " f"using 'cp866' fallback"
-            )
-            object.__setattr__(self, "encoding", "cp866")
+            object.__setattr__(self, "cpi", CharactersPerInch.CPI_10)
 
     def validate(self) -> None:
         """
         Validate run content and attributes.
 
-        Checks that text can be encoded with the specified encoding
-        and that all attributes are valid.
-
         Raises:
             ValueError: If text is empty or contains only whitespace.
             UnicodeEncodeError: If text cannot be encoded with the specified encoding.
             TypeError: If attributes have incorrect types.
-
-        Example:
-            >>> run = Run(text="Привет")
-            >>> run.validate()  # OK for cp866
-            >>> run2 = Run(text="", bold=True)
-            >>> run2.validate()  # Raises ValueError
-            Traceback (most recent call last):
-                ...
-            ValueError: Run text cannot be empty
         """
+        # 1. Validate text type
         if not isinstance(self.text, str):
             raise TypeError(f"Run text must be str, got {type(self.text).__name__}")
 
         if not self.text:
             raise ValueError("Run text cannot be empty")
 
-        # Validate encoding capability
+        # 2. Validate enum types FIRST (before using their methods)
+        if not isinstance(self.font, FontFamily):
+            raise TypeError(f"font must be FontFamily, got {type(self.font).__name__}")
+        if not isinstance(self.cpi, CharactersPerInch):
+            raise TypeError(f"cpi must be CharactersPerInch, got {type(self.cpi).__name__}")
+        if not isinstance(self.style, TextStyle):
+            raise TypeError(f"style must be TextStyle, got {type(self.style).__name__}")
+        if not isinstance(self.color, Color):
+            raise TypeError(f"color must be Color, got {type(self.color).__name__}")
+        if not isinstance(self.codepage, CodePage):
+            raise TypeError(f"codepage must be CodePage, got {type(self.codepage).__name__}")
+
+        # 3. Validate encoding capability (now safe to use codepage.python_encoding)
         try:
-            self.text.encode(self.encoding)
+            self.text.encode(self.codepage.python_encoding)
         except UnicodeEncodeError as exc:
             logger.error(
-                f"Cannot encode text with {self.encoding}: {exc}",
+                f"Cannot encode text with {self.codepage.python_encoding}: {exc}",
                 extra={"text_preview": self.text[:50]},
             )
             raise ValueError(
-                f"Text contains characters incompatible with {self.encoding} encoding"
+                f"Text contains characters incompatible with {self.codepage.value} encoding"
             ) from exc
 
-        # Validate boolean attributes
-        for attr in ("bold", "italic", "underline", "double_width", "double_height"):
-            value = getattr(self, attr)
-            if not isinstance(value, bool):
-                raise TypeError(f"Attribute '{attr}' must be bool, got {type(value).__name__}")
+        logger.debug(f"Validated Run: len={len(self.text)}, formatting={self._format_summary()}")
 
-        logger.debug(
-            f"Validated Run: len={len(self.text)}, " f"formatting={self._format_summary()}"
-        )
-
-    def copy(self) -> "Run":
+    def to_escp(self: "Run") -> bytes:
         """
-        Create a deep copy of the run.
+        Generate ESC/P commands for formatting and text.
 
         Returns:
-            A new Run instance with identical attributes.
+            Byte sequence of ESC/P commands + encoded text.
 
         Example:
-            >>> run = Run(text="Test", bold=True)
-            >>> run_copy = run.copy()
-            >>> run_copy.text = "Modified"
-            >>> print(run.text)  # Original unchanged
-            Test
+            >>> run = Run(
+            ...     text="Hello",
+            ...     font=FontFamily.ROMAN,
+            ...     style=TextStyle.BOLD | TextStyle.ITALIC
+            ... )
+            >>> escp = run.to_escp()
+            >>> assert b"Hello" in escp
         """
+        commands: list[bytes] = []
+
+        # 1. Set font
+        commands.append(self.font.to_escp())
+
+        # 2. Set CPI
+        commands.append(self.cpi.to_escp())
+
+        # 3. Enable styles
+        active_styles: list[TextStyle] = []
+        for style_flag in TextStyle:
+            # Skip empty flag
+            if style_flag.value == 0:
+                continue
+            if style_flag in self.style:
+                commands.append(style_flag.to_escp_on())
+                active_styles.append(style_flag)
+
+        # 4. Set color (if not black)
+        if self.color != Color.BLACK:
+            commands.append(self.color.to_escp())
+
+        # 5. Encode text
+        text_bytes = self.text.encode(self.codepage.python_encoding)
+        commands.append(text_bytes)
+
+        # 6. Disable styles (in reverse order for proper nesting)
+        for style_flag in reversed(active_styles):
+            commands.append(style_flag.to_escp_off())
+
+        return b"".join(commands)
+
+    def copy(self) -> "Run":
+        """Create a deep copy of the run."""
         return Run(
             text=self.text,
-            bold=self.bold,
-            italic=self.italic,
-            underline=self.underline,
-            double_width=self.double_width,
-            double_height=self.double_height,
-            font_name=self.font_name,
-            encoding=self.encoding,
+            font=self.font,
+            cpi=self.cpi,
+            style=self.style,
+            color=self.color,
+            codepage=self.codepage,
         )
 
-    def can_merge_with(self, other: object) -> bool:
+    def can_merge_with(self, other: object, strict: bool = True) -> bool:
         """
         Check if this run can be merged with another run.
 
-        Two runs can be merged if they have identical formatting attributes.
-
         Args:
             other: The object to check for merge compatibility.
+            strict: If True, all formatting must match. If False, only styles.
 
         Returns:
-            True if other is a Run with identical formatting, False otherwise.
-
-        Example:
-            >>> run1 = Run(text="Hello", bold=True)
-            >>> run2 = Run(text=" World", bold=True)
-            >>> run1.can_merge_with(run2)
-            True
-            >>> run3 = Run(text="!", bold=False)
-            >>> run1.can_merge_with(run3)
-            False
-            >>> run1.can_merge_with("not a run")
-            False
+            True if merge is possible, False otherwise.
         """
         if not isinstance(other, Run):
             return False
 
-        return (
-            self.bold == other.bold
-            and self.italic == other.italic
-            and self.underline == other.underline
-            and self.double_width == other.double_width
-            and self.double_height == other.double_height
-            and self.font_name == other.font_name
-            and self.encoding == other.encoding
-        )
+        if strict:
+            return (
+                self.font == other.font
+                and self.cpi == other.cpi
+                and self.style == other.style
+                and self.color == other.color
+                and self.codepage == other.codepage
+            )
+        else:
+            # Only compare styles for ESC/P optimization
+            return self.style == other.style
 
     def merge_with(self, other: "Run") -> "Run":
         """
         Merge this run with another run.
-
-        Creates a new run with concatenated text, preserving formatting.
 
         Args:
             other: The run to merge with.
@@ -212,82 +207,38 @@ class Run:
 
         Raises:
             ValueError: If runs have incompatible formatting.
-
-        Example:
-            >>> run1 = Run(text="Hello", bold=True)
-            >>> run2 = Run(text=" World", bold=True)
-            >>> merged = run1.merge_with(run2)
-            >>> print(merged.text)
-            Hello World
         """
         if not self.can_merge_with(other):
             raise ValueError(
                 f"Cannot merge runs with different formatting: "
-                f"{self._format_summary()} != {other._format_summary() if isinstance(other, Run) else type(other).__name__}"
+                f"{self._format_summary()} != {other._format_summary()}"
             )
 
         logger.debug(f"Merging runs: '{self.text[:20]}...' + '{other.text[:20]}...'")
 
         return Run(
             text=self.text + other.text,
-            bold=self.bold,
-            italic=self.italic,
-            underline=self.underline,
-            double_width=self.double_width,
-            double_height=self.double_height,
-            font_name=self.font_name,
-            encoding=self.encoding,
+            font=self.font,
+            cpi=self.cpi,
+            style=self.style,
+            color=self.color,
+            codepage=self.codepage,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Serialize run to dictionary.
-
-        Returns:
-            Dictionary representation with all attributes.
-
-        Example:
-            >>> run = Run(text="Test", bold=True, italic=False)
-            >>> data = run.to_dict()
-            >>> data["text"]
-            'Test'
-            >>> data["bold"]
-            True
-        """
+        """Serialize run to dictionary."""
         return {
             "text": self.text,
-            "bold": self.bold,
-            "italic": self.italic,
-            "underline": self.underline,
-            "double_width": self.double_width,
-            "double_height": self.double_height,
-            "font_name": self.font_name,
-            "encoding": self.encoding,
+            "font": self.font.value,
+            "cpi": self.cpi.value,
+            "style": self.style.value,  # Int value of flags
+            "color": self.color.value,
+            "codepage": self.codepage.value,
         }
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "Run":
-        """
-        Deserialize run from dictionary.
-
-        Args:
-            data: Dictionary with run attributes.
-
-        Returns:
-            Run instance constructed from dictionary data.
-
-        Raises:
-            KeyError: If required 'text' key is missing.
-            TypeError: If data is not a dictionary.
-
-        Example:
-            >>> data = {"text": "Hello", "bold": True}
-            >>> run = Run.from_dict(data)
-            >>> run.bold
-            True
-            >>> run.italic  # Default value
-            False
-        """
+        """Deserialize run from dictionary."""
         if not isinstance(data, dict):
             raise TypeError(f"Expected dict, got {type(data).__name__}")
 
@@ -296,77 +247,68 @@ class Run:
 
         return Run(
             text=data["text"],
-            bold=data.get("bold", False),
-            italic=data.get("italic", False),
-            underline=data.get("underline", False),
-            double_width=data.get("double_width", False),
-            double_height=data.get("double_height", False),
-            font_name=data.get("font_name", "draft"),
-            encoding=data.get("encoding", "cp866"),
+            font=FontFamily(data.get("font", "draft")),
+            cpi=CharactersPerInch(data.get("cpi", "10cpi")),
+            style=TextStyle(data.get("style", 0)),
+            color=Color(data.get("color", "black")),
+            codepage=CodePage(data.get("codepage", "pc866")),
         )
 
     def _format_summary(self) -> str:
         """Generate a compact summary of formatting attributes."""
-        parts: list[str] = []
-        if self.bold:
-            parts.append("B")
-        if self.italic:
-            parts.append("I")
-        if self.underline:
-            parts.append("U")
-        if self.double_width:
-            parts.append("DW")
-        if self.double_height:
-            parts.append("DH")
-        if self.font_name != "draft":
-            parts.append(f"F:{self.font_name}")
-        if self.encoding != "cp866":
-            parts.append(f"E:{self.encoding}")
+        parts: list[str] = [
+            f"font={self.font.value}",
+            f"cpi={self.cpi.value}",
+        ]
 
-        return "+".join(parts) if parts else "plain"
+        # Add active styles
+        if self.style != TextStyle(0):
+            style_flags = []
+            if TextStyle.BOLD in self.style:
+                style_flags.append("B")
+            if TextStyle.ITALIC in self.style:
+                style_flags.append("I")
+            if TextStyle.UNDERLINE in self.style:
+                style_flags.append("U")
+            if TextStyle.DOUBLE_STRIKE in self.style:
+                style_flags.append("DS")
+            if TextStyle.SUPERSCRIPT in self.style:
+                style_flags.append("SUP")
+            if TextStyle.SUBSCRIPT in self.style:
+                style_flags.append("SUB")
+            if style_flags:
+                parts.append(f"style={'+'.join(style_flags)}")
+
+        if self.color != Color.BLACK:
+            parts.append(f"color={self.color.value}")
+
+        if self.codepage != CodePage.PC866:
+            parts.append(f"cp={self.codepage.value}")
+
+        return ", ".join(parts)
 
     def __len__(self) -> int:
         """Return the length of the text content."""
         return len(self.text)
 
     def __eq__(self, other: object) -> bool:
-        """
-        Compare runs for equality.
-
-        Args:
-            other: Object to compare with.
-
-        Returns:
-            True if all attributes are equal, False otherwise.
-        """
+        """Compare runs for equality."""
         if not isinstance(other, Run):
             return NotImplemented
 
         return (
             self.text == other.text
-            and self.bold == other.bold
-            and self.italic == other.italic
-            and self.underline == other.underline
-            and self.double_width == other.double_width
-            and self.double_height == other.double_height
-            and self.font_name == other.font_name
-            and self.encoding == other.encoding
+            and self.font == other.font
+            and self.cpi == other.cpi
+            and self.style == other.style
+            and self.color == other.color
+            and self.codepage == other.codepage
         )
 
     def __repr__(self) -> str:
-        """
-        Return detailed string representation.
-
-        Example:
-            >>> run = Run(text="Hello", bold=True)
-            >>> repr(run)
-            "Run(text='Hello', len=5, formatting='B')"
-        """
+        """Return detailed string representation."""
         text_preview = self.text[:20] + "..." if len(self.text) > 20 else self.text
-        return (
-            f"Run(text={text_preview!r}, len={len(self.text)}, "
-            f"formatting='{self._format_summary()}')"
-        )
+        return f"Run(text={text_preview!r}, len={len(self.text)}, " f"{self._format_summary()})"
 
 
 def merge_consecutive_runs(runs: list[Run]) -> list[Run]:
@@ -383,14 +325,17 @@ def merge_consecutive_runs(runs: list[Run]) -> list[Run]:
         New list with merged runs; original list unchanged.
 
     Example:
-        >>> run1 = Run(text="Hello", bold=True)
-        >>> run2 = Run(text=" ", bold=True)
-        >>> run3 = Run(text="World", bold=True)
+        >>> from src.model.enums import FontFamily, TextStyle, CharactersPerInch
+        >>> run1 = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
+        >>> run2 = Run(text=" ", font=FontFamily.ROMAN, style=TextStyle.BOLD)
+        >>> run3 = Run(text="World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         >>> merged = merge_consecutive_runs([run1, run2, run3])
         >>> len(merged)
         1
         >>> merged[0].text
         'Hello World'
+        >>> merged[0].style == TextStyle.BOLD
+        True
     """
     if not runs:
         logger.debug("merge_consecutive_runs: empty list, returning empty")
@@ -441,20 +386,29 @@ def split_by_formatting(
         ValueError: If total run text length doesn't match input text length.
 
     Example:
+        >>> from src.model.enums import FontFamily, TextStyle, CharactersPerInch
         >>> text = "HelloWorld"
         >>> template_runs = [
-        ...     Run(text="x" * 5, bold=True),    # First 5 chars bold
-        ...     Run(text="y" * 5, bold=False),   # Next 5 chars normal
+        ...     Run(
+        ...         text="x" * 5,
+        ...         font=FontFamily.ROMAN,
+        ...         style=TextStyle.BOLD
+        ...     ),  # First 5 chars bold
+        ...     Run(
+        ...         text="y" * 5,
+        ...         font=FontFamily.ROMAN,
+        ...         style=TextStyle(0)
+        ...     ),  # Next 5 chars normal
         ... ]
         >>> result = split_by_formatting(text, template_runs)
         >>> result[0].text
         'Hello'
-        >>> result[0].bold
+        >>> result[0].style == TextStyle.BOLD
         True
         >>> result[1].text
         'World'
-        >>> result[1].bold
-        False
+        >>> result[1].style == TextStyle(0)
+        True
     """
     if not runs:
         logger.warning("split_by_formatting: no runs provided")
@@ -474,16 +428,15 @@ def split_by_formatting(
         segment_length = len(template_run.text)
         text_segment = text[position : position + segment_length]
 
+        # ✅ ИСПРАВЛЕНО: Используем новые атрибуты из enums.py
         result.append(
             Run(
                 text=text_segment,
-                bold=template_run.bold,
-                italic=template_run.italic,
-                underline=template_run.underline,
-                double_width=template_run.double_width,
-                double_height=template_run.double_height,
-                font_name=template_run.font_name,
-                encoding=template_run.encoding,
+                font=template_run.font,
+                cpi=template_run.cpi,
+                style=template_run.style,
+                color=template_run.color,
+                codepage=template_run.codepage,
             )
         )
 

@@ -724,30 +724,40 @@ class LineSpacing(Enum):
         }
         return mapping[self]
 
-    def to_escp(self, custom_value: Optional[int] = None) -> bytes:
+    def to_escp(self, custom_value: int | None = None) -> bytes:
         """
-        Генерирует команду ESC/P для межстрочного интервала.
+        Convert line spacing to ESC/P command.
 
-        Аргументы:
-            custom_value: Для CUSTOM интервала, значение n/216 дюйма (0-255)
+        Args:
+            custom_value: For CUSTOM mode, specify n value for ESC 3 n (1-255).
+                         Represents 1/216 inch increments.
 
-        Возвращает:
-            Байты команды ESC/P
+        Returns:
+            ESC/P command bytes.
 
-        Вызывает исключение:
-            ValueError: Если custom_value требуется, но не предоставлен
+        Raises:
+            ValueError: If custom_value is required but not provided or out of range.
+
+        Example:
+            >>> LineSpacing.ONE_SIXTH_INCH.to_escp()
+            b'\\x1b2'
+            >>> LineSpacing.CUSTOM.to_escp(custom_value=36)  # 36/216" = 1/6"
+            b'\\x1b3$'
         """
-        if self == LineSpacing.CUSTOM:
+        if self == LineSpacing.ONE_SIXTH_INCH:
+            return b"\x1b\x32"  # ESC 2
+        elif self == LineSpacing.ONE_EIGHTH_INCH:
+            return b"\x1b\x30"  # ESC 0
+        elif self == LineSpacing.SEVEN_SEVENTYTWOTH_INCH:
+            return b"\x1b\x31"  # ESC 1
+        elif self == LineSpacing.CUSTOM:
             if custom_value is None:
                 raise ValueError("custom_value required for CUSTOM line spacing")
-            if not 0 <= custom_value <= 255:
-                raise ValueError("custom_value must be 0-255")
+            if not (1 <= custom_value <= 255):
+                raise ValueError(f"custom_value must be 1-255, got {custom_value}")
             return b"\x1b\x33" + bytes([custom_value])  # ESC 3 n
-
-        cmd = self.escp_command
-        if cmd is None:
-            raise ValueError(f"No ESC/P command for {self}")
-        return cmd
+        else:
+            return b"\x1b\x32"  # Default to 1/6"
 
     def localized_name(self, lang: str = "ru") -> str:
         """Возвращает локализованное название для отображения в UI."""
@@ -766,6 +776,15 @@ class LineSpacing(Enum):
     def __str__(self) -> str:
         """Человекочитаемое представление."""
         return self.description_en
+
+
+class TabAlignment(Enum):
+    """Tab stop alignment modes."""
+
+    LEFT = "left"
+    CENTER = "center"
+    RIGHT = "right"
+    DECIMAL = "decimal"
 
 
 class TextStyle(Flag):
