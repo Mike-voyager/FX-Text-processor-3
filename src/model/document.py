@@ -33,6 +33,8 @@ from src.model.enums import (
     PrintQuality,
 )
 
+from typing import TYPE_CHECKING
+
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
     from src.model.section import Section
