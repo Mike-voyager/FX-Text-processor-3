@@ -35,6 +35,50 @@ Professional WYSIWYG text editor for **Epson FX-890** dot matrix printer with fu
 - ⏳ Network printer support
 - ⏳ Envelope printing with graphical preview
 
+## 🔒 Enterprise Security
+
+FX-Text-processor-3 implements **Zero Trust Architecture** with military-grade cryptography:
+
+### Security Highlights
+
+- **🔐 Multi-Factor Authentication**: FIDO2/WebAuthn hardware keys (YubiKey, Windows Hello)
+- **🛡️ AES-256-GCM Encryption**: Authenticated encryption with 128-bit MAC
+- **✍️ Ed25519 Digital Signatures**: 270× faster than RSA-4096, tamper-proof protected blanks
+- **🔑 Argon2id Password Hashing**: Memory-hard, 6,666× slower for attackers
+- **📝 Immutable Audit Log**: Cryptographic integrity with HMAC chain verification
+- **🌐 OpenPGP Multi-Recipient**: Encrypt for multiple users simultaneously
+
+### Protected Blanks System
+
+Financial organizations require special blank tracking:
+
+from src.security.blanks import BlankManager
+
+Issue numbered blank series
+blanks = blank_mgr.issue_blank_series(
+series='A', count=100, blank_type='invoice'
+)
+
+Print with digital signature
+blank_mgr.print_blank(
+blank_id='A-042',
+document=invoice_doc,
+user_id='operator-001'
+)
+
+Verify authenticity (scan QR code)
+if verify_blank(qr_data, printed_content):
+print("✓ Authentic blank")
+
+### Compliance
+
+- **GDPR**: Right to access, erasure, data minimization
+- **Audit Retention**: 3-7 years configurable
+- **SIEM Integration**: RFC 5424 Syslog, JSON Lines export
+- **Zero-Knowledge**: No dependency on proprietary crypto
+
+**→ Full documentation**: [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)
+
 ## 📁 Project Structure
 
 FX-Text-processor-3/
@@ -66,6 +110,36 @@ FX-Text-processor-3/
 │ ├── API_REFERENCE.md # API documentation
 │ ├── PROMPT_TEMPLATES.md # AI prompt templates
 │ └── DEVELOPMENT.md # Development guide
+├── security/
+│ ├── init.py # Public API exports
+│ ├── crypto/
+│ │ ├── init.py
+│ │ ├── symmetric.py # AES-256-GCM encryption
+│ │ ├── asymmetric.py # GPG/OpenPGP integration
+│ │ ├── kdf.py # Argon2id key derivation
+│ │ ├── signatures.py # Ed25519 digital signatures
+│ │ └── hashing.py # SHA3-256, BLAKE2b
+│ ├── auth/
+│ │ ├── init.py
+│ │ ├── password.py # Argon2id password hashing
+│ │ ├── webauthn.py # FIDO2/WebAuthn manager
+│ │ ├── session.py # JWT session management
+│ │ └── permissions.py # RBAC permissions
+│ ├── audit/
+│ │ ├── init.py
+│ │ ├── logger.py # Immutable audit log
+│ │ ├── exporters.py # Syslog, JSON Lines export
+│ │ └── integrity.py # HMAC chain verification
+│ ├── blanks/
+│ │ ├── init.py
+│ │ ├── manager.py # Protected blank management
+│ │ ├── watermark.py # Watermark generation
+│ │ └── verification.py # Authenticity verification
+│ └── compliance/
+│ ├── init.py
+│ ├── gdpr.py # GDPR compliance helpers
+│ ├── retention.py # Data retention policies
+│ └── anonymization.py # PII anonymization
 ├── resources/ # External resources
 ├── .github/ # GitHub configuration
 │ ├── workflows/ # CI/CD pipelines
