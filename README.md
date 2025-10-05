@@ -82,102 +82,132 @@ print("✓ Authentic blank")
 ## 📁 Project Structure
 
 FX-Text-processor-3/
-├── src/ # Source code (MVC architecture)
-│ ├── init.py # Package initialization (✅ DONE)
-│ ├── model/ # Data models
-│ │ ├── document.py # ⏳ TODO
-│ │ ├── section.py # ⏳ TODO
-│ │ ├── paragraph.py # ⏳ TODO
-│ │ ├── run.py # ⏳ TODO
-│ │ ├── table.py # ⏳ TODO
-│ │ └── enums.py # ⏳ IN PROGRESS
-│ ├── view/ # UI components (Tkinter)
-│ ├── controller/ # Business logic
-├── escp/
-│   ├── __init__.py
-│   ├── commands/
-│   │   ├── __init__.py  (✅ DONE)
-│   │   ├── text_formatting.py (✅ DONE)
-│   │   ├── fonts.py (✅ DONE)
-│   │   ├── sizing.py (✅ DONE)
-│   │   ├── positioning.py (✅ DONE)
-│   │   ├── line_spacing.py (✅ DONE)
-│   │   ├── print_quality.py (✅ DONE)
-│   │   ├── graphics.py (✅ DONE)
-│   │   ├── barcode.py (✅ DONE)
-│   │   ├── page_control.py (✅ DONE)
-│   │   ├── hardware.py (✅ DONE)
-│   │   ├── charset.py (✅ DONE)
-│   │   ├── special_effects.py (✅ DONE)
-│   │   └── shading.py (✅ DONE)
-│   ├── advanced_graphics/
+├── src/                         # Source code (MVC architecture)
+│   ├── __init__.py                             # ✅ DONE
+│   ├── main.py                                 # Application entrypoint
+│
+│   ├── model/                    # Data models
 │   │   ├── __init__.py
-│   │   ├── dithering.py
-│   │   ├── double_strike.py
-│   │   ├── udc.py
-│   │   ├── scanline.py
-│   │   ├──esc_strikethrough.py
-│   │   └── rendering.py
-│   └── builders/
-│       ├── __init__.py
-│       ├── base.py
-│       ├── table_builder.py
-│       ├── paragraph_builder.py
-│       ├── run_builder.py
-│       └── document_builder.py
-│ ├── charset/ # Codepage management
-│ ├── image/ # Image processing
-│ ├── barcode/ # Barcode/QR generation
-│ ├── printer/ # Direct printer access
-│ ├── io/ # File I/O (JSON, RTF, Markdown)
-│ ├── form/ # Form builder
-│ ├── table/ # Table editor
-│ └── utils/ # Utilities
-├── tests/ # Test suite
-│ ├── unit/ # Unit tests (✅ 39 tests, 86% coverage)
-│ └── integration/ # Integration tests
-├── docs/ # Documentation
-│ ├── ARCHITECTURE.md # System architecture
-│ ├── API_REFERENCE.md # API documentation
-│ ├── PROMPT_TEMPLATES.md # AI prompt templates
-│ └── DEVELOPMENT.md # Development guide
+│   │   ├── document.py           # 🚧 Blocked (43%) — awaiting refactor
+│   │   ├── section.py            # ✅ Done (100%)
+│   │   ├── paragraph.py          # ✅ Done (100%)
+│   │   ├── run.py                # ✅ Done (97%)
+│   │   ├── table.py              # ✅ Done (96%)
+│   │   ├──image.py               # 🚧 TODO
+│   │   ├──barcode.py             # 🚧 TODO
+│   │   ├──form.py                # 🚧 TODO
+│   │   ├──validation.py          # 🚧 TODO
+│   │   └── enums.py              # ⚠️ Partial (68%) — needs improvement
+│
+│   ├── view/ # UI components (Tkinter)
+│   │   ├── __init__.py
+│   │   ├── main_window.py
+│   │   ├── paged_canvas.py
+│   │   ├── format_toolbar.py
+│   │   ├── ruler_widget.py
+│   │   ├── status_bar.py
+│   │   ├── dialogs/
+│   │   └── widgets/
+│
+│   ├── controller/ # Business logic
+│   │   ├── __init__.py
+│   │   ├── document_controller.py
+│   │   ├── commands.py
+│   │   └── event_handlers.py
+│
+│   ├── escp/                     # ESC/P protocol stack
+│   │   ├── __init__.py
+│   │   ├── commands/
+│   │   │   ├── __init__.py               # ✅ DONE
+│   │   │   ├── text_formatting.py        # ✅ DONE
+│   │   │   ├── fonts.py                  # ✅ DONE
+│   │   │   ├── sizing.py                 # ✅ DONE
+│   │   │   ├── positioning.py            # ✅ DONE
+│   │   │   ├── line_spacing.py           # ✅ DONE
+│   │   │   ├── print_quality.py          # ✅ DONE
+│   │   │   ├── graphics.py               # ✅ DONE
+│   │   │   ├── barcode.py                # ✅ DONE
+│   │   │   ├── page_control.py           # ✅ DONE
+│   │   │   ├── hardware.py               # ✅ DONE
+│   │   │   ├── charset.py                # ✅ DONE
+│   │   │   ├── special_effects.py        # ✅ DONE
+│   │   │   └── shading.py                # ✅ DONE
+│   │   ├── advanced_graphics/
+│   │   │   ├── __init__.py
+│   │   │   ├── dithering.py
+│   │   │   ├── double_strike.py
+│   │   │   ├── udc.py
+│   │   │   ├── scanline.py
+│   │   │   ├── esc_strikethrough.py
+│   │   │   └── rendering.py
+│   │   └── builders/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── table_builder.py
+│   │       ├── paragraph_builder.py
+│   │       ├── run_builder.py
+│   │       └── document_builder.py
+│
+│   ├── charset/ # Codepage management
+│   ├── image/ # Image processing
+│   ├── barcode/ # Barcode/QR generation
+│   ├── printer/ # Direct printer access
+│   ├── io/ # File I/O (JSON, RTF, Markdown)
+│   ├── form/ # Form builder
+│   ├── table/ # Table editor
+│   └── utils/ # Utilities
+│
+├── tests/                        # Test suite
+│   ├── unit/      # ✅ 39 tests, 86% coverage
+│   └── integration/
+│
+├── docs/                         # Documentation
+│   ├── ARCHITECTURE.md           # System architecture
+│   ├── API_REFERENCE.md          # API documentation
+│   ├── PROMPT_TEMPLATES.md       # AI prompt templates
+│   └── DEVELOPMENT.md            # Development guide
+│
 ├── security/
-│ ├── init.py # Public API exports
-│ ├── crypto/
-│ │ ├── init.py
-│ │ ├── symmetric.py # AES-256-GCM encryption
-│ │ ├── asymmetric.py # GPG/OpenPGP integration
-│ │ ├── kdf.py # Argon2id key derivation
-│ │ ├── signatures.py # Ed25519 digital signatures
-│ │ └── hashing.py # SHA3-256, BLAKE2b
-│ ├── auth/
-│ │ ├── init.py
-│ │ ├── password.py # Argon2id password hashing
-│ │ ├── webauthn.py # FIDO2/WebAuthn manager
-│ │ ├── session.py # JWT session management
-│ │ └── permissions.py # RBAC permissions
-│ ├── audit/
-│ │ ├── init.py
-│ │ ├── logger.py # Immutable audit log
-│ │ ├── exporters.py # Syslog, JSON Lines export
-│ │ └── integrity.py # HMAC chain verification
-│ ├── blanks/
-│ │ ├── init.py
-│ │ ├── manager.py # Protected blank management
-│ │ ├── watermark.py # Watermark generation
-│ │ └── verification.py # Authenticity verification
-│ └── compliance/
-│ ├── init.py
-│ ├── gdpr.py # GDPR compliance helpers
-│ ├── retention.py # Data retention policies
-│ └── anonymization.py # PII anonymization
-├── resources/ # External resources
-├── .github/ # GitHub configuration
-│ ├── workflows/ # CI/CD pipelines
-│ └── ISSUE_TEMPLATE/ # Issue templates
-├── pyproject.toml # Project configuration
-├── pytest.ini # Pytest configuration
-└── README.md # This file
+│   ├── __init__.py
+│   ├── crypto/
+│   │   ├── __init__.py
+│   │   ├── symmetric.py
+│   │   ├── asymmetric.py
+│   │   ├── kdf.py
+│   │   ├── signatures.py
+│   │   └── hashing.py
+│   ├── auth/
+│   │   ├── __init__.py
+│   │   ├── password.py
+│   │   ├── webauthn.py
+│   │   ├── session.py
+│   │   └── permissions.py
+│   ├── audit/
+│   │   ├── __init__.py
+│   │   ├── logger.py
+│   │   ├── exporters.py
+│   │   └── integrity.py
+│   ├── blanks/
+│   │   ├── __init__.py
+│   │   ├── manager.py
+│   │   ├── watermark.py
+│   │   └── verification.py
+│   └── compliance/
+│       ├── __init__.py
+│       ├── gdpr.py
+│       ├── retention.py
+│       └── anonymization.py
+│
+├── resources/                    # External resources/assets/templates
+├── .github/                      # GitHub config, CI/CD, issue templates
+│   ├── workflows/
+│   └── ISSUE_TEMPLATE/
+│
+├── pyproject.toml                # Project config (build/system)
+├── pytest.ini
+├── README.md
+
+
 
 ## 🚀 Quick Start
 
@@ -234,7 +264,9 @@ Module              |  Status      |  Coverage  |  Notes
 |Printer Access      |  ❌ 0%        |  -         |  Windows printer API|
 |Form Builder        |  ❌ 0%        |  -         |  Table/form templates|
 |Image Processing    |  ❌ 0%        |  -         |  Graphics for matrix printers|
-Progress Summary:
+
+
+**Progress Summary:**
 
 ✅ 404 tests passing (100% pass rate)
 
@@ -246,7 +278,7 @@ Progress Summary:
 
 🏗️ Overall Project: ~38% complete (now 6/15 major modules have core logic and/or full test coverage)
 
-Recent Additions:
+**Recent Additions:**
 
 ✨ commands/ — Full ESC/P command set (FX-890): text, fonts, graphics, barcode, hardware, charset, shading, effects
 
