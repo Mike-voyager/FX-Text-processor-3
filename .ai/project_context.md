@@ -20,20 +20,6 @@
 7. **100% coverage**: Для всех модулей
 8. **Black formatting**: Line length 100
 
-## Current Progress
-- ✅ Project structure (100%)
-- ✅ Core module `src/__init__.py` (100%)
-- ✅ Testing infrastructure (100%)
-- ⏳ Model layer (10%)
-- ❌ ESC/P commands (0%)
-- ❌ GUI (0%)
-
-## Next Priorities
-1. Завершить `src/model/enums.py`
-2. Реализовать `src/model/run.py`
-3. Реализовать `src/model/paragraph.py`
-4. Реализовать `src/model/document.py`
-5. Начать `src/escp/escp_builder.py`
 
 ## Important Files for Context
 - `src/__init__.py` — Пример стиля кода

@@ -15,6 +15,7 @@
 
 ## Template 1: Генерация модуля
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Ты — ведущий Python‑разработчик и технический писатель, генерирующий производственный код и тесты для проекта ESC/P Text Editor под Windows 11 (Python 3.11+, Tkinter, MVC), со строгими требованиями к типизации, тестам, логированию, производительности и интеграции в структуру проекта.
 
@@ -240,6 +241,7 @@ BEGIN_FILE/END_FILE — unit‑тесты.
 
 ## Template 2: Code Review
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Ты — ведущий Python‑ревьюер и технический писатель для проекта ESC/P Text Editor (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за глубокий code review с учётом типизации, тестируемости, производительности, безопасности, архитектурной согласованности и интеграции с существующей структурой.
 
@@ -444,6 +446,7 @@ NOW REVIEW
 
 ## Template 3: Исправление бага
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер отладки и технический писатель для проекта ESC/P Text Editor (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за детерминированное воспроизведение дефекта, корневой анализ, минимальный корректный патч, усиление тестов и обновление документации с соблюдением архитектурных и доменных правил.
 
@@ -655,6 +658,7 @@ NOW FIX
 
 ## Template 4: Реализация фичи
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер и технический писатель для проекта ESC/P Text Editor (Windows 11, Python 3.11+, Tkinter, MVC), ответственный за проектирование и полную реализацию фичи с соблюдением архитектуры, доменных правил ESC/P и PC866, производительности, тестируемости и интеграции.
 
@@ -876,6 +880,7 @@ NOW IMPLEMENT
 
 ## Template 5: Рефакторинг
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер по рефакторингу и технический писатель для проекта ESC/P Text Editor (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за безопасное изменение внутренней структуры кода без изменения внешнего поведения, с усилением тестируемости, производительности и поддерживаемости.
 
@@ -1108,6 +1113,7 @@ NOW REFACTOR
 
 ## Template 6: Генерация тестов
 
+Проект: https://github.com/Mike-voyager/FX-Text-processor-3
 ROLE & CONTEXT
 Ты — ведущий инженер по тестированию и технический писатель для проекта ESC/P Text Editor (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за генерацию детерминированных unit‑тестов с высоким покрытием, строгой типизацией и соблюдением архитектурных и доменных правил ESC/P, PC866 и Windows‑специфики.
 
