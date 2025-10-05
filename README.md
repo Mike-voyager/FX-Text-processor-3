@@ -220,20 +220,20 @@ text
 
 ## 📊 Development Status
 Module              |  Status      |  Coverage  |  Notes
---------------------+--------------+------------+------------------------------------------------------------------------------------------------------------------
-Core (__init__.py)  |  ✅ Done      |  100%      |  Logging, config, dependencies
-Model Layer         |  ✅ 71%       |  ~92%      |  5/7 modules complete
-├─table.py          |  ✅ Done      |  96%       |  Grid structure, cells, borders (77 tests)
-├─section.py        |  ✅ Done      |  100%      |  Document sections, page breaks (75 tests)
-├─paragraph.py      |  ✅ Done      |  100%      |  Text blocks, alignment, spacing (87 tests)
-├─run.py            |  ✅ Done      |  97%       |  Inline formatting, encoding (71 tests)
-├─enums.py          |  ⚠️ Partial  |  68%       |  ESC/P constants - needs improvement
-└─document.py       |  🚧 Blocked  |  43%       |  Root container - awaiting refactor
-ESC/P Commands      |  ✅ Done      |  >95%      |  All core FX-890 ESC/P features, full test/manual coverage (unit/integration in progress), architecture finalized
-GUI (View)          |  ❌ 0%        |  -         |  Main window, text editor
-Printer Access      |  ❌ 0%        |  -         |  Windows printer API
-Form Builder        |  ❌ 0%        |  -         |  Table/form templates
-Image Processing    |  ❌ 0%        |  -         |  Graphics for matrix printers
+|--------------------|--------------|------------|--------|
+|Core (__init__.py)  |  ✅ Done      |  100%      |  Logging, config, dependencies|
+|Model Layer         |  ✅ 71%       |  ~92%      |  5/7 modules complete
+|├─table.py          |  ✅ Done      |  96%       |  Grid structure,cells, borders (77 tests)|
+|├─section.py        |  ✅ Done      |  100%      |  Document sections, page breaks (75 tests)|
+|├─paragraph.py      |  ✅ Done      |  100%      |  Text blocks, alignment, spacing (87 tests)|
+|├─run.py            |  ✅ Done      |  97%       |  Inline formatting, encoding (71 tests)
+|├─enums.py          |  ⚠️ Partial  |  68%       |  ESC/P constants  needs improvement|
+|└─document.py       |  🚧 Blocked  |  43%       |  Root container - awaiting refactor|
+|ESC/P Commands      |  ✅ Done      |  >95%      |  All core FX-890 ESC/P features, full test/manual coverage (unit/integration in progress), architecture finalized|
+|GUI (View)          |  ❌ 0%        |  -         |  Main window, text |editor
+|Printer Access      |  ❌ 0%        |  -         |  Windows printer API|
+|Form Builder        |  ❌ 0%        |  -         |  Table/form templates|
+|Image Processing    |  ❌ 0%        |  -         |  Graphics for matrix printers|
 Progress Summary:
 
 ✅ 404 tests passing (100% pass rate)
