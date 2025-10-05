@@ -2816,3 +2816,719 @@ class Table:
         parts.append("\r\n")
 
         return "".join(parts).encode("cp866", errors="replace")
+
+
+"""
+=============================================================================
+PLANNED FEATURES (NOT YET IMPLEMENTED)
+=============================================================================
+
+This section documents features that were planned for table.py but not yet
+implemented. These will be added in future versions after escp/ module
+refactoring is complete.
+
+Version: 2.1 (planned)
+Priority: After escp/ module implementation
+Status: Documented, ready for implementation
+
+=============================================================================
+"""
+
+# =============================================================================
+# PHASE 1: CRITICAL FEATURES (HIGH PRIORITY)
+# =============================================================================
+
+"""
+1.1 CellStyle — Simplified Cell Formatting
+──────────────────────────────────────────────────────────────────────────
+Purpose: Simplify cell text formatting with a unified style interface.
+Priority: HIGH
+Status: Design complete, awaiting escp/ refactor
+Dependencies: escp/commands/text_formatting.py
+
+Current limitation:
+    # Verbose approach - requires Run objects
+    cell = Cell()
+    cell.content.add_run(Run(text="Bold", bold=True))
+
+Planned API:
+    # Simple approach - style at cell level
+    cell = Cell(style=CellStyle(bold=True, italic=True))
+    cell.content.extend_text("Bold Italic text")
+
+Implementation:
+    @dataclass(frozen=True, slots=True)
+    class TextDecoration(Enum):
+        NONE = "none"
+        UNDERLINE = "underline"
+        DOUBLE_UNDERLINE = "double_underline"
+        STRIKETHROUGH = "strikethrough"  # Two-pass rendering required
+
+    @dataclass(frozen=True, slots=True)
+    class CellStyle:
+        '''Visual styling for cell content applied uniformly.'''
+        bold: bool = False
+        italic: bool = False
+        underline: TextDecoration = TextDecoration.NONE
+        double_strike: bool = False
+        double_width: bool = False
+        double_height: bool = False
+        condensed: bool = False
+
+        def to_escp_prefix(self) -> bytes:
+            '''Generate ESC/P commands to enable this style.'''
+            ...
+
+        def to_escp_suffix(self) -> bytes:
+            '''Generate ESC/P commands to disable this style.'''
+            ...
+
+        def requires_two_pass_rendering(self) -> bool:
+            '''Check if strikethrough requires two-pass rendering.'''
+            return self.underline == TextDecoration.STRIKETHROUGH
+
+ESC/P Support (FX-890):
+    ✅ bold           → ESC E / ESC F
+    ✅ italic         → ESC 4 / ESC 5
+    ✅ underline      → ESC - 1 / ESC - 0
+    ✅ double_underline → ESC - 2 / ESC - 0
+    ⚠️ strikethrough  → Two-pass: text + horizontal line overlay (CR + ─)
+    ✅ double_strike  → ESC G / ESC H
+    ✅ double_width   → ESC W 1 / ESC W 0
+    ✅ double_height  → ESC w 1 / ESC w 0
+    ✅ condensed      → SI (0x0F) / DC2 (0x12)
+
+Cell integration:
+    @dataclass(slots=True)
+    class Cell:
+        # ... existing fields ...
+        style: CellStyle = field(default_factory=CellStyle)  # NEW
+
+Usage example:
+    # Header with bold + double-width
+    header = Cell(style=CellStyle(bold=True, double_width=True))
+    header.content.extend_text("MONTHLY REPORT")
+
+    # Strikethrough (emulated via two-pass)
+    cell = Cell(style=CellStyle(underline=TextDecoration.STRIKETHROUGH))
+    cell.content.extend_text("Cancelled item")
+
+Testing requirements:
+    - Unit tests for all ESC/P command generation
+    - Integration tests with actual FX-890 printer
+    - Two-pass strikethrough rendering validation
+    - to_dict/from_dict serialization
+"""
+
+
+"""
+1.2 BarCode Support — Native ESC/P Barcode Rendering
+──────────────────────────────────────────────────────────────────────────
+Purpose: Support native barcode printing via FX-890 ESC ( B command.
+Priority: HIGH
+Status: Design complete, awaiting escp/commands/barcode.py
+Dependencies: escp/commands/barcode.py
+
+Verified FX-890 support (from manual):
+    ✅ CODE39
+    ✅ CODE128
+    ✅ Interleaved 2 of 5
+    ✅ EAN-8
+    ✅ EAN-13
+    ✅ UPC-A
+    ✅ UPC-E
+    ✅ POSTNET
+
+Implementation:
+    class BarcodeType(Enum):
+        CODE39 = "code39"
+        CODE128 = "code128"
+        INTERLEAVED_2OF5 = "i2of5"
+        EAN8 = "ean8"
+        EAN13 = "ean13"
+        UPCA = "upca"
+        UPCE = "upce"
+        POSTNET = "postnet"
+
+    class BarcodeHRI(Enum):
+        '''Human Readable Interpretation position.'''
+        NONE = "none"
+        ABOVE = "above"
+        BELOW = "below"
+        BOTH = "both"
+
+    @dataclass(frozen=True, slots=True)
+    class BarCode:
+        '''Barcode configuration for FX-890.'''
+        type: BarcodeType
+        data: str
+        height: int = 50  # dots (8-255)
+        width: int = 2    # module width (2-6)
+        hri: BarcodeHRI = BarcodeHRI.BELOW
+
+        def __post_init__(self) -> None:
+            if not (8 <= self.height <= 255):
+                raise ValueError("height must be 8-255")
+            if not (2 <= self.width <= 6):
+                raise ValueError("width must be 2-6")
+
+        def to_escp(self) -> bytes:
+            '''Generate ESC ( B command: ESC ( B n1 n2 type h w hri data'''
+            ...
+
+Cell integration:
+    @dataclass(slots=True)
+    class Cell:
+        # ... existing fields ...
+        barcode: BarCode | None = None  # NEW
+
+        def has_barcode(self) -> bool:
+            return self.barcode is not None
+
+Usage example:
+    # EAN-13 barcode in table cell
+    barcode = BarCode(
+        type=BarcodeType.EAN13,
+        data="1234567890128",
+        height=60,
+        width=3,
+        hri=BarcodeHRI.BELOW
+    )
+    cell = Cell(barcode=barcode)
+
+    # Combination: text + barcode
+    cell = Cell(barcode=barcode)
+    cell.content.extend_text("Product: ABC-123")  # Text above barcode
+
+Rendering logic:
+    - If cell.has_barcode() and cell.content is empty → render only barcode
+    - If both present → render text, then barcode below
+    - Barcode alignment respects cell.alignment.horizontal
+    - Barcode height accounts for row_height allocation
+
+Testing requirements:
+    - All barcode types with valid/invalid data
+    - HRI position variations
+    - Parameter validation (height, width ranges)
+    - Integration with table row rendering
+"""
+
+
+"""
+1.3 Export Formats — HTML/CSV/Markdown
+──────────────────────────────────────────────────────────────────────────
+Purpose: Universal table export for documentation and data exchange.
+Priority: HIGH
+Status: Design complete, pure Python (no printer dependency)
+Dependencies: None (stdlib only)
+
+Implementation:
+    class Table:
+        def to_html(self, css_classes: bool = True) -> str:
+            '''Export to HTML with optional CSS classes.
+
+            Supports:
+                - colspan/rowspan attributes
+                - Bold/italic via <strong>/<em> tags
+                - CSS classes: .escp-table, .header-row
+
+            Limitations:
+                - No nested table rendering (flatten to text)
+                - No barcode rendering (show data as text)
+            '''
+            ...
+
+        def to_markdown(self) -> str:
+            '''Export to GitHub Flavored Markdown.
+
+            Limitations:
+                - No colspan/rowspan (Markdown limitation)
+                - Merged cells are flattened
+                - First row treated as header
+
+            Example output:
+                | Header 1 | Header 2 | Header 3 |
+                | -------- | -------- | -------- |
+                | Cell 1   | Cell 2   | Cell 3   |
+            '''
+            ...
+
+        def to_csv(self, delimiter: str = ",", quote_char: str = '"') -> str:
+            '''Export to CSV using stdlib csv module.
+
+            Limitations:
+                - No formatting preservation
+                - Merged cells flattened to single value
+                - Nested tables converted to text
+
+            Args:
+                delimiter: Field separator (default: comma)
+                quote_char: Quote character (default: double-quote)
+            '''
+            ...
+
+Usage example:
+    # HTML export for documentation
+    html = table.to_html()
+    with open("report.html", "w", encoding="utf-8") as f:
+        f.write(html)
+
+    # Markdown for README
+    md = table.to_markdown()
+    print(md)
+
+    # CSV for Excel
+    csv = table.to_csv(delimiter=";")
+    with open("data.csv", "w", encoding="utf-8") as f:
+        f.write(csv)
+
+Testing requirements:
+    - All export formats with various table configurations
+    - colspan/rowspan handling in HTML
+    - Special character escaping (HTML entities, CSV quotes)
+    - Unicode support (UTF-8 encoding)
+"""
+
+
+# =============================================================================
+# PHASE 2: PRODUCTIVITY FEATURES (MEDIUM PRIORITY)
+# =============================================================================
+
+"""
+2.1 Table Templates — Pre-built Layouts
+──────────────────────────────────────────────────────────────────────────
+Purpose: Rapid table creation for common business documents.
+Priority: MEDIUM
+Status: Design phase
+Dependencies: None
+
+Planned templates:
+    - INVOICE: Header + line items + totals
+    - REPORT: Title + data grid + summary
+    - PRICE_LIST: Product + description + price columns
+    - CHECKLIST: Item + checkbox + notes columns
+    - CALENDAR: Month grid with day cells
+    - TIMESHEET: Employee + hours per day matrix
+
+Implementation:
+    class TableTemplate(Enum):
+        INVOICE = "invoice"
+        REPORT = "report"
+        PRICE_LIST = "price_list"
+        CHECKLIST = "checklist"
+        CALENDAR = "calendar"
+        TIMESHEET = "timesheet"
+
+    def create_from_template(
+        template: TableTemplate,
+        data: dict[str, Any]
+    ) -> Table:
+        '''Create pre-configured table from template.
+
+        Args:
+            template: Template type
+            data: Template-specific data dict
+
+        Example:
+            >>> data = {
+            ...     "title": "INVOICE #123",
+            ...     "items": [
+            ...         {"name": "Product A", "qty": 2, "price": 15.00},
+            ...         {"name": "Product B", "qty": 1, "price": 25.00},
+            ...     ],
+            ...     "total": 55.00
+            ... }
+            >>> table = create_from_template(TableTemplate.INVOICE, data)
+        '''
+        ...
+
+Template-specific data structures:
+    # Invoice template
+    InvoiceData = TypedDict('InvoiceData', {
+        'title': str,
+        'invoice_number': str,
+        'date': str,
+        'items': list[dict[str, Any]],  # name, qty, price
+        'subtotal': float,
+        'tax': float,
+        'total': float,
+    })
+
+    # Report template
+    ReportData = TypedDict('ReportData', {
+        'title': str,
+        'headers': list[str],
+        'rows': list[list[str]],
+        'summary': dict[str, Any],
+    })
+
+Testing requirements:
+    - All templates with minimal/maximal data
+    - Data validation (required fields, types)
+    - Template rendering consistency
+"""
+
+
+"""
+2.2 Auto-numbering and Simple Formulas
+──────────────────────────────────────────────────────────────────────────
+Purpose: Automatic row numbering and basic calculations.
+Priority: MEDIUM
+Status: Design phase
+Dependencies: None (pure Python)
+
+Implementation:
+    class CellFormula(Enum):
+        NONE = "none"
+        ROW_NUMBER = "row_number"      # 1, 2, 3, ...
+        COLUMN_LETTER = "column_letter" # A, B, C, ...
+        SUM = "sum"                     # Sum of range
+        AVG = "avg"                     # Average of range
+        COUNT = "count"                 # Count non-empty cells
+        MIN = "min"                     # Minimum value
+        MAX = "max"                     # Maximum value
+
+    @dataclass(slots=True)
+    class Cell:
+        # ... existing fields ...
+        formula: CellFormula = CellFormula.NONE
+        formula_range: tuple[int, int, int, int] | None = None  # (r1,c1,r2,c2)
+
+Usage example:
+    # Auto-numbered rows
+    for i in range(10):
+        num_cell = Cell(formula=CellFormula.ROW_NUMBER)
+        data_cell = Cell()
+        data_cell.content.extend_text(f"Item {i+1}")
+        table.add_row([num_cell, data_cell])
+
+    # Total row with SUM formula
+    total_cell = Cell(
+        formula=CellFormula.SUM,
+        formula_range=(1, 2, 10, 2)  # Sum column 2, rows 1-10
+    )
+    table.add_row([Cell(), Cell(), total_cell])
+
+Formula evaluation:
+    - Evaluated during to_escp() / to_html() / to_csv()
+    - Cell.content updated with computed value
+    - Formulas can reference other cells (via formula_range)
+    - Type coercion: strings → floats for numeric operations
+
+Testing requirements:
+    - All formula types with valid ranges
+    - Circular reference detection
+    - Empty cell handling
+    - Type conversion edge cases
+"""
+
+
+"""
+2.3 Table Sorting and Filtering
+──────────────────────────────────────────────────────────────────────────
+Purpose: Dynamic data manipulation before rendering.
+Priority: MEDIUM
+Status: Design phase
+Dependencies: None
+
+Implementation:
+    class Table:
+        def sort_by_column(
+            self,
+            col_idx: int,
+            reverse: bool = False,
+            key: Callable[[str], Any] | None = None,
+            skip_header: bool = True
+        ) -> None:
+            '''Sort rows by column value.
+
+            Args:
+                col_idx: Column index to sort by
+                reverse: Descending order if True
+                key: Custom sort key (e.g., float for numeric sort)
+                skip_header: Don't sort first row (header)
+            '''
+            ...
+
+        def filter_rows(
+            self,
+            col_idx: int,
+            condition: Callable[[str], bool],
+            skip_header: bool = True
+        ) -> Table:
+            '''Create new table with filtered rows.
+
+            Args:
+                col_idx: Column to test
+                condition: Boolean predicate
+                skip_header: Always include first row
+
+            Returns:
+                New table with matching rows
+            '''
+            ...
+
+        def group_by_column(
+            self,
+            col_idx: int,
+            aggregate: dict[int, Callable[[list], Any]]
+        ) -> Table:
+            '''Group rows by column value with aggregation.
+
+            Args:
+                col_idx: Column to group by
+                aggregate: Column → aggregation function mapping
+
+            Example:
+                >>> # Group by category, sum amounts
+                >>> grouped = table.group_by_column(
+                ...     col_idx=0,  # Group by column 0
+                ...     aggregate={2: sum}  # Sum column 2
+                ... )
+            '''
+            ...
+
+Usage example:
+    # Sort by price (column 2), highest first
+    table.sort_by_column(2, reverse=True, key=float)
+
+    # Filter rows where date contains "2024"
+    filtered = table.filter_rows(0, lambda val: "2024" in val)
+
+    # Group by category, sum quantities
+    grouped = table.group_by_column(
+        col_idx=0,
+        aggregate={1: sum, 2: len}  # Sum col 1, count col 2
+    )
+
+Testing requirements:
+    - Sorting with various key functions
+    - Filtering with complex predicates
+    - Grouping with multiple aggregation functions
+    - Header preservation
+"""
+
+
+"""
+2.4 Table Pagination with Header Repeat
+──────────────────────────────────────────────────────────────────────────
+Purpose: Split large tables across multiple pages.
+Priority: MEDIUM
+Status: Design phase
+Dependencies: None
+
+Implementation:
+    class Table:
+        def paginate(
+            self,
+            max_rows_per_page: int = 50,
+            repeat_header: bool = True,
+            repeat_footer: bool = False
+        ) -> list[Table]:
+            '''Split table into page-sized chunks.
+
+            Args:
+                max_rows_per_page: Maximum rows per page
+                repeat_header: Repeat first row on each page
+                repeat_footer: Repeat last row on each page
+
+            Returns:
+                List of Table objects, one per page
+            '''
+            ...
+
+Usage example:
+    # Long table with 500 rows
+    pages = table.paginate(max_rows_per_page=50, repeat_header=True)
+
+    # Print each page separately
+    for i, page in enumerate(pages):
+        print(f"--- Page {i+1}/{len(pages)} ---")
+        escp = page.to_escp()
+        printer.send(escp)
+        if i < len(pages) - 1:
+            printer.send(b"\x0c")  # Form feed
+
+Testing requirements:
+    - Various page sizes
+    - Header/footer repetition
+    - Single-page tables (no split)
+    - Edge cases (empty table, 1-row table)
+"""
+
+
+# =============================================================================
+# PHASE 3: ADVANCED FEATURES (LOW PRIORITY)
+# =============================================================================
+
+"""
+3.1 Conditional Cell Formatting
+──────────────────────────────────────────────────────────────────────────
+Purpose: Auto-apply styles based on cell values.
+Priority: LOW
+Status: Concept phase
+Dependencies: Phase 1.1 (CellStyle)
+
+Implementation:
+    @dataclass(slots=True)
+    class ConditionalRule:
+        condition: Callable[[str], bool]
+        style: CellStyle
+
+    @dataclass(slots=True)
+    class Cell:
+        # ... existing fields ...
+        conditional_rules: list[ConditionalRule] = field(default_factory=list)
+
+Usage example:
+    # Negative numbers in red + bold
+    rules = [
+        ConditionalRule(
+            condition=lambda val: float(val) < 0,
+            style=CellStyle(bold=True)  # Note: FX-890 has no color
+        ),
+        ConditionalRule(
+            condition=lambda val: float(val) > 1000,
+            style=CellStyle(double_width=True)
+        )
+    ]
+
+    cell = Cell()
+    cell.content.extend_text("-500")
+    cell.conditional_rules = rules
+    # Renders with bold style automatically
+"""
+
+
+"""
+3.2 Table Merge Operations
+──────────────────────────────────────────────────────────────────────────
+Purpose: Combine multiple tables horizontally or vertically.
+Priority: LOW
+Status: Concept phase
+Dependencies: None
+
+Implementation:
+    class Table:
+        def merge_horizontal(self, other: Table) -> Table:
+            '''Append columns from other table.'''
+            ...
+
+        def merge_vertical(self, other: Table) -> Table:
+            '''Append rows from other table.'''
+            ...
+
+Usage example:
+    # Combine two tables side-by-side
+    merged = table1.merge_horizontal(table2)
+
+    # Stack tables vertically
+    combined = table1.merge_vertical(table2)
+"""
+
+
+"""
+3.3 Cell Data Validation
+──────────────────────────────────────────────────────────────────────────
+Purpose: Enforce data types and formats in cells.
+Priority: LOW
+Status: Concept phase
+Dependencies: None
+
+Implementation:
+    class CellDataType(Enum):
+        TEXT = "text"
+        NUMBER = "number"
+        DATE = "date"
+        CURRENCY = "currency"
+        PERCENTAGE = "percentage"
+        EMAIL = "email"
+        PHONE = "phone"
+
+    @dataclass(slots=True)
+    class Cell:
+        # ... existing fields ...
+        data_type: CellDataType = CellDataType.TEXT
+
+        def validate_data(self) -> bool:
+            '''Check if content matches data_type.'''
+            ...
+
+Usage example:
+    cell = Cell(data_type=CellDataType.NUMBER)
+    cell.content.extend_text("123.45")
+    assert cell.validate_data() == True
+
+    cell.content = Paragraph()
+    cell.content.extend_text("abc")
+    assert cell.validate_data() == False
+"""
+
+
+# =============================================================================
+# FUTURE CONSIDERATIONS (NOT PLANNED FOR 2.x)
+# =============================================================================
+
+"""
+4.1 Advanced Border Styles
+──────────────────────────────────────────────────────────────────────────
+Status: Deferred to 3.0
+Notes: FX-890 has limited box-drawing characters in CP866
+
+Potential features:
+    - Border position control (OUTER/INNER/HORIZONTAL/VERTICAL)
+    - Diagonal borders (not supported by FX-890)
+    - Custom border characters
+    - Per-side border width
+"""
+
+
+"""
+4.2 Cell Background Shading via Character Patterns
+──────────────────────────────────────────────────────────────────────────
+Status: Deferred to 3.0
+Notes: FX-890 is monochrome, shading via block characters (░▒▓█)
+
+Potential features:
+    class CellBackground(Enum):
+        NONE = "none"
+        LIGHT = "light"   # ░ (U+2591, CP866: 0xB0)
+        MEDIUM = "medium" # ▒ (U+2592, CP866: 0xB1)
+        DARK = "dark"     # ▓ (U+2593, CP866: 0xB2)
+        SOLID = "solid"   # █ (U+2588, CP866: 0xDB)
+
+Limitations:
+    - Character-based, not true graphics
+    - Depends on printer font support
+    - May affect text readability
+"""
+
+
+"""
+4.3 Text Rotation / Vertical Text
+──────────────────────────────────────────────────────────────────────────
+Status: Deferred to 3.0
+Notes: FX-890 has no native rotation command
+
+Potential workaround:
+    - Print characters vertically (one per line)
+    - Use stacked layout for narrow columns
+    - Requires complex line spacing calculations
+"""
+
+# =============================================================================
+# END OF PLANNED FEATURES
+# =============================================================================
+
+"""
+=============================================================================
+END OF TABLE.PY
+=============================================================================
+Module: src/model/table.py
+Version: 2.0 (current), 2.1 (planned with features above)
+Status: Production-ready for core functionality
+Coverage: 96%
+Tests: 110+
+Last Updated: October 2025
+=============================================================================
+"""

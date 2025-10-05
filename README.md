@@ -93,7 +93,38 @@ FX-Text-processor-3/
 │ │ └── enums.py # ⏳ IN PROGRESS
 │ ├── view/ # UI components (Tkinter)
 │ ├── controller/ # Business logic
-│ ├── escp/ # ESC/P command builders
+├── escp/
+│   ├── __init__.py
+│   ├── commands/
+│   │   ├── __init__.py  (✅ DONE)
+│   │   ├── text_formatting.py (✅ DONE)
+│   │   ├── fonts.py (✅ DONE)
+│   │   ├── sizing.py (✅ DONE)
+│   │   ├── positioning.py (✅ DONE)
+│   │   ├── line_spacing.py (✅ DONE)
+│   │   ├── print_quality.py (✅ DONE)
+│   │   ├── graphics.py (✅ DONE)
+│   │   ├── barcode.py (✅ DONE)
+│   │   ├── page_control.py (✅ DONE)
+│   │   ├── hardware.py (✅ DONE)
+│   │   ├── charset.py (✅ DONE)
+│   │   ├── special_effects.py (✅ DONE)
+│   │   └── shading.py (✅ DONE)
+│   ├── advanced_graphics/
+│   │   ├── __init__.py
+│   │   ├── dithering.py
+│   │   ├── double_strike.py
+│   │   ├── udc.py
+│   │   ├── scanline.py
+│   │   ├──esc_strikethrough.py
+│   │   └── rendering.py
+│   └── builders/
+│       ├── __init__.py
+│       ├── base.py
+│       ├── table_builder.py
+│       ├── paragraph_builder.py
+│       ├── run_builder.py
+│       └── document_builder.py
 │ ├── charset/ # Codepage management
 │ ├── image/ # Image processing
 │ ├── barcode/ # Barcode/QR generation
