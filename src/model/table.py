@@ -333,6 +333,18 @@ class Table:
         cell.rowspan = rowspan
         cell.colspan = colspan
 
+    def split_cell(self, row: int, col: int) -> None:
+        cell = self.get_cell(row, col)
+        if cell.rowspan == 1 and cell.colspan == 1:
+            return  # nothing to do
+        for i in range(row, row + cell.rowspan):
+            for j in range(col, col + cell.colspan):
+                if i == row and j == col:
+                    cell.rowspan = 1
+                    cell.colspan = 1
+                else:
+                    self.rows[i][j] = Cell()  # создаём новый пустой Cell
+
     def set_paper(self, paper: PaperSettings) -> None:
         self.paper = paper
         logger.info(f"Paper set to {paper}")
@@ -422,10 +434,14 @@ class Table:
     def create_from_template(self, template: "Table") -> "Table":
         import copy
 
-        new_rows = [
-            [Cell(**copy.deepcopy(cell.as_dict()), text="") for cell in row]
-            for row in template.rows
-        ]
+        new_rows = []
+        for row in template.rows:
+            new_row = []
+            for cell in row:
+                cell_kwargs = copy.deepcopy(cell.as_dict())
+                cell_kwargs["text"] = ""
+                new_row.append(Cell(**cell_kwargs))
+            new_rows.append(new_row)
         return Table(
             rows=new_rows,
             paper=template.paper,

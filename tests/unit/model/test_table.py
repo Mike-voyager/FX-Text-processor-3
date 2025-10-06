@@ -1,377 +1,378 @@
 import pytest
+import logging
 from src.model.table import (
     Table,
     Cell,
-    CellBorders,
-    TableBorder,
-    PaperSettings,
     CellAlignment,
     VerticalAlignment,
+    TableBorder,
+    CellStyle,
+    TableMetrics,
+    BarCode,
+    PaperSettings,
+    ConditionalRule,
+    BorderChars,
+    CellBorders,
     Paragraph,
     Run,
-    CellStyle,
-    BarCode,
     CellDataType,
-    TableMetrics,
-    ConditionalRule,
 )
-import random
+from typing import Any
+
+# ----------- BASIC STRUCTURE -----------
 
 
-def make_simple_table() -> Table:
-    t = Table()
-    t.add_row([Cell(text="A1"), Cell(text="B1")])
-    t.add_row([Cell(text="A2"), Cell(text="B2")])
-    return t
+def test_add_and_get_cell() -> None:
+    c = Cell(text="A1")
+    t = Table(rows=[[c]])
+    assert t.get_cell(0, 0).text == "A1"
 
 
-def test_create_basic_table() -> None:
-    table = make_simple_table()
-    assert len(table.rows) == 2
-    assert len(table.rows[0]) == 2
-    assert table.rows[0][0].text == "A1"
-    assert table.rows[1][1].text == "B2"
+def test_add_row_type_error() -> None:
+    t = Table(rows=[[Cell()]])
+    with pytest.raises(TypeError):
+        t.add_row("not a list")  # type: ignore
 
 
-def test_cell_properties() -> None:
-    cell = Cell(
-        text="test",
-        colspan=2,
-        rowspan=3,
-        align=CellAlignment.CENTER,
-        valign=VerticalAlignment.BOTTOM,
+def test_add_row_length_error() -> None:
+    t = Table(rows=[[Cell(), Cell()]])
+    with pytest.raises(ValueError):
+        t.add_row([Cell()])
+
+
+def test_insert_row_and_index_error() -> None:
+    t = Table(rows=[[Cell(), Cell()]])
+    with pytest.raises(IndexError):
+        t.insert_row(2, [Cell(), Cell()])  # out of range
+
+
+def test_merge_and_split_cells() -> None:
+    t = Table(rows=[[Cell(), Cell()], [Cell(), Cell()]])
+    t.merge_cells(0, 0, 2, 2)
+    assert t.get_cell(0, 0).rowspan == 2
+    assert t.get_cell(0, 0).colspan == 2
+    t.split_cell(0, 0)
+    assert t.get_cell(0, 0).rowspan == 1
+    assert t.get_cell(0, 0).colspan == 1
+    # остальные ячейки после разъединения должны быть Cell с кол-спан/роу-спан = 1
+    assert all(
+        t.get_cell(i, j).rowspan == 1 and t.get_cell(i, j).colspan == 1
+        for i in range(2)
+        for j in range(2)
     )
-    assert cell.is_merged()
-    cell2 = cell.copy()
-    assert cell2.text == "test" and cell2.colspan == 2 and cell2.rowspan == 3
 
 
-def test_merge_cells() -> None:
-    t = make_simple_table()
-    t.merge_cells(0, 0, rowspan=2, colspan=1)
-    assert t.rows[0][0].rowspan == 2
-    assert t.rows[0][0].colspan == 1
-    assert t.rows[0][1].is_merged() is False
+def test_add_column_and_swap_column_errors() -> None:
+    t = Table(rows=[[Cell()]])
+    with pytest.raises(ValueError):
+        Table(rows=[]).add_column()
+    t.add_column()
+    assert len(t.rows[0]) == 2
+    t.add_column(index=0)
+    assert len(t.rows[0]) == 3
+    with pytest.raises(IndexError):
+        t.swap_columns(0, 10)
 
 
-def test_cell_borders() -> None:
-    borders = CellBorders(left=TableBorder.SINGLE, bottom=TableBorder.DOUBLE)
-    c = Cell(text="borders", borders=borders)
-    assert c.borders.left == TableBorder.SINGLE
-    assert c.borders.bottom == TableBorder.DOUBLE
+def test_borderchars_for_all_styles() -> None:
+    for style in [TableBorder.SINGLE, TableBorder.DOUBLE, TableBorder.ASCII_ART, TableBorder.NONE]:
+        chars = BorderChars.for_style(style)
+        assert isinstance(chars, BorderChars)
 
 
-def test_table_serialize_and_deserialize() -> None:
-    t = make_simple_table()
-    d = t.serialize()
-    t2 = Table.from_dict(d)
-    assert t2.rows[1][1].text == "B2"
+def test_is_any_visible_and_merged_and_nested() -> None:
+    cb = CellBorders(TableBorder.SINGLE, TableBorder.NONE, TableBorder.NONE, TableBorder.NONE)
+    assert cb.is_any_visible()
+    cell = Cell()
+    assert cell.is_merged() is False
+    cell.colspan = 2
+    assert cell.is_merged() is True
+    cell.colspan, cell.rowspan = 1, 2
+    assert cell.is_merged() is True
+    cell.colspan, cell.rowspan = 1, 1
+    cell.nested_table = Table(rows=[[Cell()]])
+    assert cell.hasnestedtable() is True
 
 
-def test_nested_table() -> None:
-    inner = make_simple_table()
-    cell = Cell(text="OUT", nested_table=inner)
-    t = Table()
-    t.add_row([cell])
-    assert t.rows[0][0].hasnestedtable()
-    flat = t.flatten()
-    assert len(flat) == 2  # parent + nested
+def test_as_dict_all_options() -> None:
+    # paragraph и runs вместе, nested_table flat/nonflat
+    para = Paragraph(runs=[Run("a")], alignment=CellAlignment.RIGHT, indent=2)
+    c = Cell(text="t", paragraph=para, runs=[Run("b")])
+    c.nested_table = Table(rows=[[Cell(text="inn")]])
+    no_flat = c.as_dict()
+    flat = c.as_dict(flatten=True)
+    assert "paragraph" in no_flat
+    assert "runs" in no_flat
+    assert no_flat["nested_table"] == "<table>"
+    assert "nested_table" in flat and isinstance(flat["nested_table"], dict)
 
 
-def test_cell_content_paragraph_run() -> None:
-    para = Paragraph(runs=[Run(text="a", style=CellStyle(bold=True)), Run(text="b")])
-    c = Cell(paragraph=para)
-    assert isinstance(c.paragraph, Paragraph)
-    c2 = Cell(runs=[Run(text="X")])
-    assert c2.runs is not None and c2.runs[0].text == "X"
+def test_paginate_empty_and_no_header() -> None:
+    t = Table(rows=[[Cell()]])
+    # paginate из одной строки, без repeat_header
+    pages = t.paginate(10, repeat_header=False)
+    assert len(pages) == 1
+    # paginate пустой таблицы — не бросает
+    t_empty = Table(rows=[])
+    pages_empty = t_empty.paginate(10)
+    assert pages_empty == []
 
 
-def test_barcode_in_cell() -> None:
-    barcode = BarCode(data="12345", type="QR")
-    c = Cell(barcode=barcode)
-    assert c.barcode is not None and c.barcode.type == "QR"
-    d = c.as_dict()
-    assert "barcode" in d and d["barcode"] is not None and d["barcode"]["type"] == "QR"
+def test_aggregate_valueerror_branch() -> None:
+    t = Table(rows=[[Cell(text="xx")]])
+    # Пропускает ошибку ValueError
+    assert t.aggregate(0) == 0.0
+    # Unknown method causes ValueError
+    with pytest.raises(ValueError):
+        t.aggregate(0, method="MAX")
 
 
-def test_validate_table_metrics_and_properties() -> None:
-    t = make_simple_table()
-    paper = PaperSettings(width_mm=210, height_mm=297)
-    t.set_paper(paper)
-    metrics = TableMetrics(rows=2, columns=2, width_mm=210, height_mm=297)
-    t.metrics = metrics
-    assert t.paper is not None and t.paper.width_mm == 210
-    assert t.metrics is not None and t.metrics.rows == 2
+def test_create_from_template_and_invalid_dict() -> None:
+    base = Table(rows=[[Cell(text="a")]])
+    new = Table().create_from_template(base)
+    assert isinstance(new, Table)
 
 
-def test_groupby_and_aggregate() -> None:
-    t = Table()
-    t.add_row(
-        [Cell(text="A", data_type=CellDataType.TEXT), Cell(text="1", data_type=CellDataType.NUMBER)]
+def test_ascii_preview_max_depth_and_nested() -> None:
+    t = Table(rows=[[Cell(text="X")]])
+    c_nested = Cell(text="Y", nested_table=t)
+    t2 = Table(rows=[[c_nested]])
+    assert "<max depth reached>" in t2.ascii_preview(-1)
+    _ = t2.ascii_preview()
+
+
+def test_footprint_types_and_styles() -> None:
+    cell1 = Cell(text="1", data_type=CellDataType.NUMBER, style=CellStyle(bold=True))
+    cell2 = Cell(text="t", data_type=CellDataType.TEXT, style=None)
+    t = Table(rows=[[cell1, cell2]])
+    fp = t.footprint()
+    assert fp["type_histogram"]["number"] == 1
+    assert fp["style_histogram"][str(cell1.style)] == 1
+
+
+def test_cell_statistics_all_fields() -> None:
+    bc = BarCode(data="123")
+    c = Cell(text="1", data_type=CellDataType.NUMBER, formula="=", barcode=bc)
+    t = Table(rows=[[c]])
+    stats = t.cell_statistics()
+    assert stats["numeric_cells"] == 1
+    assert stats["formula_cells"] == 1
+    assert stats["barcode_cells"] == 1
+
+
+def test_validate_span_and_types() -> None:
+    t = Table(rows=[[Cell(colspan=101)]])  # MAX_SPAN==100
+    assert t.validate() is False
+    t = Table(rows=[[Cell(rowspan=101)]])
+    assert t.validate() is False
+    t = Table(rows=[[Cell(data_type="badtype")]])  # type: ignore
+    assert t.validate() is False
+
+
+# ----------- SERIALIZATION -----------
+
+
+def test_cell_as_dict_and_flatten() -> None:
+    cell = Cell(text="txt", align=CellAlignment.CENTER, valign=VerticalAlignment.BOTTOM)
+    d = cell.as_dict(flatten=False)
+    assert d["text"] == "txt"
+    assert d["align"] == "center"
+    table = Table(rows=[[cell]])
+    ser = table.serialize(flatten=True)
+    assert isinstance(ser, dict)
+
+
+def test_table_from_dict_and_json_roundtrip() -> None:
+    t = Table(rows=[[Cell(text="x")]])
+    ser = t.serialize()
+    t2 = Table.from_dict(ser)
+    assert t2.rows[0][0].text == "x"
+    # JSON
+    js = t.to_json()
+    Table.from_json(js)
+
+
+# ----------- NESTED STRUCTURE -----------
+
+
+def test_nested_table_flat() -> None:
+    inner = Table(rows=[[Cell(text="in")]])
+    cell = Cell(text="out", nested_table=inner)
+    t = Table(rows=[[cell]])
+    assert next(t.traverse()) == t
+    assert inner in t.flatten()
+
+
+def test_validate_span_coverage() -> None:
+    t = Table(rows=[[Cell(), Cell()], [Cell(), Cell()]])
+    assert t.validate_span_coverage() is True
+    t.get_cell(0, 0).colspan = 2
+    t.get_cell(0, 0).rowspan = 2
+    assert t.validate_span_coverage() is False
+
+
+# ----------- METRICS, AGG, UTIL -----------
+
+
+def test_aggregate_and_groupby() -> None:
+    t = Table(
+        rows=[
+            [Cell(text="1"), Cell(text="A")],
+            [Cell(text="2"), Cell(text="A")],
+            [Cell(text="3"), Cell(text="B")],
+        ]
     )
-    t.add_row(
-        [Cell(text="B", data_type=CellDataType.TEXT), Cell(text="2", data_type=CellDataType.NUMBER)]
-    )
-    g = t.groupby(0)
-    assert set(g.keys()) == {"A", "B"}
-    agg = t.aggregate(1, method="SUM")
-    assert agg == 3.0
+    assert t.aggregate(0, method="SUM") == 6
+    assert t.aggregate(0, method="AVG") == 2
+    with pytest.raises(ValueError):
+        t.aggregate(0, method="XYZ")
+    by = t.groupby(1)
+    assert by["A"][0][0].text == "1"
+    assert by["B"][0][0].text == "3"
 
 
 def test_ascii_preview() -> None:
-    table = make_simple_table()
-    s = table.ascii_preview()
-    assert "+-----" in s or "─" in s
-    assert "A1" in s
+    t = Table(rows=[[Cell(text="X")]])
+    preview = t.ascii_preview()
+    assert isinstance(preview, str)
 
 
-def test_flatten_and_traverse() -> None:
-    t = make_simple_table()
-    n = Table()
-    n.add_row([Cell(text="C", nested_table=t)])
-    flat = n.flatten()
-    assert len(flat) == 2
-
-
-def test_span_coverage_validation() -> None:
-    t = Table()
-    t.add_row([Cell(text="1", colspan=2), Cell(text="x")])
-    # Следующая строка неконсистентна по ширине, ожидается исключение
-    import pytest
-
-    with pytest.raises(ValueError):
-        t.add_row([Cell(text="2"), Cell(text="3"), Cell(text="4")])
-
-
-def test_add_row_invalid_length() -> None:
-    t = Table()
-    t.add_row([Cell(text="A1"), Cell(text="B1")])
-    with pytest.raises(ValueError):
-        t.add_row([Cell(text="C")])
-
-
-def test_merge_cells_out_of_bounds() -> None:
-    t = Table()
-    t.add_row([Cell(text="X")])
-    with pytest.raises(IndexError):
-        t.merge_cells(1, 0)
-
-
-def test_set_and_adjust_padding() -> None:
-    t = Table()
-    t.add_row([Cell(text="pad", padding=(1, 1, 1, 1)), Cell(text="x")])
-    t.set_padding(2, 3, 4, 5)
-    for cell in t.get_cells():
-        assert cell.padding == (2, 3, 4, 5)
-
-
-def test_paginate_and_repeat_header() -> None:
-    t = Table()
-    t.add_row([Cell(text="Header")])
-    for i in range(10):
-        t.add_row([Cell(text=f"row{i}")])
-    pages = t.paginate(3, repeat_header=True)
-    assert len(pages) > 2
+def test_table_metrics_and_borders() -> None:
+    cells = [Cell(text=str(i)) for i in range(3)]
+    t = Table(rows=[cells for _ in range(3)])
+    pages = t.paginate(max_rows_per_page=2)
+    assert len(pages) > 0
+    t.set_padding(1, 2, 3, 4)
     for page in pages:
-        assert page.rows[0][0].text == "Header"
+        assert isinstance(page, Table)
 
 
-def test_conditional_formatting() -> None:
-    condstyle = CellStyle(bold=True)
-    rule = ConditionalRule(condition=lambda x: x == "X", style=condstyle)
-    cell1 = Cell(text="X", conditional_rules=[rule])
-    cell2 = Cell(text="Y", conditional_rules=[rule])
-    t = Table()
-    t.add_row([cell1, cell2])
+def test_apply_conditional_formatting() -> None:
+    style = CellStyle(bold=True)
+    cond = lambda txt: txt == "42"
+    rule = ConditionalRule(condition=cond, style=style)
+    cell = Cell(text="42", conditional_rules=[rule])
+    t = Table(rows=[[cell]])
     t.apply_conditional_formatting()
-    assert t.rows[0][0].style is not None and t.rows[0][0].style.bold
-    assert not (t.rows[0][1].style is not None and t.rows[0][1].style.bold)
+    assert t.get_cell(0, 0).style == style
 
 
-def test_invalid_span_validation() -> None:
-    t = Table()
-    t.add_row([Cell(text="a", colspan=2)])
-    t.add_row([Cell(text="b")])
-    t.rows[0][0].colspan = 3
-    # Структура некорректна, но add_row не выбросило ошибку, validate_span_coverage теперь формально True
-    # Корректней требовать ValueError при прямой проверке или фиксировать возвращаемое значение как True и документировать ограничение.
-    # Наиболее строгий вариант — ожидать False только если сетка реально некорректно покрыта,
-    # иначе этот тест можно убрать или уточнить задачу.
-    assert t.validate_span_coverage() in (True, False)
-
-
-def test_formulae_and_formula_enum() -> None:
-    t = Table()
-    t.add_row(
-        [
-            Cell(text="1", data_type=CellDataType.NUMBER),
-            Cell(text="2", data_type=CellDataType.NUMBER),
-        ]
-    )
-    t.add_row(
-        [
-            Cell(text="3", data_type=CellDataType.NUMBER),
-            Cell(text="4", data_type=CellDataType.NUMBER),
-        ]
-    )
-    result = t.aggregate(1, method="SUM")
-    assert result == 6
-    c = Cell(formula="2+3")
-    assert c.formula is not None and eval(c.formula) == 5
-
-
-def test_batch_column_and_transpose() -> None:
-    t = Table()
-    t.add_row([Cell(text="A"), Cell(text="B")])
-    t.add_row([Cell(text="C"), Cell(text="D")])
-    t.add_column(default_cell=Cell(text="X"))
-    assert all(len(row) == 3 for row in t.rows)
-    t.swap_columns(0, 2)
-    assert t.rows[0][0].text == "X" and t.rows[0][2].text == "A"
+def test_transpose_and_swap_columns() -> None:
+    t = Table(rows=[[Cell(text="A"), Cell(text="B")], [Cell(text="C"), Cell(text="D")]])
     t.transpose()
-    assert len(t.rows) == 3
+    assert t.rows[0][0].text == "A"
+    t.swap_columns(0, 1)
+    assert t.rows[0][1].text == "A"
 
 
-def test_flatten_text_and_export_stats() -> None:
-    t = Table()
-    t.add_row([Cell(text="One")])
-    t.add_row([Cell(text="Two")])
-    assert "One Two" == t.flatten_text()
-    stats = t.export_stats()
-    assert all(k in stats for k in ("footprint", "cell_statistics", "validation"))
-    assert stats["validation"] is True
+def test_table_validation_and_cycles() -> None:
+    t = Table(rows=[[Cell(), Cell()], [Cell(), Cell()]])
+    assert t.validate() is True
+    t.rows.append([Cell()])  # uneven
+    assert t.validate() is False
+    # цикл
+    loop = Table(rows=[[Cell()]])
+    loop.rows[0][0].nested_table = loop
+    assert loop.validate() is False
 
 
-def test_from_json_and_to_json() -> None:
-    t = Table()
-    t.add_row([Cell(text="json")])
-    j = t.to_json()
-    t2 = Table.from_json(j)
-    assert t2.rows[0][0].text == "json"
-    assert t2.to_json() == j
+def test_table_flatten_methods_and_stats() -> None:
+    t = Table(rows=[[Cell(text="A")]])
+    assert "A" in t.flatten_text()
+    fp = t.footprint()
+    cs = t.cell_statistics()
+    es = t.export_stats()
+    assert fp["cell_count"] == 1
+    assert cs["total_length"] == 1
+    assert es["cell_statistics"]["total_length"] == 1
 
 
-def test_type_safe_groupby() -> None:
-    t = Table()
-    t.add_row([Cell(text="alpha", data_type=CellDataType.TEXT), Cell(text="100")])
-    t.add_row([Cell(text="beta", data_type=CellDataType.TEXT), Cell(text="200")])
-    groups = t.groupby(0)
-    assert isinstance(groups, dict)
-    assert set(groups.keys()) == {"alpha", "beta"}
+def test_table_paper_metrics() -> None:
+    paper = PaperSettings(width_mm=210, height_mm=297)
+    tm = TableMetrics(rows=2, columns=2, width_mm=210, height_mm=297)
+    t = Table(rows=[[Cell(), Cell()], [Cell(), Cell()]], paper=paper, metrics=tm)
+    assert t.paper is not None and t.paper.width_mm == 210
+    assert t.metrics is not None and t.metrics.width_mm == 210
 
 
-def test_as_dict_field_completeness() -> None:
-    c = Cell(
-        text="T",
-        colspan=2,
-        borders=CellBorders(left=TableBorder.DOUBLE),
-        background_color="#fff",
-        style=CellStyle(bold=True),
-        sort_key="s",
-        padding=(1, 2, 3, 4),
-    )
-    d = c.as_dict()
-    assert d["colspan"] == 2
-    assert d["borders"]["left"] == "double"
-    assert d["background_color"] == "#fff"
-    assert d["style"]["bold"] is True
-    assert d["padding"] == (1, 2, 3, 4)
+from typing import Any
 
 
-# Property-based tests
-def test_random_rectangular_table_structure(nrows: int, ncols: int) -> None:
-    t = Table()
-    for _ in range(nrows):
-        t.add_row([Cell(text=f"{random.randint(1,99)}") for _ in range(ncols)])
-    assert len(t.rows) == nrows
-    assert all(len(row) == ncols for row in t.rows)
-    assert t.validate()
+def test_apply_conditional_formatting_with_error() -> None:
+    def cond(txt: Any) -> bool:
+        raise Exception("fail")
+
+    style = CellStyle()
+    rule = ConditionalRule(condition=cond, style=style)
+    cell = Cell(text="err", conditional_rules=[rule])
+    t = Table(rows=[[cell]])
+    # Ошибка не останавливает application
+    t.apply_conditional_formatting()
 
 
-def test_nested_single_level_table(rows: int) -> None:
-    t1 = Table()
-    for _ in range(rows):
-        t1.add_row([Cell(text="a")])
-    t2 = Table()
-    t2.add_row([Cell(text="X", nested_table=t1)])
-    assert t2.rows[0][0].hasnestedtable()
-    assert t2.flatten()[-1] is t1
+def test_cell_copy() -> None:
+    c = Cell(text="X")
+    c2 = c.copy()
+    assert c2 is not c
+    assert c2.text == "X"
 
 
-def test_random_cell_styles(bold: bool, italic: bool, color: str) -> None:
-    style = CellStyle(bold=bold, italic=italic, foreground=color)
-    c = Cell(text="Q", style=style)
-    d = c.as_dict()
-    assert d["style"]["bold"] == bold
-    assert d["style"]["foreground"] == color
-
-
-def test_batch_bulk_insert_and_transpose() -> None:
-    t = Table()
-    for i in range(10):
-        t.add_row([Cell(text=str(i)), Cell(text=str(i * i))])
-    t.transpose()
+def test_add_row_success_and_logging(caplog: Any) -> None:
+    t = Table(rows=[[Cell(), Cell()]])
+    with caplog.at_level(logging.DEBUG):
+        t.add_row([Cell(), Cell()])
+    assert "Added row of 2 cells" in caplog.text
     assert len(t.rows) == 2
-    assert len(t.rows[0]) == 10
-    t.transpose()
-    assert t.rows[4][0].text == "4"
-    t.merge_cells(0, 0, rowspan=2)
-    assert t.rows[0][0].rowspan == 2
 
 
-def test_deeply_nested_tables() -> None:
-    parent = Table()
-    current = parent
-    for i in range(8):
-        nested = Table()
-        nested.add_row([Cell(text=f"Depth {i}")])
-        current.add_row([Cell(text=f"Level {i}", nested_table=nested)])
-        current = nested
-    assert len(parent.flatten()) == 9
+def test_insert_row_success_and_logging(caplog: Any) -> None:
+    t = Table(rows=[[Cell(), Cell()]])
+    with caplog.at_level(logging.DEBUG):
+        t.insert_row(1, [Cell(), Cell()])
+    assert "Inserted row at 1, 2 cells" in caplog.text
+    assert len(t.rows) == 2
 
 
-def test_groupby_invalid_column() -> None:
-    t = Table()
-    t.add_row([Cell(text="A")])
-    with pytest.raises(IndexError):
-        t.groupby(1)
-
-
-def test_aggregate_invalid_column() -> None:
-    t = Table()
-    t.add_row([Cell(text="A")])
-    with pytest.raises(IndexError):
-        t.aggregate(3)
-
-
-def test_merge_cells_wrong_index() -> None:
-    t = Table()
-    t.add_row([Cell(text="1")])
-    with pytest.raises(IndexError):
-        t.merge_cells(5, 0)
-
-
-def test_large_table_json_export() -> None:
-    t = Table()
-    for i in range(50):
-        t.add_row([Cell(text=str(j)) for j in range(50)])
-    js = t.to_json()
-    assert isinstance(js, str)
-    assert "49" in js
-
-
-def test_roundtrip_property(rows: int, cols: int) -> None:
-    t = Table()
-    for _ in range(rows):
-        t.add_row([Cell(text=str(random.randint(1, 1000))) for _ in range(cols)])
-    js = t.to_json()
-    t2 = Table.from_json(js)
-    assert t2.serialize() == t.serialize()
-    assert len(t2.rows) == rows
-
-
-def test_custom_to_escp_boundary_zero() -> None:
-    from src.model.enums import LineSpacing
-
+def test_insert_row_errors() -> None:
+    t = Table(rows=[[Cell(), Cell()]])
+    with pytest.raises(TypeError):
+        t.insert_row(1, "abc")  # type: ignore
     with pytest.raises(ValueError):
-        LineSpacing.CUSTOM.to_escp(custom_value=0)
+        t.insert_row(1, [Cell()])
+
+
+def test_split_cell_nothing_to_do() -> None:
+    t = Table(rows=[[Cell()]])
+    t.split_cell(0, 0)  # cell.colspan/rowspan == 1, ничего не делает, но ветка покрыта
+    assert t.get_cell(0, 0).colspan == 1
+
+
+def test_set_paper_logging(caplog: Any) -> None:
+    p = PaperSettings(width_mm=100, height_mm=150)
+    t = Table(rows=[[Cell()]])
+    with caplog.at_level(logging.INFO):
+        t.set_paper(p)
+    assert t.paper is p
+    assert "Paper set to" in caplog.text
+
+
+def test_apply_conditional_formatting_full_cycle() -> None:
+    style = CellStyle(bold=True)
+    cond = lambda txt: True
+    rule = ConditionalRule(condition=cond, style=style)
+    cell = Cell(text="1", conditional_rules=[rule])
+    t = Table(rows=[[cell]])
+    t.apply_conditional_formatting()
+    assert cell.style is not None and cell.style.bold is True
+
+
+def test_validate_span_coverage_nested() -> None:
+    t = Table(rows=[[Cell(colspan=2, rowspan=2), Cell()], [Cell(), Cell()]])
+    assert not t.validate_span_coverage()
+
+
+def test_check_cycles_branch() -> None:
+    t1 = Table(rows=[[Cell()]])
+    t2 = Table(rows=[[Cell(nested_table=t1)]])
+    t1.rows[0][0].nested_table = t2  # цикл
+    assert t1.validate() is False

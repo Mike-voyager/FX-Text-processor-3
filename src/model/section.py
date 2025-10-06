@@ -554,11 +554,13 @@ class Section:
     # =========================================================================
 
     def __len__(self) -> int:
-        """Возвращает число символов в тексте абзаца."""
+        """Возвращает число символов в тексте всех параграфов секции."""
         total = 0
-        for run in self.runs:
-            if hasattr(run, "text") and isinstance(run.text, str):
-                total += len(run.text)
+        for para in self.paragraphs:
+            if hasattr(para, "runs") and isinstance(para.runs, list):
+                for run in para.runs:
+                    if hasattr(run, "text") and isinstance(run.text, str):
+                        total += len(run.text)
         return total
 
     def __eq__(self, other: object) -> bool:
