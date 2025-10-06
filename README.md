@@ -90,9 +90,9 @@ FX-Text-processor-3/
 │   │   ├── __init__.py
 │   │   ├── document.py           # 🚧 Blocked (43%) — awaiting refactor
 │   │   ├── section.py            # ✅ Done (100%)
-│   │   ├── paragraph.py          # ✅ Done (100%)
+│   │   ├── paragraph.py          # ✅ DONE
 │   │   ├── run.py                # ✅ Done (97%)
-│   │   ├── table.py              # ✅ Done (96%)
+│   │   ├── table.py              # ✅ DONE
 │   │   ├──image.py               # 🚧 TODO
 │   │   ├──barcode.py             # 🚧 TODO
 │   │   ├──form.py                # 🚧 TODO
@@ -144,7 +144,7 @@ FX-Text-processor-3/
 │   │       ├── __init__.py
 │   │       ├── base.py
 │   │       ├── table_builder.py
-│   │       ├── paragraph_builder.py
+│   │       ├── paragraph_builder.py    # 🚧 TODO
 │   │       ├── run_builder.py
 │   │       └── document_builder.py
 │

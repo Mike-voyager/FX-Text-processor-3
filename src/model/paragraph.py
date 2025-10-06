@@ -167,6 +167,14 @@ class Paragraph:
             "user_data": self.user_data,
         }
 
+    def __len__(self) -> int:
+        """Возвращает число символов в тексте абзаца."""
+        total = 0
+        for run in self.runs:
+            if hasattr(run, "text") and isinstance(run.text, str):
+                total += len(run.text)
+        return total
+
     @staticmethod
     def from_dict(data: dict) -> "Paragraph":
         return Paragraph(
