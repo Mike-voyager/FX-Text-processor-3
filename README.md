@@ -93,7 +93,7 @@ FX-Text-processor-3/
 │   │   ├── paragraph.py          # ✅ DONE (100%)
 │   │   ├── run.py                # ✅ Done (100%)
 │   │   ├── table.py              # ✅ DONE (100%)
-│   │   ├── image.py               # 🚧 working
+│   │   ├── image.py               # 🚧 working1
 │   │   ├──barcode.py             # 🚧 TODO
 │   │   ├──form.py                # 🚧 TODO
 │   │   ├──validation.py          # 🚧 TODO
