@@ -91,7 +91,7 @@ FX-Text-processor-3/
 │   │   ├── document.py           # 🚧 Blocked (43%) — awaiting refactor
 │   │   ├── section.py            # ✅ Done (100%)
 │   │   ├── paragraph.py          # ✅ DONE (100%)
-│   │   ├── run.py                # ✅ Done (97%)
+│   │   ├── run.py                # ✅ Done (100%)
 │   │   ├── table.py              # ✅ DONE (100%)
 │   │   ├── image.py               # 🚧 TODO
 │   │   ├──barcode.py             # 🚧 TODO
