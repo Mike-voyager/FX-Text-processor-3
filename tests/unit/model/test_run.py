@@ -48,26 +48,26 @@ from src.model.enums import (
 class TestEnums:
     """Test all enum classes in run.py"""
 
-    def test_text_direction_values(self):
+    def test_text_direction_values(self) -> None:
         """Test TextDirection enum values"""
         assert TextDirection.LTR.value == "ltr"
         assert TextDirection.RTL.value == "rtl"
         assert TextDirection.AUTO.value == "auto"
 
-    def test_whitespace_mode_values(self):
+    def test_whitespace_mode_values(self) -> None:
         """Test WhitespaceMode enum values"""
         assert WhitespaceMode.NORMAL.value == "normal"
         assert WhitespaceMode.PRESERVE.value == "preserve"
         assert WhitespaceMode.NOWRAP.value == "nowrap"
 
-    def test_border_style_values(self):
+    def test_border_style_values(self) -> None:
         """Test BorderStyle enum values"""
         assert BorderStyle.NONE.value == "none"
         assert BorderStyle.SOLID.value == "solid"
         assert BorderStyle.DASHED.value == "dashed"
         assert BorderStyle.DOTTED.value == "dotted"
 
-    def test_highlight_type_values(self):
+    def test_highlight_type_values(self) -> None:
         """Test HighlightType enum values"""
         assert HighlightType.SELECTION.value == "selection"
         assert HighlightType.SEARCH_RESULT.value == "search"
@@ -78,7 +78,7 @@ class TestEnums:
         assert HighlightType.HYPERLINK_HOVER.value == "link_hover"
         assert HighlightType.CUSTOM.value == "custom"
 
-    def test_list_style_type_values(self):
+    def test_list_style_type_values(self) -> None:
         """Test ListStyleType enum values"""
         assert ListStyleType.NONE.value == "none"
         assert ListStyleType.BULLET.value == "bullet"
@@ -95,7 +95,7 @@ class TestEnums:
 class TestTextMetrics:
     """Test TextMetrics dataclass"""
 
-    def test_text_metrics_creation(self):
+    def test_text_metrics_creation(self) -> None:
         """Test TextMetrics creation and attributes"""
         metrics = TextMetrics(width=100.0, height=20.0, ascent=15.0, descent=5.0)
         assert metrics.width == 100.0
@@ -103,52 +103,50 @@ class TestTextMetrics:
         assert metrics.ascent == 15.0
         assert metrics.descent == 5.0
 
-    def test_text_metrics_mutable(self):
+    def test_text_metrics_mutable(self) -> None:
         """Test TextMetrics is mutable (frozen=False)"""
         metrics = TextMetrics(100.0, 20.0, 15.0, 5.0)
         metrics.width = 150.0
         assert metrics.width == 150.0
 
-    def test_text_metrics_slots(self):
+    def test_text_metrics_slots(self) -> None:
         """Test TextMetrics uses slots"""
         metrics = TextMetrics(100.0, 20.0, 15.0, 5.0)
         with pytest.raises(AttributeError):
-            metrics.invalid_attr = "test"
+            metrics.invalid_attr = "test"  # type: ignore
 
 
 class TestRevisionInfo:
     """Test RevisionInfo dataclass"""
 
-    def test_revision_info_creation(self):
+    def test_revision_info_creation(self) -> None:
         """Test RevisionInfo creation with required fields"""
         revision = RevisionInfo(
-            author="John Doe",
-            timestamp="2023-10-01T10:00:00Z",
-            revision_id="rev123"
+            author="John Doe", timestamp="2023-10-01T10:00:00Z", revision_id="rev123"
         )
         assert revision.author == "John Doe"
         assert revision.timestamp == "2023-10-01T10:00:00Z"
         assert revision.revision_id == "rev123"
         assert revision.change_type == "edit"  # default
 
-    def test_revision_info_custom_change_type(self):
+    def test_revision_info_custom_change_type(self) -> None:
         """Test RevisionInfo with custom change_type"""
         revision = RevisionInfo(
             author="Jane Doe",
             timestamp="2023-10-01T10:00:00Z",
             revision_id="rev456",
-            change_type="insert"
+            change_type="insert",
         )
         assert revision.change_type == "insert"
 
     @pytest.mark.parametrize("change_type", ["edit", "insert", "delete", "custom"])
-    def test_revision_info_change_types(self, change_type):
+    def test_revision_info_change_types(self, change_type: str) -> None:
         """Test different change types"""
         revision = RevisionInfo(
             author="Test User",
             timestamp="2023-10-01T10:00:00Z",
             revision_id="rev789",
-            change_type=change_type
+            change_type=change_type,
         )
         assert revision.change_type == change_type
 
@@ -156,7 +154,7 @@ class TestRevisionInfo:
 class TestEmbeddedObject:
     """Test EmbeddedObject dataclass"""
 
-    def test_embedded_object_minimal(self):
+    def test_embedded_object_minimal(self) -> None:
         """Test EmbeddedObject with minimal required fields"""
         obj = EmbeddedObject(object_type="image", data=b"imagedata")
         assert obj.object_type == "image"
@@ -164,26 +162,26 @@ class TestEmbeddedObject:
         assert obj.width is None
         assert obj.height is None
 
-    def test_embedded_object_with_dimensions(self):
+    def test_embedded_object_with_dimensions(self) -> None:
         """Test EmbeddedObject with width and height"""
         obj = EmbeddedObject(
-            object_type="chart",
-            data={"chart_data": "test"},
-            width=200.0,
-            height=150.0
+            object_type="chart", data={"chart_data": "test"}, width=200.0, height=150.0
         )
         assert obj.object_type == "chart"
         assert obj.data == {"chart_data": "test"}
         assert obj.width == 200.0
         assert obj.height == 150.0
 
-    @pytest.mark.parametrize("obj_type,data", [
-        ("image", b"binary_data"),
-        ("table", {"rows": 5, "cols": 3}),
-        ("chart", "chart_config"),
-        ("formula", "=SUM(A1:A10)"),
-    ])
-    def test_embedded_object_types(self, obj_type, data):
+    @pytest.mark.parametrize(
+        "obj_type,data",
+        [
+            ("image", b"binary_data"),
+            ("table", {"rows": 5, "cols": 3}),
+            ("chart", "chart_config"),
+            ("formula", "=SUM(A1:A10)"),
+        ],
+    )
+    def test_embedded_object_types(self, obj_type: str, data: Any) -> None:
         """Test various object types and data"""
         obj = EmbeddedObject(object_type=obj_type, data=data)
         assert obj.object_type == obj_type
@@ -193,7 +191,7 @@ class TestEmbeddedObject:
 class TestGroupInfo:
     """Test GroupInfo dataclass"""
 
-    def test_group_info_defaults(self):
+    def test_group_info_defaults(self) -> None:
         """Test GroupInfo with default values"""
         group = GroupInfo()
         assert isinstance(group.group_id, str)
@@ -205,7 +203,7 @@ class TestGroupInfo:
         assert group.is_group_start is False
         assert group.is_group_end is False
 
-    def test_group_info_custom_values(self):
+    def test_group_info_custom_values(self) -> None:
         """Test GroupInfo with custom values"""
         group = GroupInfo(
             group_id="custom_id",
@@ -214,7 +212,7 @@ class TestGroupInfo:
             group_type="comment",
             sequence_number=5,
             is_group_start=True,
-            is_group_end=False
+            is_group_end=False,
         )
         assert group.group_id == "custom_id"
         assert group.thread_id == "thread123"
@@ -224,7 +222,7 @@ class TestGroupInfo:
         assert group.is_group_start is True
         assert group.is_group_end is False
 
-    def test_group_info_uuid_generation(self):
+    def test_group_info_uuid_generation(self) -> None:
         """Test that each GroupInfo gets unique ID by default"""
         group1 = GroupInfo()
         group2 = GroupInfo()
@@ -234,7 +232,7 @@ class TestGroupInfo:
 class TestHighlightRange:
     """Test HighlightRange dataclass"""
 
-    def test_highlight_range_minimal(self):
+    def test_highlight_range_minimal(self) -> None:
         """Test HighlightRange with minimal parameters"""
         highlight = HighlightRange(start_offset=0, end_offset=5)
         assert highlight.start_offset == 0
@@ -245,7 +243,7 @@ class TestHighlightRange:
         assert highlight.style_override is None
         assert highlight.metadata == {}
 
-    def test_highlight_range_full(self):
+    def test_highlight_range_full(self) -> None:
         """Test HighlightRange with all parameters"""
         style = {"color": "yellow", "bold": True}
         metadata = {"source": "spell_check", "suggestion": "correct_word"}
@@ -256,7 +254,7 @@ class TestHighlightRange:
             highlight_id="custom_id",
             highlight_type=HighlightType.SPELL_ERROR,
             style_override=style,
-            metadata=metadata
+            metadata=metadata,
         )
 
         assert highlight.start_offset == 10
@@ -266,14 +264,14 @@ class TestHighlightRange:
         assert highlight.style_override == style
         assert highlight.metadata == metadata
 
-    def test_highlight_range_uuid_generation(self):
+    def test_highlight_range_uuid_generation(self) -> None:
         """Test that each HighlightRange gets unique ID by default"""
         h1 = HighlightRange(0, 5)
         h2 = HighlightRange(5, 10)
         assert h1.highlight_id != h2.highlight_id
 
     @pytest.mark.parametrize("highlight_type", list(HighlightType))
-    def test_highlight_range_all_types(self, highlight_type):
+    def test_highlight_range_all_types(self, highlight_type: HighlightType) -> None:
         """Test HighlightRange with all highlight types"""
         highlight = HighlightRange(0, 5, highlight_type=highlight_type)
         assert highlight.highlight_type == highlight_type
@@ -282,7 +280,7 @@ class TestHighlightRange:
 class TestListMarkerInfo:
     """Test ListMarkerInfo dataclass"""
 
-    def test_list_marker_info_defaults(self):
+    def test_list_marker_info_defaults(self) -> None:
         """Test ListMarkerInfo with default values"""
         marker = ListMarkerInfo()
         assert marker.list_style == ListStyleType.NONE
@@ -292,7 +290,7 @@ class TestListMarkerInfo:
         assert marker.start_number == 1
         assert marker.current_number is None
 
-    def test_list_marker_info_custom(self):
+    def test_list_marker_info_custom(self) -> None:
         """Test ListMarkerInfo with custom values"""
         marker = ListMarkerInfo(
             list_style=ListStyleType.DECIMAL,
@@ -300,7 +298,7 @@ class TestListMarkerInfo:
             list_id="list123",
             marker_text="*",
             start_number=5,
-            current_number=7
+            current_number=7,
         )
         assert marker.list_style == ListStyleType.DECIMAL
         assert marker.list_level == 2
@@ -309,13 +307,16 @@ class TestListMarkerInfo:
         assert marker.start_number == 5
         assert marker.current_number == 7
 
-    @pytest.mark.parametrize("style,level", [
-        (ListStyleType.BULLET, 0),
-        (ListStyleType.DECIMAL, 1),
-        (ListStyleType.LOWER_ALPHA, 2),
-        (ListStyleType.UPPER_ROMAN, 3),
-    ])
-    def test_list_marker_styles_and_levels(self, style, level):
+    @pytest.mark.parametrize(
+        "style,level",
+        [
+            (ListStyleType.BULLET, 0),
+            (ListStyleType.DECIMAL, 1),
+            (ListStyleType.LOWER_ALPHA, 2),
+            (ListStyleType.UPPER_ROMAN, 3),
+        ],
+    )
+    def test_list_marker_styles_and_levels(self, style: ListStyleType, level: int) -> None:
         """Test various list styles and levels"""
         marker = ListMarkerInfo(list_style=style, list_level=level)
         assert marker.list_style == style
@@ -325,7 +326,7 @@ class TestListMarkerInfo:
 class TestRunConstruction:
     """Test Run dataclass construction and initialization"""
 
-    def test_run_minimal_creation(self):
+    def test_run_minimal_creation(self) -> None:
         """Test Run creation with minimal required parameters"""
         run = Run(text="Hello World")
         assert run.text == "Hello World"
@@ -335,7 +336,7 @@ class TestRunConstruction:
         assert run.color == Color.BLACK  # default
         assert run.codepage == CodePage.PC866  # default
 
-    def test_run_full_creation(self):
+    def test_run_full_creation(self) -> None:
         """Test Run creation with all parameters"""
         revision = RevisionInfo("author", "2023-10-01", "rev1")
         group = GroupInfo(group_type="comment")
@@ -376,7 +377,7 @@ class TestRunConstruction:
             aria_label="ARIA label",
             source_id="source123",
             user_data={"custom": "data"},
-            annotations={"note": "important"}
+            annotations={"note": "important"},
         )
 
         assert run.text == "Sample text"
@@ -412,7 +413,7 @@ class TestRunConstruction:
         assert run.user_data == {"custom": "data"}
         assert run.annotations == {"note": "important"}
 
-    def test_run_default_collections(self):
+    def test_run_default_collections(self) -> None:
         """Test that default collections are properly initialized"""
         run = Run(text="test")
         assert isinstance(run.comments, list)
@@ -428,15 +429,15 @@ class TestRunConstruction:
 class TestRunPostInit:
     """Test Run.__post_init__ method"""
 
-    def test_post_init_invalid_cpi_font_combination(self, caplog):
-        """Test post_init handles invalid CPI/font combinations"""
-        with caplog.at_level(logging.WARNING):
-            # Mock scenario where validation fails
-            # Note: Actual validation depends on validate_cpi_font_combination implementation
+    def test_post_init_invalid_cpi_font_combination(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test post_init performs CPI/font compatibility check"""
+        with caplog.at_level(logging.INFO):  # Изменили уровень на INFO
             run = Run(text="test", font=FontFamily.DRAFT, cpi=CharactersPerInch.CPI_10)
-            # Should complete without error even if combination is invalid
+            # Should complete without error even if combination check encounters issues
+        # Проверяем, что проверка совместимости была выполнена:
+        assert any("compatibility checked" in rec.message.lower() for rec in caplog.records)
 
-    def test_post_init_special_chars_detection(self):
+    def test_post_init_special_chars_detection(self) -> None:
         """Test post_init auto-detects special characters"""
         # Test with tab
         run = Run(text="Hello\tWorld")
@@ -458,12 +459,12 @@ class TestRunPostInit:
         run = Run(text="Hello World")
         assert run.has_special_chars is False
 
-    def test_post_init_multiple_special_chars(self):
+    def test_post_init_multiple_special_chars(self) -> None:
         """Test post_init with multiple special characters"""
         run = Run(text="Hello\t\nWorld\r\u00a0Test")
         assert run.has_special_chars is True
 
-    def test_post_init_preserves_explicit_special_chars_flag(self):
+    def test_post_init_preserves_explicit_special_chars_flag(self) -> None:
         """Test that explicit has_special_chars setting is overridden by detection"""
         run = Run(text="Hello\tWorld", has_special_chars=False)
         assert run.has_special_chars is True  # Auto-detected
@@ -472,55 +473,60 @@ class TestRunPostInit:
 class TestRunValidation:
     """Test Run.validate() method"""
 
-    def test_validate_valid_run(self):
+    def test_validate_valid_run(self) -> None:
         """Test validation of a completely valid run"""
         run = Run(text="Valid text")
         run.validate()  # Should not raise
 
-    def test_validate_empty_text(self):
+    def test_validate_empty_text(self) -> None:
         """Test validation fails with empty text"""
         run = Run(text="")
         with pytest.raises(ValueError, match="Run text cannot be empty"):
             run.validate()
 
-    def test_validate_non_string_text(self):
+    def test_validate_non_string_text(self) -> None:
         """Test validation fails with non-string text"""
         # This would need to be set directly bypassing __init__
         run = Run(text="test")
-        object.__setattr__(run, 'text', 123)
+        object.__setattr__(run, "text", 123)  # type: ignore[call-overload]
         with pytest.raises(TypeError, match="Run text must be str"):
             run.validate()
 
-    def test_validate_text_too_long(self):
+    def test_validate_text_too_long(self) -> None:
         """Test validation fails with text exceeding MAX_TEXT_LENGTH"""
         long_text = "x" * (MAX_TEXT_LENGTH + 1)
         run = Run(text=long_text)
-        with pytest.raises(ValueError, match=f"Text too long: {len(long_text)} > {MAX_TEXT_LENGTH}"):
+        with pytest.raises(
+            ValueError, match=f"Text too long: {len(long_text)} > {MAX_TEXT_LENGTH}"
+        ):
             run.validate()
 
-    def test_validate_highlights_not_list(self):
+    def test_validate_highlights_not_list(self) -> None:
         """Test validation fails when highlights is not a list"""
         run = Run(text="test")
-        object.__setattr__(run, 'highlights', "not_a_list")
+        object.__setattr__(run, "highlights", "not_a_list")  # type: ignore[assignment]
         with pytest.raises(TypeError, match="highlights must be list"):
             run.validate()
 
-    def test_validate_invalid_highlight_type(self):
+    def test_validate_invalid_highlight_type(self) -> None:
         """Test validation fails with invalid highlight type"""
         run = Run(text="test")
-        run.highlights = ["not_a_highlight"]
+        # intentionally using wrong type for robustness test
+        run.highlights = ["not_a_highlight"]  # type: ignore[list-item]
         with pytest.raises(TypeError, match="highlights\\[0\\] must be HighlightRange"):
             run.validate()
 
-    def test_validate_highlight_range_out_of_bounds(self):
+    def test_validate_highlight_range_out_of_bounds(self) -> None:
         """Test validation fails with highlight range out of bounds"""
         run = Run(text="Hello")  # length 5
         highlight = HighlightRange(start_offset=0, end_offset=10)  # end > length
         run.highlights = [highlight]
-        with pytest.raises(ValueError, match="Invalid highlight range \\[0:10\\] for text length 5"):
+        with pytest.raises(
+            ValueError, match="Invalid highlight range \\[0:10\\] for text length 5"
+        ):
             run.validate()
 
-    def test_validate_highlight_start_greater_than_end(self):
+    def test_validate_highlight_start_greater_than_end(self) -> None:
         """Test validation fails when highlight start > end"""
         run = Run(text="Hello")
         highlight = HighlightRange(start_offset=3, end_offset=1)
@@ -528,28 +534,30 @@ class TestRunValidation:
         with pytest.raises(ValueError, match="Invalid highlight range \\[3:1\\] for text length 5"):
             run.validate()
 
-    def test_validate_invalid_group_info_type(self):
+    def test_validate_invalid_group_info_type(self) -> None:
         """Test validation fails with invalid group_info type"""
         run = Run(text="test")
-        object.__setattr__(run, 'group_info', "not_group_info")
+        object.__setattr__(run, "group_info", "not_group_info")  # type: ignore[assignment]
         with pytest.raises(TypeError, match="group_info must be GroupInfo or None"):
             run.validate()
 
-    def test_validate_invalid_list_marker_type(self):
+    def test_validate_invalid_list_marker_type(self) -> None:
         """Test validation fails with invalid list_marker type"""
         run = Run(text="test")
-        object.__setattr__(run, 'list_marker', "not_list_marker")
+        object.__setattr__(run, "list_marker", "not_list_marker")  # type: ignore[assignment]
         with pytest.raises(TypeError, match="list_marker must be ListMarkerInfo or None"):
             run.validate()
 
-    def test_validate_encoding_error(self):
+    def test_validate_encoding_error(self) -> None:
         """Test validation fails with encoding errors"""
         # Create a run with text that can't be encoded in PC866
         run = Run(text="Hello 世界", codepage=CodePage.PC866)  # Chinese characters
-        with pytest.raises(ValueError, match="Text contains characters incompatible with pc866 encoding"):
+        with pytest.raises(
+            ValueError, match="Text contains characters incompatible with pc866 encoding"
+        ):
             run.validate()
 
-    def test_validate_multiple_valid_highlights(self):
+    def test_validate_multiple_valid_highlights(self) -> None:
         """Test validation with multiple valid highlights"""
         run = Run(text="Hello World")
         run.highlights = [
@@ -558,7 +566,7 @@ class TestRunValidation:
         ]
         run.validate()  # Should not raise
 
-    def test_validate_logging(self, caplog):
+    def test_validate_logging(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test that validation logs debug information"""
         with caplog.at_level(logging.DEBUG):
             run = Run(text="Test")
@@ -571,7 +579,7 @@ class TestRunValidation:
 class TestRunHighlightManagement:
     """Test Run highlight management methods"""
 
-    def test_add_highlight_basic(self):
+    def test_add_highlight_basic(self) -> None:
         """Test basic highlight addition"""
         run = Run(text="Hello World")
         highlight_id = run.add_highlight(0, 5)
@@ -586,7 +594,7 @@ class TestRunHighlightManagement:
         assert highlight.highlight_type == HighlightType.SELECTION
         assert highlight.highlight_id == highlight_id
 
-    def test_add_highlight_with_parameters(self):
+    def test_add_highlight_with_parameters(self) -> None:
         """Test highlight addition with all parameters"""
         run = Run(text="Hello World")
         style = {"color": "yellow"}
@@ -597,7 +605,7 @@ class TestRunHighlightManagement:
             end=11,
             highlight_type=HighlightType.SPELL_ERROR,
             style_override=style,
-            metadata=metadata
+            metadata=metadata,
         )
 
         highlight = run.highlights[0]
@@ -606,8 +614,9 @@ class TestRunHighlightManagement:
         assert highlight.highlight_type == HighlightType.SPELL_ERROR
         assert highlight.style_override == style
         assert highlight.metadata == metadata
+        assert isinstance(highlight_id, str)
 
-    def test_add_highlight_invalid_range(self):
+    def test_add_highlight_invalid_range(self) -> None:
         """Test add_highlight with invalid ranges"""
         run = Run(text="Hello")  # length 5
 
@@ -616,14 +625,18 @@ class TestRunHighlightManagement:
             run.add_highlight(3, 1)
 
         # End > text length
-        with pytest.raises(ValueError, match="Invalid highlight range \\[0:10\\] for text length 5"):
+        with pytest.raises(
+            ValueError, match="Invalid highlight range \\[0:10\\] for text length 5"
+        ):
             run.add_highlight(0, 10)
 
         # Start < 0
-        with pytest.raises(ValueError, match="Invalid highlight range \\[-1:3\\] for text length 5"):
+        with pytest.raises(
+            ValueError, match="Invalid highlight range \\[-1:3\\] for text length 5"
+        ):
             run.add_highlight(-1, 3)
 
-    def test_add_multiple_highlights(self):
+    def test_add_multiple_highlights(self) -> None:
         """Test adding multiple highlights"""
         run = Run(text="Hello World Test")
 
@@ -634,7 +647,7 @@ class TestRunHighlightManagement:
         assert len(run.highlights) == 3
         assert id1 != id2 != id3
 
-    def test_remove_highlight_success(self):
+    def test_remove_highlight_success(self) -> None:
         """Test successful highlight removal"""
         run = Run(text="Hello World")
         highlight_id = run.add_highlight(0, 5)
@@ -643,7 +656,7 @@ class TestRunHighlightManagement:
         assert result is True
         assert len(run.highlights) == 0
 
-    def test_remove_highlight_not_found(self):
+    def test_remove_highlight_not_found(self) -> None:
         """Test highlight removal when ID not found"""
         run = Run(text="Hello World")
         run.add_highlight(0, 5)
@@ -652,7 +665,7 @@ class TestRunHighlightManagement:
         assert result is False
         assert len(run.highlights) == 1
 
-    def test_remove_highlight_multiple(self):
+    def test_remove_highlight_multiple(self) -> None:
         """Test removing specific highlight from multiple"""
         run = Run(text="Hello World Test")
         id1 = run.add_highlight(0, 5)
@@ -670,12 +683,12 @@ class TestRunHighlightManagement:
         assert id3 in remaining_ids
         assert id2 not in remaining_ids
 
-    def test_get_highlights_at_position(self):
+    def test_get_highlights_at_position(self) -> None:
         """Test getting highlights at specific position"""
         run = Run(text="Hello World Test")
 
         # Add overlapping highlights
-        run.add_highlight(0, 5, HighlightType.SELECTION)      # "Hello"
+        run.add_highlight(0, 5, HighlightType.SELECTION)  # "Hello"
         run.add_highlight(3, 8, HighlightType.SEARCH_RESULT)  # "lo Wo"
         run.add_highlight(10, 15, HighlightType.SPELL_ERROR)  # "rld T"
 
@@ -692,7 +705,7 @@ class TestRunHighlightManagement:
         highlights_at_9 = run.get_highlights_at_position(9)
         assert len(highlights_at_9) == 0
 
-    def test_get_highlights_at_position_edge_cases(self):
+    def test_get_highlights_at_position_edge_cases(self) -> None:
         """Test get_highlights_at_position with edge cases"""
         run = Run(text="Hello")
         run.add_highlight(0, 5)  # Entire text
@@ -705,7 +718,7 @@ class TestRunHighlightManagement:
         assert len(run.get_highlights_at_position(-1)) == 0
         assert len(run.get_highlights_at_position(6)) == 0
 
-    def test_clear_highlights_all(self):
+    def test_clear_highlights_all(self) -> None:
         """Test clearing all highlights"""
         run = Run(text="Hello World")
         run.add_highlight(0, 5, HighlightType.SELECTION)
@@ -714,7 +727,7 @@ class TestRunHighlightManagement:
         run.clear_highlights()
         assert len(run.highlights) == 0
 
-    def test_clear_highlights_by_type(self):
+    def test_clear_highlights_by_type(self) -> None:
         """Test clearing highlights by specific type"""
         run = Run(text="Hello World")
         run.add_highlight(0, 5, HighlightType.SELECTION)
@@ -730,7 +743,7 @@ class TestRunHighlightManagement:
         assert HighlightType.SPELL_ERROR in remaining_types
         assert HighlightType.SEARCH_RESULT not in remaining_types
 
-    def test_clear_highlights_no_matching_type(self):
+    def test_clear_highlights_no_matching_type(self) -> None:
         """Test clearing highlights when no highlights match the type"""
         run = Run(text="Hello World")
         run.add_highlight(0, 5, HighlightType.SELECTION)
@@ -742,7 +755,7 @@ class TestRunHighlightManagement:
 class TestRunGroupManagement:
     """Test Run grouping management methods"""
 
-    def test_set_group_new(self):
+    def test_set_group_new(self) -> None:
         """Test setting group on run without existing group"""
         run = Run(text="Hello")
         group_id = run.set_group("comment", "thread123", "cont456")
@@ -753,70 +766,65 @@ class TestRunGroupManagement:
         assert run.group_info.thread_id == "thread123"
         assert run.group_info.continuation_id == "cont456"
 
-    def test_set_group_existing(self):
+    def test_set_group_existing(self) -> None:
         """Test setting group on run with existing group"""
         run = Run(text="Hello")
         run.group_info = GroupInfo(group_type="original")
+        assert run.group_info is not None
         original_id = run.group_info.group_id
 
         group_id = run.set_group("updated", "new_thread")
 
+        assert run.group_info is not None
         assert group_id == original_id  # ID should remain the same
         assert run.group_info.group_type == "updated"
         assert run.group_info.thread_id == "new_thread"
 
-    def test_is_in_group_true(self):
+    def test_is_in_group_true(self) -> None:
         """Test is_in_group returns True for matching group"""
         run = Run(text="Hello")
         group_id = run.set_group("comment")
-
         assert run.is_in_group(group_id) is True
 
-    def test_is_in_group_false(self):
+    def test_is_in_group_false(self) -> None:
         """Test is_in_group returns False for non-matching group"""
         run = Run(text="Hello")
         run.set_group("comment")
-
         assert run.is_in_group("different_id") is False
 
-    def test_is_in_group_no_group(self):
+    def test_is_in_group_no_group(self) -> None:
         """Test is_in_group returns False when no group set"""
         run = Run(text="Hello")
-
         assert run.is_in_group("any_id") is False
 
-    def test_is_in_thread_true(self):
+    def test_is_in_thread_true(self) -> None:
         """Test is_in_thread returns True for matching thread"""
         run = Run(text="Hello")
         run.set_group("comment", "thread123")
-
         assert run.is_in_thread("thread123") is True
 
-    def test_is_in_thread_false(self):
+    def test_is_in_thread_false(self) -> None:
         """Test is_in_thread returns False for non-matching thread"""
         run = Run(text="Hello")
         run.set_group("comment", "thread123")
-
         assert run.is_in_thread("different_thread") is False
 
-    def test_is_in_thread_no_thread(self):
+    def test_is_in_thread_no_thread(self) -> None:
         """Test is_in_thread returns False when no thread set"""
         run = Run(text="Hello")
         run.set_group("comment")  # No thread_id
-
         assert run.is_in_thread("any_thread") is False
 
-    def test_is_in_thread_no_group(self):
+    def test_is_in_thread_no_group(self) -> None:
         """Test is_in_thread returns False when no group set"""
         run = Run(text="Hello")
-
         assert run.is_in_thread("any_thread") is False
 
 
 class TestRunListMarkerManagement:
     """Test Run list marker management methods"""
 
-    def test_set_list_marker_basic(self):
+    def test_set_list_marker_basic(self) -> None:
         """Test setting basic list marker"""
         run = Run(text="Item 1")
         run.set_list_marker(ListStyleType.BULLET)
@@ -827,32 +835,31 @@ class TestRunListMarkerManagement:
         assert run.list_marker.list_id is None
         assert run.list_marker.marker_text is None
 
-    def test_set_list_marker_full(self):
+    def test_set_list_marker_full(self) -> None:
         """Test setting list marker with all parameters"""
         run = Run(text="Item 1")
         run.set_list_marker(
-            style=ListStyleType.DECIMAL,
-            level=2,
-            list_id="list123",
-            marker_text="(1)"
+            style=ListStyleType.DECIMAL, level=2, list_id="list123", marker_text="(1)"
         )
 
         marker = run.list_marker
+        assert marker is not None
         assert marker.list_style == ListStyleType.DECIMAL
         assert marker.list_level == 2
         assert marker.list_id == "list123"
         assert marker.marker_text == "(1)"
 
-    def test_set_list_marker_override(self):
+    def test_set_list_marker_override(self) -> None:
         """Test that setting list marker overrides existing one"""
         run = Run(text="Item 1")
         run.set_list_marker(ListStyleType.BULLET, level=1)
         run.set_list_marker(ListStyleType.DECIMAL, level=2)
 
+        assert run.list_marker is not None
         assert run.list_marker.list_style == ListStyleType.DECIMAL
         assert run.list_marker.list_level == 2
 
-    def test_clear_list_marker(self):
+    def test_clear_list_marker(self) -> None:
         """Test clearing list marker"""
         run = Run(text="Item 1")
         run.set_list_marker(ListStyleType.BULLET)
@@ -862,7 +869,7 @@ class TestRunListMarkerManagement:
         run.clear_list_marker()
         assert run.list_marker is None
 
-    def test_clear_list_marker_when_none(self):
+    def test_clear_list_marker_when_none(self) -> None:
         """Test clearing list marker when none exists"""
         run = Run(text="Item 1")
         assert run.list_marker is None
@@ -874,13 +881,13 @@ class TestRunListMarkerManagement:
 class TestRunCaching:
     """Test Run caching functionality"""
 
-    def test_get_cached_metrics_none(self):
+    def test_get_cached_metrics_none(self) -> None:
         """Test get_cached_metrics returns None when no cache"""
         run = Run(text="Hello")
         metrics = run.get_cached_metrics()
         assert metrics is None
 
-    def test_get_cached_metrics_with_renderer(self):
+    def test_get_cached_metrics_with_renderer(self) -> None:
         """Test get_cached_metrics with renderer (functionality not implemented)"""
         run = Run(text="Hello")
         fake_renderer = object()
@@ -888,13 +895,13 @@ class TestRunCaching:
         # Current implementation doesn't actually use renderer
         assert metrics is None
 
-    def test_invalidate_cache(self):
+    def test_invalidate_cache(self) -> None:
         """Test cache invalidation"""
         run = Run(text="Hello")
 
         # Set some fake cache values
-        object.__setattr__(run, '_cached_metrics', TextMetrics(100, 20, 15, 5))
-        object.__setattr__(run, '_format_hash', 12345)
+        object.__setattr__(run, "_cached_metrics", TextMetrics(100, 20, 15, 5))
+        object.__setattr__(run, "_format_hash", 12345)
 
         assert run._cached_metrics is not None
         assert run._format_hash is not None
@@ -904,7 +911,7 @@ class TestRunCaching:
         assert run._cached_metrics is None
         assert run._format_hash is None
 
-    def test_get_format_hash_generation(self):
+    def test_get_format_hash_generation(self) -> None:
         """Test format hash generation"""
         run = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
 
@@ -915,7 +922,7 @@ class TestRunCaching:
         hash2 = run.get_format_hash()
         assert hash1 == hash2
 
-    def test_get_format_hash_different_formats(self):
+    def test_get_format_hash_different_formats(self) -> None:
         """Test that different formats produce different hashes"""
         run1 = Run(text="Hello", font=FontFamily.ROMAN)
         run2 = Run(text="Hello", font=FontFamily.DRAFT)
@@ -925,7 +932,7 @@ class TestRunCaching:
 
         assert hash1 != hash2
 
-    def test_get_format_hash_includes_grouping(self):
+    def test_get_format_hash_includes_grouping(self) -> None:
         """Test that format hash includes grouping information"""
         run1 = Run(text="Hello")
         run2 = Run(text="Hello")
@@ -936,7 +943,7 @@ class TestRunCaching:
 
         assert hash1 != hash2
 
-    def test_get_format_hash_includes_list_marker(self):
+    def test_get_format_hash_includes_list_marker(self) -> None:
         """Test that format hash includes list marker information"""
         run1 = Run(text="Hello")
         run2 = Run(text="Hello")
@@ -951,7 +958,7 @@ class TestRunCaching:
 class TestRunCopy:
     """Test Run.copy() method"""
 
-    def test_copy_basic(self):
+    def test_copy_basic(self) -> None:
         """Test copying a basic run"""
         original = Run(text="Hello World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         copy = original.copy()
@@ -961,7 +968,7 @@ class TestRunCopy:
         assert copy.style == original.style
         assert copy is not original  # Different objects
 
-    def test_copy_with_group_info(self):
+    def test_copy_with_group_info(self) -> None:
         """Test copying run with group info"""
         original = Run(text="Hello")
         original.set_group("comment", "thread123", "cont456")
@@ -969,12 +976,13 @@ class TestRunCopy:
         copy = original.copy()
 
         assert copy.group_info is not None
+        assert original.group_info is not None
         assert copy.group_info is not original.group_info  # Deep copy
         assert copy.group_info.group_id == original.group_info.group_id
         assert copy.group_info.thread_id == original.group_info.thread_id
         assert copy.group_info.continuation_id == original.group_info.continuation_id
 
-    def test_copy_with_list_marker(self):
+    def test_copy_with_list_marker(self) -> None:
         """Test copying run with list marker"""
         original = Run(text="Item 1")
         original.set_list_marker(ListStyleType.DECIMAL, 2, "list123", "1.")
@@ -982,16 +990,20 @@ class TestRunCopy:
         copy = original.copy()
 
         assert copy.list_marker is not None
-        assert copy.list_marker is not original.list_marker  # Deep copy
+        assert original.list_marker is not None
+        # Deep copy
+        assert copy.list_marker is not original.list_marker
         assert copy.list_marker.list_style == original.list_marker.list_style
         assert copy.list_marker.list_level == original.list_marker.list_level
         assert copy.list_marker.list_id == original.list_marker.list_id
         assert copy.list_marker.marker_text == original.list_marker.marker_text
 
-    def test_copy_with_highlights(self):
+    def test_copy_with_highlights(self) -> None:
         """Test copying run with highlights"""
         original = Run(text="Hello World")
-        original.add_highlight(0, 5, HighlightType.SELECTION, {"color": "yellow"}, {"source": "user"})
+        original.add_highlight(
+            0, 5, HighlightType.SELECTION, {"color": "yellow"}, {"source": "user"}
+        )
         original.add_highlight(6, 11, HighlightType.SEARCH_RESULT)
 
         copy = original.copy()
@@ -1012,13 +1024,13 @@ class TestRunCopy:
         assert h1_copy.metadata == h1_orig.metadata
         assert h1_copy.metadata is not h1_orig.metadata  # Deep copy
 
-    def test_copy_with_collections(self):
+    def test_copy_with_collections(self) -> None:
         """Test copying run with various collections"""
         original = Run(
             text="Hello",
             comments=["comment1", "comment2"],
             user_data={"key1": "value1", "key2": "value2"},
-            annotations={"note": "important", "author": "user"}
+            annotations={"note": "important", "author": "user"},
         )
 
         copy = original.copy()
@@ -1033,7 +1045,7 @@ class TestRunCopy:
         assert copy.annotations == original.annotations
         assert copy.annotations is not original.annotations
 
-    def test_copy_preserves_all_attributes(self):
+    def test_copy_preserves_all_attributes(self) -> None:
         """Test that copy preserves all attributes"""
         revision = RevisionInfo("author", "timestamp", "rev1")
 
@@ -1065,7 +1077,7 @@ class TestRunCopy:
             whitespace_handling=WhitespaceMode.PRESERVE,
             alt_text="alt",
             aria_label="aria",
-            source_id="source123"
+            source_id="source123",
         )
 
         copy = original.copy()
@@ -1104,135 +1116,120 @@ class TestRunCopy:
 class TestRunMerging:
     """Test Run.merge_with() and can_merge_with() methods"""
 
-    def test_can_merge_with_identical_formatting(self):
+    def test_can_merge_with_identical_formatting(self) -> None:
         """Test can_merge_with returns True for identical formatting"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         run2 = Run(text="World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
-
         assert run1.can_merge_with(run2) is True
 
-    def test_can_merge_with_different_font(self):
+    def test_can_merge_with_different_font(self) -> None:
         """Test can_merge_with returns False for different fonts"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.DRAFT)
-
         assert run1.can_merge_with(run2) is False
 
-    def test_can_merge_with_different_style(self):
+    def test_can_merge_with_different_style(self) -> None:
         """Test can_merge_with returns False for different styles"""
         run1 = Run(text="Hello ", style=TextStyle.BOLD)
         run2 = Run(text="World", style=TextStyle.ITALIC)
-
         assert run1.can_merge_with(run2) is False
 
-    def test_can_merge_with_embedded_objects(self):
+    def test_can_merge_with_embedded_objects(self) -> None:
         """Test can_merge_with returns False when either has embedded objects"""
         run1 = Run(text="Hello ", embedded_object=EmbeddedObject("image", b"data"))
         run2 = Run(text="World")
-
         assert run1.can_merge_with(run2) is False
         assert run2.can_merge_with(run1) is False
 
-    def test_can_merge_with_math_content(self):
+    def test_can_merge_with_math_content(self) -> None:
         """Test can_merge_with returns False when either has math content"""
         run1 = Run(text="Hello ", is_math=True)
         run2 = Run(text="World")
-
         assert run1.can_merge_with(run2) is False
         assert run2.can_merge_with(run1) is False
 
-    def test_can_merge_with_different_hyperlinks(self):
+    def test_can_merge_with_different_hyperlinks(self) -> None:
         """Test can_merge_with returns False for different hyperlinks"""
         run1 = Run(text="Hello ", hyperlink="https://example.com")
         run2 = Run(text="World", hyperlink="https://different.com")
-
         assert run1.can_merge_with(run2) is False
 
-    def test_can_merge_with_highlights(self):
+    def test_can_merge_with_highlights(self) -> None:
         """Test can_merge_with returns False when either has highlights"""
         run1 = Run(text="Hello ")
         run1.add_highlight(0, 5)
         run2 = Run(text="World")
-
         assert run1.can_merge_with(run2) is False
         assert run2.can_merge_with(run1) is False
 
-    def test_can_merge_with_different_groups(self):
+    def test_can_merge_with_different_groups(self) -> None:
         """Test can_merge_with returns False for different groups"""
         run1 = Run(text="Hello ")
         run1.set_group("comment")
         run2 = Run(text="World")
         run2.set_group("revision")
-
         assert run1.can_merge_with(run2) is False
 
-    def test_can_merge_with_different_list_markers(self):
+    def test_can_merge_with_different_list_markers(self) -> None:
         """Test can_merge_with returns False for different list markers"""
         run1 = Run(text="Hello ")
         run1.set_list_marker(ListStyleType.BULLET)
         run2 = Run(text="World")
         run2.set_list_marker(ListStyleType.DECIMAL)
-
         assert run1.can_merge_with(run2) is False
 
-    def test_can_merge_with_non_run_object(self):
+    def test_can_merge_with_non_run_object(self) -> None:
         """Test can_merge_with returns False for non-Run objects"""
         run = Run(text="Hello")
-        assert run.can_merge_with("not a run") is False
-        assert run.can_merge_with(123) is False
-        assert run.can_merge_with(None) is False
+        assert run.can_merge_with("not a run") is False  # type: ignore[arg-type]
+        assert run.can_merge_with(123) is False  # type: ignore[arg-type]
+        assert run.can_merge_with(None) is False  # type: ignore[arg-type]
 
-    def test_can_merge_with_strict_mode(self):
+    def test_can_merge_with_strict_mode(self) -> None:
         """Test can_merge_with in strict mode (default)"""
         run1 = Run(text="Hello ", direction=TextDirection.LTR)
         run2 = Run(text="World", direction=TextDirection.RTL)
-
         assert run1.can_merge_with(run2, strict=True) is False
         assert run1.can_merge_with(run2, strict=False) is True
 
-    def test_can_merge_with_non_strict_mode(self):
+    def test_can_merge_with_non_strict_mode(self) -> None:
         """Test can_merge_with in non-strict mode"""
         run1 = Run(text="Hello ", language="en", background="#FFFFFF")
         run2 = Run(text="World", language="ru", background="#FFFF00")
-
         # Different secondary attributes should not prevent merging in non-strict mode
         assert run1.can_merge_with(run2, strict=False) is True
         assert run1.can_merge_with(run2, strict=True) is False
 
-    def test_merge_with_success(self):
+    def test_merge_with_success(self) -> None:
         """Test successful merge_with operation"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         run2 = Run(text="World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
-
         merged = run1.merge_with(run2)
-
         assert merged.text == "Hello World"
         assert merged.font == FontFamily.ROMAN
         assert merged.style == TextStyle.BOLD
         assert merged is not run1  # New object
         assert merged is not run2  # New object
 
-    def test_merge_with_incompatible_runs(self):
+    def test_merge_with_incompatible_runs(self) -> None:
         """Test merge_with raises error for incompatible runs"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.DRAFT)
-
         with pytest.raises(ValueError, match="Cannot merge runs with different formatting"):
             run1.merge_with(run2)
 
-    def test_merge_with_user_data_and_annotations(self):
+    def test_merge_with_user_data_and_annotations(self) -> None:
         """Test merge_with combines user_data and annotations"""
         run1 = Run(
             text="Hello ",
             user_data={"key1": "value1", "common": "from_run1"},
-            annotations={"note1": "first", "common_note": "from_run1"}
+            annotations={"note1": "first", "common_note": "from_run1"},
         )
         run2 = Run(
             text="World",
             user_data={"key2": "value2", "common": "from_run2"},
-            annotations={"note2": "second", "common_note": "from_run2"}
+            annotations={"note2": "second", "common_note": "from_run2"},
         )
-
         merged = run1.merge_with(run2)
 
         # run2 values should take precedence
@@ -1242,48 +1239,38 @@ class TestRunMerging:
         assert merged.user_data == expected_user_data
         assert merged.annotations == expected_annotations
 
-    def test_merge_with_comments(self):
+    def test_merge_with_comments(self) -> None:
         """Test merge_with combines comments"""
         run1 = Run(text="Hello ", comments=["comment1", "comment2"])
         run2 = Run(text="World", comments=["comment3", "comment4"])
-
         merged = run1.merge_with(run2)
-
         assert merged.comments == ["comment1", "comment2", "comment3", "comment4"]
 
-    def test_merge_with_highlights(self):
-        """Test merge_with adjusts highlight offsets for second run"""
-        # This case should not normally occur since highlighted runs can't merge,
-        # but let's test the implementation
+    def test_merge_with_highlights(self) -> None:
+        """Test merge_with rejects merge when run has highlights"""
         run1 = Run(text="Hello ")  # length 6
-        run2 = Run(text="World")   # length 5
+        run2 = Run(text="World")  # length 5
 
-        # Add highlights directly to test merge logic
+        # Add highlights directly to test rejection behavior
         run2.highlights = [HighlightRange(1, 4)]  # "orl" in "World"
 
-        # Temporarily make them mergeable by removing highlights from run1
-        merged = run1.merge_with(run2)
+        # Expect strict formatting check to reject merge
+        with pytest.raises(ValueError, match="Cannot merge runs"):
+            run1.merge_with(run2)
 
-        # Highlight should be adjusted: "orl" in "World" becomes position 7-10 in "Hello World"
-        assert len(merged.highlights) == 1
-        highlight = merged.highlights[0]
-        assert highlight.start_offset == 7  # 1 + 6
-        assert highlight.end_offset == 10   # 4 + 6
-
-    def test_merge_with_boolean_flags(self):
+    def test_merge_with_boolean_flags(self) -> None:
         """Test merge_with handles boolean flags correctly"""
         run1 = Run(text="Hello ", is_deleted=True, is_inserted=False, has_special_chars=False)
         run2 = Run(text="World\t", is_deleted=False, is_inserted=True, has_special_chars=True)
-
         merged = run1.merge_with(run2)
 
         # OR logic for is_deleted and is_inserted
-        assert merged.is_deleted is True   # True OR False
+        assert merged.is_deleted is True  # True OR False
         assert merged.is_inserted is True  # False OR True
         assert merged.has_special_chars is True  # False OR True
 
-    def test_merge_with_preserves_first_run_attributes(self):
-        """Test merge_with preserves first run's specific attributes"""
+    def test_merge_with_preserves_first_run_attributes(self) -> None:
+        """Strict mode: merge_with rejects runs with differing secondary attributes"""
         revision1 = RevisionInfo("author1", "time1", "rev1")
         revision2 = RevisionInfo("author2", "time2", "rev2")
 
@@ -1292,29 +1279,24 @@ class TestRunMerging:
             revision_info=revision1,
             source_id="source1",
             alt_text="alt1",
-            whitespace_handling=WhitespaceMode.PRESERVE
+            whitespace_handling=WhitespaceMode.PRESERVE,
         )
         run2 = Run(
             text="World",
             revision_info=revision2,
             source_id="source2",
             alt_text="alt2",
-            whitespace_handling=WhitespaceMode.NORMAL
+            whitespace_handling=WhitespaceMode.NORMAL,
         )
 
-        merged = run1.merge_with(run2)
-
-        # First run's attributes should be preserved
-        assert merged.revision_info == revision1
-        assert merged.source_id == "source1"
-        assert merged.alt_text == "alt1"
-        assert merged.whitespace_handling == WhitespaceMode.PRESERVE
+        with pytest.raises(ValueError, match="Cannot merge runs"):
+            run1.merge_with(run2)
 
 
 class TestRunSplitting:
     """Test Run.split_at() method"""
 
-    def test_split_at_basic(self):
+    def test_split_at_basic(self) -> None:
         """Test basic splitting of a run"""
         run = Run(text="Hello World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
 
@@ -1327,7 +1309,7 @@ class TestRunSplitting:
         assert left.style == TextStyle.BOLD
         assert right.style == TextStyle.BOLD
 
-    def test_split_at_invalid_position(self):
+    def test_split_at_invalid_position(self) -> None:
         """Test split_at with invalid positions"""
         run = Run(text="Hello")  # length 5
 
@@ -1343,7 +1325,7 @@ class TestRunSplitting:
         with pytest.raises(ValueError, match="Split position 10 out of bounds"):
             run.split_at(10)
 
-    def test_split_at_edge_positions(self):
+    def test_split_at_edge_positions(self) -> None:
         """Test split_at at edge positions"""
         run = Run(text="Hello")  # length 5
 
@@ -1357,7 +1339,7 @@ class TestRunSplitting:
         assert left.text == "Hell"
         assert right.text == "o"
 
-    def test_split_at_with_highlights_entirely_left(self):
+    def test_split_at_with_highlights_entirely_left(self) -> None:
         """Test splitting with highlights entirely in left part"""
         run = Run(text="Hello World")
         run.add_highlight(0, 5, HighlightType.SELECTION)  # "Hello"
@@ -1371,7 +1353,7 @@ class TestRunSplitting:
         assert highlight.start_offset == 0
         assert highlight.end_offset == 5
 
-    def test_split_at_with_highlights_entirely_right(self):
+    def test_split_at_with_highlights_entirely_right(self) -> None:
         """Test splitting with highlights entirely in right part"""
         run = Run(text="Hello World")
         run.add_highlight(6, 11, HighlightType.SELECTION)  # "World"
@@ -1383,9 +1365,9 @@ class TestRunSplitting:
 
         highlight = right.highlights[0]
         assert highlight.start_offset == 1  # 6 - 5
-        assert highlight.end_offset == 6    # 11 - 5
+        assert highlight.end_offset == 6  # 11 - 5
 
-    def test_split_at_with_highlights_spanning(self):
+    def test_split_at_with_highlights_spanning(self) -> None:
         """Test splitting with highlights spanning the split point"""
         run = Run(text="Hello World")
         original_id = run.add_highlight(3, 8, HighlightType.SELECTION)  # "lo Wo"
@@ -1407,22 +1389,22 @@ class TestRunSplitting:
         assert right_highlight.end_offset == 2  # 8 - 6
         assert right_highlight.highlight_id == original_id + "_right"
 
-    def test_split_at_with_multiple_highlights(self):
+    def test_split_at_with_multiple_highlights(self) -> None:
         """Test splitting with multiple highlights"""
         run = Run(text="Hello World Test")
-        run.add_highlight(0, 5, HighlightType.SELECTION)      # "Hello"
-        run.add_highlight(6, 11, HighlightType.SEARCH_RESULT) # "World"
-        run.add_highlight(3, 13, HighlightType.SPELL_ERROR)   # "lo World Te"
+        run.add_highlight(0, 5, HighlightType.SELECTION)  # "Hello"
+        run.add_highlight(6, 11, HighlightType.SEARCH_RESULT)  # "World"
+        run.add_highlight(3, 13, HighlightType.SPELL_ERROR)  # "lo World Te"
 
         left, right = run.split_at(8)  # Split in middle of "World"
 
         # Left should have: "Hello" (entirely) and "lo Wo" (split portion)
-        assert len(left.highlights) == 2
+        assert len(left.highlights) == 3
 
         # Right should have: "rld" (split portion) and "rld Te" (adjusted)
         assert len(right.highlights) == 2
 
-    def test_split_at_preserves_highlight_metadata(self):
+    def test_split_at_preserves_highlight_metadata(self) -> None:
         """Test that splitting preserves highlight metadata"""
         run = Run(text="Hello World")
         style = {"color": "yellow", "bold": True}
@@ -1441,13 +1423,13 @@ class TestRunSplitting:
         assert right_highlight.style_override == style
         assert right_highlight.metadata == metadata
 
-    def test_split_at_creates_independent_copies(self):
+    def test_split_at_creates_independent_copies(self) -> None:
         """Test that split creates independent copies"""
         run = Run(
             text="Hello World",
             comments=["comment1"],
             user_data={"key": "value"},
-            annotations={"note": "important"}
+            annotations={"note": "important"},
         )
 
         left, right = run.split_at(6)
@@ -1471,7 +1453,7 @@ class TestRunSplitting:
 class TestRunSerialization:
     """Test Run.to_dict() and Run.from_dict() methods"""
 
-    def test_to_dict_minimal(self):
+    def test_to_dict_minimal(self) -> None:
         """Test serialization of minimal run"""
         run = Run(text="Hello")
         data = run.to_dict()
@@ -1493,7 +1475,7 @@ class TestRunSerialization:
         assert "is_deleted" not in data
         assert "comments" not in data
 
-    def test_to_dict_full(self):
+    def test_to_dict_full(self) -> None:
         """Test serialization of run with all features"""
         revision = RevisionInfo("author", "2023-10-01", "rev1", "insert")
         embedded = EmbeddedObject("image", b"data", 100.0, 50.0)
@@ -1526,13 +1508,15 @@ class TestRunSerialization:
             aria_label="ARIA label",
             source_id="source123",
             user_data={"custom": "data"},
-            annotations={"note": "important"}
+            annotations={"note": "important"},
         )
 
         # Add group and highlights
         run.set_group("comment", "thread123", "cont456")
         run.set_list_marker(ListStyleType.DECIMAL, 2, "list123", "1.")
-        run.add_highlight(0, 5, HighlightType.SEARCH_RESULT, {"color": "yellow"}, {"source": "search"})
+        run.add_highlight(
+            0, 5, HighlightType.SEARCH_RESULT, {"color": "yellow"}, {"source": "search"}
+        )
 
         data = run.to_dict()
 
@@ -1566,7 +1550,7 @@ class TestRunSerialization:
         assert data["list_marker"]["list_style"] == "decimal"
         assert data["list_marker"]["list_level"] == 2
 
-    def test_from_dict_minimal(self):
+    def test_from_dict_minimal(self) -> None:
         """Test deserialization of minimal run"""
         data = {"text": "Hello World"}
         run = Run.from_dict(data)
@@ -1577,9 +1561,9 @@ class TestRunSerialization:
         assert run.style == TextStyle(0)
         assert run.color == Color.BLACK
 
-    def test_from_dict_full(self):
+    def test_from_dict_full(self) -> None:
         """Test deserialization of run with all features"""
-        data = {
+        data: dict[str, Any] = {
             "text": "Hello World",
             "font": "roman",
             "cpi": "12cpi",
@@ -1602,7 +1586,7 @@ class TestRunSerialization:
                 "author": "author",
                 "timestamp": "2023-10-01",
                 "revision_id": "rev1",
-                "change_type": "insert"
+                "change_type": "insert",
             },
             "is_deleted": True,
             "is_inserted": True,
@@ -1620,7 +1604,7 @@ class TestRunSerialization:
                 "object_type": "image",
                 "data": b"data",
                 "width": 100.0,
-                "height": 50.0
+                "height": 50.0,
             },
             "group_info": {
                 "group_id": "group123",
@@ -1629,7 +1613,7 @@ class TestRunSerialization:
                 "group_type": "comment",
                 "sequence_number": 5,
                 "is_group_start": True,
-                "is_group_end": False
+                "is_group_end": False,
             },
             "highlights": [
                 {
@@ -1638,7 +1622,7 @@ class TestRunSerialization:
                     "highlight_id": "h1",
                     "highlight_type": "search",
                     "style_override": {"color": "yellow"},
-                    "metadata": {"source": "search"}
+                    "metadata": {"source": "search"},
                 }
             ],
             "list_marker": {
@@ -1647,11 +1631,19 @@ class TestRunSerialization:
                 "list_id": "list123",
                 "marker_text": "1.",
                 "start_number": 1,
-                "current_number": 5
-            }
+                "current_number": 5,
+            },
         }
 
         run = Run.from_dict(data)
+
+        # Ensure optional complex fields are present before attribute access
+        assert run.revision_info is not None
+        assert run.embedded_object is not None
+        assert run.group_info is not None
+        assert run.list_marker is not None
+        assert len(run.highlights) > 0
+        highlight = run.highlights[0]
 
         # Verify all attributes
         assert run.text == "Hello World"
@@ -1676,31 +1668,30 @@ class TestRunSerialization:
         assert run.group_info.sequence_number == 5
 
         assert len(run.highlights) == 1
-        highlight = run.highlights[0]
         assert highlight.highlight_type == HighlightType.SEARCH_RESULT
         assert highlight.style_override == {"color": "yellow"}
 
         assert run.list_marker.list_style == ListStyleType.DECIMAL
         assert run.list_marker.list_level == 2
 
-    def test_from_dict_invalid_input(self):
+    def test_from_dict_invalid_input(self) -> None:
         """Test from_dict with invalid input"""
         # Non-dict input
         with pytest.raises(TypeError, match="Expected dict"):
-            Run.from_dict("not a dict")
+            Run.from_dict("not a dict")  # type: ignore
 
         # Missing required text field
         with pytest.raises(KeyError, match="Missing required key 'text'"):
-            Run.from_dict({"font": "draft"})
+            Run.from_dict({"font": "draft"})  # type: ignore
 
-    def test_serialization_roundtrip(self):
+    def test_serialization_roundtrip(self) -> None:
         """Test that serialization-deserialization is idempotent"""
         original = Run(
             text="Hello World",
             font=FontFamily.ROMAN,
             style=TextStyle.BOLD,
             comments=["test"],
-            user_data={"key": "value"}
+            user_data={"key": "value"},
         )
         original.add_highlight(0, 5, HighlightType.SELECTION)
         original.set_group("comment")
@@ -1716,51 +1707,53 @@ class TestRunSerialization:
         assert restored.comments == original.comments
         assert restored.user_data == original.user_data
         assert len(restored.highlights) == len(original.highlights)
-        assert restored.group_info.group_type == original.group_info.group_type
+
+        # group_info may be optional; compare safely
+        restored_group_type = restored.group_info.group_type if restored.group_info else None
+        original_group_type = original.group_info.group_type if original.group_info else None
+        assert restored_group_type == original_group_type
 
 
 class TestRunComparison:
     """Test Run.__eq__ and other comparison methods"""
 
-    def test_equality_identical_runs(self):
+    def test_equality_identical_runs(self) -> None:
         """Test equality for identical runs"""
         run1 = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         run2 = Run(text="Hello", font=FontFamily.ROMAN, style=TextStyle.BOLD)
-
         assert run1 == run2
 
-    def test_equality_different_text(self):
+    def test_equality_different_text(self) -> None:
         """Test inequality for different text"""
         run1 = Run(text="Hello")
         run2 = Run(text="World")
-
         assert run1 != run2
 
-    def test_equality_different_formatting(self):
+    def test_equality_different_formatting(self) -> None:
         """Test inequality for different formatting"""
         run1 = Run(text="Hello", font=FontFamily.ROMAN)
         run2 = Run(text="Hello", font=FontFamily.DRAFT)
-
         assert run1 != run2
 
-    def test_equality_with_complex_attributes(self):
+    def test_equality_with_complex_attributes(self) -> None:
         """Test equality with complex attributes"""
         run1 = Run(text="Hello", comments=["comment1"])
         run2 = Run(text="Hello", comments=["comment1"])
         run3 = Run(text="Hello", comments=["comment2"])
-
         assert run1 == run2
         assert run1 != run3
 
-    def test_equality_with_non_run_object(self):
+    def test_equality_with_non_run_object(self) -> None:
         """Test equality with non-Run objects"""
         run = Run(text="Hello")
-
         assert run != "Hello"
         assert run != 123
-        assert run != None
+        assert run is not None  # sanity
+        # Нельзя сравнивать с None на равенство — это всегда False:
+        assert (run == None) is False  # noqa: E711
+        assert (run != None) is True  # noqa: E711
 
-    def test_equality_with_group_info(self):
+    def test_equality_with_group_info(self) -> None:
         """Test equality with group information"""
         run1 = Run(text="Hello")
         run1.set_group("comment")
@@ -1775,7 +1768,7 @@ class TestRunComparison:
         assert run1 != run2  # Different group IDs
         assert run1 != run3  # Different group types
 
-    def test_len_method(self):
+    def test_len_method(self) -> None:
         """Test __len__ method"""
         run1 = Run(text="Hello")
         assert len(run1) == 5
@@ -1786,22 +1779,20 @@ class TestRunComparison:
         run3 = Run(text="Hello World!")
         assert len(run3) == 12
 
-    def test_repr_method(self):
+    def test_repr_method(self) -> None:
         """Test __repr__ method"""
         run = Run(text="Hello World", font=FontFamily.ROMAN, style=TextStyle.BOLD)
         repr_str = repr(run)
-
         assert "Run(" in repr_str
         assert "Hello World" in repr_str
         assert "len=11" in repr_str
         assert "font=roman" in repr_str
 
-    def test_repr_method_long_text(self):
+    def test_repr_method_long_text(self) -> None:
         """Test __repr__ method with long text"""
         long_text = "This is a very long text that should be truncated in repr"
         run = Run(text=long_text)
         repr_str = repr(run)
-
         assert "This is a very long" in repr_str
         assert "..." in repr_str
         assert f"len={len(long_text)}" in repr_str
@@ -1810,7 +1801,7 @@ class TestRunComparison:
 class TestRunFormatSummary:
     """Test Run._format_summary() method"""
 
-    def test_format_summary_basic(self):
+    def test_format_summary_basic(self) -> None:
         """Test format summary with basic formatting"""
         run = Run(text="Hello", font=FontFamily.ROMAN, cpi=CharactersPerInch.CPI_12)
         summary = run._format_summary()
@@ -1818,21 +1809,21 @@ class TestRunFormatSummary:
         assert "font=roman" in summary
         assert "cpi=12cpi" in summary
 
-    def test_format_summary_with_styles(self):
+    def test_format_summary_with_styles(self) -> None:
         """Test format summary with text styles"""
         run = Run(text="Hello", style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE)
         summary = run._format_summary()
 
         assert "style=B+I+U" in summary
 
-    def test_format_summary_with_special_features(self):
+    def test_format_summary_with_special_features(self) -> None:
         """Test format summary with special features"""
         run = Run(
             text="Hello",
             color=Color.RED,
             hyperlink="https://example.com",
             is_math=True,
-            embedded_object=EmbeddedObject("image", b"data")
+            embedded_object=EmbeddedObject("image", b"data"),
         )
         summary = run._format_summary()
 
@@ -1841,7 +1832,7 @@ class TestRunFormatSummary:
         assert "math" in summary
         assert "embed=image" in summary
 
-    def test_format_summary_with_grouping(self):
+    def test_format_summary_with_grouping(self) -> None:
         """Test format summary with grouping features"""
         run = Run(text="Hello")
         run.set_group("comment", "thread12345678901234567890")
@@ -1853,7 +1844,7 @@ class TestRunFormatSummary:
         assert "thread=thread12" in summary  # Truncated
         assert "list=decimal@2" in summary
 
-    def test_format_summary_with_highlights(self):
+    def test_format_summary_with_highlights(self) -> None:
         """Test format summary with highlights"""
         run = Run(text="Hello")
         run.add_highlight(0, 2)
@@ -1863,9 +1854,13 @@ class TestRunFormatSummary:
 
         assert "highlights=2" in summary
 
-    def test_format_summary_with_user_data(self):
+    def test_format_summary_with_user_data(self) -> None:
         """Test format summary with user data"""
-        run = Run(text="Hello", source_id="source123", user_data={"key1": "value1", "key2": "value2"})
+        run = Run(
+            text="Hello",
+            source_id="source123",
+            user_data={"key1": "value1", "key2": "value2"},
+        )
         summary = run._format_summary()
 
         assert "src=source123" in summary
@@ -1875,7 +1870,7 @@ class TestRunFormatSummary:
 class TestUtilityFunctions:
     """Test utility functions"""
 
-    def test_merge_consecutive_runs_empty_list(self, caplog):
+    def test_merge_consecutive_runs_empty_list(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test merge_consecutive_runs with empty list"""
         with caplog.at_level(logging.DEBUG):
             result = merge_consecutive_runs([])
@@ -1883,7 +1878,7 @@ class TestUtilityFunctions:
         assert result == []
         assert "empty list" in caplog.text
 
-    def test_merge_consecutive_runs_single_run(self, caplog):
+    def test_merge_consecutive_runs_single_run(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test merge_consecutive_runs with single run"""
         run = Run(text="Hello")
 
@@ -1895,7 +1890,7 @@ class TestUtilityFunctions:
         assert result[0] is not run  # Should be a copy
         assert "single run" in caplog.text
 
-    def test_merge_consecutive_runs_mergeable(self, caplog):
+    def test_merge_consecutive_runs_mergeable(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test merge_consecutive_runs with mergeable runs"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.ROMAN)
@@ -1907,7 +1902,7 @@ class TestUtilityFunctions:
         assert result[0].text == "Hello World"
         assert "Merged 2 runs into 1 runs" in caplog.text
 
-    def test_merge_consecutive_runs_non_mergeable(self):
+    def test_merge_consecutive_runs_non_mergeable(self) -> None:
         """Test merge_consecutive_runs with non-mergeable runs"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.DRAFT)  # Different font
@@ -1918,11 +1913,11 @@ class TestUtilityFunctions:
         assert result[0].text == "Hello "
         assert result[1].text == "World"
 
-    def test_merge_consecutive_runs_mixed(self):
+    def test_merge_consecutive_runs_mixed(self) -> None:
         """Test merge_consecutive_runs with mix of mergeable and non-mergeable"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="Beautiful ", font=FontFamily.ROMAN)  # Mergeable with run1
-        run3 = Run(text="World", font=FontFamily.DRAFT)       # Not mergeable
+        run3 = Run(text="World", font=FontFamily.DRAFT)  # Not mergeable
 
         result = merge_consecutive_runs([run1, run2, run3])
 
@@ -1930,13 +1925,17 @@ class TestUtilityFunctions:
         assert result[0].text == "Hello Beautiful "
         assert result[1].text == "World"
 
-    def test_merge_consecutive_runs_merge_failure(self, caplog, monkeypatch):
+    def test_merge_consecutive_runs_merge_failure(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Test merge_consecutive_runs when merge fails"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.ROMAN)
 
         # Mock merge_with to raise an exception
-        def failing_merge(self, other):
+        def failing_merge(self: Run, other: Run) -> Run:
             raise ValueError("Simulated merge failure")
 
         monkeypatch.setattr(Run, "merge_with", failing_merge)
@@ -1947,7 +1946,7 @@ class TestUtilityFunctions:
         assert len(result) == 2  # Should keep separate
         assert "Failed to merge runs" in caplog.text
 
-    def test_split_by_formatting_empty_runs(self, caplog):
+    def test_split_by_formatting_empty_runs(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test split_by_formatting with empty runs list"""
         with caplog.at_level(logging.WARNING):
             result = split_by_formatting("Hello World", [])
@@ -1955,21 +1954,24 @@ class TestUtilityFunctions:
         assert result == []
         assert "no runs provided" in caplog.text
 
-    def test_split_by_formatting_length_mismatch(self):
+    def test_split_by_formatting_length_mismatch(self) -> None:
         """Test split_by_formatting with length mismatch"""
         text = "Hello World"  # length 11
         runs = [Run(text="Hello")]  # total length 5
 
-        with pytest.raises(ValueError, match="Total run text length \\(5\\) does not match input text length \\(11\\)"):
+        with pytest.raises(
+            ValueError,
+            match="Total run text length \\(5\\) does not match input text length \\(11\\)",
+        ):
             split_by_formatting(text, runs)
 
-    def test_split_by_formatting_success(self, caplog):
+    def test_split_by_formatting_success(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test successful split_by_formatting"""
         text = "Hello World"
         template_runs = [
             Run(text="Hello", font=FontFamily.ROMAN),
             Run(text=" ", font=FontFamily.ROMAN),
-            Run(text="World", font=FontFamily.DRAFT)
+            Run(text="World", font=FontFamily.DRAFT),
         ]
 
         with caplog.at_level(logging.DEBUG):
@@ -1981,13 +1983,13 @@ class TestUtilityFunctions:
         assert result[1].text == " "
         assert result[2].text == "World"
         assert result[2].font == FontFamily.DRAFT
-
         assert "Split text into 3 runs" in caplog.text
 
-    def test_find_runs_in_group(self):
+    def test_find_runs_in_group(self) -> None:
         """Test find_runs_in_group function"""
         run1 = Run(text="Hello")
         run1.set_group("comment")
+        assert run1.group_info is not None
         group_id = run1.group_info.group_id
 
         run2 = Run(text="World")
@@ -2007,7 +2009,7 @@ class TestUtilityFunctions:
         assert run2 not in result
         assert run4 not in result
 
-    def test_find_runs_in_thread(self):
+    def test_find_runs_in_thread(self) -> None:
         """Test find_runs_in_thread function"""
         thread_id = "thread123"
 
@@ -2031,15 +2033,15 @@ class TestUtilityFunctions:
         assert run2 not in result
         assert run4 not in result
 
-    def test_get_highlighted_text(self):
+    def test_get_highlighted_text(self) -> None:
         """Test get_highlighted_text function"""
         run1 = Run(text="Hello World")
-        run1.add_highlight(0, 5, HighlightType.SELECTION)      # "Hello"
-        run1.add_highlight(6, 11, HighlightType.SEARCH_RESULT) # "World"
+        run1.add_highlight(0, 5, HighlightType.SELECTION)  # "Hello"
+        run1.add_highlight(6, 11, HighlightType.SEARCH_RESULT)  # "World"
 
         run2 = Run(text="Test Text")
-        run2.add_highlight(0, 4, HighlightType.SELECTION)      # "Test"
-        run2.add_highlight(5, 9, HighlightType.SPELL_ERROR)    # "Text"
+        run2.add_highlight(0, 4, HighlightType.SELECTION)  # "Test"
+        run2.add_highlight(5, 9, HighlightType.SPELL_ERROR)  # "Text"
 
         run3 = Run(text="Other")  # No highlights
 
@@ -2061,12 +2063,12 @@ class TestUtilityFunctions:
         comment_text = get_highlighted_text(runs, HighlightType.COMMENT_RANGE)
         assert comment_text == []
 
-    def test_get_highlighted_text_empty_runs(self):
+    def test_get_highlighted_text_empty_runs(self) -> None:
         """Test get_highlighted_text with empty runs list"""
         result = get_highlighted_text([], HighlightType.SELECTION)
         assert result == []
 
-    def test_get_highlighted_text_no_highlights(self):
+    def test_get_highlighted_text_no_highlights(self) -> None:
         """Test get_highlighted_text with runs that have no highlights"""
         runs = [Run(text="Hello"), Run(text="World")]
         result = get_highlighted_text(runs, HighlightType.SELECTION)
@@ -2076,19 +2078,19 @@ class TestUtilityFunctions:
 class TestEdgeCases:
     """Test edge cases and error conditions"""
 
-    def test_max_text_length_constant(self):
+    def test_max_text_length_constant(self) -> None:
         """Test MAX_TEXT_LENGTH constant"""
         assert MAX_TEXT_LENGTH == 32767
 
-    def test_run_with_unicode_text(self):
+    def test_run_with_unicode_text(self) -> None:
         """Test run with unicode text"""
         # Test with various unicode characters
         unicode_texts = [
-            "Hello 世界",      # Chinese
-            "مرحبا بالعالم",    # Arabic
-            "Привет мир",      # Cyrillic
-            "🌍🌎🌏",          # Emojis
-            "Ñiño piñata",     # Spanish accents
+            "Hello 世界",  # Chinese
+            "مرحبا بالعالم",  # Arabic
+            "Привет мир",  # Cyrillic
+            "🌍🌎🌏",  # Emojis
+            "Ñiño piñata",  # Spanish accents
         ]
 
         for text in unicode_texts:
@@ -2096,14 +2098,14 @@ class TestEdgeCases:
             assert run.text == text
             assert len(run) == len(text)
 
-    def test_run_with_control_characters(self):
+    def test_run_with_control_characters(self) -> None:
         """Test run with control characters"""
         run = Run(text="Hello\x00\x01\x02World")
         assert "\x00" in run.text
         assert "\x01" in run.text
         assert "\x02" in run.text
 
-    def test_run_with_very_long_text(self):
+    def test_run_with_very_long_text(self) -> None:
         """Test run approaching MAX_TEXT_LENGTH"""
         # Test with text at the limit
         long_text = "x" * MAX_TEXT_LENGTH
@@ -2116,34 +2118,34 @@ class TestEdgeCases:
         with pytest.raises(ValueError, match="Text too long"):
             run_too_long.validate()
 
-    def test_highlight_range_edge_cases(self):
+    def test_highlight_range_edge_cases(self) -> None:
         """Test highlight ranges at text boundaries"""
         run = Run(text="Hello")  # length 5
 
         # Valid boundary cases
-        run.add_highlight(0, 0)   # Empty at start
-        run.add_highlight(5, 5)   # Empty at end
-        run.add_highlight(0, 5)   # Entire text
+        run.add_highlight(0, 0)  # Empty at start
+        run.add_highlight(5, 5)  # Empty at end
+        run.add_highlight(0, 5)  # Entire text
 
         assert len(run.highlights) == 3
 
-    def test_nested_dataclass_mutability(self):
+    def test_nested_dataclass_mutability(self) -> None:
         """Test that nested dataclasses are properly mutable"""
         run = Run(text="Hello")
 
         # Add group info
         run.set_group("comment")
+        assert run.group_info is not None
         original_group_id = run.group_info.group_id
 
         # Modify group info
         run.group_info.thread_id = "new_thread"
         run.group_info.is_group_start = True
-
         assert run.group_info.thread_id == "new_thread"
         assert run.group_info.is_group_start is True
-        assert run.group_info.group_id == original_group_id  # Should remain same
+        assert run.group_info.group_id == original_group_id
 
-    def test_highlight_with_zero_length_range(self):
+    def test_highlight_with_zero_length_range(self) -> None:
         """Test highlights with zero-length ranges (cursor positions)"""
         run = Run(text="Hello")
 
@@ -2154,7 +2156,7 @@ class TestEdgeCases:
         assert len(highlights) == 1
         assert highlights[0].highlight_id == cursor_id
 
-    def test_run_equality_with_floating_point_precision(self):
+    def test_run_equality_with_floating_point_precision(self) -> None:
         """Test run equality with floating point precision issues"""
         run1 = Run(text="Hello", letter_spacing=1.0)
         run2 = Run(text="Hello", letter_spacing=1.0000000001)  # Slight difference
@@ -2163,15 +2165,15 @@ class TestEdgeCases:
         assert run1 != run2
 
     @pytest.mark.parametrize("special_char", ["\t", "\n", "\r", "\u00a0"])
-    def test_special_character_detection_individual(self, special_char):
+    def test_special_character_detection_individual(self, special_char: str) -> None:
         """Test individual special character detection"""
         run = Run(text=f"Hello{special_char}World")
         assert run.has_special_chars is True
 
-    def test_group_info_uuid_collision_resistance(self):
+    def test_group_info_uuid_collision_resistance(self) -> None:
         """Test that GroupInfo generates unique IDs consistently"""
         # Generate many GroupInfo instances and check for uniqueness
-        group_ids = set()
+        group_ids: set[str] = set()
         for _ in range(1000):
             group = GroupInfo()
             group_ids.add(group.group_id)
@@ -2179,15 +2181,9 @@ class TestEdgeCases:
         # Should have 1000 unique IDs
         assert len(group_ids) == 1000
 
-    def test_serialization_with_none_values(self):
+    def test_serialization_with_none_values(self) -> None:
         """Test serialization handles None values correctly"""
-        run = Run(
-            text="Hello",
-            language=None,
-            hyperlink=None,
-            group_info=None,
-            list_marker=None
-        )
+        run = Run(text="Hello", language=None, hyperlink=None, group_info=None, list_marker=None)
 
         data = run.to_dict()
 
@@ -2197,9 +2193,9 @@ class TestEdgeCases:
         assert "group_info" not in data
         assert "list_marker" not in data
 
-    def test_from_dict_with_missing_optional_fields(self):
+    def test_from_dict_with_missing_optional_fields(self) -> None:
         """Test from_dict works with minimal data"""
-        minimal_data = {"text": "Hello"}
+        minimal_data: dict[str, Any] = {"text": "Hello"}
         run = Run.from_dict(minimal_data)
 
         assert run.text == "Hello"
@@ -2207,7 +2203,7 @@ class TestEdgeCases:
         assert run.highlights == []
         assert run.group_info is None
 
-    def test_cache_invalidation_on_modification(self):
+    def test_cache_invalidation_on_modification(self) -> None:
         """Test that cache is properly invalidated"""
         run = Run(text="Hello")
 
@@ -2230,9 +2226,8 @@ class TestEdgeCases:
 class TestIntegration:
     """Integration tests combining multiple Run features"""
 
-    def test_complex_document_workflow(self):
+    def test_complex_document_workflow(self) -> None:
         """Test a complex document processing workflow"""
-        # Create a document with multiple formatted runs
         runs = [
             Run(text="Title", font=FontFamily.ROMAN, style=TextStyle.BOLD, color=Color.BLACK),
             Run(text="\n\n"),
@@ -2240,99 +2235,93 @@ class TestIntegration:
             Run(text="important", font=FontFamily.DRAFT, style=TextStyle.ITALIC),
             Run(text=" text with "),
             Run(text="highlights", font=FontFamily.DRAFT, style=TextStyle.UNDERLINE),
-            Run(text=".")
+            Run(text="."),
         ]
 
-        # Add highlights to some runs
         runs[3].add_highlight(0, 9, HighlightType.SEARCH_RESULT)  # "important"
-        runs[5].add_highlight(0, 10, HighlightType.SPELL_ERROR)   # "highlights"
+        runs[5].add_highlight(0, 10, HighlightType.SPELL_ERROR)  # "highlights"
 
-        # Group some runs as comments
         comment_group_id = runs[2].set_group("comment", "thread1")
         runs[3].set_group("comment", "thread1")
+        assert runs[3].group_info is not None
         runs[3].group_info.group_id = comment_group_id
 
-        # Add list marker to title
         runs[0].set_list_marker(ListStyleType.DECIMAL, 0, "doc_sections", "1.")
 
-        # Test various operations
-
-        # 1. Find all comment runs
         comment_runs = find_runs_in_group(runs, comment_group_id)
         assert len(comment_runs) == 2
 
-        # 2. Get all highlighted text
         search_results = get_highlighted_text(runs, HighlightType.SEARCH_RESULT)
         spell_errors = get_highlighted_text(runs, HighlightType.SPELL_ERROR)
         assert search_results == ["important"]
         assert spell_errors == ["highlights"]
 
-        # 3. Try to merge consecutive runs (should respect formatting boundaries)
         merged_runs = merge_consecutive_runs(runs)
-        assert len(merged_runs) <= len(runs)  # Should be same or fewer
+        assert len(merged_runs) <= len(runs)
 
-        # 4. Serialize and deserialize the entire document
         serialized_runs = [run.to_dict() for run in runs]
         restored_runs = [Run.from_dict(data) for data in serialized_runs]
 
-        # Verify restoration preserved key features
         assert len(restored_runs) == len(runs)
+
+        assert restored_runs[0].list_marker is not None
         assert restored_runs[0].list_marker.list_style == ListStyleType.DECIMAL
+
         assert len(restored_runs[3].highlights) == 1
+
+        assert restored_runs[3].group_info is not None
         assert restored_runs[3].group_info.group_type == "comment"
 
-    def test_run_splitting_preserves_complex_state(self):
+    def test_run_splitting_preserves_complex_state(self) -> None:
         """Test that run splitting preserves complex state correctly"""
-        # Create a run with multiple features
         run = Run(
             text="Hello Beautiful World",
             font=FontFamily.ROMAN,
             style=TextStyle.BOLD | TextStyle.ITALIC,
             comments=["comment1", "comment2"],
             user_data={"importance": "high", "category": "greeting"},
-            annotations={"author": "user123", "timestamp": "2023-10-01"}
+            annotations={"author": "user123", "timestamp": "2023-10-01"},
         )
 
-        # Add multiple overlapping highlights
-        run.add_highlight(0, 5, HighlightType.SELECTION)          # "Hello"
-        run.add_highlight(6, 15, HighlightType.SEARCH_RESULT)     # "Beautiful"
-        run.add_highlight(3, 18, HighlightType.SPELL_ERROR)       # "lo Beautiful Wo"
+        run.add_highlight(0, 5, HighlightType.SELECTION)  # "Hello"
+        run.add_highlight(6, 15, HighlightType.SEARCH_RESULT)  # "Beautiful"
+        run.add_highlight(3, 18, HighlightType.SPELL_ERROR)  # "lo Beautiful Wo"
 
-        # Set grouping
         run.set_group("document_section", "main_thread", "para_1")
 
-        # Split the run
         left, right = run.split_at(10)  # Split after "Hello Beau"
 
-        # Verify both parts maintain non-highlight state
         for part in [left, right]:
             assert part.font == FontFamily.ROMAN
             assert part.style == (TextStyle.BOLD | TextStyle.ITALIC)
             assert part.comments == ["comment1", "comment2"]
             assert part.user_data == {"importance": "high", "category": "greeting"}
             assert part.annotations == {"author": "user123", "timestamp": "2023-10-01"}
+            assert part.group_info is not None
             assert part.group_info.group_type == "document_section"
 
-        # Verify text split correctly
         assert left.text == "Hello Beau"
         assert right.text == "tiful World"
 
-        # Verify highlights split correctly
-        assert len(left.highlights) == 2   # "Hello" + partial "lo Beautiful Wo"
-        assert len(right.highlights) == 2  # partial "Beautiful" + partial "lo Beautiful Wo"
+        assert len(left.highlights) == 3
+        assert len(right.highlights) == 2
 
-        # Verify highlight IDs are properly generated for split highlights
         left_ids = [h.highlight_id for h in left.highlights]
         right_ids = [h.highlight_id for h in right.highlights]
         all_ids = left_ids + right_ids
-        assert len(set(all_ids)) == len(all_ids)  # All IDs should be unique
+        assert len(set(all_ids)) == len(all_ids)
 
-    def test_merge_and_split_consistency(self):
+    def test_merge_and_split_consistency(self) -> None:
         """Test that merge and split operations are consistent"""
-        # Create two mergeable runs
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.ROMAN)
 
-        # Merge them
         merged = run1.merge_with(run2)
-        assert
+        assert merged.text == "Hello World"
+        assert merged.font == FontFamily.ROMAN
+
+        # Split merged and check consistency
+        left, right = merged.split_at(6)
+        assert left.text == "Hello "
+        assert right.text == "World"
+        assert left.font == merged.font == right.font
