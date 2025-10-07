@@ -9,7 +9,7 @@ qrcode>=7.4.2
 python-barcode>=0.15.1
 
 # Markdown
-python-markdown>=3.5.0
+Markdown>=3.5.0
 mistune>=3.0.0
 
 # Excel
@@ -23,7 +23,18 @@ pywin32>=306
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
+# Barcode/QR
+qrcode>=7.4.2
+python-barcode>=0.15.1
+pylibdmtx>=0.1.8
+
 # Database (optional)
 # SQLAlchemy>=2.0.0
 # psycopg2-binary>=2.9.0  # PostgreSQL
 # mysql-connector-python>=8.0.0  # MySQL
+pytest>=8.4.2
+pytest-cov
+pdf417gen
+pillow
+numpy
+

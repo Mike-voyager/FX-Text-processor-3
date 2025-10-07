@@ -238,16 +238,86 @@ class CodePage(str, Enum):
 class BarcodeType(str, Enum):
     EAN8 = "ean8"
     EAN13 = "ean13"
+    EAN14 = "ean14"  # GTIN-14/shipping, not hardware FX-890, software/industry use!
     UPCA = "upca"
     UPCE = "upce"
     CODE39 = "code39"
+    CODE93 = "code93"  # Software/industry use
     CODE128 = "code128"
-    POSTNET = "postnet"
     ITF = "itf"
+    MSI = "msi"  # Software/industry
+    PHARMACODE = "pharmacode"  # Software/industry
     CODABAR = "codabar"
+    CODE11 = "code11"  # Software/industry
+    STANDARD2OF5 = "standard2of5"  # Also known as industrial 2 of 5
+    GS1128 = "gs1128"  # GS1-128; software emulation via Code128
+    POSTNET = "postnet"
+    PLESSEY = "plessey"  # Retail/legacy, software only
+    TELEPEN = "telepen"  # Academic/library, software only
+    TRIOPTIC = "trioptic"  # Lens marking/industry
+    # FX-890 hardware natively supports only some of these! Others - for preview/software export.
+    # For 2D codes (QR/DataMatrix/PDF417 etc) use a separate enum if needed
 
     def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
-        return self.value
+        names_ru = {
+            self.EAN8: "EAN-8",
+            self.EAN13: "EAN-13",
+            self.EAN14: "EAN-14 (товар/короб)",
+            self.UPCA: "UPC-A",
+            self.UPCE: "UPC-E",
+            self.CODE39: "Code 39",
+            self.CODE93: "Code 93",
+            self.CODE128: "Code 128",
+            self.ITF: "Interleaved 2 of 5",
+            self.MSI: "MSI Plessey",
+            self.PHARMACODE: "Pharmacode",
+            self.CODABAR: "Codabar",
+            self.CODE11: "Code 11",
+            self.STANDARD2OF5: "Standard/Industrial 2 of 5",
+            self.GS1128: "GS1-128 (EAN-128)",
+            self.POSTNET: "POSTNET",
+            self.PLESSEY: "Plessey",
+            self.TELEPEN: "Telepen",
+            self.TRIOPTIC: "Trioptic",
+        }
+        names_en = {
+            self.EAN8: "EAN-8",
+            self.EAN13: "EAN-13",
+            self.EAN14: "EAN-14",
+            self.UPCA: "UPC-A",
+            self.UPCE: "UPC-E",
+            self.CODE39: "Code 39",
+            self.CODE93: "Code 93",
+            self.CODE128: "Code 128",
+            self.ITF: "Interleaved 2 of 5",
+            self.MSI: "MSI",
+            self.PHARMACODE: "Pharmacode",
+            self.CODABAR: "Codabar",
+            self.CODE11: "Code 11",
+            self.STANDARD2OF5: "Standard 2 of 5",
+            self.GS1128: "GS1-128",
+            self.POSTNET: "POSTNET",
+            self.PLESSEY: "Plessey",
+            self.TELEPEN: "Telepen",
+            self.TRIOPTIC: "Trioptic",
+        }
+        return names_ru.get(self, self.value) if lang == "ru" else names_en.get(self, self.value)
+
+
+class Matrix2DCodeType(str, Enum):
+    QR = "qr"
+    DATAMATRIX = "datamatrix"
+    PDF417 = "pdf417"
+    # MICRO_QR = "micro_qr"  # Добавить, если появится поддержка/пакет
+
+    def localized_name(self, lang: str = "ru") -> str:
+        names = {
+            "qr": {"ru": "QR код", "en": "QR code"},
+            "datamatrix": {"ru": "DataMatrix", "en": "DataMatrix"},
+            "pdf417": {"ru": "PDF417", "en": "PDF417"},
+            # "micro_qr": {"ru": "Микро-QR", "en": "Micro QR"},
+        }
+        return names[self.value][lang] if lang in names[self.value] else self.value
 
 
 class GraphicsMode(str, Enum):
