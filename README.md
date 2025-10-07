@@ -89,15 +89,15 @@ FX-Text-processor-3/
 │   ├── model/                    # Data models
 │   │   ├── __init__.py
 │   │   ├── document.py           # 🚧 Blocked (43%) — awaiting refactor
-│   │   ├── section.py            # ✅ Done (100%)
-│   │   ├── paragraph.py          # ✅ DONE (100%)
-│   │   ├── run.py                # ✅ Done (100%)
-│   │   ├── table.py              # ✅ DONE (100%)
-│   │   ├── image.py               # 🚧 working1
-│   │   ├──barcode.py             # 🚧 TODO
+│   │   ├── section.py            # ✅ Done
+│   │   ├── paragraph.py          # ✅ DONE
+│   │   ├── run.py                # ✅ Done
+│   │   ├── table.py              # ✅ DONE
+│   │   ├── image.py              # 🚧 TODO
+│   │   ├──barcode.py             # ✅ DONE
 │   │   ├──form.py                # 🚧 TODO
 │   │   ├──validation.py          # 🚧 TODO
-│   │   └── enums.py              # ✅ DONE (100%)
+│   │   └── enums.py              # ✅ DONE
 │
 │   ├── view/ # UI components (Tkinter)
 │   │   ├── __init__.py
@@ -159,7 +159,6 @@ FX-Text-processor-3/
 │   ├── printer/ # Direct printer access
 │   ├── io/ # File I/O (JSON, RTF, Markdown)
 │   ├── form/ # Form builder
-│   ├── table/ # Table editor
 │   └── utils/ # Utilities
 │
 │
