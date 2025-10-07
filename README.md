@@ -153,7 +153,7 @@ FX-Text-processor-3/
 │   │   ├── form_builder.py     # ✅ DONE
 │   │   ├── form_palette.py     # ✅ DONE
 │   │   ├── form_elements.py    # ✅ DONE
-│   │   ├──
+│   │   ├── template_manager.py # ✅ DONE
 │   │   ├──
 │   │   └──
 │   │
