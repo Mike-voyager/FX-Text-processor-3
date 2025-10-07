@@ -154,7 +154,7 @@ FX-Text-processor-3/
 │   │   ├── form_palette.py     # ✅ DONE
 │   │   ├── form_elements.py    # ✅ DONE
 │   │   ├── template_manager.py # ✅ DONE
-│   │   ├──
+│   │   ├── variable_parser.py  # ✅ DONE
 │   │   └──
 │   │
 │   ├── charset/ # Codepage management
