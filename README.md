@@ -147,15 +147,21 @@ FX-Text-processor-3/
 │   │       ├── paragraph_builder.py    # 🚧 TODO
 │   │       ├── run_builder.py
 │   │       └── document_builder.py
-│
+│   │
 │   ├── charset/ # Codepage management
 │   ├── image/ # Image processing
-│   ├── barcode/ # Barcode/QR generation
+│   │
+│   ├── barcode/ # ✅ DONE
+│   │   ├── __init__.py
+│   │   ├── barcode_generator.py    # 1D barcode
+│   │   └── matrix2d_generator.py   # 2d barcode/QR
+│   │
 │   ├── printer/ # Direct printer access
 │   ├── io/ # File I/O (JSON, RTF, Markdown)
 │   ├── form/ # Form builder
 │   ├── table/ # Table editor
 │   └── utils/ # Utilities
+│
 │
 ├── tests/                        # Test suite
 │   ├── unit/      # ✅ 39 tests, 86% coverage
