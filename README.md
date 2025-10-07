@@ -80,7 +80,7 @@ print("✓ Authentic blank")
 **→ Full documentation**: [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)
 
 ## 📁 Project Structure
-
+<pre>
 FX-Text-processor-3/
 ├── src/                         # Source code (MVC architecture)
 │   ├── __init__.py                             # ✅ DONE
@@ -212,7 +212,7 @@ FX-Text-processor-3/
 ├── pyproject.toml                # Project config (build/system)
 ├── pytest.ini
 ├── README.md
-
+</pre>
 
 
 ## 🚀 Quick Start
