@@ -148,6 +148,15 @@ FX-Text-processor-3/
 │   │       ├── run_builder.py
 │   │       └── document_builder.py
 │   │
+│   ├── form/ # Form builder
+│   │   ├── __init__.py
+│   │   ├── form_builder.py     # ✅ DONE
+│   │   ├── form_palette.py     # ✅ DONE
+│   │   ├── form_elements.py    # ✅ DONE
+│   │   ├──
+│   │   ├──
+│   │   └──
+│   │
 │   ├── charset/ # Codepage management
 │   ├── image/ # Image processing
 │   │
@@ -158,7 +167,6 @@ FX-Text-processor-3/
 │   │
 │   ├── printer/ # Direct printer access
 │   ├── io/ # File I/O (JSON, RTF, Markdown)
-│   ├── form/ # Form builder
 │   └── utils/ # Utilities
 │
 │
