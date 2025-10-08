@@ -132,7 +132,7 @@ FX-Text-processor-3/
 │   │   │   ├── charset.py
 │   │   │   ├── special_effects.py
 │   │   │   └── shading.py
-│   │   ├── advanced_graphics/
+│   │   ├── advanced_graphics/  # 🚧 TODO
 │   │   │   ├── __init__.py
 │   │   │   ├── dithering.py
 │   │   │   ├── double_strike.py
@@ -140,7 +140,7 @@ FX-Text-processor-3/
 │   │   │   ├── scanline.py
 │   │   │   ├── esc_strikethrough.py
 │   │   │   └── rendering.py
-│   │   └── builders/
+│   │   └── builders/           # 🚧 TODO
 │   │       ├── __init__.py
 │   │       ├── base.py
 │   │       ├── table_builder.py
@@ -156,10 +156,9 @@ FX-Text-processor-3/
 │   │   ├── template_manager.py # ✅ DONE
 │   │   ├── variable_parser.py  # ✅ DONE
 │   │   ├── validation.py       # ✅ DONE
-│   │   ├── form_schema.py      # 🚧 TODO
-│   │   ├── export.py           # 🚧 TODO
-│   │   ├── import.py           # 🚧 TODO
-│   │   ├── style_manager.py    # 🚧 TODO
+│   │   ├── form_schema.py      # ✅ DONE
+│   │   ├── export_import.py    # ✅ DONE
+│   │   ├── style_manager.py    # ✅ DONE
 │   │   └── batch_processor.py  # 🚧 TODO
 │   │
 │   ├── charset/ # Codepage management
