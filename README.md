@@ -148,18 +148,18 @@ FX-Text-processor-3/
 │   │       ├── run_builder.py
 │   │       └── document_builder.py
 │   │
-│   ├── form/ # Form builder
+│   ├── form/ # Form builder    # ✅ DONE 99% ⚠️ TODO tests with secure/
 │   │   ├── __init__.py
-│   │   ├── form_builder.py     # ✅ DONE
-│   │   ├── form_palette.py     # ✅ DONE
-│   │   ├── form_elements.py    # ✅ DONE
-│   │   ├── template_manager.py # ✅ DONE
-│   │   ├── variable_parser.py  # ✅ DONE
-│   │   ├── validation.py       # ✅ DONE
-│   │   ├── form_schema.py      # ✅ DONE
-│   │   ├── export_import.py    # ✅ DONE
-│   │   ├── style_manager.py    # ✅ DONE
-│   │   └── batch_processor.py  # 🚧 TODO
+│   │   ├── form_builder.py
+│   │   ├── form_palette.py
+│   │   ├── form_elements.py
+│   │   ├── template_manager.py
+│   │   ├── variable_parser.py
+│   │   ├── validation.py
+│   │   ├── form_schema.py
+│   │   ├── export_import.py
+│   │   ├── style_manager.py
+│   │   └── batch_processor.py  # ⚠️ DONE 50/50 TODO tests
 │   │
 │   ├── charset/ # Codepage management
 │   ├── image/ # Image processing
