@@ -1,8 +1,10 @@
 import pytest
+from typing import Any, Dict, Optional
 from src.form.validation import (
     FormValidator,
     ValidationError,
     ValidationResult,
+    Validator,
     min_length,
     max_length,
     greater_than,
@@ -11,14 +13,20 @@ from src.form.validation import (
 
 
 def test_basic_valid_pass() -> None:
-    schema = {"name": ["string", required], "age": ["int", required]}
+    schema: dict[str, list[str | Validator]] = {
+        "name": ["string", required],
+        "age": ["int", required],
+    }
     validator = FormValidator(schema)
     res = validator.validate({"name": "ivan", "age": 10})
     assert res.ok
 
 
 def test_basic_valid_fail() -> None:
-    schema = {"name": ["string", required], "age": ["int", required]}
+    schema: dict[str, list[str | Validator]] = {
+        "name": ["string", required],
+        "age": ["int", required],
+    }
     validator = FormValidator(schema)
     res = validator.validate({"name": "", "age": "ten"})
     assert not res.ok
@@ -27,7 +35,7 @@ def test_basic_valid_fail() -> None:
 
 
 def test_min_max_length() -> None:
-    schema = {"v": ["string", min_length(2), max_length(3)]}
+    schema: dict[str, list[str | Validator]] = {"v": ["string", min_length(2), max_length(3)]}
     validator = FormValidator(schema)
     bad = validator.validate({"v": "A"})
     assert not bad.ok and "length" in bad.errors[0].args[0]
@@ -38,28 +46,28 @@ def test_min_max_length() -> None:
 
 
 def test_required_empty_string() -> None:
-    schema = {"x": [required]}
+    schema: dict[str, list[str | Validator]] = {"x": [required]}
     validator = FormValidator(schema)
     res = validator.validate({"x": ""})
     assert not res.ok
 
 
 def test_required_none() -> None:
-    schema = {"x": [required]}
+    schema: dict[str, list[str | Validator]] = {"x": [required]}
     validator = FormValidator(schema)
     res = validator.validate({"x": None})
     assert not res.ok
 
 
 def test_extra_fields() -> None:
-    schema = {"a": ["string"]}
+    schema: dict[str, list[str | Validator]] = {"a": ["string"]}
     validator = FormValidator(schema, allow_extra=False)
     res = validator.validate({"a": "1", "b": 2})
     assert not res.ok and any("Extra field" in str(e) for e in res.errors)
 
 
 def test_greater_than_success_fail() -> None:
-    schema = {"x": ["int"], "y": ["int", greater_than("x")]}
+    schema: dict[str, list[str | Validator]] = {"x": ["int"], "y": ["int", greater_than("x")]}
     validator = FormValidator(schema)
     ok = validator.validate({"x": 1, "y": 2})
     fail = validator.validate({"x": 3, "y": 2})
@@ -68,23 +76,23 @@ def test_greater_than_success_fail() -> None:
 
 
 def test_custom_validator() -> None:
-    def even(value, ctx):
+    def even(value: Any, context: Dict[str, Any]) -> Optional[str]:
         return None if value % 2 == 0 else "not even"
 
-    schema = {"n": ["int", even]}
+    schema: dict[str, list[str | Validator]] = {"n": ["int", even]}
     validator = FormValidator(schema)
     assert validator.validate({"n": 4}).ok
     assert not validator.validate({"n": 3}).ok
 
 
 def test_stop_on_error() -> None:
-    called = []
+    called: list[bool] = []
 
-    def fail(value, ctx):
+    def fail(value: Any, context: Dict[str, Any]) -> str:
         called.append(True)
         return "fail"
 
-    schema = {"a": [fail, fail, fail]}
+    schema: dict[str, list[str | Validator]] = {"a": [fail, fail, fail]}
     validator = FormValidator(schema, stop_on_error=True)
     res = validator.validate({"a": 1})
     assert len(called) == 1
@@ -100,18 +108,17 @@ def test_validation_result_methods() -> None:
 
 
 def test_edge_types() -> None:
-    schema = {}
+    schema: dict[str, list[str | Validator]] = {}
     validator = FormValidator(schema)
     assert validator.validate({}).ok
     assert validator.validate({"x": 1}).ok
 
 
 def test_cross_context_injection() -> None:
-    # Проверяем, что context из validate подхватывается
-    def match_other(value, ctx):
-        return None if value == ctx.get("target") else "no match"
+    def match_other(value: Any, context: Dict[str, Any]) -> Optional[str]:
+        return None if value == context.get("target") else "no match"
 
-    schema = {"x": [match_other]}
+    schema: dict[str, list[str | Validator]] = {"x": [match_other]}
     validator = FormValidator(schema)
     assert validator.validate({"x": 5}, context={"target": 5}).ok
     assert not validator.validate({"x": 2}, context={"target": 5}).ok

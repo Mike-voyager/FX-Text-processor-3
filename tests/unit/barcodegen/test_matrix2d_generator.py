@@ -1,7 +1,7 @@
 import pytest
 from typing import Dict, Any, List
 from PIL import Image
-from src.barcode.matrix2d_generator import Matrix2DCodeGenerator, Matrix2DCodeGenError
+from src.barcodegen.matrix2d_generator import Matrix2DCodeGenerator, Matrix2DCodeGenError
 from src.model.enums import Matrix2DCodeType
 from pathlib import Path
 from unittest.mock import patch

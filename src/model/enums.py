@@ -340,6 +340,16 @@ class Alignment(str, Enum):
         return self.value
 
 
+class TabAlignment(str, Enum):
+    LEFT = "left"
+    CENTER = "center"
+    RIGHT = "right"
+    DECIMAL = "decimal"
+
+    def localized_name(self, lang: str = "ru") -> str:
+        return self.value
+
+
 class PaperType(str, Enum):
     CONTINUOUS_TRACTOR = "continuous_tractor"
     SHEET_FEED = "sheet_feed"
@@ -553,6 +563,7 @@ __all__ = [
     "BarcodeType",
     "GraphicsMode",
     "Alignment",
+    "TabAlignment",
     "PaperType",
     "PageSize",
     "Color",

@@ -155,7 +155,7 @@ FX-Text-processor-3/
 │   │   ├── form_elements.py    # ✅ DONE
 │   │   ├── template_manager.py # ✅ DONE
 │   │   ├── variable_parser.py  # ✅ DONE
-│   │   ├── validation.py       # 🚧 TODO
+│   │   ├── validation.py       # ✅ DONE
 │   │   ├── form_schema.py      # 🚧 TODO
 │   │   ├── export.py           # 🚧 TODO
 │   │   ├── import.py           # 🚧 TODO
@@ -165,7 +165,7 @@ FX-Text-processor-3/
 │   ├── charset/ # Codepage management
 │   ├── image/ # Image processing
 │   │
-│   ├── barcode/ # ✅ DONE
+│   ├── barcodegen/ # ✅ DONE
 │   │   ├── __init__.py
 │   │   ├── barcode_generator.py    # 1D barcode
 │   │   └── matrix2d_generator.py   # 2d barcode/QR

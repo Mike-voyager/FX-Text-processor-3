@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from PIL import Image
 from io import BytesIO
 
-from src.barcode.barcode_generator import BarcodeGenerator, BarcodeGenError
+from src.barcodegen.barcode_generator import BarcodeGenerator, BarcodeGenError
 from src.model.enums import BarcodeType
 
 
