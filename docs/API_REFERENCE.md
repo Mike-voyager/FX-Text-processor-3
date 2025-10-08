@@ -253,3 +253,23 @@ Export form structure to JSON file.
 - Event hooks enable audit logging and external integrations
 - Auto-generates unique IDs with UUID components
 - Automatic audit trail insertion for special forms
+
+
+#### security.crypto.symmetric.SymmetricCipher
+encrypt(data: bytes, key: bytes, nonce: bytes, associated_data: bytes | None = None) -> bytes
+AES-256-GCM authenticated encryption for document data. Raises ValueError on invalid key/nonce.
+
+decrypt(ciphertext: bytes, key: bytes, nonce: bytes, associated_data: bytes | None = None) -> bytes
+AES-256-GCM authenticated decryption of document data. Raises ValueError or InvalidTag on tampered input.
+
+validate_key(key: bytes) -> None
+Validates key size (32 bytes). Raises ValueError if invalid.
+
+validate_nonce(nonce: bytes) -> None
+Validates nonce size (12 bytes). Raises ValueError if invalid.
+
+generate_key() -> bytes
+Generates a cryptographically secure random AES-256 key.
+
+generate_nonce() -> bytes
+Generates a secure random nonce for AES-GCM.
