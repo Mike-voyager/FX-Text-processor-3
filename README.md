@@ -37,7 +37,7 @@ Professional WYSIWYG text editor for **Epson FX-890** dot matrix printer with fu
 
 ## 🔒 Enterprise Security
 
-FX-Text-processor-3 implements **Zero Trust Architecture** with military-grade cryptography:
+FX Text processor 3 implements **Zero Trust Architecture** with military-grade cryptography:
 
 ### Security Highlights
 
@@ -45,8 +45,6 @@ FX-Text-processor-3 implements **Zero Trust Architecture** with military-grade c
 - **🛡️ AES-256-GCM Encryption**: Authenticated encryption with 128-bit MAC
 - **✍️ Ed25519 Digital Signatures**: 270× faster than RSA-4096, tamper-proof protected blanks
 - **🔑 Argon2id Password Hashing**: Memory-hard, 6,666× slower for attackers
-- **📝 Immutable Audit Log**: Cryptographic integrity with HMAC chain verification
-- **🌐 OpenPGP Multi-Recipient**: Encrypt for multiple users simultaneously
 
 ### Protected Blanks System
 
