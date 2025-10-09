@@ -1,3 +1,4 @@
+-r requirements_security.txt
 # UI
 tk>=0.1.0
 

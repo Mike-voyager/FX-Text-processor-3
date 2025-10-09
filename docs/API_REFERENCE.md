@@ -402,3 +402,109 @@ DEFAULT_RSA_KEYSIZE: int
 
 AlgorithmFactory: Dict[str, Callable[..., AsymmetricKeyPair]]
     Factory for key pair creation per algorithm (supports extra params).
+
+### security.crypto.kdf
+
+**Key Derivation API (Argon2id primary, PBKDF2 legacy, coverage >97%)**
+
+Модуль реализует защищённый вывод ключей для шифрования и аутентификации, с приоритетом схемы Argon2id, поддержкой PBKDF2 (совместимость), расширяемостью и строгой валидацией параметров. Все публичные функции снабжены типами, docstring и диагностикой.
+
+---
+
+#### Enum: `KDFAlgorithm`
+- `ARGON2ID`: Основной режим, рекомендован для хранения паролей, внутренней безопасности.
+- `PBKDF2_HMAC_SHA256`: Совместимость и interoperability.
+- `FAKE_UNSUPPORTED`: Тестовое значение для негативных сценариев.
+
+---
+
+#### Функции:
+
+- **`generate_salt(length: int = 16) -> bytes`**
+    Генерирует криптографически стойкую соль заданной длины (от 8 до 64 байт).
+    ```
+    salt = generate_salt(16)
+    ```
+
+- **`recommend_entropy_warning(password: bytes, salt: bytes) -> None`**
+    Проверяет примитивную энтропию пароля/соли, вызывает Warning при низкой стойкости.
+
+- **`validate_parameters(password: bytes, salt: bytes, length: int, iterations: Optional[int], algorithm: KDFAlgorithm, memory_cost: int = 65536, parallelism: int = 2, time_cost: int = 2) -> None`**
+    Валидирует все входные параметры для выбранного KDF-алгоритма. Вызывает исключения при ошибке или неподдерживаемом режиме.
+    ```
+    validate_parameters(pw, salt, 32, 2, KDFAlgorithm.ARGON2ID)
+    ```
+
+- **`derive_key(algorithm: KDFAlgorithm, password: bytes, salt: Optional[bytes] = None, length: int = 32, *, iterations: Optional[int] = None, memory_cost: int = 65536, parallelism: int = 2, time_cost: int = 2, to_hex: bool = False, to_b64: bool = False) -> bytes | str`**
+    Производит итоговый вывод ключа, используя выбранный алгоритм и параметры. Возможно возвращение в формате bytes, hex или base64.
+    ```
+    key = derive_key(
+        algorithm=KDFAlgorithm.ARGON2ID,
+        password=b"secretpw",
+        salt=generate_salt(16),
+        length=32,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2
+    )
+    ```
+    **Сериализация:**
+    ```
+    key_hex = derive_key(..., to_hex=True)
+    key_b64 = derive_key(..., to_b64=True)
+    ```
+
+---
+
+#### Исключения
+- `KDFParameterError`: Неверные параметры (длина, тип, диапазоны).
+- `KDFAlgorithmError`: Неизвестный или неподдерживаемый алгоритм (например, FAKE_UNSUPPORTED).
+- `KDFEntropyWarning`: Пароль/соль недостаточно стойкие или примитивны.
+
+---
+
+#### Best Practice / Рекомендации:
+
+- **Use Argon2id** for password and credential storage (`KDFAlgorithm.ARGON2ID`), with `salt >= 16 bytes`, `memory_cost >= 64 MiB`, `time_cost >= 2`, `parallelism >= 2`.
+- **PBKDF2** only for legacy interoperability.
+- Пароль минимум 8 байт, но рекомендуется ≥16+ и достаточный уровень энтропии.
+- Соль генерируйте для каждого секрета — не переиспользуйте!
+- Никогда не логируйте ключи и пароли!
+- Для аудита событий ошибки интегрируйте custom hooks.
+- В тестах используйте member Enum FAKE_UNSUPPORTED для негативных сценариев.
+
+---
+
+**Примеры:**
+
+from security.crypto.kdf import derive_key, generate_salt, KDFAlgorithm
+
+Argon2id — hex-вывод
+hex_key = derive_key(
+algorithm=KDFAlgorithm.ARGON2ID,
+password=b"my_super_secret_pw",
+salt=generate_salt(16),
+length=32,
+time_cost=2,
+memory_cost=65536,
+parallelism=2,
+to_hex=True,
+)
+
+PBKDF2 — байтовый вывод
+raw_key = derive_key(
+algorithm=KDFAlgorithm.PBKDF2_HMAC_SHA256,
+password=b"legacy_pw123",
+salt=generate_salt(16),
+length=32,
+iterations=120_000,
+)
+
+Валидация параметров
+validate_parameters(
+password=b"tough_pw",
+salt=generate_salt(16),
+length=32,
+iterations=2,
+algorithm=KDFAlgorithm.ARGON2ID,
+)
