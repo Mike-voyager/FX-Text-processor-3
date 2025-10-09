@@ -60,6 +60,10 @@ def _audit_entropy(data: bytes) -> None:
     )
 
 
+def auditentropy(data: bytes) -> None:
+    return _audit_entropy(data)
+
+
 def _zeroize(data: Optional[bytearray]) -> None:
     """Zeroization — очистка секретов в памяти."""
     if isinstance(data, bytearray):

@@ -244,6 +244,13 @@ def validate_parameters(
         raise KDFAlgorithmError(f"Unsupported algorithm: {algorithm}")
 
 
+SUPPORTEDALGORITHMS: Final[set[KDFAlgorithm]] = _SUPPORTED_ALGORITHMS
+
+__all__ = [
+    # ... существующие публичные API ...
+    "SUPPORTEDALGORITHMS",
+]
+
 # Best-practice: Never log, cache, or reuse keys or salts.
 # Do NOT use the same salt for different passwords.
 # Always use cryptographically strong secrets and salts.
