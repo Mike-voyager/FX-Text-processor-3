@@ -273,3 +273,132 @@ Generates a cryptographically secure random AES-256 key.
 
 generate_nonce() -> bytes
 Generates a secure random nonce for AES-GCM.
+
+#### security.crypto.asymmetric.AsymmetricKeyPair
+
+@staticmethod
+generate(
+    algorithm: str,
+    key_size: Optional[int] = None
+) -> AsymmetricKeyPair
+    Generates a new key pair for the given algorithm.
+    - Input:
+        - algorithm: "ed25519", "rsa4096", or "ecdsa_p256".
+        - key_size: (RSA only) Key size in bits (default = 4096).
+    - Output:
+        - AsymmetricKeyPair: Instance with private/public keys.
+    - Raises:
+        - UnsupportedAlgorithmError: If algorithm is not supported.
+        - ValueError: For invalid params.
+
+@staticmethod
+from_private_bytes(
+    data: bytes,
+    algorithm: str,
+    password: Optional[str] = None
+) -> AsymmetricKeyPair
+    Loads a private key from PEM-encoded bytes, with optional encryption.
+    - Input:
+        - data: PEM-encoded private key bytes.
+        - algorithm: Algorithm string.
+        - password: Optional passphrase for encrypted key.
+    - Output:
+        - AsymmetricKeyPair with private/public keys.
+    - Raises:
+        - UnsupportedAlgorithmError: If algorithm not supported.
+        - KeyFormatError: On invalid PEM or wrong type.
+
+@staticmethod
+from_public_bytes(
+    data: bytes,
+    algorithm: str
+) -> AsymmetricKeyPair
+    Loads a public key from PEM-encoded bytes.
+    - Input:
+        - data: PEM-encoded public key bytes.
+        - algorithm: Algorithm string.
+    - Output:
+        - AsymmetricKeyPair (public-only).
+    - Raises:
+        - UnsupportedAlgorithmError: If algorithm invalid.
+        - KeyFormatError: If key data is malformatted/doesn't match type.
+
+export_private_bytes(
+    password: Optional[str] = None
+) -> bytes
+    Exports the private key (PEM, optionally password-protected).
+    - Input: Optional password for encryption.
+    - Output: PEM-encoded private key.
+    - Raises: NotImplementedError if no private key.
+
+export_public_bytes() -> bytes
+    Exports the public key to PEM bytes.
+    - Output: PEM-encoded public key.
+    - Raises: NotImplementedError if no public key.
+
+sign(data: bytes) -> bytes
+    Signs data using the private key.
+    - Input: data.
+    - Output: raw signature bytes.
+    - Raises: NotImplementedError if no private key.
+    - Raises: UnsupportedAlgorithmError.
+
+verify(data: bytes, signature: bytes) -> bool
+    Verifies the signature with the public key.
+    - Input: data, signature.
+    - Output: True if valid, False if invalid.
+    - Raises: NotImplementedError if no public key.
+
+encrypt(data: bytes) -> bytes
+    RSA encrypts data using the public key (OAEP-SHA256).
+    - Input: data.
+    - Output: ciphertext.
+    - Raises: NotImplementedError for Ed25519/ECDSA or if public key missing.
+    - Raises: ValueError if input too large.
+
+decrypt(ciphertext: bytes) -> bytes
+    RSA decrypts data using the private key (OAEP-SHA256).
+    - Input: ciphertext.
+    - Output: plaintext bytes.
+    - Raises: NotImplementedError for Ed25519/ECDSA or if private key missing.
+
+get_public_fingerprint() -> str
+    Returns SHA256 hex fingerprint of the public key.
+    - Output: Hex digest.
+    - Raises: NotImplementedError if no public key.
+
+equals_public(other: AsymmetricKeyPair) -> bool
+    Compares SHA256 public key fingerprint with another.
+    - Output: True if fingerprints match.
+
+#### Exceptions
+
+UnsupportedAlgorithmError
+    Raised when the algorithm is not supported.
+
+KeyFormatError
+    Raised on wrong/invalid key input, decoding error, or key type mismatch.
+
+#### Functions
+
+load_public_key(
+    data: bytes,
+    algorithm: str
+) -> AsymmetricKeyPair
+    Loads a public key from PEM data. Public-only context.
+
+import_public_key_pem(
+    pem_data: str
+) -> AsymmetricKeyPair
+    Loads a PEM-encoded public key (type determined automatically).
+
+#### Constants
+
+SUPPORTED_ALGORITHMS: tuple[str, ...]
+    Supported algorithm IDs: ("ed25519", "rsa4096", "ecdsa_p256")
+
+DEFAULT_RSA_KEYSIZE: int
+    Default RSA key size (4096 bits).
+
+AlgorithmFactory: Dict[str, Callable[..., AsymmetricKeyPair]]
+    Factory for key pair creation per algorithm (supports extra params).

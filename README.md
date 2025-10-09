@@ -189,7 +189,7 @@ FX-Text-processor-3/
 │   ├── crypto/
 │   │   ├── __init__.py
 │   │   ├── symmetric.py    # ✅ DONE
-│   │   ├── asymmetric.py
+│   │   ├── asymmetric.py   # ✅ DONE
 │   │   ├── kdf.py
 │   │   ├── signatures.py
 │   │   └── hashing.py
