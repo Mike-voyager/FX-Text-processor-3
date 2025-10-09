@@ -50,7 +50,7 @@ FX-Text-processor-3 implements **Zero Trust Architecture** with military-grade c
 
 ### Protected Blanks System
 
-Financial organizations require special blank tracking:
+Each househood require special blank tracking:
 
 from src.security.blanks import BlankManager
 
@@ -63,7 +63,7 @@ Print with digital signature
 blank_mgr.print_blank(
 blank_id='A-042',
 document=invoice_doc,
-user_id='operator-001'
+user_id='username :)'
 )
 
 Verify authenticity (scan QR code)
@@ -88,32 +88,34 @@ FX-Text-processor-3/
 │
 │   ├── model/                    # Data models
 │   │   ├── __init__.py
-│   │   ├── document.py           # 🚧 Blocked (43%) — awaiting refactor
+│   │   ├── document.py           # 🔐🚧Blocked (43%) — awaiting refactor
 │   │   ├── section.py            # ✅ Done
+│   │   ├── user.py
 │   │   ├── paragraph.py          # ✅ DONE
 │   │   ├── run.py                # ✅ Done
 │   │   ├── table.py              # ✅ DONE
 │   │   ├── image.py              # 🚧 TODO
 │   │   ├──barcode.py             # ✅ DONE ?
-│   │   ├──form.py                # 🚧 TODO
+│   │   ├──form.py                # 🚧 TODO 🔐
 │   │   ├──validation.py          # 🚧 TODO
 │   │   └── enums.py              # ✅ DONE ?
 │
 │   ├── view/ # UI components (Tkinter)
 │   │   ├── __init__.py
-│   │   ├── main_window.py
+│   │   ├── main_window.py # 🔐
 │   │   ├── paged_canvas.py
 │   │   ├── format_toolbar.py
 │   │   ├── ruler_widget.py
 │   │   ├── status_bar.py
-│   │   ├── dialogs/
-│   │   └── widgets/
+│   │   ├── dialogs/ # 🔐
+│   │   └── widgets/ # 🔐
 │
 │   ├── controller/ # Business logic
 │   │   ├── __init__.py
-│   │   ├── document_controller.py
-│   │   ├── commands.py
-│   │   └── event_handlers.py
+│   │   ├── document_controller.py # 🔐
+│   │   ├── commands.py # 🔐
+│   │   ├── session.py # 🔐
+│   │   └── event_handlers.py # 🔐
 │
 │   ├── escp/                     # ESC/P protocol stack
 │   │   ├── __init__.py
@@ -150,7 +152,7 @@ FX-Text-processor-3/
 │   │
 │   ├── form/ # Form builder    # ✅ DONE 99% ⚠️ TODO tests with secure/
 │   │   ├── __init__.py
-│   │   ├── form_builder.py
+│   │   ├── form_builder.py # 🔐
 │   │   ├── form_palette.py
 │   │   ├── form_elements.py
 │   │   ├── template_manager.py
@@ -170,7 +172,7 @@ FX-Text-processor-3/
 │   │   └── matrix2d_generator.py   # 2d barcode/QR
 │   │
 │   ├── printer/ # Direct printer access
-│   ├── io/ # File I/O (JSON, RTF, Markdown)
+│   ├── io/ # File I/O (JSON, RTF, Markdown) # 🔐
 │   └── utils/ # Utilities
 │
 │
@@ -186,8 +188,8 @@ FX-Text-processor-3/
 │
 ├── security/
 │   ├── __init__.py
-│   ├── crypto/
-│   │   ├── __init__.py
+│   ├── crypto/ # ✅ DONE
+│   │   ├── __init__.py     # ✅ DONE
 │   │   ├── symmetric.py    # ✅ DONE
 │   │   ├── asymmetric.py   # ✅ DONE
 │   │   ├── kdf.py          # ✅ DONE
@@ -206,7 +208,7 @@ FX-Text-processor-3/
 │   │   └── integrity.py
 │   ├── blanks/
 │   │   ├── __init__.py
-│   │   ├── manager.py
+│   │   ├── manager.py # 🔐
 │   │   ├── watermark.py
 │   │   └── verification.py
 │   └── compliance/
@@ -377,6 +379,18 @@ text
 - black 24.0+ (formatting)
 - flake8 7.0+ (linting)
 - isort 5.13+ (import sorting)
+
+## 🖴 Floppy Disk Support (3.5")
+
+FX Text processor 3 offers full compatibility with classic **3.5-inch floppy disks** for document, form, and blank storage.
+
+- **Read and write** FX-Text-processor-3 files directly to any 3.5" disk using a standard or USB floppy drive (Windows 11 supported).
+- **No restrictions:** All features—document editing, templates, secure forms, signatures—work on floppy media out of the box.
+- **For enthusiasts:** Use floppies for archiving, sharing, or just for the fun of classic hardware.
+
+> Whether you use floppy disks for archiving, secure transfer, hardware redundancy, or nostalgia—FX-Text-processor-3 maintains full support for your workflow.
+
+> Floppy compatible — just because I love retro tech. And because I can.
 
 ## 📝 Contributing
 
