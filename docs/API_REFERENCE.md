@@ -508,3 +508,52 @@ length=32,
 iterations=2,
 algorithm=KDFAlgorithm.ARGON2ID,
 )
+### Module: security.crypto.signatures
+
+#### Ed25519Signer
+- `__init__(private_key: bytes, alias: Optional[str] = None)`
+    Initializes an Ed25519 signer with a 32‑byte private key and optional alias for audit.
+- `sign(message: bytes) -> bytes`
+    Signs the supplied message.
+- `public_key(encoding: Literal["raw", "hex"] = "raw") -> bytes | str`
+    Exports public key as bytes (raw) or hex string.
+- `get_fingerprint() -> str`
+    SHA256 fingerprint of the public key (for audit/journal).
+- `save_key_bytes(filepath: str, key_bytes: bytes) -> None`
+    Save given key bytes to disk.
+- `load_key_bytes(filepath: str) -> bytes`
+    Load and validate Ed25519 key bytes from disk.
+
+#### Ed25519Verifier
+- `__init__(public_key: bytes, alias: Optional[str] = None)`
+    Initializes an Ed25519 verifier with a 32‑byte public key and alias.
+- `verify(message: bytes, signature: bytes) -> bool`
+    Validates the signature for given message.
+- `verify_batch(message: bytes, signatures: List[bytes]) -> List[bool]`
+    Batch validation for multiple signatures.
+- `get_fingerprint() -> str`
+    SHA256 fingerprint of the public key.
+- `save_key_bytes(filepath: str, key_bytes: bytes) -> None`
+    Save public key bytes to disk.
+- `load_key_bytes(filepath: str) -> bytes`
+    Load and validate key bytes from disk.
+
+#### SignatureError
+Exception type for key/verification/signing errors.
+
+---
+
+**Features:**
+- Strict type safety, no Any/ignore
+- Extensive error handling (invalid length, invalid encoding, I/O)
+- Alias support for audit/journal integration and logging context
+- Batch verification
+- Key serialization (save/load), fingerprinting
+- Thread‑safe (no shared state)
+
+**Example:**
+signer = Ed25519Signer(priv_bytes, alias="finance-bot")
+sig = signer.sign(b"doc data")
+verifier = Ed25519Verifier(signer.public_key(), alias="auditor")
+if verifier.verify(b"doc data", sig):
+print("Valid")
