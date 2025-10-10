@@ -253,3 +253,8 @@ class SymmetricCipher:
         except Exception as exc:
             _LOGGER.error("Decryption failed: %s", exc)
             raise
+
+
+encrypt_aes_gcm = SymmetricCipher.encrypt
+decrypt_aes_gcm = SymmetricCipher.decrypt
+__all__ = ["SymmetricCipher", "encrypt_aes_gcm", "decrypt_aes_gcm"]

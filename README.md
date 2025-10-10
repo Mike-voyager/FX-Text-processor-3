@@ -68,6 +68,28 @@ Verify authenticity (scan QR code)
 if verify_blank(qr_data, printed_content):
 print("✓ Authentic blank")
 
+### Multi-Factor Authentication (MFA/2FA) in FX Text Processor 3
+
+The system supports three equivalent second factor methods:
+- **FIDO2/WebAuthn** (hardware keys: YubiKey, TouchID, Windows Hello)
+- **TOTP** (time-based one-time passwords: Google Authenticator, Authy, FreeOTP)
+- **Backup codes** — one-time use, issued only to a fully authenticated user (strict "One-Time Use" principle).
+
+Users may enable any combination of factors and, during login, choose any available second factor to pair with their master password.
+
+Backup codes are generated strictly through a protected interface (full authentication required) and are issued in batch as a list, suitable for display or printing for secure offline storage.
+
+Backup codes can be used only once; after successful use, they are automatically invalidated and cannot be reused.
+
+The validity of backup codes (TTL/lifetime) is limited according to user/system settings; after expiry, codes are considered invalid.
+
+The logic for issuing, displaying, exporting, and printing backup codes is implemented outside the second factor manager — strictly in the application’s controller/UI layer, following the Single Responsibility Principle.
+
+All second factor secrets (TOTP seeds, FIDO2 keys, backup codes) are stored in local encrypted storage using AES-GCM and Argon2id.
+
+The second factor manager implements secure lifecycle and verification logic, with support for multiple devices/secrets per user and an extensible DI (Dependency Injection) pattern for adding future methods.
+
+
 ### Compliance
 
 - **GDPR**: Right to access, erasure, data minimization
@@ -192,13 +214,22 @@ FX-Text-processor-3/
 │   │   ├── asymmetric.py   # ✅ DONE
 │   │   ├── kdf.py          # ✅ DONE
 │   │   ├── signatures.py   # ✅ DONE
+│   │   ├── secure_storage.py
 │   │   └── hashing.py      # ✅ DONE
 │   ├── auth/
 │   │   ├── __init__.py
-│   │   ├── password.py
-│   │   ├── webauthn.py
+│   │   ├── password.py     # ✅ DONE
+│   │   ├── second_factor.py    # ⚠️ DONE 50/50
+│   │   ├── fido2_service.py    # ⚠️ DONE 50/50
+│   │   ├── totp_service.py     # ⚠️ DONE 50/50
+│   │   ├── code_service.py     # ⚠️ DONE 50/50
 │   │   ├── session.py
-│   │   └── permissions.py
+│   │   ├── permissions.py
+│   │   └── second_method/
+│   │       ├── __init__.py # ✅ DONE
+│   │       ├── fido2.py    # ✅ DONE
+│   │       ├── totp.py     # ✅ DONE
+│   │       └── code.py     # ✅ DONE
 │   ├── audit/
 │   │   ├── __init__.py
 │   │   ├── logger.py

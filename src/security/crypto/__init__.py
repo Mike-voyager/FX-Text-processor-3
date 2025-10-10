@@ -5,7 +5,7 @@ EN: Top-level cryptography API for FX-Text-processor-3. Enterprise-grade entrypo
 All exports are type-annotated, thoroughly validated, and integrate audit/logging hooks.
 """
 
-from .symmetric import SymmetricCipher, auditentropy
+from .symmetric import SymmetricCipher, auditentropy, encrypt_aes_gcm, decrypt_aes_gcm
 from .asymmetric import (
     AsymmetricKeyPair,
     load_public_key,
@@ -20,8 +20,9 @@ from .signatures import (
     Ed25519Verifier,
     SignatureError,
 )
-from .kdf import (
+from security.crypto.kdf import (
     derive_key,
+    derive_key_argon2id,
     KDFParameterError,
     KDFAlgorithmError,
     KDFEntropyWarning,
@@ -41,6 +42,8 @@ from .hashing import (
 all = [
     # Symmetric encryption
     "SymmetricCipher",
+    "encrypt_aes_gcm",
+    "decrypt_aes_gcm",
     "audit_entropy",
     # Asymmetric
     "AsymmetricKeyPair",
@@ -56,6 +59,7 @@ all = [
     "SignatureError",
     # KDF
     "derive_key",
+    "derive_key_argon2id",
     "KDFParameterError",
     "KDFAlgorithmError",
     "KDFEntropyWarning",

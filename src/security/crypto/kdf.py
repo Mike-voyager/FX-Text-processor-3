@@ -244,11 +244,31 @@ def validate_parameters(
         raise KDFAlgorithmError(f"Unsupported algorithm: {algorithm}")
 
 
+def derive_key_argon2id(password: bytes, salt: bytes, length: int = 32) -> bytes:
+    """
+    Argon2id KDF - возвращает ключ заданной длины.
+    """
+    result = derive_key(
+        algorithm=KDFAlgorithm.ARGON2ID,
+        password=password,
+        salt=salt,
+        length=length,
+        to_hex=False,
+        to_b64=False,
+    )
+    if isinstance(result, str):
+        # Никогда не должно выполняться! Если всё же, жёстко бросаем исключение:
+        raise AssertionError("KDF returned str: KDF misused with to_hex or to_b64")
+    return result
+
+
 SUPPORTEDALGORITHMS: Final[set[KDFAlgorithm]] = _SUPPORTED_ALGORITHMS
 
 __all__ = [
     # ... существующие публичные API ...
     "SUPPORTEDALGORITHMS",
+    "derive_key",
+    "derive_key_argon2id",
 ]
 
 # Best-practice: Never log, cache, or reuse keys or salts.
