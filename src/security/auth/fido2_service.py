@@ -1,46 +1,71 @@
-# src/security/auth/fido2_service.py
+"""
+Thread-safe proxy API for controller/UI to interact with FIDO2/WebAuthn factor using SecondFactorManager.
+All security logic is delegated to Fido2Factor. Operations guarded by module-level mutex.
+"""
 
-from fido2.client import Fido2Client, WindowsClient
-from fido2.hid import CtapHidDevice
-from fido2.server import Fido2Server
-from fido2.webauthn import PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity
+import logging
+from typing import Dict, Any, List
+import threading
+
 from src.security.auth.second_factor import SecondFactorManager
 
-
-def register_fido2_device(user_id, username, display_name):
-    # 1: Detect device
-    devices = list(CtapHidDevice.list_devices())
-    if not devices:
-        client = WindowsClient(origin="https://localhost")
-    else:
-        client = Fido2Client(devices[0], origin="https://localhost")
-    rp = PublicKeyCredentialRpEntity(id="localhost", name="FX Text Processor")
-    server = Fido2Server(rp)
-    user_entity = PublicKeyCredentialUserEntity(
-        id=user_id.encode(),
-        name=username,
-        display_name=display_name,
-    )
-    registration_data, state = server.register_begin(user=user_entity, credentials=[])
-    result = client.make_credential(registration_data["publicKey"])
-    auth_data = server.register_complete(
-        state=state,
-        client_data=result.client_data,
-        attestation_object=result.attestation_object,
-    )
-    device_info = {
-        "credential_id": auth_data.credential_data.credential_id.hex(),
-        "public_key": auth_data.credential_data.public_key,
-        "aaguid": auth_data.credential_data.aaguid.hex(),
-    }
-    mfa_manager = SecondFactorManager()
-    mfa_manager.setup_factor(user_id, "fido2", device_info=device_info)
-    return device_info
+_manager_lock = threading.Lock()
 
 
-def authenticate_with_fido2(user_id):
-    # Получаем устройcтво, запускаем проверку
-    # (экземпляр SecondFactorManager должен быть инициализирован)
-    # Затем вызываем manager.verify_factor(user_id, "fido2", response)
-    # Response формируется через клиент get_assertion, как в python-fido2 примерах
-    pass
+def _get_latest_fido2_state(mgr: SecondFactorManager, user_id: str) -> Dict[str, Any]:
+    factors: List[dict] = mgr._factors.get(user_id, {}).get("fido2", [])
+    if not factors:
+        return {}
+    return factors[-1]["state"]  # type: ignore
+
+
+def setup_fido2_for_user(user_id: str, device_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Registers a new FIDO2 device for user. Returns device state dict.
+    """
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        mgr.setup_factor(user_id, "fido2", deviceinfo=device_info)
+        state: Dict[str, Any] = _get_latest_fido2_state(mgr, user_id)
+        logging.info("FIDO2 factor setup for user %s", user_id)
+        return state
+
+
+def validate_fido2_response(user_id: str, response: Dict[str, Any]) -> bool:
+    """
+    Verifies user WebAuthn/FIDO2 response for user device.
+    """
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        return mgr.verify_factor(user_id, "fido2", response)
+
+
+def remove_fido2_for_user(user_id: str) -> None:
+    """
+    Deletes user's FIDO2/WebAuthn device.
+    """
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        mgr.remove_factor(user_id, "fido2")
+        logging.warning("FIDO2 factor removed for user %s.", user_id)
+
+
+def get_fido2_status(user_id: str) -> Dict[str, Any]:
+    """
+    Returns current status/info for FIDO2 factor of user.
+    """
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        return _get_latest_fido2_state(mgr, user_id)
+
+
+def get_fido2_audit(user_id: str) -> List[Any]:
+    """
+    Returns audit trail for FIDO2 factor.
+    """
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        state: Dict[str, Any] = _get_latest_fido2_state(mgr, user_id)
+        audit: List[Any] = state.get("audit", [])
+        logging.debug("Requested audit trail for %s.", user_id)
+        return audit

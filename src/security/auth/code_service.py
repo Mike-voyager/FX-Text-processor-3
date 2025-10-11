@@ -1,68 +1,77 @@
-# -*- coding: utf-8 -*-
 """
-Модуль: code_service.py
-
-Назначение: Сервис для интеграции и управления аварийными резервными кодами (Backup/Recovery codes) в FX Text Processor 3.
-- Генерирует batch резервных кодов через менеджер.
-- Предоставляет API для безопасного отображения, экспорта, печати резервных кодов в UI.
-- Поддерживает проверку, журналирование и TTL по SecondFactorManager.
-- Использовать только из UI/контроллеров!
-
-Пример вызова из приложения:
-    codes = issue_backup_codes_for_user(user_id, count=12)
-    # UI: вывести пользователю, распечатать, экспортировать (без раскрытия других backup-кодов!)
+Thread-safe proxy API for backup/recovery codes via SecondFactorManager.
+Operations guarded by module-level mutex.
 """
+
+import logging
+from typing import Dict, Any, List
+import threading
 
 from src.security.auth.second_factor import SecondFactorManager
 
+_manager_lock = threading.Lock()
 
-def issue_backup_codes_for_user(user_id: str, count: int = 12, ttl_sec: int = 604800) -> list:
+
+def _get_latest_code_state(mgr: SecondFactorManager, user_id: str) -> Dict[str, Any]:
+    factors: List[dict] = mgr._factors.get(user_id, {}).get("backupcode", [])
+    if not factors:
+        return {}
+    return factors[-1]["state"]  # type: ignore
+
+
+def issue_backup_codes_for_user(
+    user_id: str, count: int = 12, ttlsec: int = 604800
+) -> List[Dict[str, Any]]:
     """
-    Запрашивает менеджер MFA на генерацию batch аварийных резервных кодов для пользователя.
-    Возвращает только сами коды (без внутренней структуры для безопасности).
+    Issues a batch of backup codes for user.
     """
-    mfa_manager = SecondFactorManager()
-    codes = mfa_manager.issue_backup_codes(user_id, count, ttl_sec)
-    return codes
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        mgr.setup_factor(user_id, "backupcode", count=count, ttlseconds=ttlsec)
+        state: Dict[str, Any] = _get_latest_code_state(mgr, user_id)
+        codes_raw = state.get("codes", [])
+        codes: List[Dict[str, Any]] = [
+            code if isinstance(code, dict) else dict(code) for code in codes_raw
+        ]
+        logging.info("Backup codes issued for user %s. Count: %d", user_id, count)
+        return list(codes_raw)
 
 
 def validate_backup_code_for_user(user_id: str, code: str) -> bool:
     """
-    Проверяет код: если актуален и не использован — будет инвалидирован.
+    Validates user backup code.
     """
-    mfa_manager = SecondFactorManager()
-    return mfa_manager.verify_factor(user_id, "backup_code", code)
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        return mgr.verify_factor(user_id, "backupcode", code)
 
 
-def get_active_backup_codes(user_id: str) -> list:
+def remove_backup_codes_for_user(user_id: str) -> None:
     """
-    Получает все невоспользованные аварийные коды для пользователя — для UI или аудита.
+    Deletes (expires) all backup codes for user.
     """
-    mfa_manager = SecondFactorManager()
-    backup_factors = mfa_manager._factors.get(user_id, {}).get("backup_code", [])
-    active_codes = []
-    for factor in backup_factors:
-        for item in factor["state"]["codes"]:
-            if not item["used"]:
-                active_codes.append(item["code"])
-    return active_codes
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        mgr.remove_factor(user_id, "backupcode")
+        logging.warning("Backup codes removed for user %s.", user_id)
 
 
-def export_backup_codes_csv(user_id: str) -> str:
+def get_backup_codes_status(user_id: str) -> Dict[str, Any]:
     """
-    Экспортирует невоспользованные коды для backup/recovery в CSV-формате.
+    Returns current status/info for backup codes of user.
     """
-    codes = get_active_backup_codes(user_id)
-    return "code\n" + "\n".join(codes)
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        return _get_latest_code_state(mgr, user_id)
 
 
-def audit_backup_codes(user_id: str) -> list:
+def get_backup_codes_audit(user_id: str) -> List[Any]:
     """
-    Возвращает журнал использования аварийных кодов (структура audit log).
+    Returns audit trail for backup codes.
     """
-    mfa_manager = SecondFactorManager()
-    return [
-        entry
-        for entry in mfa_manager._audit_log
-        if entry.get("user_id") == user_id and entry.get("op") == "backup_code_used"
-    ]
+    with _manager_lock:
+        mgr = SecondFactorManager()
+        state: Dict[str, Any] = _get_latest_code_state(mgr, user_id)
+        audit: List[Any] = state.get("audit", [])
+        logging.debug("Requested audit trail for %s.", user_id)
+        return audit

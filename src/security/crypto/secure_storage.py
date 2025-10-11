@@ -15,9 +15,9 @@ import pickle
 from security.crypto.symmetric import encrypt_aes_gcm, decrypt_aes_gcm
 from security.crypto.kdf import derive_key_argon2id
 
-from security.auth.second_method.fido2 import Fido2Authenticator
-from security.auth.second_method.totp import TOTPAuthenticator
-from security.auth.second_method.code import BackupCodeAuthenticator
+from security.auth.second_method.fido2 import Fido2Factor
+from security.auth.second_method.totp import TotpFactor
+from security.auth.second_method.code import BackupCodeFactor
 
 try:
     from security.audit.logger import audit_log

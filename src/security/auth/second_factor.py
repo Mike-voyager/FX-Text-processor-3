@@ -1,203 +1,225 @@
-# -*- coding: utf-8 -*-
+# src/security/auth/second_factor.py
 """
-Модуль: second_factor.py
-Назначение: Менеджер второго фактора MFA/2FA для FX Text Processor 3.
+Менеджер второго фактора MFA/2FA для FX Text Processor 3.
 
-- Хранит одну или более конфигураций второго фактора на пользователя: TOTP, FIDO2/WebAuthn, backup-коды.
-- Выпуск резервных кодов разрешен только аутентифицированному пользователю (через контроллер/интерфейс).
-- Все backup-коды batch-структуры — одноразовые, у каждого кода свой флаг used и used_ts.
-- TTL для резервных кодов — настраивается, автоматическая инвалидация по времени.
-- Хранение всех секретов — в локальном зашифрованном хранилище (AES-256-GCM через SymmetricCipher).
-- UI/экспорт/печать backup-кодов — вне этого модуля.
+Зашифрованное хранение, потокобезопасность, TTL, ротация, валидация, расширяемость через DI.
 """
 
-from __future__ import annotations
-import os
-import time
-import json
 import threading
 import logging
-from typing import Any, Dict, List, Optional, Type
+import time
+from typing import Dict, Any, List, Optional, Type
 
+from src.security.crypto.secure_storage import SecureStorage
 from .second_method.totp import TotpFactor
 from .second_method.fido2 import Fido2Factor
 from .second_method.code import BackupCodeFactor
 
-from src.security.crypto.symmetric import SymmetricCipher
-
 
 class SecondFactorManager:
     """
-    Ядро жизненного цикла MFA/2FA факторов: хранение, выпуск, проверка, инвалидация, аудит.
+    MFA/2FA production manager — хранит, выпускает, проверяет факторы.
+    Все данные всегда зашифрованы; расшифровка только на момент операции.
+    DI: SecureStorage и logger передаются параметрами конструктора.
     """
-
-    _DEFAULT_STORAGE = "second_factors_store.bin"
 
     def __init__(
         self,
+        storage: SecureStorage,
         logger: Optional[logging.Logger] = None,
-        storage_path: Optional[str] = None,
-        encryption_key: Optional[bytes] = None,
-    ):
+    ) -> None:
         self._logger = logger or logging.getLogger("security.second_factor")
-        self._storage_path = storage_path or self._DEFAULT_STORAGE
-        self._enc_key = encryption_key or SymmetricCipher.generatekey()
+        self.storage = storage
         self._lock = threading.Lock()
         self._factor_registry: Dict[str, Type] = {
             "totp": TotpFactor,
             "fido2": Fido2Factor,
-            "backup_code": BackupCodeFactor,
+            "backupcode": BackupCodeFactor,
         }
-        # user_id -> factor_type -> list of factor dicts {id, created, state, ttl, codes:[{code, used, used_ts}] ...}
         self._factors: Dict[str, Dict[str, List[dict]]] = {}
-        self._audit_log: List[dict] = []
-        self.load()
+        self._audit: List[dict] = []
+        self._load_storage()
 
-    def is_any_factor_configured(self, user_id: str) -> bool:
-        return user_id in self._factors and any(self._factors[user_id].values())
+    def _validate_user_id(self, user_id: str) -> None:
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise ValueError("user_id must be a non-empty string")
+        if any(ord(ch) < 32 or ord(ch) > 126 for ch in user_id):
+            raise ValueError("user_id contains unsupported characters")
 
-    def available_factors(self, user_id: str) -> List[str]:
-        return list(self._factors.get(user_id, {}).keys())
+    def register_factor_type(self, name: str, cls: Type) -> None:
+        if name in self._factor_registry:
+            raise ValueError(f"Factor type {name} already registered")
+        self._factor_registry[name] = cls
 
-    def setup_factor(self, user_id: str, factor_type: str, **params) -> str:
-        if factor_type not in self._factor_registry:
-            raise ValueError(f"Unknown factor type: {factor_type}")
-        with self._lock:
-            self._factors.setdefault(user_id, {})
-            factor_class = self._factor_registry[factor_type]
-            factor_instance = factor_class()
-            factor_state = factor_instance.setup(user_id, **params)
-            factor_id = params.get("factor_id") or os.urandom(8).hex()
-            created = int(time.time())
-            ttl = int(params.get("ttl_sec", 604800)) if factor_type == "backup_code" else None
-            # Для backup_code создаем batch codes со структурой [{code, used, used_ts}]
-            if factor_type == "backup_code":
-                codes = [
-                    {"code": c, "used": False, "used_ts": None}
-                    for c in factor_state.get("codes", [])
-                ]
-                factor_state["codes"] = codes
-            self._factors[user_id].setdefault(factor_type, []).append(
-                dict(id=factor_id, state=factor_state, created=created, ttl=ttl)
-            )
-            self._audit_log.append(
-                {
-                    "ts": created,
-                    "user_id": user_id,
-                    "op": "setup",
-                    "type": factor_type,
-                    "factor_id": factor_id,
-                }
-            )
-            self.save()
-            self._logger.info("Setup %s factor for user=%s id=%s", factor_type, user_id, factor_id)
-        return factor_id
+    def unregister_factor_type(self, name: str) -> None:
+        if name in self._factor_registry:
+            del self._factor_registry[name]
 
-    def remove_factor(
-        self, user_id: str, factor_type: str, factor_id: Optional[str] = None
-    ) -> None:
-        with self._lock:
-            f_list = self._factors.get(user_id, {}).get(factor_type, [])
-            if factor_id is None:
-                self._factors[user_id][factor_type] = []
+    def _load_storage(self) -> None:
+        try:
+            raw = self.storage.load()
+            if raw:
+                self._factors = raw.get("factors", {})
+                self._audit = raw.get("audit", [])
+                self._logger.info("Loaded MFA state from encrypted storage.")
             else:
-                self._factors[user_id][factor_type] = [f for f in f_list if f["id"] != factor_id]
-            self._audit_log.append(
+                self._factors = {}
+                self._audit = []
+        except Exception as e:
+            self._logger.error(f"Failed to load encrypted MFA state: {e}")
+            self._factors = {}
+            self._audit = []
+
+    def _save_storage(self) -> None:
+        try:
+            payload = {
+                "factors": self._factors,
+                "audit": self._audit,
+            }
+            self.storage.save(payload)
+            self._logger.info("Saved MFA state to encrypted storage.")
+        except Exception as e:
+            self._logger.error(f"Failed to save MFA state: {e}")
+
+    def rotate_factor(
+        self,
+        user_id: str,
+        factor_type: str,
+        **kwargs: Any,
+    ) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            self._validate_user_id(user_id)
+            self.remove_factor(user_id, factor_type)
+            self._logger.info(f"Rotating factor {factor_type} for {user_id}")
+            self.setup_factor(user_id, factor_type, **kwargs)
+            return self.get_status(user_id, factor_type)
+
+    def _is_expired(self, state: Dict[str, Any]) -> bool:
+        ttl = state.get("ttlseconds")
+        created = state.get("created")
+        if ttl and created:
+            return (int(time.time()) - int(created)) > int(ttl)
+        return False
+
+    def _secure_del(self, d: Dict[str, Any], keys: Optional[List[str]] = None) -> None:
+        if not keys:
+            keys = [k for k in d.keys()]
+        for k in keys:
+            if k in d:
+                d[k] = None
+
+    def setup_factor(
+        self,
+        user_id: str,
+        factor_type: str,
+        **kwargs: Any,
+    ) -> str:
+        with self._lock:
+            self._validate_user_id(user_id)
+            factor_cls = self._factor_registry.get(factor_type)
+            if factor_cls is None:
+                raise ValueError(f"Unknown factor type: {factor_type}")
+            instance = factor_cls()
+            factor_state = instance.setup(user_id, **kwargs)
+            if "ttlseconds" in kwargs and kwargs["ttlseconds"]:
+                factor_state["ttlseconds"] = kwargs["ttlseconds"]
+            factor_entry = {"state": factor_state, "ts": factor_state.get("created", 0)}
+            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(factor_entry)
+            self._audit.append(
                 {
-                    "ts": time.time(),
-                    "user_id": user_id,
-                    "op": "remove",
+                    "action": "setup",
+                    "user": user_id,
                     "type": factor_type,
-                    "factor_id": factor_id,
+                    "ts": factor_state.get("created", 0),
                 }
             )
-            self.save()
-            self._logger.info("Removed %s for user=%s id=%s", factor_type, user_id, factor_id)
+            self._save_storage()
+            self._secure_del(factor_state, ["secret", "seed", "credential", "backup_codes"])
+            return factor_state.get("id", "") or str(factor_state.get("created", ""))
 
     def verify_factor(
         self,
         user_id: str,
         factor_type: str,
-        credential: str | dict,
+        credential: Any,
         factor_id: Optional[str] = None,
     ) -> bool:
-        factors = self._factors.get(user_id, {}).get(factor_type, [])
-        now = int(time.time())
-        for factor in factors:
-            if factor_id and factor["id"] != factor_id:
-                continue
-            if factor_type == "backup_code":
-                ttl = factor.get("ttl", 604800)
-                if now > factor["created"] + ttl:
-                    continue
-                for c in factor["state"].get("codes", []):
-                    if c["code"] == credential and not c["used"]:
-                        c["used"] = True
-                        c["used_ts"] = now
-                        self._audit_log.append(
-                            {
-                                "ts": now,
-                                "user_id": user_id,
-                                "op": "backup_code_used",
-                                "factor_id": factor["id"],
-                                "code": credential,
-                            }
-                        )
-                        self.save()
-                        self._logger.info(
-                            "Backup code used for user=%s, code=%s", user_id, credential
-                        )
-                        return True
-            else:
-                ok = self._factor_registry[factor_type]().verify(
-                    user_id, credential, factor["state"]
-                )
-                if ok:
-                    self._audit_log.append(
-                        {
-                            "ts": now,
-                            "user_id": user_id,
-                            "op": "verify",
-                            "type": factor_type,
-                            "factor_id": factor["id"],
-                        }
-                    )
-                    return True
-        return False
+        with self._lock:
+            self._validate_user_id(user_id)
+            factor_list = self._factors.get(user_id, {}).get(factor_type, [])
+            if not factor_list:
+                return False
+            entry = next(
+                (f for f in reversed(factor_list) if f["state"].get("id", "") == factor_id), None
+            )
+            if entry is None:
+                entry = factor_list[-1]
+            state = entry["state"]
+            if self._is_expired(state):
+                self._audit.append({"action": "expired", "user": user_id, "type": factor_type})
+                return False
+            factor_cls = self._factor_registry.get(factor_type)
+            if factor_cls is None:
+                return False
+            instance = factor_cls()
+            result = instance.verify(user_id, credential, state)
+            self._audit.append(
+                {"action": "verify", "user": user_id, "type": factor_type, "result": result}
+            )
+            self._save_storage()
+            self._secure_del(state, ["secret", "seed", "credential", "backup_codes"])
+            return bool(result)
 
-    def issue_backup_codes(self, user_id: str, count: int = 10, ttl_sec: int = 604800) -> List[str]:
-        """Create new batch backup codes; returns codes for UI printing/export."""
-        factor_id = self.setup_factor(user_id, "backup_code", count=count, ttl_sec=ttl_sec)
-        return self._get_backup_codes_for_factor(user_id, factor_id)
+    def remove_factor(
+        self,
+        user_id: str,
+        factor_type: str,
+        factor_id: Optional[str] = None,
+    ) -> None:
+        with self._lock:
+            self._validate_user_id(user_id)
+            factor_list = self._factors.get(user_id, {}).get(factor_type, [])
+            if not factor_list:
+                return
+            idx = None
+            if factor_id:
+                for i, entry in enumerate(factor_list):
+                    if entry["state"].get("id", "") == factor_id:
+                        idx = i
+                        break
+            if idx is None:
+                idx = len(factor_list) - 1
+            entry = factor_list[idx]
+            factor_cls = self._factor_registry.get(factor_type)
+            if factor_cls is not None:
+                instance = factor_cls()
+                instance.remove(user_id, entry["state"])
+            self._secure_del(entry["state"])
+            factor_list.pop(idx)
+            self._audit.append({"action": "remove", "user": user_id, "type": factor_type})
+            self._save_storage()
 
-    def _get_backup_codes_for_factor(self, user_id: str, factor_id: str) -> List[str]:
-        for factor in self._factors.get(user_id, {}).get("backup_code", []):
-            if factor["id"] == factor_id:
-                return [c["code"] for c in factor["state"]["codes"]]
-        return []
+    def get_status(
+        self,
+        user_id: str,
+        factor_type: str,
+    ) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            self._validate_user_id(user_id)
+            factor_list = self._factors.get(user_id, {}).get(factor_type, [])
+            if not factor_list:
+                return None
+            return factor_list[-1]["state"]
 
-    def save(self) -> None:
-        """Сохраняет состояние в файл с AES-256-GCM."""
-        raw = json.dumps(
-            {"factors": self._factors, "audit": self._audit_log}, ensure_ascii=False
-        ).encode("utf-8")
-        nonce = SymmetricCipher.generatenonce()
-        ciphertext = SymmetricCipher.encrypt(raw, self._enc_key, nonce)
-        with open(self._storage_path, "wb") as f:
-            f.write(nonce + ciphertext)
-
-    def load(self) -> None:
-        """Восстанавливает состояние из файла, расшифровка через AES-256-GCM."""
-        if not os.path.exists(self._storage_path):
-            return
-        with open(self._storage_path, "rb") as f:
-            buf = f.read()
-        nonce = buf[: SymmetricCipher.NONCELENGTH]
-        ct = buf[SymmetricCipher.NONCELENGTH :]
-        raw = SymmetricCipher.decrypt(ct, self._enc_key, nonce)
-        store = json.loads(raw.decode("utf-8"))
-        self._factors = store.get("factors", {})
-        self._audit_log = store.get("audit", [])
-
-
-# SRP: вся визуализация, показ или печать backup-кодов — реализуется только во внешнем слое (контроллер/интерфейс).
+    def get_audit(
+        self,
+        user_id: Optional[str] = None,
+        factor_type: Optional[str] = None,
+    ) -> List[dict]:
+        with self._lock:
+            history = self._audit
+            if user_id:
+                history = [rec for rec in history if rec.get("user") == user_id]
+            if factor_type:
+                history = [rec for rec in history if rec.get("type") == factor_type]
+            return list(history)
