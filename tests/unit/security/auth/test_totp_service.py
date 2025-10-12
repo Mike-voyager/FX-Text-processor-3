@@ -2,7 +2,7 @@ import sys
 import types
 import pytest
 import threading
-from typing import Any, Dict, List, Tuple, Iterator, cast
+from typing import Any, Dict, List, Tuple, Iterator, cast, BinaryIO
 
 import security.auth.totp_service as tots
 
@@ -53,7 +53,7 @@ class DummyQr:
     def __init__(self, uri: str) -> None:
         self._uri = uri
 
-    def save(self, buf, fmt) -> None:
+    def save(self, buf: BinaryIO, fmt: str) -> None:
         buf.write(b"dummyqrcode")
 
 
@@ -87,7 +87,7 @@ def test_setup_totp_for_user(patch_pyotp_qrcode: None) -> None:
 
 def test_setup_totp_for_user_default_issuer(patch_pyotp_qrcode: None) -> None:
     result = tots.setup_totp_for_user("bob", "bobuser")
-    assert "FX Text Processor" in result["uri"]
+    assert isinstance(result["uri"], str) and "FX Text Processor" in result["uri"]
 
 
 def test_validate_totp_code() -> None:
@@ -137,12 +137,30 @@ def test_generate_totp_qr_uri_empty(patch_pyotp_qrcode: None) -> None:
 
 
 def test_get_totp_secret_for_storage_success(
-    monkeypatch: pytest.MonkeyPatch, patch_pyotp_qrcode: None
+    monkeypatch: pytest.MonkeyPatch,
+    patch_pyotp_qrcode: None,  # если используется доп. фикстура для qrcode/pyotp — можно убрать
 ) -> None:
+    # Подготавливаем фактор
     tots.setup_totp_for_user("sec", "secuser")
+    # Патчим derive_key_argon2id
     monkeypatch.setattr(
         tots, "derive_key_argon2id", lambda pw, salt, length: b"retkey" * (length // 6)
     )
+
+    # ---- КРИТИЧЕСКИЙ ПАТЧ ДЛЯ PYOTP (в sys.modules) ----
+    class DummyPyotpTOTP:
+        def __init__(self, secret: str) -> None:
+            self.secret = secret
+
+        def verify(self, code: str) -> bool:
+            return code == "safeotp"
+
+        def provisioning_uri(self, name: str, issuer_name: str) -> str:
+            return "dummyuri"
+
+    dummy_pyotp_mod = types.SimpleNamespace(TOTP=DummyPyotpTOTP)
+    monkeypatch.setitem(sys.modules, "pyotp", dummy_pyotp_mod)
+    # -----------------------
     secret = tots.get_totp_secret_for_storage("sec", "safeotp")
     assert b"retkey" in secret
 

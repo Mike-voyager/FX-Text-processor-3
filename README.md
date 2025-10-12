@@ -222,7 +222,7 @@ FX-Text-processor-3/
 │   │   ├── second_factor.py            # ✅ DONE
 │   │   ├── second_factor_service.py    # ✅ DONE
 │   │   ├── fido2_service.py            # ✅ DONE
-│   │   ├── totp_service.py             # ✅ DONE # ⚠️ TODO tests
+│   │   ├── totp_service.py             # ✅ DONE
 │   │   ├── code_service.py             # ✅ DONE # ⚠️ TODO tests
 │   │   ├── session.py
 │   │   ├── permissions.py
