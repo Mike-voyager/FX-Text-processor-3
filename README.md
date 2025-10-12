@@ -104,7 +104,7 @@ The second factor manager implements secure lifecycle and verification logic, wi
 FX-Text-processor-3/
 ├── src/                         # Source code (MVC architecture)
 │   ├── __init__.py                             # ✅ DONE
-│   ├── main.py                                 # Application entrypoint
+│   ├── main.py   # 🚧 TODO                     # Application entrypoint
 │
 │   ├── model/                    # Data models
 │   │   ├── __init__.py
@@ -120,24 +120,24 @@ FX-Text-processor-3/
 │   │   ├──validation.py          # 🚧 TODO
 │   │   └── enums.py              # ✅ DONE ?
 │
-│   ├── view/ # UI components (Tkinter)
-│   │   ├── __init__.py
-│   │   ├── main_window.py # 🔐
-│   │   ├── paged_canvas.py
-│   │   ├── format_toolbar.py
-│   │   ├── ruler_widget.py
-│   │   ├── status_bar.py
-│   │   ├── dialogs/ # 🔐
-│   │   └── widgets/ # 🔐
+│   ├── view/ # UI components (Tkinter) # 🚧 TODO
+│   │   ├── __init__.py             # 🚧 TODO
+│   │   ├── main_window.py # 🔐    # 🚧 TODO
+│   │   ├── paged_canvas.py         # 🚧 TODO
+│   │   ├── format_toolbar.py       # 🚧 TODO
+│   │   ├── ruler_widget.py         # 🚧 TODO
+│   │   ├── status_bar.py           # 🚧 TODO
+│   │   ├── dialogs/ # 🔐           # 🚧 TODO
+│   │   └── widgets/ # 🔐           # 🚧 TODO
 │
-│   ├── controller/ # Business logic
-│   │   ├── __init__.py
-│   │   ├── document_controller.py # 🔐
-│   │   ├── commands.py # 🔐
-│   │   ├── session.py # 🔐
-│   │   └── event_handlers.py # 🔐
+│   ├── controller/ # Business logic    # 🚧 TODO
+│   │   ├── __init__.py                 # 🚧 TODO
+│   │   ├── document_controller.py # 🔐 # 🚧 TODO
+│   │   ├── commands.py # 🔐            # 🚧 TODO
+│   │   ├── session.py # 🔐             # 🚧 TODO
+│   │   └── event_handlers.py # 🔐      # 🚧 TODO
 │
-│   ├── escp/                     # ESC/P protocol stack
+│   ├── escp/    # 🚧 TODO                 # ESC/P protocol stack
 │   │   ├── __init__.py
 │   │   ├── commands/   # ✅ DONE
 │   │   │   ├── __init__.py         # ✅ DONE
@@ -155,20 +155,20 @@ FX-Text-processor-3/
 │   │   │   ├── special_effects.py  # ✅ DONE
 │   │   │   └── shading.py          # ✅ DONE
 │   │   ├── advanced_graphics/  # 🚧 TODO
-│   │   │   ├── __init__.py
-│   │   │   ├── dithering.py
-│   │   │   ├── double_strike.py
-│   │   │   ├── udc.py
-│   │   │   ├── scanline.py
-│   │   │   ├── esc_strikethrough.py
-│   │   │   └── rendering.py
+│   │   │   ├── __init__.py             # 🚧 TODO
+│   │   │   ├── dithering.py            # 🚧 TODO
+│   │   │   ├── double_strike.py        # 🚧 TODO
+│   │   │   ├── udc.py                  # 🚧 TODO
+│   │   │   ├── scanline.py             # 🚧 TODO
+│   │   │   ├── esc_strikethrough.py    # 🚧 TODO
+│   │   │   └── rendering.py            # 🚧 TODO
 │   │   └── builders/           # 🚧 TODO
-│   │       ├── __init__.py
-│   │       ├── base.py
-│   │       ├── table_builder.py
+│   │       ├── __init__.py             # 🚧 TODO
+│   │       ├── base.py                 # 🚧 TODO
+│   │       ├── table_builder.py        # 🚧 TODO
 │   │       ├── paragraph_builder.py    # 🚧 TODO
-│   │       ├── run_builder.py
-│   │       └── document_builder.py
+│   │       ├── run_builder.py          # 🚧 TODO
+│   │       └── document_builder.py     # 🚧 TODO
 │   │
 │   ├── form/ # Form builder    # ✅ DONE 99% ⚠️ TODO tests with secure/
 │   │   ├── __init__.py
@@ -183,31 +183,32 @@ FX-Text-processor-3/
 │   │   ├── style_manager.py        # ✅ DONE
 │   │   └── batch_processor.py  # ⚠️ DONE 50/50 TODO tests
 │   │
-│   ├── charset/ # Codepage management
-│   ├── image/ # Image processing
+│   ├── charset/ # Codepage management # 🚧 TODO
+│   ├── image/ # Image processing # 🚧 TODO
 │   │
 │   ├── barcodegen/ # ✅ DONE
 │   │   ├── __init__.py             # ✅ DONE
 │   │   ├── barcode_generator.py    # ✅ DONE
 │   │   └── matrix2d_generator.py   # ✅ DONE
 │   │
-│   ├── printer/ # Direct printer access
-│   ├── io/ # File I/O (JSON, RTF, Markdown) # 🔐
-│   └── utils/ # Utilities
+│   ├── printer/ # Direct printer access # 🚧 TODO
+│   ├── io/ # File I/O (JSON, RTF, Markdown) # 🔐 # 🚧 TODO
+│   └── utils/ # Utilities # 🚧 TODO
 │
 │
 ├── tests/                        # Test suite
-│   ├── unit/      # ✅ 39 tests, 86% coverage
+│   ├── unit/      # ✅ 950 tests, 85.60% coverage, 16 fails
 │   └── integration/
 │
-├── docs/                         # Documentation
+├── docs/                         # Documentation⚠️ TODO
 │   ├── ARCHITECTURE.md           # System architecture
-│   ├── API_REFERENCE.md          # API documentation
+│   ├── API_REFERENCE.md          # API documentation ⚠️ TODO
 │   ├── PROMPT_TEMPLATES.md       # AI prompt templates
-│   └── DEVELOPMENT.md            # Development guide
+│   ├── SECURITY_ARCITECTURE.md   # security arcitecture ⚠️ TODO
+│   └── DEVELOPMENT.md            # Development guide ⚠️ TODO
 │
 ├── security/
-│   ├── __init__.py
+│   ├── __init__.py # ✅ DONE
 │   ├── crypto/ # ✅ DONE
 │   │   ├── __init__.py     # ✅ DONE
 │   │   ├── symmetric.py    # ✅ DONE
@@ -216,45 +217,45 @@ FX-Text-processor-3/
 │   │   ├── signatures.py   # ✅ DONE
 │   │   ├── secure_storage.py   # ✅ DONE
 │   │   └── hashing.py      # ✅ DONE
-│   ├── auth/
-│   │   ├── __init__.py
+│   ├── auth/               # 🚧 TODO
+│   │   ├── __init__.py                 # ✅ DONE
 │   │   ├── password.py                 # ✅ DONE
 │   │   ├── second_factor.py            # ✅ DONE
 │   │   ├── second_factor_service.py    # ✅ DONE
 │   │   ├── fido2_service.py            # ✅ DONE
 │   │   ├── totp_service.py             # ✅ DONE
-│   │   ├── code_service.py             # ✅ DONE # ⚠️ TODO tests
-│   │   ├── session.py
-│   │   ├── permissions.py
-│   │   └── second_method/
+│   │   ├── code_service.py             # ✅ DONE
+│   │   ├── session.py                  # 🚧 TODO
+│   │   ├── permissions.py              # 🚧 TODO
+│   │   └── second_method/  # ✅ DONE
 │   │       ├── __init__.py # ✅ DONE
 │   │       ├── fido2.py    # ✅ DONE
 │   │       ├── totp.py     # ✅ DONE
 │   │       └── code.py     # ✅ DONE
-│   ├── audit/
-│   │   ├── __init__.py
-│   │   ├── logger.py
-│   │   ├── exporters.py
-│   │   └── integrity.py
-│   ├── blanks/
-│   │   ├── __init__.py
-│   │   ├── manager.py # 🔐
-│   │   ├── watermark.py
-│   │   └── verification.py
-│   └── compliance/
-│       ├── __init__.py
-│       ├── gdpr.py
-│       ├── retention.py
-│       └── anonymization.py
+│   ├── audit/  # 🚧 TODO
+│   │   ├── __init__.py         # 🚧 TODO
+│   │   ├── logger.py           # 🚧 TODO
+│   │   ├── exporters.py        # 🚧 TODO
+│   │   └── integrity.py        # 🚧 TODO
+│   ├── blanks/ # 🚧 TODO
+│   │   ├── __init__.py         # 🚧 TODO
+│   │   ├── manager.py #🔐      # 🚧 TODO
+│   │   ├── watermark.py        # 🚧 TODO
+│   │   └── verification.py     # 🚧 TODO
+│   └── compliance/ # 🚧 TODO
+│       ├── __init__.py         # 🚧 TODO
+│       ├── gdpr.py             # 🚧 TODO
+│       ├── retention.py        # 🚧 TODO
+│       └── anonymization.py    # 🚧 TODO
 │
-├── resources/                    # External resources/assets/templates
+├── resources/    # 🚧 TODO        # External resources/assets/templates
 ├── .github/                      # GitHub config, CI/CD, issue templates
 │   ├── workflows/
 │   └── ISSUE_TEMPLATE/
 │
-├── pyproject.toml                # Project config (build/system)
+├── pyproject.toml    # 🚧 TODO          # Project config (build/system)
 ├── pytest.ini
-├── README.md
+├── README.md        # ⚠️ update after changes
 </pre>
 
 
