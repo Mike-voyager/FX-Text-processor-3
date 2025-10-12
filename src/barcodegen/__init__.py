@@ -19,13 +19,3 @@ Public API:
 Зависимости:
     Pillow, qrcode, pdf417gen, pylibdmtx, python-barcode
 """
-
-from .barcode_generator import BarcodeGenerator, BarcodeGenError
-from .matrix2d_generator import Matrix2DCodeGenerator, Matrix2DCodeGenError
-
-__all__ = [
-    "BarcodeGenerator",
-    "BarcodeGenError",
-    "Matrix2DCodeGenerator",
-    "Matrix2DCodeGenError",
-]

@@ -176,3 +176,38 @@ def test_signer_sign_internal_failure(keypair: Tuple[bytes, bytes]) -> None:
     signer._sk = None  # type: ignore
     with pytest.raises(SignatureError):
         signer.sign(b"data")
+
+
+def test_sign_verify_empty_message(keypair: Tuple[bytes, bytes]) -> None:
+    sk, pk = keypair
+    signer = Ed25519Signer(sk)
+    verifier = Ed25519Verifier(pk)
+    sig = signer.sign(b"")
+    assert verifier.verify(b"", sig)
+
+
+def test_signer_with_non_bytes_key() -> None:
+    with pytest.raises(Exception):
+        Ed25519Signer("not_bytes")  # type: ignore
+    with pytest.raises(Exception):
+        Ed25519Verifier("not_bytes")  # type: ignore
+
+
+def test_load_key_bytes_wrong_type() -> None:
+    with pytest.raises(TypeError):
+        Ed25519Signer.load_key_bytes(None)  # type: ignore
+
+
+def test_public_key_unknown_encoding(keypair: Tuple[bytes, bytes]) -> None:
+    sk, _ = keypair
+    signer = Ed25519Signer(sk)
+    with pytest.raises(ValueError):
+        signer.public_key("pem")  # type: ignore
+    # covers the unreachable branch
+
+
+def test_batch_verify_non_bytes_entry(keypair: Tuple[bytes, bytes]) -> None:
+    _, pk = keypair
+    verifier = Ed25519Verifier(pk)
+    with pytest.raises(TypeError):
+        verifier.verify_batch(b"msg", [b"good" * 16, None])  # type: ignore

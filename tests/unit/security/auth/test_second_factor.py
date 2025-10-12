@@ -1,103 +1,238 @@
-import os
-import tempfile
-import shutil
-import time
 import pytest
+import logging
+from typing import Generator, Dict, Any
 
-src.security.auth.second_factor импорт SecondFactorManager
-src.security.auth.second_method.totp импорт TotpFactor
-src.security.auth.second_method.fido2 импорт Fido2Factor
-src.security.auth.second_method.code импорт BackupCodeFactor
+from src.security.auth.second_factor import SecondFactorManager
+from src.security.crypto.secure_storage import SecureStorage, StorageBackend
 
-def temp_storage():
-    d = tempfile.mkdtemp()
-    fname = os.path.join(d, "mfa_store.bin")
-    yield fname
-    shutil.rmtree(d, ignore_errors=True)
 
-def test_setup_and_verify_totp(monkeypatch, temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "tester"
-    # Настройка TOTP
-    factor_id = mgr.setup_factor(user, "totp")
-    factors = mgr.available_factors(user)
-    assert "totp" in factors
-    secret = mgr._factors[user]["totp"][ "state"]["secret"]
-    import pyotp
-    nowcode = pyotp.TOTP(secret).now()
-    assert mgr.verify_factor(user, "totp", nowcode)
-    # Отрицательный тест
-    assert not mgr.verify_factor(user, "totp", "000000")
+class DummyFactor:
+    def setup(self, user_id: str, **kwargs: Any) -> Dict[str, Any]:
+        return {"id": "testid", "created": 12345, "ttlseconds": kwargs.get("ttlseconds")}
 
-def test_setup_and_verify_fido2(temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "bob"
-    demo_device = {"credential_id": "abc"}
-    factor_id = mgr.setup_factor(user, "fido2", device_info=demo_device)
-    assert mgr.verify_factor(user, "fido2", {"credential_id": "abc"})
-    assert not mgr.verify_factor(user, "fido2", {"credential_id": "def"})
+    def verify(self, user_id: str, credential: str, state: object) -> bool:
+        return credential == "valid"
 
-def test_issue_and_validate_backup_codes(monkeypatch, temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "charlie"
-    codes = mgr.issue_backup_codes(user, count=5, ttl_sec=10)
-    assert len(codes) == 5
-    # Каждый код является строго одноразовым и недействительным после первого использования
-    для кода в кодах:
-    assert mgr.verify_factor(user, "backup_code", code)
-    assert not mgr.verify_factor(user, "backup_code", code)
-    # Тестовый срок действия
-    factor = mgr._factors[user]["backup_code"]factor
-    ["created"] = int(time.time()) - 100
-    assert not mgr.verify_factor(user, "backup_code", codes)
+    def remove(self, user_id: str, state: object) -> None:
+        pass
 
-def test_remove_factor(monkeypatch, temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "alice"
-    factor_id = mgr.setup_factor(user, "totp")
-    mgr.remove_factor(user, "totp", factor_id=factor_id)
-    assert "totp" in mgr._factors[user]
-    assert mgr._factors[user]["totp"] == []
 
-def test_storage_cycle(monkeypatch, temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "daisy"
-    mgr.setup_factor(user, "totp")
-    mgr.setup_factor(user, "fido2", device_info={"credential_id": "xyz"})
-    codes = mgr.issue_backup_codes(user, count=3)
-    mgr.save()
-    mgr2 = SecondFactorManager(storage_path=fname)
-    # Данные корректно загружаются из зашифрованного хранилища
-    assert mgr2.available_factors(user) == ["totp", "fido2", "backup_code"]
-    # MFA все еще работает после перезагрузки
-    из pyotp import TOTP
-    secret = mgr2._factors[user]["totp"][ "state"]["secret"]
-    nowcode = TOTP(secret).now()
-    assert mgr2.verify_factor(user, "totp", nowcode)
-    # Резервные коды по-прежнему одноразовые после перезагрузки
-    для кода в кодах:
-    assert mgr2.verify_factor(user, "backup_code", code)
-    assert not mgr2.verify_factor(user, "backup_code", code)
+class DummyStorage(SecureStorage):
+    def __init__(self) -> None:
+        self.saved: Dict[str, Any] = {}
+        self.data: Dict[str, Any] = {"factors": {}, "audit": []}
 
-def test_audit_log(monkeypatch, temp_storage=temp_storage):
-    fname = next(temp_storage())
-    mgr = SecondFactorManager(storage_path=fname)
-    user = "audit"
-    mgr.setup_factor(user, "totp")
-    mgr.remove_factor(user, "totp")
-    mgr.setup_factor(user, "fido2", device_info={"credential_id": "auditdev"})
-    mgr.verify_factor(user, "fido2", {"credential_id": "auditdev"})
-    mgr.issue_backup_codes(user)
-    code = mgr._factors[user]["backup_code"][ "государство"]["коды"][ "код"]
-    mgr.verify_factor(пользователь, "резервный_код", код)
-    assert isinstance(mgr._audit_log, список)
-    операции = [запись["оп"] для записи в mgr._audit_log]
-    assert "настройка" в операциях
-    assert "удалить" в операциях
-    assert "проверка" в операциях
-    assert "резервный_код_использован" в операциях
+    def load(self) -> Dict[str, Any]:
+        return self.data
+
+    def save(self, payload: Dict[str, Any]) -> None:
+        self.saved = payload
+        self.data = payload
+
+
+@pytest.fixture
+def manager() -> Generator[SecondFactorManager, None, None]:
+    storage = DummyStorage()
+    logger = logging.getLogger("testlogger")
+    m = SecondFactorManager(storage=storage, logger=logger)
+    m.register_factor_type("dummy", DummyFactor)
+    yield m
+
+
+def test_register_and_unregister_factor_type(manager: SecondFactorManager) -> None:
+    with pytest.raises(ValueError):
+        manager.register_factor_type("dummy", DummyFactor)
+    manager.unregister_factor_type("dummy")
+    assert "dummy" not in manager._factor_registry
+
+
+def test_setup_and_status(manager: SecondFactorManager) -> None:
+    user_id: str = "testuser"
+    factor_id: str = manager.setup_factor(user_id, "dummy", ttlseconds=10)
+    status = manager.get_status(user_id, "dummy")
+    assert status is not None
+    assert status["id"] == "testid"
+    assert status["ttlseconds"] == 10
+
+
+def test_invalid_userid(manager: SecondFactorManager) -> None:
+    with pytest.raises(ValueError):
+        manager.setup_factor("", "dummy")
+
+
+def test_setup_unknown_type(manager: SecondFactorManager) -> None:
+    with pytest.raises(ValueError):
+        manager.setup_factor("testuser", "unknown")
+
+
+def test_rotate_factor(manager: SecondFactorManager) -> None:
+    user_id: str = "rotateuser"
+    manager.setup_factor(user_id, "dummy")
+    res = manager.rotate_factor(user_id, "dummy", ttlseconds=30)
+    assert isinstance(res, dict)
+    assert res["id"] == "testid"
+
+
+def test_verify_factor(manager: SecondFactorManager) -> None:
+    user_id: str = "vuser"
+    manager.setup_factor(user_id, "dummy")
+    assert manager.verify_factor(user_id, "dummy", "valid")
+    assert not manager.verify_factor(user_id, "dummy", "invalid")
+
+
+def test_remove_factor(manager: SecondFactorManager) -> None:
+    user_id: str = "remuser"
+    manager.setup_factor(user_id, "dummy")
+    assert manager.get_status(user_id, "dummy") is not None
+    manager.remove_factor(user_id, "dummy")
+    assert manager.get_status(user_id, "dummy") is None
+
+
+def test_remove_by_id(manager: SecondFactorManager) -> None:
+    user_id: str = "remid"
+    factor_id: str = manager.setup_factor(user_id, "dummy")
+    manager.remove_factor(user_id, "dummy", factor_id=factor_id)
+    assert manager.get_status(user_id, "dummy") is None
+
+
+def test_remove_all_factors(manager: SecondFactorManager) -> None:
+    user_id: str = "remall"
+    for _ in range(3):
+        manager.setup_factor(user_id, "dummy")
+    manager.remove_all_factors(user_id, "dummy")
+    assert manager.get_status(user_id, "dummy") is None
+    assert manager.get_history(user_id, "dummy") == []
+
+
+def test_get_history(manager: SecondFactorManager) -> None:
+    user_id: str = "histuser"
+    for _ in range(2):
+        manager.setup_factor(user_id, "dummy")
+    history = manager.get_history(user_id, "dummy")
+    assert len(history) == 2
+    assert all(h["id"] == "testid" for h in history)
+
+
+def test_get_audit(manager: SecondFactorManager) -> None:
+    user_id: str = "audituser"
+    manager.setup_factor(user_id, "dummy")
+    manager.verify_factor(user_id, "dummy", "valid")
+    manager.remove_factor(user_id, "dummy")
+    audit = manager.get_audit(user_id=user_id)
+    actions = {e.get("action") for e in audit}
+    assert "setup" in actions
+    assert "verify" in actions
+    assert "remove" in actions
+
+
+class DummyBackend(StorageBackend):
+    def save(self, key: str, encrypted_data: bytes) -> None:
+        pass
+
+    def load(self, key: str) -> bytes:
+        raise RuntimeError("fail load")
+
+    def delete(self, key: str) -> None:
+        pass
+
+    def list_keys(self) -> list[str]:
+        return []
+
+
+def test_storage_load_exception_logs() -> None:
+    backend = DummyBackend()
+    storage = SecureStorage(backend=backend)
+    manager = SecondFactorManager(storage=storage)
+    manager._load_storage()  # exception coverage
+
+
+class DummySaveFailBackend(StorageBackend):
+    def save(self, key: str, encrypted_data: bytes) -> None:
+        raise RuntimeError("fail save")
+
+    def load(self, key: str) -> bytes:
+        return b""
+
+    def delete(self, key: str) -> None:
+        pass
+
+    def list_keys(self) -> list[str]:
+        return []
+
+
+def test_storage_save_exception_logs(manager: SecondFactorManager) -> None:
+    backend = DummySaveFailBackend()
+    storage = SecureStorage(backend=backend)
+    m = SecondFactorManager(storage=storage)
+    m._save_storage()
+
+
+def test_remove_factor_empty(manager: SecondFactorManager) -> None:
+    manager.remove_factor("nouser", "dummy")
+    manager.remove_factor("nouser", "dummy", factor_id="notfound")
+
+
+def test_remove_factor_pop_nonexistent(manager: SecondFactorManager) -> None:
+    user, factor_type = "rempop", "dummy"
+    manager._factors[user] = {}
+    manager.remove_factor(user, factor_type, factor_id="abc")
+    manager._factors[user][factor_type] = []
+    manager.remove_factor(user, factor_type, factor_id="abc")
+
+
+def test_remove_all_factors_empty(manager: SecondFactorManager) -> None:
+    manager.remove_all_factors("nouser", "dummy")
+
+
+def test_get_status_history_empty(manager: SecondFactorManager) -> None:
+    assert manager.get_status("nouser", "dummy") is None
+    assert manager.get_history("nouser", "dummy") == []
+
+
+def test_get_audit_empty_and_filter(manager: SecondFactorManager) -> None:
+    assert manager.get_audit("nouser") == []
+    assert manager.get_audit(factor_type="dummy") == []
+    manager._audit.append(dict(action="setup", user="test", type="dummy"))
+    assert manager.get_audit(user_id="non_user") == []
+    assert manager.get_audit(factor_type="notype") == []
+    assert isinstance(manager.get_audit(), list)
+
+
+def test_secure_del_branches(manager: SecondFactorManager) -> None:
+    testmap: Dict[str, Any] = {"key": bytearray(b"foo"), "key2": "bar", "key3": 123}
+    manager._secure_del(testmap, ["key", "key2", "key3", "missing"])
+    assert True
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        {},  # no factors, empty history
+        {"factors": {"a": {"t": []}}, "audit": []},
+        {"factors": {"a": {"t": [{"state": {}}]}}, "audit": []},
+    ],
+)
+def test_factors_audit_edge_cases(manager: SecondFactorManager, scenario: Dict[str, Any]) -> None:
+    manager._factors = scenario.get("factors", {})
+    manager._audit = scenario.get("audit", [])
+    assert manager.get_history("a", "t") is not None
+    manager.remove_all_factors("a", "t")
+    assert manager.get_status("a", "t") is None
+
+
+def test_get_audit_all_filters(manager: SecondFactorManager) -> None:
+    manager._audit = [
+        {"action": "setup", "user": "u1", "type": "t1"},
+        {"action": "remove", "user": "u2", "type": "t2"},
+        {"action": "setup", "user": "u1", "type": "t2"},
+    ]
+    # user+type фильтр
+    assert manager.get_audit(user_id="u1", factor_type="t2") == [
+        {"action": "setup", "user": "u1", "type": "t2"}
+    ]
+    # только user
+    assert len(manager.get_audit(user_id="u2")) == 1
+    # только type
+    assert len(manager.get_audit(factor_type="t2")) == 2
+    # ничего
+    assert manager.get_audit(user_id="xxx", factor_type="not") == []

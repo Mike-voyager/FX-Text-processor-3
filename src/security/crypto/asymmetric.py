@@ -281,7 +281,9 @@ class AsymmetricKeyPair:
         logger.debug("Public key fingerprint: %s", fp)
         return fp
 
-    def equals_public(self, other: AsymmetricKeyPair) -> bool:
+    def equals_public(self, other: object) -> bool:
+        if not isinstance(other, AsymmetricKeyPair):
+            return False
         return self.get_public_fingerprint() == other.get_public_fingerprint()
 
 

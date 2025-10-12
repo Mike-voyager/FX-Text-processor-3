@@ -2,7 +2,12 @@ import pytest
 from typing import cast
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa, ec
 from _pytest.logging import LogCaptureFixture
-from security.crypto.asymmetric import _validate_keypair
+from security.crypto.asymmetric import (
+    _validate_keypair,
+    AsymmetricKeyPair,
+    KeyFormatError,
+    UnsupportedAlgorithmError,
+)
 
 
 from security.crypto.asymmetric import (
@@ -191,3 +196,214 @@ def test_factory_supported_algorithms() -> None:
     for algo in SUPPORTED_ALGORITHMS:
         kp = AsymmetricKeyPair.generate(algo)
         assert isinstance(kp, AsymmetricKeyPair)
+
+
+def test_ed25519_invalid_key_material() -> None:
+    # Попытка создать пару из мусорных байт — должен быть KeyFormatError
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(b"\x00" * 10, "ed25519")
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(b"\x01" * 5, "ed25519")
+
+
+def test_rsa_invalid_key_material() -> None:
+    # Нарушение структуры — неправильный размер PEM/DER
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(b"badkey", "rsa4096")
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(b"badpub", "rsa4096")
+
+
+def test_ecdsa_invalid_key_material() -> None:
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(b"xxx", "ecdsa_p256")
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(b"yyy", "ecdsa_p256")
+
+
+def test_algorithm_factory_invalid() -> None:
+    # попытка вызвать генератор с неправильными аргументами/размерами
+    with pytest.raises(TypeError):
+        from security.crypto.asymmetric import AlgorithmFactory
+
+        AlgorithmFactory["rsa4096"]("not_expected_argument")
+    # Отсутствующий алгоритм
+    with pytest.raises(KeyError):
+        AlgorithmFactory["unknown_algo"]()
+
+
+def test_sign_with_none_message() -> None:
+    # Проверить реакцию на None вместо данных (ValueError или TypeError)
+    kp = AsymmetricKeyPair.generate("ed25519")
+    with pytest.raises(Exception):
+        kp.sign(None)  # type: ignore
+
+
+def test_empty_export_public_private_bytes() -> None:
+    # Если в объекте нет ключей — всегда NotImplemented
+    kp = AsymmetricKeyPair(None, None, "abc")
+    with pytest.raises(NotImplementedError):
+        kp.export_private_bytes()
+    with pytest.raises(NotImplementedError):
+        kp.export_public_bytes()
+
+
+def test_encrypt_with_no_public() -> None:
+    # Попытка криптовать без public_key
+    kp = AsymmetricKeyPair(None, None, "rsa4096")
+    with pytest.raises(NotImplementedError):
+        kp.encrypt(b"msg")
+
+
+def test_decrypt_with_no_private() -> None:
+    # Попытка декриптовать без private_key
+    kp = AsymmetricKeyPair(None, None, "rsa4096")
+    with pytest.raises(NotImplementedError):
+        kp.decrypt(b"msg")
+
+
+def test_sign_wrong_type() -> None:
+    # Однако sign не всегда обязан принимать только bytes
+    kp = AsymmetricKeyPair.generate("ed25519")
+    with pytest.raises(Exception):
+        kp.sign(1234)  # type: ignore
+
+
+def test_equals_public_edge() -> None:
+    # equals_public с явно неправильным типом "key"
+    kp = AsymmetricKeyPair.generate("ed25519")
+    assert not kp.equals_public("not_a_key")  # type: ignore
+
+
+def test_repr_empty_obj() -> None:
+    # repr для полностью пустого объекта (оба ключа None)
+    kp = AsymmetricKeyPair(None, None, "xxx")
+    string = repr(kp)
+    assert "AsymmetricKeyPair" in string
+
+
+def test_raise_on_unsupported_usage() -> None:
+    # create, sign, decrypt на неподдерживаемом алгоритме
+    for algo in ["unknown", "badalgo"]:
+        with pytest.raises(UnsupportedAlgorithmError):
+            AsymmetricKeyPair.generate(algo)
+        with pytest.raises(UnsupportedAlgorithmError):
+            AsymmetricKeyPair.from_public_bytes(b"x", algo)
+
+
+# 1. Битые, пустые, невалидные форматы ключей (все алгоритмы)
+@pytest.mark.parametrize("algo", ["ed25519", "rsa4096", "ecdsa_p256"])
+def test_from_private_bytes_bad_formats(algo: str) -> None:
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(b"corrupt", algo)
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(b"", algo)
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_private_bytes(None, algo)  # type: ignore
+
+
+@pytest.mark.parametrize("algo", ["ed25519", "rsa4096", "ecdsa_p256"])
+def test_from_public_bytes_bad_formats(algo: str) -> None:
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(b"junk", algo)
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(b"", algo)
+    with pytest.raises(KeyFormatError):
+        AsymmetricKeyPair.from_public_bytes(None, algo)  # type: ignore
+
+
+def test_import_public_key_pem_bad() -> None:
+    with pytest.raises(KeyFormatError):
+        import_public_key_pem("bad_pem")
+    with pytest.raises(KeyFormatError):
+        import_public_key_pem("")
+
+
+# 2. Фабрика: несуществующие алгоритмы, плохие аргументы
+def test_algorithm_factory_keyerror() -> None:
+    from security.crypto.asymmetric import AlgorithmFactory
+
+    with pytest.raises(KeyError):
+        AlgorithmFactory["notalgo"]()
+
+
+# 3. Encrypt/decrypt/sign на пустых/битых AsymmetricKeyPair
+def test_broken_pair_all_methods() -> None:
+    kp = AsymmetricKeyPair(None, None, "ed25519")
+    with pytest.raises(NotImplementedError):
+        kp.sign(b"msg")
+    with pytest.raises(NotImplementedError):
+        kp.decrypt(b"encdat")
+    with pytest.raises(NotImplementedError):
+        kp.export_private_bytes()
+    with pytest.raises(NotImplementedError):
+        kp.export_public_bytes()
+    with pytest.raises(NotImplementedError):
+        kp.get_public_fingerprint()
+
+
+# 4. Exception-branch на public_key=None/private_key=None для RSA/ECDSA
+@pytest.mark.parametrize("algo", ["rsa4096", "ecdsa_p256"])
+def test_sign_with_public_only(algo: str) -> None:
+    kp = AsymmetricKeyPair(None, None, algo)
+    with pytest.raises(NotImplementedError):
+        kp.sign(b"abc")
+    with pytest.raises(NotImplementedError):
+        kp.decrypt(b"xyz")
+
+
+# 5. Bad types для equals_public и fingerprint
+def test_equals_public_with_wrong_type() -> None:
+    kp = AsymmetricKeyPair.generate("ed25519")
+    assert kp.equals_public(object()) is False
+    assert kp.equals_public("wrong") is False
+
+
+# 6. Unsupported algorithm error branch
+def test_unsupported_algo_all_methods() -> None:
+    with pytest.raises(UnsupportedAlgorithmError):
+        AsymmetricKeyPair.generate("made_up_algo")
+    with pytest.raises(UnsupportedAlgorithmError):
+        AsymmetricKeyPair.from_private_bytes(b"x", "made_up_algo")
+    with pytest.raises(UnsupportedAlgorithmError):
+        AsymmetricKeyPair.from_public_bytes(b"x", "made_up_algo")
+
+
+# 7. Проверка unreachable/unhandled branch при загрузке неправильных ключей
+def test_load_public_key_mismatch() -> None:
+    kp = AsymmetricKeyPair.generate("ed25519")
+    with pytest.raises(KeyFormatError):
+        load_public_key(kp.export_public_bytes(), "rsa4096")  # bytes от ed25519 как rsa
+    kp2 = AsymmetricKeyPair.generate("rsa4096")
+    with pytest.raises(KeyFormatError):
+        load_public_key(kp2.export_public_bytes(), "ecdsa_p256")
+
+
+# 8. Экспорт с паролем: некорректные параметры/тип пароля
+def test_private_export_wrong_password_type() -> None:
+    kp = AsymmetricKeyPair.generate("rsa4096")
+    # Если реализовано строго: password должен быть str/bytes, все остальное — ошибка
+    with pytest.raises(Exception):
+        kp.export_private_bytes(1234)  # type: ignore
+
+
+# 9. Странные входные (None вместо bytes)
+def test_sign_none_message() -> None:
+    kp = AsymmetricKeyPair.generate("ed25519")
+    with pytest.raises(Exception):
+        kp.sign(None)  # type: ignore
+
+
+# 10. Проверка bidirectional equals_public для None-полей
+def test_equals_public_with_broken_obj() -> None:
+    kp = AsymmetricKeyPair(None, None, "ed25519")
+    kp2 = AsymmetricKeyPair.generate("ed25519")
+    with pytest.raises(NotImplementedError):
+        kp.equals_public(kp2)
+
+
+# 11. get_public_fingerprint edge
+def test_get_public_fingerprint_unreachable() -> None:
+    kp = AsymmetricKeyPair(None, None, "ed25519")
+    with pytest.raises(NotImplementedError):
+        kp.get_public_fingerprint()

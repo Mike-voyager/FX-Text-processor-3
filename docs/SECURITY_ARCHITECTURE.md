@@ -2,7 +2,7 @@
 
 ## Overview
 
-FX-Text-processor-3 implements enterprise-grade security based on **Zero Trust Architecture** principles: "never trust, always verify". This document describes the cryptographic foundation, authentication mechanisms, and compliance features.
+FX-Text-processor-3 implements millitary/enterprise/NIST-grade security based on **Zero Trust Architecture** principles: "never trust, always verify". This document describes the cryptographic foundation, authentication mechanisms, and compliance features.
 
 **Security Philosophy**: No dependency on proprietary or potentially backdoored solutions. All cryptographic operations use internationally audited open-source libraries.
 
@@ -54,35 +54,45 @@ FX-Text-processor-3 implements enterprise-grade security based on **Zero Trust A
 ## Module Structure
 
 src/security/
-├── init.py # Public API exports
+├── __init__.py
 ├── crypto/
-│ ├── init.py
-│ ├── symmetric.py # AES-256-GCM encryption
-│ ├── asymmetric.py # GPG/OpenPGP integration
-│ ├── kdf.py # Argon2id key derivation
-│ ├── signatures.py # Ed25519 digital signatures
-│ └── hashing.py # SHA3-256, BLAKE2b
+│   ├── __init__.py
+│   ├── symmetric.py
+│   ├── asymmetric.py
+│   ├── kdf.py
+│   ├── signatures.py
+│   ├── secure_storage.py
+│   └── hashing.py
 ├── auth/
-│ ├── init.py
-│ ├── password.py # Argon2id password hashing
-│ ├── webauthn.py # FIDO2/WebAuthn manager
-│ ├── session.py # JWT session management
-│ └── permissions.py # RBAC permissions
+│   ├── __init__.py
+│   ├── password.py
+│   ├── second_factor.py
+│   ├── second_factor_service.py
+│   ├── fido2_service.py
+│   ├── totp_service.py
+│   ├── code_service.py
+│   ├── session.py
+│   ├── permissions.py
+│   └── second_method/
+│       ├── __init__.py
+│       ├── fido2.py
+│       ├── totp.py
+│       └── code.py
 ├── audit/
-│ ├── init.py
-│ ├── logger.py # Immutable audit log
-│ ├── exporters.py # Syslog, JSON Lines export
-│ └── integrity.py # HMAC chain verification
+│   ├── __init__.py
+│   ├── logger.py
+│   ├── exporters.py
+│   └── integrity.py
 ├── blanks/
-│ ├── init.py
-│ ├── manager.py # Protected blank management
-│ ├── watermark.py # Watermark generation
-│ └── verification.py # Authenticity verification
+│   ├── __init__.py
+│   ├── manager.py #
+│   ├── watermark.py
+│   └── verification.py
 └── compliance/
-├── init.py
-├── gdpr.py # GDPR compliance helpers
-├── retention.py # Data retention policies
-└── anonymization.py # PII anonymization
+    ├── __init__.py
+    ├── gdpr.py
+    ├── retention.py
+    └── anonymization.py
 
 
 ## Cryptographic Stack
@@ -296,10 +306,9 @@ raise IntegrityError("Document corrupted")
 
 **Supported Authenticators**:
 - YubiKey 5 Series (USB-A, USB-C, NFC, Lightning)
-- Google Titan Security Key
-- Windows Hello (TPM 2.0)
-- Apple Touch ID / Face ID (Secure Enclave)
-- Android Biometric (StrongBox Keymaster)
+- Any totp authenticator
+- The sheet of backup codes that you keep in your safe
+
 
 **Why Hardware Tokens?**
 

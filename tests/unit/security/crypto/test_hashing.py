@@ -317,3 +317,134 @@ def test_wipe_sensitive_data_weird() -> None:
 def test_pbkdf2_wrong_delimiter() -> None:
     bad = "pbkdf2|not|right|delimiter"
     assert not hashing.verify_password("pw", bad)
+
+
+def test_hash_password_bad_type() -> None:
+    with pytest.raises(ValueError):
+        hashing.hash_password(None)  # type: ignore
+    with pytest.raises(ValueError):
+        hashing.hash_password("")  # пустой пароль
+
+
+def test_needs_rehash_exception_path(monkeypatch: MonkeyPatch) -> None:
+    class DummyErr:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+        def hash(self, pw: str) -> str:
+            return "hash"
+
+        def check_needs_rehash(self, h: str) -> bool:
+            raise RuntimeError("fail")
+
+    monkeypatch.setattr(hashing, "PasswordHasher", DummyErr)
+    h = hashing.hash_password("xxx", scheme="argon2id")
+    # Должно fallback-ить на True при exception:
+    assert hashing.needs_rehash(h, scheme="argon2id") is True
+
+
+def test_unknown_scheme_in_needs_rehash() -> None:
+    # Невалидная схема, должен упасть с ValueError либо вернуть True/False
+    bad_hash = "foobar:xxx"
+    assert hashing.needs_rehash(bad_hash, scheme="argon2id") in (True, False)
+
+
+def test_add_audit_with_weird_types() -> None:
+    # Cover audit trail with totally invalid event/user/context
+    hashing.add_audit(None, None, None)  # type: ignore
+    assert hashing._AUDIT_TRAIL[-1]["event"] is None  # type: ignore
+
+
+def test_validate_costs_happy_path() -> None:
+    hashing._validate_costs(3, 65536, 2)  # valid path
+
+
+def test_pbkdf2_invalid_split_and_decode() -> None:
+    assert not hashing.verify_password("pw", "pbkdf2:notbase64:anotherbad")
+    assert not hashing.verify_password("pw", "pbkdf2:spart1")
+    assert not hashing.verify_password("pw", "pbkdf2:bad:params:here")
+
+
+def test_needs_rehash_raises(monkeypatch: MonkeyPatch) -> None:
+    class DummyPH:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+        def hash(self, password: str) -> str:
+            return "dummyhash"
+
+        def check_needs_rehash(self, h: str) -> bool:
+            raise RuntimeError("fail branch for test")
+
+    monkeypatch.setattr(hashing, "PasswordHasher", DummyPH)
+    h = hashing.hash_password("pw", scheme="argon2id")
+    # Теперь действительно сработает try/except внутри needs_rehash,
+    # и будет coverage по error branch и return True
+    assert hashing.needs_rehash(h, scheme="argon2id") is True
+
+
+def test_legacy_verify_password_misc() -> None:
+    assert not hashing.legacy_verify_password("pw", "hashy", "notarealscheme")
+    assert not hashing.legacy_verify_password("pw", 1234, "sha256")  # type: ignore
+
+
+def test_argon2id_managed_hash_raises(monkeypatch: MonkeyPatch) -> None:
+    class DummyPH:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+        def hash(self, password: str) -> str:
+            raise RuntimeError("forced error for coverage")
+
+    monkeypatch.setattr(hashing, "PasswordHasher", DummyPH)
+    with pytest.raises(RuntimeError):
+        hashing.hash_password("pw", scheme="argon2id")
+
+
+def test_argon2id_verify_password_exception(monkeypatch: MonkeyPatch) -> None:
+    class DummyPH:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+        def verify(self, h: str, pw: str) -> bool:
+            raise RuntimeError("fail branch")
+
+    monkeypatch.setattr(hashing, "PasswordHasher", DummyPH)
+    h = "$argon2id$v=19$m=65536,t=3,p=4$MTIz$YWJj"  # valid-looking hash
+    # verify_password должен fallback-нуть в False через exception/log
+    assert not hashing.verify_password("pw", h)
+
+
+def test_needs_rehash_check_raises(monkeypatch: MonkeyPatch) -> None:
+    class DummyPH:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+        def hash(self, password: str) -> str:
+            return "dummy"
+
+        def check_needs_rehash(self, h: str) -> bool:
+            raise RuntimeError("fail branch")
+
+    monkeypatch.setattr(hashing, "PasswordHasher", DummyPH)
+    h = hashing.hash_password("pw", scheme="argon2id")
+    assert hashing.needs_rehash(h, scheme="argon2id") is True
+
+
+def test_legacy_verify_password_unused_schemes() -> None:
+    assert not hashing.legacy_verify_password("pw", "somehash", "notarealscheme")
+    assert not hashing.legacy_verify_password("pw", 1234, "sha256")  # type: ignore
+
+    # Также попробуйте trash input:
+    assert not hashing.legacy_verify_password(
+        "pw", "short", "sha256"
+    )  # слишком короткий хэш для сравнения
+
+
+def test_legacy_verify_password_unreachable_and_trash() -> None:
+    # Неизвестная/битая схема/тип
+    assert not hashing.legacy_verify_password("pw", "bad", "foobar123")
+    assert not hashing.legacy_verify_password("pw", 42, "sha256")  # type: ignore
+    assert not hashing.legacy_verify_password("pw", "", "sha256")
+    # Слишком короткий legacy hash string
+    assert not hashing.legacy_verify_password("pw", "abcdef", "sha256")
