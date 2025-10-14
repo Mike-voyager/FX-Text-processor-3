@@ -236,9 +236,10 @@ FX-Text-processor-3/
 │   │   ├── totp_service.py             # ✅ DONE
 │   │   ├── code_service.py             # ✅ DONE
 │   │   ├── session.py                  # 🚧 TODO
-│   │   ├── session_service.py          
+│   │   ├── session_service.py          # 🚧 TODO
 │   │   ├── permissions.py              # 🚧 TODO
-│   │   ├── permissions_service.py
+│   │   ├── permissions_service.py      # 🚧 TODO
+│   │   ├── auth_service.py             # 🚧 TODO
 │   │   └── second_method/  # ✅ DONE
 │   │       ├── __init__.py # ✅ DONE
 │   │       ├── fido2.py    # ✅ DONE
