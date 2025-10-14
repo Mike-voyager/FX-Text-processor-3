@@ -57,7 +57,12 @@ def test_remove_custom_preset_with_preset_name() -> None:
 def test_permissions_enforced_by_plugin_register() -> None:
     palette = FormPalette()
     # plugin can define its own permission
-    plugin = {"type": "sys", "label": "Системн.", "preset_name": "sys", "permissions": ["super"]}
+    plugin = {
+        "type": "sys",
+        "label": "Системн.",
+        "preset_name": "sys",
+        "permissions": ["super"],
+    }
     palette.register_plugin_preset(plugin)
     # Should not be available to "user"
     assert palette.get_preset("sys", role="user") is None
@@ -94,7 +99,9 @@ def test_all_presets_category_icon_order_i18n() -> None:
 
 def test_export_import_preserves_case_and_order(tmp_path: Path) -> None:
     palette = FormPalette()
-    palette.add_custom_preset({"type": "Ccc", "label": "Test", "preset_name": "vvv", "order": 12})
+    palette.add_custom_preset(
+        {"type": "Ccc", "label": "Test", "preset_name": "vvv", "order": 12}
+    )
     path = tmp_path / "exp.json"
     palette.export_palette(str(path))
     palette.reset_to_default()
@@ -108,7 +115,9 @@ def test_add_custom_missing_optional_fields() -> None:
     c = {"type": "XXX", "label": "Lbl", "preset_name": "PPP"}
     palette.add_custom_preset(c)
     pc = palette.get_preset("xxx", preset_name="ppp")
-    assert pc is not None and all(k in pc for k in ("icon", "category", "order", "i18n"))
+    assert pc is not None and all(
+        k in pc for k in ("icon", "category", "order", "i18n")
+    )
 
 
 def test_plugin_api_is_alias_for_custom() -> None:
@@ -121,7 +130,8 @@ def test_plugin_api_is_alias_for_custom() -> None:
 def test_import_palette_empty_presets(tmp_path: Path) -> None:
     file_path = tmp_path / "empty_presets.json"
     file_path.write_text(
-        '{"presets":[], "custom":[{"type":"t","label":"L","preset_name":"t"}]}', encoding="utf-8"
+        '{"presets":[], "custom":[{"type":"t","label":"L","preset_name":"t"}]}',
+        encoding="utf-8",
     )
     palette = FormPalette()
     palette.import_palette(str(file_path))
@@ -172,12 +182,16 @@ def test_import_palette_presets_with_missing_fields(tmp_path: Path) -> None:
     palette.import_palette(str(file_path))
     p = palette.get_preset("MF", preset_name="mf")
     # patched fields must be present even in "patched" by import
-    assert p and all(k in p for k in ("category", "icon", "order", "i18n", "permissions"))
+    assert p and all(
+        k in p for k in ("category", "icon", "order", "i18n", "permissions")
+    )
 
 
 def test_import_custom_missing_type_field(tmp_path: Path) -> None:
     file_path = tmp_path / "badcustom.json"
-    file_path.write_text('{"custom":[{"label":"Lbl","preset_name":"myp"}]}', encoding="utf-8")
+    file_path.write_text(
+        '{"custom":[{"label":"Lbl","preset_name":"myp"}]}', encoding="utf-8"
+    )
     palette = FormPalette()
     palette.import_palette(str(file_path))
     # should not crash, nothing added
@@ -186,8 +200,12 @@ def test_import_custom_missing_type_field(tmp_path: Path) -> None:
 
 def test_list_presets_order_sort() -> None:
     palette = FormPalette()
-    palette.add_custom_preset({"type": "t", "label": "A", "preset_name": "a", "order": 222})
-    palette.add_custom_preset({"type": "t", "label": "B", "preset_name": "b", "order": 10})
+    palette.add_custom_preset(
+        {"type": "t", "label": "A", "preset_name": "a", "order": 222}
+    )
+    palette.add_custom_preset(
+        {"type": "t", "label": "B", "preset_name": "b", "order": 10}
+    )
     ordered = palette.list_presets()
     idx1 = next(i for i, p in enumerate(ordered) if p["label"] == "B")
     idx2 = next(i for i, p in enumerate(ordered) if p["label"] == "A")

@@ -75,13 +75,20 @@ def test_add_column_and_swap_column_errors() -> None:
 
 
 def test_borderchars_for_all_styles() -> None:
-    for style in [TableBorder.SINGLE, TableBorder.DOUBLE, TableBorder.ASCII_ART, TableBorder.NONE]:
+    for style in [
+        TableBorder.SINGLE,
+        TableBorder.DOUBLE,
+        TableBorder.ASCII_ART,
+        TableBorder.NONE,
+    ]:
         chars = BorderChars.for_style(style)
         assert isinstance(chars, BorderChars)
 
 
 def test_is_any_visible_and_merged_and_nested() -> None:
-    cb = CellBorders(TableBorder.SINGLE, TableBorder.NONE, TableBorder.NONE, TableBorder.NONE)
+    cb = CellBorders(
+        TableBorder.SINGLE, TableBorder.NONE, TableBorder.NONE, TableBorder.NONE
+    )
     assert cb.is_any_visible()
     cell = Cell()
     assert cell.is_merged() is False

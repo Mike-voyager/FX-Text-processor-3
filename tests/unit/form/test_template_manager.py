@@ -20,7 +20,9 @@ AUTHOR = "unit-tester"
 
 
 def create_manager(
-    tmp_path: Path, config: Optional[Dict[str, Any]] = None, user: Optional[Dict[str, Any]] = None
+    tmp_path: Path,
+    config: Optional[Dict[str, Any]] = None,
+    user: Optional[Dict[str, Any]] = None,
 ) -> TemplateManager:
     if config is None:
         config = DEFAULT_SECURITY_CONFIG
@@ -115,8 +117,12 @@ def test_batch_migrate(tmp_path: Path) -> None:
 
 def test_search_and_metadata(tmp_path: Path) -> None:
     mgr = create_manager(tmp_path)
-    mgr.save_template("search1", BASIC_TEMPLATE, AUTHOR, metadata={"category": "contract"})
-    mgr.save_template("search2", BASIC_TEMPLATE, AUTHOR, metadata={"category": "specform"})
+    mgr.save_template(
+        "search1", BASIC_TEMPLATE, AUTHOR, metadata={"category": "contract"}
+    )
+    mgr.save_template(
+        "search2", BASIC_TEMPLATE, AUTHOR, metadata={"category": "specform"}
+    )
     res = mgr.search("contract")
     assert "search1" in res
     meta = mgr.get_template_metadata("search2")
@@ -141,7 +147,9 @@ def test_html_escape_variable_substitution(tmp_path: Path) -> None:
 
 def test_rate_limit(tmp_path: Path) -> None:
     cfg = {**DEFAULT_SECURITY_CONFIG, "rate_limit_requests_per_hour": 2}
-    mgr = create_manager(tmp_path, config=cfg, user={"user_id": "rater", "role": "admin"})
+    mgr = create_manager(
+        tmp_path, config=cfg, user={"user_id": "rater", "role": "admin"}
+    )
     mgr.save_template("ratel", BASIC_TEMPLATE, AUTHOR)
     mgr.save_template("ratel2", BASIC_TEMPLATE, AUTHOR)
     with pytest.raises(TemplateManagerError):
@@ -180,7 +188,11 @@ def test_checksum_integrity(tmp_path: Path) -> None:
 
 
 def test_max_nesting_and_size_limits(tmp_path: Path) -> None:
-    cfg = {**DEFAULT_SECURITY_CONFIG, "max_nesting_depth": 3, "max_template_size_mb": 0.0001}
+    cfg = {
+        **DEFAULT_SECURITY_CONFIG,
+        "max_nesting_depth": 3,
+        "max_template_size_mb": 0.0001,
+    }
     mgr = create_manager(tmp_path, config=cfg)
     too_deep = {"kind": "x", "layout_type": "g", "elements": [[[[1]]]]}
     with pytest.raises(TemplateManagerError):
@@ -294,7 +306,9 @@ def test_invalid_variable_types_in_substitute(tmp_path: Path) -> None:
 def test_hierachy_roles(tmp_path: Path) -> None:
     # Тут editor может удалить шаблон, user — нет
     mgr_admin = create_manager(
-        tmp_path, user={"user_id": "aaa", "role": "admin"}, config={"require_auth": True}
+        tmp_path,
+        user={"user_id": "aaa", "role": "admin"},
+        config={"require_auth": True},
     )
     mgr_admin.save_template("hrole", BASIC_TEMPLATE, AUTHOR)
     mgr_admin.templates["hrole"].metadata["delete_role"] = "editor"
@@ -305,7 +319,9 @@ def test_hierachy_roles(tmp_path: Path) -> None:
     with pytest.raises(TemplateManagerError):
         mgr_user.delete_template("hrole")
     mgr_editor = create_manager(
-        tmp_path, user={"user_id": "eee", "role": "editor"}, config={"require_auth": True}
+        tmp_path,
+        user={"user_id": "eee", "role": "editor"},
+        config={"require_auth": True},
     )
     mgr_editor.delete_template("hrole", force=True)
     assert "hrole" not in mgr_editor.list_templates(include_deleted=True)

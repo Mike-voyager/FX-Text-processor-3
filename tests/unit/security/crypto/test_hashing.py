@@ -6,7 +6,7 @@ from pytest import MonkeyPatch
 import importlib
 import builtins
 
-from security.crypto import hashing
+from src.security.crypto import hashing
 
 
 @pytest.fixture(autouse=True)

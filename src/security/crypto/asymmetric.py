@@ -44,7 +44,12 @@ def _secure_log(
     if any(word in text for word in SENSITIVE_KEYWORDS):
         return
     logger.info(
-        msg, *args, exc_info=exc_info, stack_info=stack_info, extra=extra, stacklevel=stacklevel
+        msg,
+        *args,
+        exc_info=exc_info,
+        stack_info=stack_info,
+        extra=extra,
+        stacklevel=stacklevel,
     )
 
 
@@ -94,12 +99,16 @@ class AsymmetricKeyPair:
     private_key: Union[
         ed25519.Ed25519PrivateKey, rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey, None
     ]
-    public_key: Union[ed25519.Ed25519PublicKey, rsa.RSAPublicKey, ec.EllipticCurvePublicKey, None]
+    public_key: Union[
+        ed25519.Ed25519PublicKey, rsa.RSAPublicKey, ec.EllipticCurvePublicKey, None
+    ]
     algorithm: str
 
     def _validate_keypair(self, private_key: object, public_key: object) -> None:
         if private_key is not None and public_key is None:
-            raise KeyFormatError("public_key must not be None if private_key is present.")
+            raise KeyFormatError(
+                "public_key must not be None if private_key is present."
+            )
 
     @staticmethod
     def generate(algorithm: str, key_size: Optional[int] = None) -> AsymmetricKeyPair:
@@ -118,7 +127,9 @@ class AsymmetricKeyPair:
             rsa_public = rsa_private.public_key()
             return AsymmetricKeyPair(rsa_private, rsa_public, algorithm)
         elif algorithm == "ecdsa_p256":
-            ec_private = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+            ec_private = ec.generate_private_key(
+                ec.SECP256R1(), backend=default_backend()
+            )
             ec_public = ec_private.public_key()
             return AsymmetricKeyPair(ec_private, ec_public, algorithm)
         else:
@@ -130,7 +141,9 @@ class AsymmetricKeyPair:
         data: bytes, algorithm: str, password: Optional[str] = None
     ) -> AsymmetricKeyPair:
         pw = password.encode("utf-8") if password else None
-        _secure_log("Loading private key: %s [pw: %s]", algorithm, _sanitize_password(password))
+        _secure_log(
+            "Loading private key: %s [pw: %s]", algorithm, _sanitize_password(password)
+        )
         if algorithm not in SUPPORTED_ALGORITHMS:
             logger.error("Unsupported algorithm: %s", algorithm)
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
@@ -153,7 +166,9 @@ class AsymmetricKeyPair:
         except (ValueError, TypeError, UnsupportedAlgorithm) as e:
             logger.error("Key import failed: %s (%s)", type(e).__name__, str(e))
             raise KeyFormatError(f"Failed to import private key: {e}")
-        raise KeyFormatError("Unreachable: something went wrong, no key returned")  # Ensure return
+        raise KeyFormatError(
+            "Unreachable: something went wrong, no key returned"
+        )  # Ensure return
 
     @staticmethod
     def from_public_bytes(data: bytes, algorithm: str) -> AsymmetricKeyPair:
@@ -166,14 +181,20 @@ class AsymmetricKeyPair:
                 return AsymmetricKeyPair(None, pk, algorithm)
             elif algorithm == "rsa4096" and isinstance(pk, rsa.RSAPublicKey):
                 return AsymmetricKeyPair(None, pk, algorithm)
-            elif algorithm == "ecdsa_p256" and isinstance(pk, ec.EllipticCurvePublicKey):
+            elif algorithm == "ecdsa_p256" and isinstance(
+                pk, ec.EllipticCurvePublicKey
+            ):
                 return AsymmetricKeyPair(None, pk, algorithm)
             else:
-                raise KeyFormatError("Unsupported/invalid PEM public key for declared algorithm")
+                raise KeyFormatError(
+                    "Unsupported/invalid PEM public key for declared algorithm"
+                )
         except (ValueError, TypeError, UnsupportedAlgorithm) as e:
             logger.error("PublicKey import failed: %s (%s)", type(e).__name__, str(e))
             raise KeyFormatError(f"Failed to import public key: {e}")
-        raise KeyFormatError("Unreachable: something went wrong, no public key returned")
+        raise KeyFormatError(
+            "Unreachable: something went wrong, no public key returned"
+        )
 
     def export_private_bytes(self, password: Optional[str] = None) -> bytes:
         if self.private_key is None:
@@ -202,7 +223,10 @@ class AsymmetricKeyPair:
         elif isinstance(self.private_key, rsa.RSAPrivateKey):
             return self.private_key.sign(
                 data,
-                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH,
+                ),
                 hashes.SHA256(),
             )
         elif isinstance(self.private_key, ec.EllipticCurvePrivateKey):
@@ -222,7 +246,8 @@ class AsymmetricKeyPair:
                     signature,
                     data,
                     padding.PSS(
-                        mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH,
                     ),
                     hashes.SHA256(),
                 )
@@ -231,7 +256,9 @@ class AsymmetricKeyPair:
                 self.public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
                 return True
             else:
-                raise UnsupportedAlgorithmError(f"Unsupported algorithm: {self.algorithm}")
+                raise UnsupportedAlgorithmError(
+                    f"Unsupported algorithm: {self.algorithm}"
+                )
         except InvalidSignature:
             return False
 
@@ -251,7 +278,9 @@ class AsymmetricKeyPair:
                     label=None,
                 ),
             )
-        elif isinstance(self.public_key, (ed25519.Ed25519PublicKey, ec.EllipticCurvePublicKey)):
+        elif isinstance(
+            self.public_key, (ed25519.Ed25519PublicKey, ec.EllipticCurvePublicKey)
+        ):
             raise NotImplementedError(f"{self.algorithm} does not support encryption.")
         else:
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {self.algorithm}")
@@ -268,7 +297,9 @@ class AsymmetricKeyPair:
                     label=None,
                 ),
             )
-        elif isinstance(self.private_key, (ed25519.Ed25519PrivateKey, ec.EllipticCurvePrivateKey)):
+        elif isinstance(
+            self.private_key, (ed25519.Ed25519PrivateKey, ec.EllipticCurvePrivateKey)
+        ):
             raise NotImplementedError(f"{self.algorithm} does not support decryption.")
         else:
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {self.algorithm}")

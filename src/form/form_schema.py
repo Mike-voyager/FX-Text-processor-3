@@ -186,7 +186,9 @@ class FormSchema:
     def __init__(self, spec: Dict[str, Any], version: str = "1.1") -> None:
         self.spec: Dict[str, Any] = copy.deepcopy(spec)
         self.version = version
-        self.field_validators: Dict[Tuple[str, str], List[Callable[[Any], Union[str, None]]]] = {}
+        self.field_validators: Dict[
+            Tuple[str, str], List[Callable[[Any], Union[str, None]]]
+        ] = {}
 
     def validate_form(self, form: Dict[str, Any]) -> bool:
         """Validates full structure, required keys, unique IDs, depth, element fields, custom field validators, aliases/groups links, compliance."""
@@ -214,7 +216,9 @@ class FormSchema:
         for i, el in enumerate(elements):
             t = el.get("type")
             if not t or t not in elt_types:
-                errors.append(ValidationError(f"Unknown element type: {t}", field="type", index=i))
+                errors.append(
+                    ValidationError(f"Unknown element type: {t}", field="type", index=i)
+                )
                 continue
             schema = self.get_element_schema(t)
             req = set(schema.get("required", [])) if schema else set()
@@ -223,7 +227,8 @@ class FormSchema:
             if missing_fields:
                 errors.append(
                     ValidationError(
-                        f"Element '{t}' missing required fields: {missing_fields}", index=i
+                        f"Element '{t}' missing required fields: {missing_fields}",
+                        index=i,
                     )
                 )
             # Deprecated/readonly/hidden fields
@@ -232,7 +237,9 @@ class FormSchema:
                 # field 'type' всегда допустим для любого элемента!
                 if field != "type" and field not in fspec and not field.startswith("_"):
                     errors.append(
-                        ValidationError(f"Unknown element field: {field}", field=field, index=i)
+                        ValidationError(
+                            f"Unknown element field: {field}", field=field, index=i
+                        )
                     )
                 # Run custom validators
                 val_key = (t, field)
@@ -241,7 +248,9 @@ class FormSchema:
                     if msg:
                         errors.append(
                             ValidationError(
-                                f"Custom validation failed for {field}: {msg}", field=field, index=i
+                                f"Custom validation failed for {field}: {msg}",
+                                field=field,
+                                index=i,
                             )
                         )
             # Aliases/groups links
@@ -261,7 +270,9 @@ class FormSchema:
                     if not any(e.get("id") == eid for e in elements):
                         errors.append(
                             ValidationError(
-                                f"Group references missing id: {eid}", field="elements", index=i
+                                f"Group references missing id: {eid}",
+                                field="elements",
+                                index=i,
                             )
                         )
         # Group structure
@@ -270,7 +281,9 @@ class FormSchema:
             for field in self.spec.get("group_fields", []):
                 if field not in gr:
                     errors.append(
-                        ValidationError(f"Group missing field: {field}", field=field, index=gi)
+                        ValidationError(
+                            f"Group missing field: {field}", field=field, index=gi
+                        )
                     )
         # Compliance check (if exists)
         compliance_level = form.get("kind", "regular")
@@ -279,7 +292,9 @@ class FormSchema:
         except ValidationError as ve:
             errors.append(ve)
         if errors:
-            raise ValidationError(f"Validation failed: {[str(e) for e in errors]}", nested=errors)
+            raise ValidationError(
+                f"Validation failed: {[str(e) for e in errors]}", nested=errors
+            )
         logger.info("Form passed schema validation.")
         return True
 
@@ -321,11 +336,15 @@ class FormSchema:
                 raise ValidationError(f"Compliance predicate error: {ex}")
             if not is_ok:
                 missing = set([s for s in predicate.split("'") if s in types])
-                raise ValidationError(f"Form not compliant: predicate failed. Missing: {missing}")
+                raise ValidationError(
+                    f"Form not compliant: predicate failed. Missing: {missing}"
+                )
         if must_have:
             missing = must_have - types
             if missing:
-                raise ValidationError(f"Form not compliant: missing required types {missing}")
+                raise ValidationError(
+                    f"Form not compliant: missing required types {missing}"
+                )
         logger.info("[COMPLIANCE] form passed for level %r.", compliance_level)
         return True
 
@@ -352,7 +371,9 @@ class FormSchema:
             eid = el.get("id")
             if eid:
                 if eid in ids:
-                    raise ValidationError(f"Duplicate element id: {eid}", field="id", index=i)
+                    raise ValidationError(
+                        f"Duplicate element id: {eid}", field="id", index=i
+                    )
                 ids.add(eid)
         for gi, gr in enumerate(form.get("groups", [])):
             name = gr.get("name")
@@ -376,7 +397,10 @@ class FormSchema:
             logger.info("Unregistered element type: %r", type_name)
 
     def register_field_validator(
-        self, type_name: str, field_name: str, validator: Callable[[Any], Union[str, None]]
+        self,
+        type_name: str,
+        field_name: str,
+        validator: Callable[[Any], Union[str, None]],
     ) -> None:
         """Custom field-level validator."""
         key = (type_name, field_name)

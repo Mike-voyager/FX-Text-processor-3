@@ -223,7 +223,8 @@ class Ed25519Verifier:
             return True
         except InvalidSignature:
             logger.warning(
-                "Invalid signature for message%s.", f" [Alias: {self.alias}]" if self.alias else ""
+                "Invalid signature for message%s.",
+                f" [Alias: {self.alias}]" if self.alias else "",
             )
             return False
         except Exception as exc:

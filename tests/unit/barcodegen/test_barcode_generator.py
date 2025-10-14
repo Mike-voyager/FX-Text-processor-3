@@ -36,10 +36,14 @@ class TestBarcodeGenerator:
         assert gen.options == {}
 
     # === Validation ===
-    def test_validate_success_ean13(self, valid_ean13_generator: BarcodeGenerator) -> None:
+    def test_validate_success_ean13(
+        self, valid_ean13_generator: BarcodeGenerator
+    ) -> None:
         valid_ean13_generator.validate()
 
-    def test_validate_success_code39(self, valid_code39_generator: BarcodeGenerator) -> None:
+    def test_validate_success_code39(
+        self, valid_code39_generator: BarcodeGenerator
+    ) -> None:
         valid_code39_generator.validate()
 
     def test_validate_empty_data(self) -> None:
@@ -57,7 +61,11 @@ class TestBarcodeGenerator:
         ],
     )
     def test_validate_ean_length(
-        self, barcode_type: BarcodeType, valid_data: str, invalid_data: str, expected_length: int
+        self,
+        barcode_type: BarcodeType,
+        valid_data: str,
+        invalid_data: str,
+        expected_length: int,
     ) -> None:
         gen = BarcodeGenerator(barcode_type, valid_data)
         gen.validate()
@@ -85,7 +93,9 @@ class TestBarcodeGenerator:
             ("ABC#DEF", "A-Z"),
         ],
     )
-    def test_validate_code39_invalid_chars(self, invalid_data: str, expected_msg: str) -> None:
+    def test_validate_code39_invalid_chars(
+        self, invalid_data: str, expected_msg: str
+    ) -> None:
         gen = BarcodeGenerator(BarcodeType.CODE39, invalid_data)
         with pytest.raises(BarcodeGenError, match=expected_msg):
             gen.validate()
@@ -178,7 +188,9 @@ class TestBarcodeGenerator:
 
     @patch("src.barcode.barcode_generator.pybarcode.get_barcode_class")
     def test_render_image_unsupported_type(self, mock_get_barcode_class: Mock) -> None:
-        mock_get_barcode_class.side_effect = Exception("BarcodeNotFoundError: not found")
+        mock_get_barcode_class.side_effect = Exception(
+            "BarcodeNotFoundError: not found"
+        )
         gen = BarcodeGenerator(BarcodeType.TRIOPTIC, "TEST")
         result = gen.render_image(width=200, height=80)
         assert isinstance(result, Image.Image)

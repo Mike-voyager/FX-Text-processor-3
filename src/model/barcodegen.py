@@ -60,7 +60,9 @@ class Barcode:
     # --- Криптография / QR-подпись:
     is_signature: bool = False
     signature_type: Optional[str] = None  # "gost3410", "pkcs7", "OID", etc
-    signature_payload: Optional[bytes] = None  # закодированные данные (base64/base58/DER/...)
+    signature_payload: Optional[bytes] = (
+        None  # закодированные данные (base64/base58/DER/...)
+    )
     signer_info: Optional[str] = None  # user/email/oid...
     signing_datetime: Optional[str] = None
     certificate_thumbprint: Optional[str] = None

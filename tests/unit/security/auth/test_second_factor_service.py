@@ -6,8 +6,14 @@ from src.security.auth.second_factor_service import FactorStatus, AuditRecord
 
 class DummyManager:
     def __init__(self) -> None:
-        self.status: Dict[str, Any] = {"id": "testid", "created": 0, "ttlseconds": 100000}
-        self.audit: List[Dict[str, Any]] = [{"action": "setup", "user": "u", "type": "t", "ts": 1}]
+        self.status: Dict[str, Any] = {
+            "id": "testid",
+            "created": 0,
+            "ttlseconds": 100000,
+        }
+        self.audit: List[Dict[str, Any]] = [
+            {"action": "setup", "user": "u", "type": "t", "ts": 1}
+        ]
         self.verify_result = True
 
     def setup_factor(self, user_id: str, factor_type: str, **kwargs: Any) -> str:
@@ -17,7 +23,11 @@ class DummyManager:
         return self.status
 
     def verify_factor(
-        self, user_id: str, factor_type: str, credential: Any, factor_id: Optional[str] = None
+        self,
+        user_id: str,
+        factor_type: str,
+        credential: Any,
+        factor_id: Optional[str] = None,
     ) -> bool:
         return self.verify_result
 

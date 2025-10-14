@@ -40,9 +40,20 @@ def special_form() -> dict[str, Any]:
         "layout_type": "grid",
         "elements": [
             {"type": "stamp", "id": "st1", "border_text": "Org", "qr_data": "data"},
-            {"type": "qr", "id": "qr1", "data": "payload", "size": 10, "error_correction": "M"},
+            {
+                "type": "qr",
+                "id": "qr1",
+                "data": "payload",
+                "size": 10,
+                "error_correction": "M",
+            },
             {"type": "watermark", "id": "wm1", "text": "Protected", "opacity": 0.2},
-            {"type": "signature", "id": "sig1", "algorithm": "ed25519", "key_id": "key1"},
+            {
+                "type": "signature",
+                "id": "sig1",
+                "algorithm": "ed25519",
+                "key_id": "key1",
+            },
         ],
         "groups": [],
     }
@@ -121,7 +132,12 @@ def test_group_reference_missing_id() -> None:
     bad = dict(valid_form())
     bad["elements"].append({"type": "label", "id": "extra"})
     bad["elements"].append(
-        {"type": "group", "id": "g1", "elements": ["el1", "missing_id"], "group_kind": "default"}
+        {
+            "type": "group",
+            "id": "g1",
+            "elements": ["el1", "missing_id"],
+            "group_kind": "default",
+        }
     )
     with pytest.raises(ValidationError) as exc:
         schema.validate_form(bad)
@@ -173,7 +189,9 @@ def test_compliance_special_ok() -> None:
 
 def test_dynamic_element_type_register() -> None:
     schema = FormSchema(FORM_SCHEMA_DEFAULT)
-    schema.register_element_type("custom", {"fields": ["id", "custom"], "required": ["custom"]})
+    schema.register_element_type(
+        "custom", {"fields": ["id", "custom"], "required": ["custom"]}
+    )
     types = schema.list_supported_element_types()
     assert "custom" in types
     schema.unregister_element_type("custom")

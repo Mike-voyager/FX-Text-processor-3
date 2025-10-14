@@ -74,7 +74,9 @@ class Matrix2DCodeGenerator:
         gs1_mode: bool = False,
     ) -> None:
         if not isinstance(barcode_type, Matrix2DCodeType):
-            logger.error("barcode_type must be Matrix2DCodeType, got %r", type(barcode_type))
+            logger.error(
+                "barcode_type must be Matrix2DCodeType, got %r", type(barcode_type)
+            )
             raise TypeError("barcode_type must be Matrix2DCodeType")
         self.barcode_type = barcode_type
         self.data = data
@@ -169,7 +171,9 @@ class Matrix2DCodeGenerator:
                 ERROR_CORRECT_H if (logo_path or logo_image) else ERROR_CORRECT_M,
             )
             fill_color = opts.get("fill_color", "black")
-            back_color = opts.get("back_color", "white") if not background_transparent else None
+            back_color = (
+                opts.get("back_color", "white") if not background_transparent else None
+            )
             qr = qrcode.QRCode(
                 version=qr_version,
                 error_correction=error_correction,
@@ -187,7 +191,9 @@ class Matrix2DCodeGenerator:
                 qr_img = qr_img.get_image()
             if not isinstance(qr_img, Image.Image):
                 logger.error("QR code did not produce a PIL.Image")
-                raise Matrix2DCodeGenError("QR code rendering did not produce a valid image")
+                raise Matrix2DCodeGenError(
+                    "QR code rendering did not produce a valid image"
+                )
             qr_img = qr_img.convert("RGBA" if background_transparent else "RGB")
             # Overlay logo
             if logo_path or logo_image:
@@ -199,8 +205,12 @@ class Matrix2DCodeGenerator:
                     logo = Image.open(logo_path).convert("RGBA")
                 if logo is not None:
                     min_side = min(qr_img.width, qr_img.height)
-                    logo_size = max(10, min(int(min_side * logo_scale), int(min_side * 0.5)))
-                    logo = logo.resize((logo_size, logo_size), resample=RESAMPLE_LANCZOS)
+                    logo_size = max(
+                        10, min(int(min_side * logo_scale), int(min_side * 0.5))
+                    )
+                    logo = logo.resize(
+                        (logo_size, logo_size), resample=RESAMPLE_LANCZOS
+                    )
                     if logo_round:
                         mask = Image.new("L", (logo_size, logo_size), 0)
                         draw = ImageDraw.Draw(mask)
@@ -254,7 +264,9 @@ class Matrix2DCodeGenerator:
 
             if dm_img is None or not isinstance(dm_img, Image.Image):
                 logger.error("Unable to extract DataMatrix image")
-                raise Matrix2DCodeGenError("Unable to extract image from pylibdmtx result")
+                raise Matrix2DCodeGenError(
+                    "Unable to extract image from pylibdmtx result"
+                )
             img = dm_img.convert("RGBA" if background_transparent else "RGB")
 
         # --- PDF417
@@ -271,7 +283,9 @@ class Matrix2DCodeGenerator:
 
         else:
             logger.error("Unsupported 2D barcode type %r", self.barcode_type)
-            raise Matrix2DCodeGenError(f"Unsupported 2D barcode type: {self.barcode_type!r}")
+            raise Matrix2DCodeGenError(
+                f"Unsupported 2D barcode type: {self.barcode_type!r}"
+            )
 
         # --- Resize
         if not isinstance(img, Image.Image):
@@ -295,7 +309,9 @@ class Matrix2DCodeGenerator:
                 font_size=caption_font_size,
                 transparent=background_transparent,
             )
-        logger.info("2D code generated: %s type, %r chars", self.barcode_type.name, len(payload))
+        logger.info(
+            "2D code generated: %s type, %r chars", self.barcode_type.name, len(payload)
+        )
         return img
 
     @staticmethod
@@ -435,4 +451,6 @@ class Matrix2DCodeGenerator:
 
         loop = asyncio.get_running_loop()
         # Prefer off-main-thread to avoid Tk-interference
-        return await loop.run_in_executor(None, lambda: self.render_bytes(*args, **kwargs))
+        return await loop.run_in_executor(
+            None, lambda: self.render_bytes(*args, **kwargs)
+        )

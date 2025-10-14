@@ -245,7 +245,9 @@ def set_vertical_tabs(positions: list[int]) -> bytes:
     # Validate ascending order
     for i in range(len(positions) - 1):
         if positions[i] >= positions[i + 1]:
-            raise ValueError(f"Vertical tab positions must be ascending, got {positions}")
+            raise ValueError(
+                f"Vertical tab positions must be ascending, got {positions}"
+            )
 
     # Validate range
     for pos in positions:

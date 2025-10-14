@@ -4,7 +4,7 @@ import pytest
 import threading
 from typing import Any, Dict, List, Tuple, Iterator, cast, BinaryIO
 
-import security.auth.totp_service as tots
+import src.security.auth.totp_service as tots
 
 
 class DummyManager:

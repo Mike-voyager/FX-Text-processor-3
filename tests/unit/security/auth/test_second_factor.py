@@ -8,7 +8,11 @@ from src.security.crypto.secure_storage import SecureStorage, StorageBackend
 
 class DummyFactor:
     def setup(self, user_id: str, **kwargs: Any) -> Dict[str, Any]:
-        return {"id": "testid", "created": 12345, "ttlseconds": kwargs.get("ttlseconds")}
+        return {
+            "id": "testid",
+            "created": 12345,
+            "ttlseconds": kwargs.get("ttlseconds"),
+        }
 
     def verify(self, user_id: str, credential: str, state: object) -> bool:
         return credential == "valid"
@@ -212,7 +216,9 @@ def test_secure_del_branches(manager: SecondFactorManager) -> None:
         {"factors": {"a": {"t": [{"state": {}}]}}, "audit": []},
     ],
 )
-def test_factors_audit_edge_cases(manager: SecondFactorManager, scenario: Dict[str, Any]) -> None:
+def test_factors_audit_edge_cases(
+    manager: SecondFactorManager, scenario: Dict[str, Any]
+) -> None:
     manager._factors = scenario.get("factors", {})
     manager._audit = scenario.get("audit", [])
     assert manager.get_history("a", "t") is not None

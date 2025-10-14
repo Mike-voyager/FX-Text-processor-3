@@ -30,7 +30,9 @@ def test_register_defaults() -> None:
 def test_create_and_get_custom_style() -> None:
     mgr = StyleManager()
     mgr.create_style_from_template(
-        "CustomText", "text", {"text_style": TextStyle.BOLD, "font_family": FontFamily.ROMAN}
+        "CustomText",
+        "text",
+        {"text_style": TextStyle.BOLD, "font_family": FontFamily.ROMAN},
     )
     assert "CustomText" in mgr.list_styles()
     style = mgr.get_style("CustomText")
@@ -57,7 +59,9 @@ def test_style_validation_cpi_font() -> None:
     # Недопустимая пара font+cpi должна вызвать ошибку
     with pytest.raises(StyleManagerError):
         mgr.create_style_from_template(
-            "InvalidCombo", "text", {"font_family": FontFamily.USD, "cpi": CharactersPerInch.CPI_20}
+            "InvalidCombo",
+            "text",
+            {"font_family": FontFamily.USD, "cpi": CharactersPerInch.CPI_20},
         )
 
 
@@ -73,7 +77,9 @@ def test_remove_style() -> None:
 def test_apply_style_object() -> None:
     mgr = StyleManager()
     obj = {"foo": "bar"}
-    mgr.create_style_from_template("TextApply", "text", {"font_family": FontFamily.ROMAN})
+    mgr.create_style_from_template(
+        "TextApply", "text", {"font_family": FontFamily.ROMAN}
+    )
     result = mgr.apply_style(obj, "TextApply")
     assert result["foo"] == "bar"
     assert result["font_family"] == FontFamily.ROMAN
@@ -82,7 +88,9 @@ def test_apply_style_object() -> None:
 def test_export_import_styles() -> None:
     mgr = StyleManager()
     mgr.create_style_from_template(
-        "ExportTest", "text", {"font_family": FontFamily.ROMAN, "text_style": TextStyle.BOLD}
+        "ExportTest",
+        "text",
+        {"font_family": FontFamily.ROMAN, "text_style": TextStyle.BOLD},
     )
 
     # Экспорт должен работать с Enum объектами
@@ -97,7 +105,9 @@ def test_export_import_styles() -> None:
 
 def test_describe_style() -> None:
     mgr = StyleManager()
-    mgr.create_style_from_template("DescStyle", "text", {"font_family": FontFamily.ROMAN})
+    mgr.create_style_from_template(
+        "DescStyle", "text", {"font_family": FontFamily.ROMAN}
+    )
     desc = mgr.describe_style("DescStyle")
     assert isinstance(desc, dict)
     assert "font_family" in desc
@@ -128,7 +138,9 @@ def test_cache_consistency() -> None:
 def test_style_validation_barcode() -> None:
     mgr = StyleManager()
     # Валидный barcode стиль работает
-    mgr.create_style_from_template("ValidBarcode", "barcode", {"barcode_type": BarcodeType.EAN13})
+    mgr.create_style_from_template(
+        "ValidBarcode", "barcode", {"barcode_type": BarcodeType.EAN13}
+    )
     assert "ValidBarcode" in mgr.list_styles()
 
 
@@ -196,7 +208,9 @@ def test_parent_chain_lookup() -> None:
 
 def test_apply_style_missing_key() -> None:
     mgr = StyleManager()
-    mgr.create_style_from_template("PartStyle", "text", {"font_family": FontFamily.ROMAN})
+    mgr.create_style_from_template(
+        "PartStyle", "text", {"font_family": FontFamily.ROMAN}
+    )
     obj: dict[str, Any] = {}
     result = mgr.apply_style(obj, "PartStyle")
     assert result["font_family"] == FontFamily.ROMAN
@@ -205,9 +219,13 @@ def test_apply_style_missing_key() -> None:
 
 def test_remove_and_readd_style() -> None:
     mgr = StyleManager()
-    mgr.create_style_from_template("TempStyle", "text", {"font_family": FontFamily.SANS_SERIF})
+    mgr.create_style_from_template(
+        "TempStyle", "text", {"font_family": FontFamily.SANS_SERIF}
+    )
     mgr.remove_style("TempStyle")
-    mgr.create_style_from_template("TempStyle", "text", {"font_family": FontFamily.DRAFT})
+    mgr.create_style_from_template(
+        "TempStyle", "text", {"font_family": FontFamily.DRAFT}
+    )
     style = mgr.get_style("TempStyle")
     assert style.get_param("font_family") == FontFamily.DRAFT
 
@@ -238,7 +256,9 @@ def test_export_style_with_flags_and_enums() -> None:
 def test_import_export_full_cycle() -> None:
     mgr = StyleManager()
     mgr.create_style_from_template(
-        "FullCycle", "text", {"font_family": FontFamily.ROMAN, "text_style": TextStyle.BOLD}
+        "FullCycle",
+        "text",
+        {"font_family": FontFamily.ROMAN, "text_style": TextStyle.BOLD},
     )
     json_str = mgr.export_styles()
     mgr2 = StyleManager()
@@ -289,7 +309,9 @@ def test_cache_lru_behavior() -> None:
     names = []
     for i in range(135):  # lru_cache ограничен до 128, выйдем за пределы
         style_name = f"CacheStyle{i}"
-        mgr.create_style_from_template(style_name, "text", {"font_family": FontFamily.DRAFT})
+        mgr.create_style_from_template(
+            style_name, "text", {"font_family": FontFamily.DRAFT}
+        )
         names.append(style_name)
         mgr.get_style_params(style_name)
     # Все стили зарегистрированы, кэш очищается автоматически

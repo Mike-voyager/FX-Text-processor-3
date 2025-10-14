@@ -5,7 +5,12 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any
 
-from security.auth.password import PasswordHasher, MfaEvent, is_valid_password, MAX_FAILED_ATTEMPTS
+from src.security.auth.password import (
+    PasswordHasher,
+    MfaEvent,
+    is_valid_password,
+    MAX_FAILED_ATTEMPTS,
+)
 
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
@@ -148,7 +153,7 @@ def test_async_hash_and_verify() -> None:
 
 
 def test_zero_memory_bytearray_sideeffect() -> None:
-    from security.auth.password import zero_memory
+    from src.security.auth.password import zero_memory
 
     ba = bytearray(b"secretdata")
     zero_memory(ba)
@@ -182,7 +187,7 @@ def test_hash_format_version_change(monkeypatch: Any) -> None:
     pw = "Vers1onGoodpass!"
     salt = h.generate_salt()
     hashed = h.hash_password(pw, salt, user_id="vchange")
-    import security.auth.password as mod
+    import src.security.auth.password as mod
 
     object.__setattr__(mod, "_HASH_FORMAT_VERSION", "v2")
     assert h.needs_rehash(hashed, user_id="vchange")
@@ -209,8 +214,8 @@ def test_mfa_callback_error_handling(caplog: Any) -> None:
 
 
 def test_shutdown_without_pool(monkeypatch: Any) -> None:
-    from security.auth.password import _thread_pool
-    import security.auth.password as mod
+    from src.security.auth.password import _thread_pool
+    import src.security.auth.password as mod
 
     # Ensure the pool is None
     object.__setattr__(mod, "_thread_pool", None)
@@ -244,3 +249,93 @@ def test_verify_password_kdf_error(monkeypatch: Any) -> None:
     hashed = h.hash_password("ValidPass1!", salt, user_id="badkdf")
     # Ошибка возникает именно в verify
     assert not h.verify_password("ValidPass1!", hashed, user_id="badkdf")
+
+
+def test_zeroize_all_secrets() -> None:
+    """Test that zeroize_all_secrets clears all sensitive data."""
+    hasher = PasswordHasher(pepper=b"test_pepper_secret")
+
+    # Create some data
+    salt = hasher.generate_salt()
+    hashed = hasher.hash_password("TestPass!123", salt, "user1")
+
+    # Verify it works before zeroize
+    assert hasher.verify_password("TestPass!123", hashed, "user1")
+
+    # Track some failed attempts
+    hasher._attempts["user1"] = 3
+
+    # Zeroize
+    hasher.zeroize_all_secrets()
+
+    # Check pepper is cleared
+    assert hasher.pepper is None
+
+    # Check attempts cleared
+    assert len(hasher._attempts) == 0
+
+
+def test_zeroize_with_old_pepper() -> None:
+    """Test zeroize clears both current and old pepper."""
+    hasher = PasswordHasher(pepper=b"new_pepper")
+
+    # Manually set old pepper using object.__setattr__ (frozen dataclass)
+    object.__setattr__(hasher, "pepper_old", b"old_pepper")
+
+    hasher.zeroize_all_secrets()
+
+    assert hasher.pepper is None
+    assert hasher.pepper_old is None
+
+
+def test_hasher_context_manager() -> None:
+    """Test using PasswordHasher as context manager."""
+    with PasswordHasher(pepper=b"context_pepper") as hasher:
+        salt = hasher.generate_salt()
+        hashed = hasher.hash_password("CtxPass!123", salt, "ctx_user")
+        assert hasher.verify_password("CtxPass!123", hashed, "ctx_user")
+
+    # After exit, should be cleaned up
+    assert hasher.pepper is None
+
+
+def test_zeroize_idempotent() -> None:
+    """Test that calling zeroize multiple times is safe."""
+    hasher = PasswordHasher(pepper=b"test_pepper")
+
+    hasher.zeroize_all_secrets()
+    # Should not raise exception
+    hasher.zeroize_all_secrets()
+
+    assert hasher.pepper is None
+
+
+def test_zeroize_clears_thread_pool() -> None:
+    """Test that zeroize also shuts down thread pool."""
+    hasher = PasswordHasher(pepper=b"pool_test")
+
+    # Create some work to potentially initialize thread pool
+    salt = hasher.generate_salt()
+    hasher.hash_password("PoolTest!123", salt, "pool_user")
+
+    # Zeroize should shutdown pool and clear secrets
+    hasher.zeroize_all_secrets()
+
+    # Verify secrets are cleared
+    assert hasher.pepper is None
+
+    # Shutdown should be idempotent - calling again shouldn't raise
+    hasher.shutdown()
+
+
+def test_hasher_without_pepper() -> None:
+    """Test zeroize works even without pepper."""
+    hasher = PasswordHasher()  # No pepper
+
+    salt = hasher.generate_salt()
+    hashed = hasher.hash_password("Nopepper!123", salt, "no_pepper_user")
+
+    # Should not raise exception
+    hasher.zeroize_all_secrets()
+
+    assert hasher.pepper is None

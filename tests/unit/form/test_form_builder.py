@@ -206,7 +206,12 @@ def test_invalid_layout_type_and_elements() -> None:
     with pytest.raises(FormBuilderError):
         validate_form_structure(form_dict)
     # Elements not a list
-    form_dict2 = {"kind": "regular", "layout_type": "grid", "elements": "notalist", "groups": []}
+    form_dict2 = {
+        "kind": "regular",
+        "layout_type": "grid",
+        "elements": "notalist",
+        "groups": [],
+    }
     with pytest.raises(FormBuilderError):
         validate_form_structure(form_dict2)
 
@@ -328,7 +333,11 @@ def test_custom_rules_none_branch() -> None:
 
 def test_audit_element_validates_all_fields() -> None:
     audit = AuditElement(
-        id="a", user_id="u", action="export", timestamp="2020-01-01T12:00:00", hash_chain="abc"
+        id="a",
+        user_id="u",
+        action="export",
+        timestamp="2020-01-01T12:00:00",
+        hash_chain="abc",
     )
     audit.validate()
 

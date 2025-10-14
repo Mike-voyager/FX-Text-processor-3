@@ -133,7 +133,9 @@ class VariableParser:
     ) -> str:
         trace = _trace if _trace is not None else set()
         if _depth > 10:
-            raise CircularReferenceError("Circular reference detected during substitution")
+            raise CircularReferenceError(
+                "Circular reference detected during substitution"
+            )
 
         def _sub(val: str) -> str:
             def replace(m: re.Match) -> str:
@@ -302,7 +304,9 @@ class VariableParser:
         escape_html: bool = True,
         max_size: int = 10000,
     ) -> Any:
-        return VariableParser.substitute_variables_dispatch(obj, values, escape_html, max_size)
+        return VariableParser.substitute_variables_dispatch(
+            obj, values, escape_html, max_size
+        )
 
     @staticmethod
     def find_missing_variables(
@@ -363,7 +367,11 @@ class VariableParser:
     @staticmethod
     def process_variable_element(element: Any, values: Dict[str, Any]) -> Any:
         name = getattr(element, "name", None)
-        value = values.get(name, getattr(element, "value", None)) if name is not None else None
+        value = (
+            values.get(name, getattr(element, "value", None))
+            if name is not None
+            else None
+        )
         try:
             out_value = (
                 VariableParser.substitute_variables_dispatch(str(value), values)
@@ -384,12 +392,16 @@ class VariableParser:
                 raise VariableParserError("Forbidden variables in special form")
 
     @staticmethod
-    def substitute_stream(template_stream: Iterator[str], values: Dict[str, Any]) -> Iterator[str]:
+    def substitute_stream(
+        template_stream: Iterator[str], values: Dict[str, Any]
+    ) -> Iterator[str]:
         for part in template_stream:
             yield VariableParser.substitute_variables_str(part, values)
 
     @staticmethod
-    def safe_substitute_with_rollback(obj: Any, values: Dict[str, Any]) -> Tuple[Any, bool]:
+    def safe_substitute_with_rollback(
+        obj: Any, values: Dict[str, Any]
+    ) -> Tuple[Any, bool]:
         try:
             res = VariableParser.substitute_variables_dispatch(obj, values)
             return res, True

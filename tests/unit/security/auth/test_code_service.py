@@ -10,9 +10,17 @@ class DummyManager:
         self._factors: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
     def setup_factor(self, user_id: str, ftype: str, **kwargs: Any) -> None:
-        codes_lst = [{"code": f"C-{i}", "used": False} for i in range(kwargs.get("count", 1))]
+        codes_lst = [
+            {"code": f"C-{i}", "used": False} for i in range(kwargs.get("count", 1))
+        ]
         self._factors.setdefault(user_id, {}).setdefault(ftype, []).append(
-            {"state": {"codes": codes_lst, "audit": [999], "ttl": kwargs.get("ttlseconds", 10)}}
+            {
+                "state": {
+                    "codes": codes_lst,
+                    "audit": [999],
+                    "ttl": kwargs.get("ttlseconds", 10),
+                }
+            }
         )
 
     def verify_factor(self, user_id: str, ftype: str, credential: str) -> bool:
@@ -90,17 +98,25 @@ def test_get_backup_codes_audit_empty() -> None:
     assert codes.get_backup_codes_audit("unknown") == []
 
 
-def test_get_backup_code_secret_for_storage_success(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_backup_code_secret_for_storage_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     codes.issue_backup_codes_for_user("sec", count=1)
     # Патчим derive_key_argon2id чтобы он возвращал видимую строку
-    monkeypatch.setattr(codes, "derive_key_argon2id", lambda pw, salt, length: b"k" * length)
+    monkeypatch.setattr(
+        codes, "derive_key_argon2id", lambda pw, salt, length: b"k" * length
+    )
     secret = codes.get_backup_code_secret_for_storage("sec", "safe")
     assert isinstance(secret, bytes)
     assert secret.startswith(b"k")
 
 
-def test_get_backup_code_secret_for_storage_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_backup_code_secret_for_storage_fail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     codes.issue_backup_codes_for_user("failuser", count=1)
-    monkeypatch.setattr(codes, "derive_key_argon2id", lambda pw, salt, length: b"k" * length)
+    monkeypatch.setattr(
+        codes, "derive_key_argon2id", lambda pw, salt, length: b"k" * length
+    )
     with pytest.raises(PermissionError):
         codes.get_backup_code_secret_for_storage("failuser", "notvalid")

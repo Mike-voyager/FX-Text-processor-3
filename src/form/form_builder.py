@@ -188,7 +188,9 @@ class StampElement(FormElement):
         if not self.qr_data:
             raise FormBuilderError("QR data required for electronic stamp")
         if not self.border_text and not self.center_text:
-            raise FormBuilderError("Either border_text or center_text required for stamp")
+            raise FormBuilderError(
+                "Either border_text or center_text required for stamp"
+            )
         if self.qr_size < 0.1 or self.qr_size > 0.5:
             raise FormBuilderError("QR size must be between 0.1 and 0.5")
         if self.qr_error_correction not in ("L", "M", "Q", "H"):
@@ -273,7 +275,9 @@ class FormBuilder:
         permissions: Optional[List[str]] = None,
         security_level: str = "standard",
     ) -> None:
-        ids_checked = [eid for eid in element_ids if any(e.id == eid for e in self.layout.elements)]
+        ids_checked = [
+            eid for eid in element_ids if any(e.id == eid for e in self.layout.elements)
+        ]
         group = next((g for g in self.layout.groups if g.name == group_name), None)
         if group:
             group.element_ids = ids_checked
@@ -289,7 +293,10 @@ class FormBuilder:
                 )
             )
         logger.info(
-            "Group %s defined: %d elements, level=%s", group_name, len(ids_checked), security_level
+            "Group %s defined: %d elements, level=%s",
+            group_name,
+            len(ids_checked),
+            security_level,
         )
 
     def apply_template(self, template_str: str) -> None:
@@ -311,7 +318,11 @@ class FormBuilder:
         validate_form_structure(self.to_dict(), custom_rules=self.custom_rules)
         if self.layout.kind == FormKind.SPECIAL:
             self._ensure_audit_trail()
-        logger.info("Form built: kind=%s, %d elements", self.layout.kind, len(self.layout.elements))
+        logger.info(
+            "Form built: kind=%s, %d elements",
+            self.layout.kind,
+            len(self.layout.elements),
+        )
         result = self.to_dict()
         self._emit_event("build", result)
         return result
@@ -430,7 +441,8 @@ class FormBuilder:
 
 
 def validate_form_structure(
-    form_dict: Dict[str, Any], custom_rules: Optional[Callable[[Dict[str, Any]], None]] = None
+    form_dict: Dict[str, Any],
+    custom_rules: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> None:
     kind = FormKind(form_dict.get("kind", FormKind.REGULAR))
     layout_type = form_dict.get("layout_type")
@@ -484,7 +496,9 @@ def import_from_json(path: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):
-        raise ValueError(f"JSON root in {path} must be an object (dict), got {type(data).__name__}")
+        raise ValueError(
+            f"JSON root in {path} must be an object (dict), got {type(data).__name__}"
+        )
     return data
 
 

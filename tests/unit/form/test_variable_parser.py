@@ -185,7 +185,8 @@ def test_process_variable_element_classic() -> None:
 def test_audit_log_stdout(monkeypatch: Any) -> None:
     logs = []
     monkeypatch.setattr(
-        "src.form.variable_parser.logger.info", lambda *args, **kwargs: logs.append(args)
+        "src.form.variable_parser.logger.info",
+        lambda *args, **kwargs: logs.append(args),
     )
     VariableParser.audit_log("x", ["a"], "hash1")
     assert logs and "hash1" in logs[0][-1]
@@ -197,7 +198,9 @@ def test_safe_substitute_with_rollback_exception() -> None:
             raise Exception("fail")
 
     VariableParser.register_processor("badvar", AlwaysFail())
-    res, ok = VariableParser.safe_substitute_with_rollback("{{badvar}}", {"badvar": "something"})
+    res, ok = VariableParser.safe_substitute_with_rollback(
+        "{{badvar}}", {"badvar": "something"}
+    )
     assert not ok and "{{badvar}}" in res
 
 
@@ -248,7 +251,9 @@ def test_max_depth_protection() -> None:
 
 def test_substitute_variables_async() -> None:
     async def run_test() -> None:
-        result = await VariableParser.substitute_variables_async("{{name}}", {"name": "test"})
+        result = await VariableParser.substitute_variables_async(
+            "{{name}}", {"name": "test"}
+        )
         assert result == "test"
 
     asyncio.run(run_test())

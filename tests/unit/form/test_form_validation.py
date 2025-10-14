@@ -35,7 +35,9 @@ def test_basic_valid_fail() -> None:
 
 
 def test_min_max_length() -> None:
-    schema: dict[str, list[str | Validator]] = {"v": ["string", min_length(2), max_length(3)]}
+    schema: dict[str, list[str | Validator]] = {
+        "v": ["string", min_length(2), max_length(3)]
+    }
     validator = FormValidator(schema)
     bad = validator.validate({"v": "A"})
     assert not bad.ok and "length" in bad.errors[0].args[0]
@@ -67,7 +69,10 @@ def test_extra_fields() -> None:
 
 
 def test_greater_than_success_fail() -> None:
-    schema: dict[str, list[str | Validator]] = {"x": ["int"], "y": ["int", greater_than("x")]}
+    schema: dict[str, list[str | Validator]] = {
+        "x": ["int"],
+        "y": ["int", greater_than("x")],
+    }
     validator = FormValidator(schema)
     ok = validator.validate({"x": 1, "y": 2})
     fail = validator.validate({"x": 3, "y": 2})

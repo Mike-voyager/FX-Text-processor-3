@@ -139,7 +139,9 @@ class SecondFactorManager:
                 factor_state["ttlseconds"] = kwargs["ttlseconds"]
             # лейбл для новых версий факторов (future: v2+, поддержка "истории")
             factor_entry = {"state": factor_state, "ts": factor_state.get("created", 0)}
-            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(factor_entry)
+            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(
+                factor_entry
+            )
             self._audit.append(
                 {
                     "action": "setup",
@@ -149,7 +151,9 @@ class SecondFactorManager:
                 }
             )
             self._save_storage()
-            self._secure_del(factor_state, ["secret", "seed", "credential", "backup_codes"])
+            self._secure_del(
+                factor_state, ["secret", "seed", "credential", "backup_codes"]
+            )
             # Явно возвращаем либо ID, либо строку с created (всегда может восстановить по get_history)
             return factor_state.get("id", "") or str(factor_state.get("created", ""))
 
@@ -168,13 +172,20 @@ class SecondFactorManager:
             if not factor_list:
                 return False
             entry = next(
-                (f for f in reversed(factor_list) if f["state"].get("id", "") == factor_id), None
+                (
+                    f
+                    for f in reversed(factor_list)
+                    if f["state"].get("id", "") == factor_id
+                ),
+                None,
             )
             if entry is None:
                 entry = factor_list[-1]
             state = entry["state"]
             if self._is_expired(state):
-                self._audit.append({"action": "expired", "user": user_id, "type": factor_type})
+                self._audit.append(
+                    {"action": "expired", "user": user_id, "type": factor_type}
+                )
                 return False
             factor_cls = self._factor_registry.get(factor_type)
             if factor_cls is None:
@@ -182,7 +193,12 @@ class SecondFactorManager:
             instance = factor_cls()
             result = instance.verify(user_id, credential, state)
             self._audit.append(
-                {"action": "verify", "user": user_id, "type": factor_type, "result": result}
+                {
+                    "action": "verify",
+                    "user": user_id,
+                    "type": factor_type,
+                    "result": result,
+                }
             )
             self._save_storage()
             self._secure_del(state, ["secret", "seed", "credential", "backup_codes"])
@@ -216,7 +232,9 @@ class SecondFactorManager:
                 instance.remove(user_id, entry["state"])
             self._secure_del(entry["state"])
             factor_list.pop(idx)
-            self._audit.append({"action": "remove", "user": user_id, "type": factor_type})
+            self._audit.append(
+                {"action": "remove", "user": user_id, "type": factor_type}
+            )
             self._save_storage()
 
     def remove_all_factors(
@@ -234,7 +252,9 @@ class SecondFactorManager:
             factor_list = factors_by_user[factor_type]
             while factor_list:
                 self.remove_factor(
-                    user_id, factor_type, factor_id=factor_list[-1]["state"].get("id", "")
+                    user_id,
+                    factor_type,
+                    factor_id=factor_list[-1]["state"].get("id", ""),
                 )
             # После удаления всех факторов — чистим структуру, если нужно
             if user_id in self._factors and factor_type in self._factors[user_id]:
@@ -264,7 +284,10 @@ class SecondFactorManager:
         """Возвращает историю всех выпусков данного фактора для пользователя (генерации/экспирации)"""
         with self._lock:
             self._validate_user_id(user_id)
-            return [entry["state"] for entry in self._factors.get(user_id, {}).get(factor_type, [])]
+            return [
+                entry["state"]
+                for entry in self._factors.get(user_id, {}).get(factor_type, [])
+            ]
 
     def get_audit(
         self,

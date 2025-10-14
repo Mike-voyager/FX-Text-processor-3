@@ -97,10 +97,14 @@ class BatchProcessor:
         self.on_status_change: Optional[Callable[[BatchTask], None]] = None
         self.on_complete: Optional[Callable[[List[BatchTask]], None]] = None
 
-    def add_task(self, name: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+    def add_task(
+        self, name: str, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> None:
         if self.secure_mode and "user_id" in kwargs:
             check_permission(kwargs["user_id"], "run_batch")
-            log_batch_event(kwargs["user_id"], action="batch_task_create", details={"task": name})
+            log_batch_event(
+                kwargs["user_id"], action="batch_task_create", details={"task": name}
+            )
         self.tasks.append(BatchTask(name, func, args, kwargs))
 
     def clear(self) -> None:
@@ -139,7 +143,9 @@ class BatchProcessor:
 
                     def _target() -> None:
                         try:
-                            result_holder["result"] = task.func(*task.args, **task.kwargs)
+                            result_holder["result"] = task.func(
+                                *task.args, **task.kwargs
+                            )
                         except Exception as ex:
                             exc_holder["error"] = ex
 
@@ -149,7 +155,9 @@ class BatchProcessor:
                     if thread.is_alive():
                         task.status = BatchStatus.ERROR
                         task.error = f"Timeout ({self.task_timeout}s)"
-                        task.add_log(f"Timeout: task exceeded {self.task_timeout} sec.", "ERROR")
+                        task.add_log(
+                            f"Timeout: task exceeded {self.task_timeout} sec.", "ERROR"
+                        )
                         logger.error(f"Timeout in task {task.name}")
                         return
                     if "error" in exc_holder:
@@ -231,7 +239,9 @@ class BatchProcessor:
             "tasks": len(self.results),
             "success": sum(1 for t in self.results if t.status == BatchStatus.SUCCESS),
             "error": sum(1 for t in self.results if t.status == BatchStatus.ERROR),
-            "cancelled": sum(1 for t in self.results if t.status == BatchStatus.CANCELLED),
+            "cancelled": sum(
+                1 for t in self.results if t.status == BatchStatus.CANCELLED
+            ),
             "skipped": sum(1 for t in self.results if t.status == BatchStatus.SKIPPED),
             "results": [
                 {
@@ -255,7 +265,9 @@ class BatchProcessor:
                 writer = csv.writer(f)
                 writer.writerow(["name", "status", "duration", "error", "retries"])
                 for t in self.results:
-                    writer.writerow([t.name, t.status.name, t.duration, t.error, t.retries])
+                    writer.writerow(
+                        [t.name, t.status.name, t.duration, t.error, t.retries]
+                    )
 
     def save_state(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
@@ -308,7 +320,9 @@ def secure_export(form_data: dict, user_id: str) -> dict:
         result["signature"] = sign_with_private_key(form_data, user_id)
     except ImportError:
         result["signature"] = "[fake signature]"
-    log_batch_event(user_id, action="secure_export", details={"form_id": form_data.get("id")})
+    log_batch_event(
+        user_id, action="secure_export", details={"form_id": form_data.get("id")}
+    )
     return result
 
 
@@ -337,7 +351,9 @@ if __name__ == "__main__":
     bp.on_complete = on_finish
     bp.add_task("to-upper", to_uppercase, "heLLo Fx89O")
     bp.add_task("maybe-fail", random_fail, 99)
-    bp.add_task("secure-form", secure_export, {"id": "123", "payload": "abc"}, user_id="tester")
+    bp.add_task(
+        "secure-form", secure_export, {"id": "123", "payload": "abc"}, user_id="tester"
+    )
     bp.process()
     print(bp.summary())
     bp.export_results("batch_results.json")

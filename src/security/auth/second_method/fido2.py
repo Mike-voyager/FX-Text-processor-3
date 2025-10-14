@@ -15,7 +15,11 @@ class Fido2Factor:
     ) -> Dict[str, Any]:
         if not device_info:
             device_info = {}
-        return {"devices": [device_info], "audit": [], "created": kwargs.get("created", None)}
+        return {
+            "devices": [device_info],
+            "audit": [],
+            "created": kwargs.get("created", None),
+        }
 
     def remove(self, user_id: str) -> None:
         pass
@@ -24,7 +28,10 @@ class Fido2Factor:
         self, user_id: str, response: Dict[str, Any], state: Dict[str, Any]
     ) -> Dict[str, Any]:
         from fido2.server import Fido2Server
-        from fido2.webauthn import PublicKeyCredentialRequestOptions, PublicKeyCredentialDescriptor
+        from fido2.webauthn import (
+            PublicKeyCredentialRequestOptions,
+            PublicKeyCredentialDescriptor,
+        )
 
         audit = state.setdefault("audit", [])
         devices: List[Dict[str, Any]] = state.get("devices", [])
@@ -41,7 +48,11 @@ class Fido2Factor:
                 break
         if not matched_device:
             audit.append({"result": "credential_id_mismatch", "response": response})
-            return {"status": "fail", "detail": "credential_id_mismatch", "audit": audit}
+            return {
+                "status": "fail",
+                "detail": "credential_id_mismatch",
+                "audit": audit,
+            }
 
         try:
             challenge = response.get("challenge")
@@ -74,10 +85,19 @@ class Fido2Factor:
                 "userHandle": response.get("user_handle", None),
             }
             server.authenticate_complete(
-                options, matched_device["credential_id"].encode("utf-8"), authentication_response
+                options,
+                matched_device["credential_id"].encode("utf-8"),
+                authentication_response,
             )
             audit.append({"result": "success", "response": response})
             return {"status": "success", "detail": "signature_valid", "audit": audit}
         except Exception as e:
-            audit.append({"result": "signature_fail", "error": str(e), "response": response})
-            return {"status": "fail", "detail": "signature_fail", "error": str(e), "audit": audit}
+            audit.append(
+                {"result": "signature_fail", "error": str(e), "response": response}
+            )
+            return {
+                "status": "fail",
+                "detail": "signature_fail",
+                "error": str(e),
+                "audit": audit,
+            }

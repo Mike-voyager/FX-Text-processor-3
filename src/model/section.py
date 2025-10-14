@@ -107,7 +107,9 @@ class Margins:
             ("right", self.right),
         ]:
             if not isinstance(value, (int, float)):
-                raise TypeError(f"{name} поле должно быть числом, получено: {type(value).__name__}")
+                raise TypeError(
+                    f"{name} поле должно быть числом, получено: {type(value).__name__}"
+                )
             if value < MIN_MARGIN_INCHES:
                 raise ValueError(
                     f'{name} поле слишком маленькое: {value:.3f}" < {MIN_MARGIN_INCHES:.3f}"'
@@ -246,7 +248,9 @@ class PageSettings:
         try:
             orientation = PageOrientation(orientation_str)
         except ValueError as exc:
-            raise ValueError(f"Недопустимое значение ориентации: {orientation_str!r}") from exc
+            raise ValueError(
+                f"Недопустимое значение ориентации: {orientation_str!r}"
+            ) from exc
 
         return PageSettings(
             width=float(data.get("width", DEFAULT_PAGE_WIDTH_INCHES)),
@@ -289,7 +293,9 @@ class Section:
             logger.warning(
                 f"'paragraphs' должен быть списком, найдено: {type(self.paragraphs).__name__}"
             )
-            object.__setattr__(self, "paragraphs", list(self.paragraphs) if self.paragraphs else [])
+            object.__setattr__(
+                self, "paragraphs", list(self.paragraphs) if self.paragraphs else []
+            )
 
         if self.page_number_start is not None:
             if not isinstance(self.page_number_start, int):
@@ -340,10 +346,14 @@ class Section:
             raise TypeError(f"Ожидался Paragraph, получено: {type(paragraph).__name__}")
 
         if not (0 <= index <= len(self.paragraphs)):
-            raise IndexError(f"Индекс вставки {index} вне диапазона {len(self.paragraphs)}")
+            raise IndexError(
+                f"Индекс вставки {index} вне диапазона {len(self.paragraphs)}"
+            )
 
         self.paragraphs.insert(index, paragraph)
-        logger.debug(f"Вставлен параграф по индексу {index}, всего: {len(self.paragraphs)}")
+        logger.debug(
+            f"Вставлен параграф по индексу {index}, всего: {len(self.paragraphs)}"
+        )
 
     def remove_paragraph(self, index: int) -> Paragraph:
         """
@@ -352,10 +362,14 @@ class Section:
         Исключение: IndexError — если индекс вне диапазона.
         """
         if not (0 <= index < len(self.paragraphs)):
-            raise IndexError(f"Индекс удаления {index} вне диапазона {len(self.paragraphs)}")
+            raise IndexError(
+                f"Индекс удаления {index} вне диапазона {len(self.paragraphs)}"
+            )
 
         removed = self.paragraphs.pop(index)
-        logger.debug(f"Удалён параграф по индексу {index}, остаток: {len(self.paragraphs)}")
+        logger.debug(
+            f"Удалён параграф по индексу {index}, остаток: {len(self.paragraphs)}"
+        )
         return removed
 
     def clear_paragraphs(self) -> None:
@@ -511,7 +525,9 @@ class Section:
             "paragraphs": [para.to_dict() for para in self.paragraphs],
             "break_type": self.break_type.value,
             "page_number_start": self.page_number_start,
-            "page_settings": self.page_settings.to_dict() if self.page_settings else None,
+            "page_settings": (
+                self.page_settings.to_dict() if self.page_settings else None
+            ),
         }
 
     @staticmethod
@@ -539,7 +555,9 @@ class Section:
 
         page_settings_data = data.get("page_settings")
         page_settings = (
-            PageSettings.from_dict(page_settings_data) if page_settings_data is not None else None
+            PageSettings.from_dict(page_settings_data)
+            if page_settings_data is not None
+            else None
         )
 
         return Section(
@@ -612,7 +630,9 @@ def merge_sections(sections: list[Section], preserve_breaks: bool = False) -> Se
         if preserve_breaks and i < len(sections) - 1:
             result.add_paragraph(Paragraph())  # Разделитель
 
-    logger.info(f"Объединено {len(sections)} секций, итог: {len(result.paragraphs)} параграфов")
+    logger.info(
+        f"Объединено {len(sections)} секций, итог: {len(result.paragraphs)} параграфов"
+    )
     return result
 
 

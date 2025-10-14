@@ -232,7 +232,11 @@ class CodePage(str, Enum):
             self.PC771: "PC771",
             self.PC437_SLOVENI: "PC437 (Slovene)",
         }
-        return names_ru.get(self, self.value) if lang == "ru" else names_en.get(self, self.value)
+        return (
+            names_ru.get(self, self.value)
+            if lang == "ru"
+            else names_en.get(self, self.value)
+        )
 
 
 class BarcodeType(str, Enum):
@@ -301,7 +305,11 @@ class BarcodeType(str, Enum):
             self.TELEPEN: "Telepen",
             self.TRIOPTIC: "Trioptic",
         }
-        return names_ru.get(self, self.value) if lang == "ru" else names_en.get(self, self.value)
+        return (
+            names_ru.get(self, self.value)
+            if lang == "ru"
+            else names_en.get(self, self.value)
+        )
 
 
 class Matrix2DCodeType(str, Enum):
@@ -359,7 +367,10 @@ class PaperType(str, Enum):
 
     def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
         names = {
-            "continuous_tractor": {"ru": "Непрерывная подача", "en": "Continuous Tractor"},
+            "continuous_tractor": {
+                "ru": "Непрерывная подача",
+                "en": "Continuous Tractor",
+            },
             "sheet_feed": {"ru": "Листовая подача", "en": "Single Sheet"},
             "envelope": {"ru": "Конверт", "en": "Envelope"},
             "card": {"ru": "Карточка", "en": "Card"},
@@ -492,7 +503,9 @@ DEFAULT_LINE_SPACING: Final[LineSpacing] = LineSpacing.ONE_SIXTH_INCH
 DEFAULT_COLOR: Final[Color] = Color.BLACK
 DEFAULT_PAGE_SIZE: Final[PageSize] = PageSize.LETTER
 DEFAULT_TABLE_STYLE: Final[TableStyle] = TableStyle.GRID
-DEFAULT_DITHERING_ALGORITHM: Final[DitheringAlgorithm] = DitheringAlgorithm.FLOYD_STEINBERG
+DEFAULT_DITHERING_ALGORITHM: Final[DitheringAlgorithm] = (
+    DitheringAlgorithm.FLOYD_STEINBERG
+)
 DEFAULT_PRINT_DIRECTION: Final[PrintDirection] = PrintDirection.BIDIRECTIONAL
 DEFAULT_MARGIN_UNITS: Final[MarginUnits] = MarginUnits.INCHES
 DEFAULT_ORIENTATION: Final[Orientation] = Orientation.PORTRAIT

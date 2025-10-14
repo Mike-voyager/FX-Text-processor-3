@@ -4,7 +4,12 @@ import pytest
 import builtins
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from security.crypto.signatures import Ed25519Signer, Ed25519Verifier, SignatureError, logger
+from security.crypto.signatures import (
+    Ed25519Signer,
+    Ed25519Verifier,
+    SignatureError,
+    logger,
+)
 
 
 def gen_keypair() -> Tuple[bytes, bytes]:
@@ -140,7 +145,9 @@ def test_public_key_invalid_encoding(keypair: Tuple[bytes, bytes]) -> None:
         signer.public_key(encoding="pem")  # type: ignore
 
 
-def test_save_key_bytes_io_error(monkeypatch: Any, keypair: Tuple[bytes, bytes]) -> None:
+def test_save_key_bytes_io_error(
+    monkeypatch: Any, keypair: Tuple[bytes, bytes]
+) -> None:
     sk, _ = keypair
 
     def raise_ioerror(*args: Any, **kwargs: Any) -> None:

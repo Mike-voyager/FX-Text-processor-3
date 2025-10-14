@@ -176,14 +176,18 @@ class FormPalette:
             candidates = [
                 el
                 for el in candidates
-                if _is_valid_preset_name(el) and _norm(el.get("preset_name", "")) == canonical_name
+                if _is_valid_preset_name(el)
+                and _norm(el.get("preset_name", "")) == canonical_name
             ]
         if role is not None:
             candidates = [el for el in candidates if self._has_permission(el, role)]
         if candidates:
             return copy.deepcopy(candidates[0])
         logger.warning(
-            "Preset not found for type: %r preset_name: %r role: %r", type_, preset_name, role
+            "Preset not found for type: %r preset_name: %r role: %r",
+            type_,
+            preset_name,
+            role,
         )
         return None
 
@@ -213,7 +217,9 @@ class FormPalette:
             )
         self._custom.append(copy.deepcopy(preset))
         logger.info(
-            "Custom preset added: type=%s preset_name=%s", preset["type"], preset["preset_name"]
+            "Custom preset added: type=%s preset_name=%s",
+            preset["type"],
+            preset["preset_name"],
         )
 
     def update_custom_preset(
@@ -231,19 +237,25 @@ class FormPalette:
             ):
                 self._custom[idx] = self._validate_and_patch_preset(new_preset)
                 found = True
-                logger.info("Custom preset updated: type=%s preset_name=%s", type_, preset_name)
+                logger.info(
+                    "Custom preset updated: type=%s preset_name=%s", type_, preset_name
+                )
                 break
         if not found:
             raise ValueError(
                 f"Custom preset to update not found: type={type_} preset_name={preset_name}"
             )
 
-    def remove_custom_preset(self, type_: str, preset_name: Optional[str] = None) -> None:
+    def remove_custom_preset(
+        self, type_: str, preset_name: Optional[str] = None
+    ) -> None:
         type_ = _norm(type_)
         before = len(self._custom)
         if preset_name is None:
             self._custom = [
-                p for p in self._custom if not (_is_valid_type(p) and _norm(p["type"]) == type_)
+                p
+                for p in self._custom
+                if not (_is_valid_type(p) and _norm(p["type"]) == type_)
             ]
         else:
             preset_name = _norm(preset_name)
@@ -273,16 +285,23 @@ class FormPalette:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         if "presets" in data and isinstance(data["presets"], list):
-            raw = [self._validate_and_patch_preset(p, raise_exc=False) for p in data["presets"]]
+            raw = [
+                self._validate_and_patch_preset(p, raise_exc=False)
+                for p in data["presets"]
+            ]
             valid = [p for p in raw if _is_valid_type(p) and _is_valid_preset_name(p)]
             n_drop = len(raw) - len(valid)
             if n_drop:
                 logger.warning(
-                    "Dropped %s invalid presets from import (missing type or preset_name)", n_drop
+                    "Dropped %s invalid presets from import (missing type or preset_name)",
+                    n_drop,
                 )
             self._presets = valid
         if "custom" in data and isinstance(data["custom"], list):
-            raw = [self._validate_and_patch_preset(p, raise_exc=False) for p in data["custom"]]
+            raw = [
+                self._validate_and_patch_preset(p, raise_exc=False)
+                for p in data["custom"]
+            ]
             valid = [p for p in raw if _is_valid_type(p) and _is_valid_preset_name(p)]
             n_drop = len(raw) - len(valid)
             if n_drop:
@@ -322,7 +341,11 @@ class FormPalette:
             if key in preset and isinstance(preset[key], str):
                 preset[key] = preset[key].strip()
         for key in ("type", "preset_name"):
-            if not isinstance(preset.get(key, None), str) or " " in preset[key] or not preset[key]:
+            if (
+                not isinstance(preset.get(key, None), str)
+                or " " in preset[key]
+                or not preset[key]
+            ):
                 msg = f"{key} must be string, non-empty and without spaces"
                 if raise_exc:
                     raise ValueError(msg)
@@ -340,7 +363,11 @@ class FormPalette:
             if k not in preset:
                 preset[k] = v
         for key in ("type", "preset_name"):
-            if not isinstance(preset[key], str) or " " in preset[key] or not preset[key]:
+            if (
+                not isinstance(preset[key], str)
+                or " " in preset[key]
+                or not preset[key]
+            ):
                 msg = f"{key} must be string, non-empty and without spaces"
                 if raise_exc:
                     raise ValueError(msg)

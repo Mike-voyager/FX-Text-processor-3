@@ -296,7 +296,9 @@ def test_section_validate_page_settings_invalid_type_in_validate() -> None:
 def test_section_validate_page_settings_fails_on_validate() -> None:
     """Проверяет выброс ошибки если page_settings.validate() выбрасывает ValueError."""
     # Сконструируем некорректный PageSettings вручную, чтобы validate() выбросила ошибку
-    bad_settings = PageSettings(width=2.0, height=5.0, margins=Margins(left=5.0, right=5.0))
+    bad_settings = PageSettings(
+        width=2.0, height=5.0, margins=Margins(left=5.0, right=5.0)
+    )
     section = Section(page_settings=bad_settings)
     # validate() поймает ValueError из page_settings.validate()
     with pytest.raises(ValueError):
@@ -361,7 +363,8 @@ def test_split_section_at_value_error_cases() -> None:
     section.add_paragraph(Paragraph())
     # Индекс вне диапазона
     split_section_at = getattr(
-        __import__("src.model.section", fromlist=["split_section_at"]), "split_section_at"
+        __import__("src.model.section", fromlist=["split_section_at"]),
+        "split_section_at",
     )
     with pytest.raises(ValueError):
         split_section_at(section, 0)

@@ -40,7 +40,9 @@ class StyleManagerError(Exception):
 
 
 class Style:
-    def __init__(self, name: str, params: Dict[str, Any], parent: Optional["Style"] = None):
+    def __init__(
+        self, name: str, params: Dict[str, Any], parent: Optional["Style"] = None
+    ):
         self.name = name
         self.params = dict(params)
         self.parent = parent
@@ -65,7 +67,9 @@ class Style:
         if font and cpi and not validate_cpi_font_combination(cpi, font):
             raise StyleManagerError(f"Font-family {font} incompatible with CPI {cpi}")
         if quality and font and not validate_quality_font_combination(quality, font):
-            raise StyleManagerError(f"Print-quality {quality} incompatible with font {font}")
+            raise StyleManagerError(
+                f"Print-quality {quality} incompatible with font {font}"
+            )
         if codepage and not validate_codepage(codepage):
             raise StyleManagerError(f"Codepage {codepage} not supported by FX-890")
         if barcode and not validate_barcode(barcode):
@@ -105,7 +109,9 @@ class StyleManager:
     def __init__(self) -> None:
         self.styles: Dict[str, Style] = {}
         self.type_templates: Dict[str, Dict[str, Any]] = {}
-        self._param_cache: Dict[str, Dict[str, Any]] = {}  # Кэш: style_name -> параметр: значение
+        self._param_cache: Dict[str, Dict[str, Any]] = (
+            {}
+        )  # Кэш: style_name -> параметр: значение
         self.register_default_styles()
         self.register_type_templates()
 
@@ -211,14 +217,18 @@ class StyleManager:
             params.update(overrides)
         self.add_style(name, params, parent=parent)
 
-    def add_style(self, name: str, params: Dict[str, Any], parent: Optional[str] = None) -> None:
+    def add_style(
+        self, name: str, params: Dict[str, Any], parent: Optional[str] = None
+    ) -> None:
         if name in self.styles:
             raise StyleManagerError(f"Style '{name}' already exists.")
         parent_style = self.styles[parent] if parent else None
         style = Style(name, params, parent_style)
         style.validate()
         self.styles[name] = style
-        self._param_cache[name] = dict(style.params)  # Кэшируем параметры для быстрого доступа
+        self._param_cache[name] = dict(
+            style.params
+        )  # Кэшируем параметры для быстрого доступа
 
     def remove_style(self, name: str) -> None:
         if name not in self.styles:

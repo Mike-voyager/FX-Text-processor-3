@@ -21,7 +21,9 @@ def test_format_code_blocks() -> None:
     assert formatted.replace("-", "") == raw
 
 
-def setup_factor_state(count: int = 3, ttl: int = DEFAULT_TTL) -> tuple[BackupCodeFactor, dict]:
+def setup_factor_state(
+    count: int = 3, ttl: int = DEFAULT_TTL
+) -> tuple[BackupCodeFactor, dict]:
     factor = BackupCodeFactor()
     state = factor.setup("user_test", count=count, ttl_seconds=ttl)
     return factor, state

@@ -28,7 +28,9 @@ class AppContext:
         self.storage: SecureStorage = SecureStorage(storage_backend)
 
         # Core service: mfa/second factor manager
-        self.mfa_manager: SecondFactorManager = SecondFactorManager(storage=self.storage)
+        self.mfa_manager: SecondFactorManager = SecondFactorManager(
+            storage=self.storage
+        )
 
         # Optional audit/logger services
         self.audit = audit  # AuditLogger, SIEM, file, etc.
@@ -48,7 +50,9 @@ class AppContext:
         return self.services[name]
 
     def reset_storage(
-        self, storage_backend: Optional[StorageBackend] = None, storage_path: Optional[str] = None
+        self,
+        storage_backend: Optional[StorageBackend] = None,
+        storage_path: Optional[str] = None,
     ) -> None:
         """Allow dynamic switching of storage backend (for migration/reset/tests)."""
         if storage_backend is None and storage_path is not None:
@@ -74,6 +78,9 @@ def get_app_context(
     global _ctx
     if _ctx is None:
         _ctx = AppContext(
-            storage_backend=storage_backend, storage_path=storage_path, audit=audit, user_id=user_id
+            storage_backend=storage_backend,
+            storage_path=storage_path,
+            audit=audit,
+            user_id=user_id,
         )
     return _ctx

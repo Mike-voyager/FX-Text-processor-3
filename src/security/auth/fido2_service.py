@@ -8,8 +8,8 @@ from typing import Dict, Any, List
 import threading
 
 from security.crypto.kdf import derive_key_argon2id
-from src.security.auth.second_factor import SecondFactorManager
-from src.app_context import get_app_context
+from security.auth.second_factor import SecondFactorManager
+from app_context import get_app_context
 
 _manager_lock = threading.Lock()
 
@@ -39,7 +39,8 @@ def validate_fido2_response(user_id: str, response: Dict[str, Any]) -> bool:
     """
     with _manager_lock:
         mgr = get_app_context().mfa_manager
-        return mgr.verify_factor(user_id, "fido2", response)
+        result = mgr.verify_factor(user_id, "fido2", response)
+        return bool(result)  # Явное приведение к bool
 
 
 def remove_fido2_for_user(user_id: str) -> None:
@@ -74,6 +75,19 @@ def get_fido2_audit(user_id: str) -> List[Any]:
 
 
 def get_fido2_secret_for_storage(user_id: str, response: dict) -> bytes:
+    """
+    Derives encryption key from FIDO2 response for secure storage.
+
+    Args:
+        user_id: User identifier
+        response: FIDO2 authentication response
+
+    Returns:
+        32-byte derived key for storage encryption
+
+    Raises:
+        PermissionError: If FIDO2 response is invalid
+    """
     with _manager_lock:
         mgr = get_app_context().mfa_manager
         state = _get_latest_fido2_state(mgr, user_id)
@@ -83,13 +97,19 @@ def get_fido2_secret_for_storage(user_id: str, response: dict) -> bytes:
         result = factor.verify(user_id, response, state)
         if result.get("status") != "success":
             raise PermissionError("Invalid FIDO2 response")
+
         credential_id = response.get("credential_id", "")
         signature = response.get("signature", "")
         if not credential_id or not signature:
             raise PermissionError("Missing credential_id or signature")
-        personal_salt = (f"fido2/user/{user_id}/dev/{credential_id}").encode("utf-8")
-        return derive_key_argon2id(
+
+        personal_salt = f"fido2/user/{user_id}/dev/{credential_id}".encode("utf-8")
+
+        # Явно приводим к bytes
+        derived_key: bytes = derive_key_argon2id(
             (user_id + credential_id + str(signature)).encode("utf-8"),
             salt=personal_salt,
             length=32,
         )
+
+        return derived_key

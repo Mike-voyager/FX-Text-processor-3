@@ -1,14 +1,19 @@
 import pytest
 from typing import Dict, Any, List
 from PIL import Image
-from src.barcodegen.matrix2d_generator import Matrix2DCodeGenerator, Matrix2DCodeGenError
+from src.barcodegen.matrix2d_generator import (
+    Matrix2DCodeGenerator,
+    Matrix2DCodeGenError,
+)
 from src.model.enums import Matrix2DCodeType
 from pathlib import Path
 from unittest.mock import patch
 from pytest import MonkeyPatch
 
 
-def make_logo(size: int = 20, color: tuple[int, int, int, int] = (255, 0, 0, 128)) -> Image.Image:
+def make_logo(
+    size: int = 20, color: tuple[int, int, int, int] = (255, 0, 0, 128)
+) -> Image.Image:
     img = Image.new("RGBA", (size, size), color)
     return img
 
@@ -31,7 +36,9 @@ def test_generate_basic(code_type: Matrix2DCodeType, data: str) -> None:
 def test_generate_with_logo_and_caption() -> None:
     gen = Matrix2DCodeGenerator(Matrix2DCodeType.QR, "logo test")
     logo = make_logo()
-    img = gen.render_image(width=150, height=150, logo_image=logo, caption="Тест подписи")
+    img = gen.render_image(
+        width=150, height=150, logo_image=logo, caption="Тест подписи"
+    )
     assert isinstance(img, Image.Image)
     assert img.width == 150 and img.height >= 150
 
@@ -49,7 +56,9 @@ def test_gs1_qr_prefix() -> None:
 
 
 def test_gs1_dm_prefix() -> None:
-    gen = Matrix2DCodeGenerator(Matrix2DCodeType.DATAMATRIX, "0123456789012345", gs1_mode=True)
+    gen = Matrix2DCodeGenerator(
+        Matrix2DCodeType.DATAMATRIX, "0123456789012345", gs1_mode=True
+    )
     img = gen.render_image()
     assert isinstance(img, Image.Image)
 
@@ -64,7 +73,10 @@ def test_batch_generate_parallel() -> None:
     items = [
         {"barcode_type": Matrix2DCodeType.QR, "data": "A"},
         {"barcode_type": Matrix2DCodeType.DATAMATRIX, "data": "B"},
-        {"barcode_type": Matrix2DCodeType.PDF417, "data": "longer PDF417"},  # Чтобы строк было >= 3
+        {
+            "barcode_type": Matrix2DCodeType.PDF417,
+            "data": "longer PDF417",
+        },  # Чтобы строк было >= 3
     ]
     results = Matrix2DCodeGenerator.batch_generate(items, parallel=True)
     assert len(results) == 3

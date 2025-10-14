@@ -28,7 +28,9 @@ def test_totp_setup_with_custom_secret() -> None:
     user_id = "bob"
     username = "testbob"
     issuer = "TestApp"
-    state = factor.setup(user_id=user_id, secret=custom_secret, username=username, issuer=issuer)
+    state = factor.setup(
+        user_id=user_id, secret=custom_secret, username=username, issuer=issuer
+    )
     assert state["secret"] == custom_secret
     code = pyotp.TOTP(custom_secret).now()
     assert factor.verify(user_id, code, state)

@@ -108,14 +108,14 @@ FX-Text-processor-3/
 │
 │   ├── model/                    # Data models
 │   │   ├── __init__.py
-│   │   ├── document.py           # 🔐🚧Blocked (43%) — awaiting refactor
+│   │   ├── document.py           # document.py # Doc datamodel, NO business logic
 │   │   ├── section.py            # ✅ Done
 │   │   ├── user.py               # 🚧 TODO
 │   │   ├── paragraph.py          # ✅ DONE
 │   │   ├── run.py                # ✅ Done
 │   │   ├── table.py              # ✅ DONE
 │   │   ├── image.py              # 🚧 TODO
-│   │   ├──barcode.py             # ✅ DONE ?
+│   │   ├──barcode.py             # Enum, barcode data/params
 │   │   ├──form.py                # 🚧 TODO 🔐
 │   │   ├──validation.py          # 🚧 TODO
 │   │   └── enums.py              # ✅ DONE ?
@@ -129,13 +129,20 @@ FX-Text-processor-3/
 │   │   ├── status_bar.py           # 🚧 TODO
 │   │   ├── dialogs/ # 🔐           # 🚧 TODO
 │   │   └── widgets/ # 🔐           # 🚧 TODO
-│
+│   │
 │   ├── controller/ # Business logic    # 🚧 TODO
-│   │   ├── __init__.py                 # 🚧 TODO
-│   │   ├── document_controller.py # 🔐 # 🚧 TODO
-│   │   ├── commands.py # 🔐            # 🚧 TODO
-│   │   ├── session.py # 🔐             # 🚧 TODO
-│   │   └── event_handlers.py # 🔐      # 🚧 TODO
+│   │   ├── init.py
+│   │   ├── document_service.py # Edit, split, merge, search, validate documents
+│   │   ├── table_service.py # Merge/split, import/export, conditional formatting
+│   │   ├── image_service.py # Dithering, resizing, format convert, overlays (Pillow, Numpy)
+│   │   ├── barcode_service.py # All barcode & matrix2d def, unified API, error reporting
+│   │   ├── form_service.py # Build, batch, template, validate forms
+│   │   ├── charset_service.py # Encode/decode, strategy, batch conversion
+│   │   ├── escp_service.py # ESC/P command builder, state, validation, snapshot
+│   │   ├── printer_service.py # Send, status, error, Windows integration
+│   │   ├── audit_service.py # Logging, SIEM, event batch
+│   │   ├── compliance_service.py # GDPR/delete/anonymization/retention operations
+│   │   └── utils_service.py # Non-domain utilities for byte packing, validation
 │
 │   ├── escp/    # 🚧 TODO                 # ESC/P protocol stack
 │   │   ├── __init__.py
@@ -191,7 +198,9 @@ FX-Text-processor-3/
 │   │   ├── barcode_generator.py    # ✅ DONE
 │   │   └── matrix2d_generator.py   # ✅ DONE
 │   │
-│   ├── printer/ # Direct printer access # 🚧 TODO
+│   ├── printer/
+│   │   ├── init.py
+│   │   └── win_adapter.py # Pure primitives for pywin32 Windows API
 │   ├── io/ # File I/O (JSON, RTF, Markdown) # 🔐 # 🚧 TODO
 │   └── utils/ # Utilities # 🚧 TODO
 │
@@ -220,13 +229,16 @@ FX-Text-processor-3/
 │   ├── auth/               # 🚧 TODO
 │   │   ├── __init__.py                 # ✅ DONE
 │   │   ├── password.py                 # ✅ DONE
+│   │   ├── password_service.py         # ✅ DONE
 │   │   ├── second_factor.py            # ✅ DONE
 │   │   ├── second_factor_service.py    # ✅ DONE
 │   │   ├── fido2_service.py            # ✅ DONE
 │   │   ├── totp_service.py             # ✅ DONE
 │   │   ├── code_service.py             # ✅ DONE
 │   │   ├── session.py                  # 🚧 TODO
+│   │   ├── session_service.py          
 │   │   ├── permissions.py              # 🚧 TODO
+│   │   ├── permissions_service.py
 │   │   └── second_method/  # ✅ DONE
 │   │       ├── __init__.py # ✅ DONE
 │   │       ├── fido2.py    # ✅ DONE
@@ -237,7 +249,7 @@ FX-Text-processor-3/
 │   │   ├── logger.py           # 🚧 TODO
 │   │   ├── exporters.py        # 🚧 TODO
 │   │   └── integrity.py        # 🚧 TODO
-│   ├── blanks/ # 🚧 TODO
+│   ├── blanks/ # 🚧 TODO 
 │   │   ├── __init__.py         # 🚧 TODO
 │   │   ├── manager.py #🔐      # 🚧 TODO
 │   │   ├── watermark.py        # 🚧 TODO

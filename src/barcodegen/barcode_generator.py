@@ -72,7 +72,9 @@ class BarcodeGenerator:
             BarcodeType.GS1128,
         ):
             if not self.data.isdigit():
-                raise BarcodeGenError(f"{self.barcode_type.name} barcode requires digits only.")
+                raise BarcodeGenError(
+                    f"{self.barcode_type.name} barcode requires digits only."
+                )
         if self.barcode_type == BarcodeType.EAN8 and len(self.data) != 8:
             raise BarcodeGenError("EAN8 must be 8 digits.")
         elif self.barcode_type == BarcodeType.EAN13 and len(self.data) != 13:
@@ -85,7 +87,9 @@ class BarcodeGenerator:
             valid_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.$/+% ")
             # Добавьте запрет на строчные буквы
             if any(c.islower() for c in self.data):
-                raise BarcodeGenError("CODE39 supports only uppercase A-Z, 0-9, and -.$/+% chars")
+                raise BarcodeGenError(
+                    "CODE39 supports only uppercase A-Z, 0-9, and -.$/+% chars"
+                )
             if not all(c in valid_chars for c in self.data):
                 raise BarcodeGenError("CODE39 supports only A-Z, 0-9, and -.$/+% chars")
         elif self.barcode_type == BarcodeType.CODE93:
@@ -103,7 +107,9 @@ class BarcodeGenerator:
         elif self.barcode_type == BarcodeType.CODABAR:
             valid_chars = set("0123456789-$:/.+ABCD")
             if not all(c in valid_chars for c in self.data.upper()):
-                raise BarcodeGenError("Codabar supports only 0-9, -$:/.+, and start/stop chars A-D")
+                raise BarcodeGenError(
+                    "Codabar supports only 0-9, -$:/.+, and start/stop chars A-D"
+                )
         elif self.barcode_type == BarcodeType.POSTNET and (
             not self.data.isdigit() or len(self.data) not in (5, 9, 11)
         ):
@@ -115,7 +121,9 @@ class BarcodeGenerator:
             # Optional: validate allowed chars (digits and '-')
             valid_chars = set("0123456789-")
             if not all(c in valid_chars for c in self.data):
-                raise BarcodeGenError("Code11 supports only digits and dash ('-') chars")
+                raise BarcodeGenError(
+                    "Code11 supports only digits and dash ('-') chars"
+                )
         # Extend with further custom format checks as needed
 
     def render_image(
@@ -136,7 +144,9 @@ class BarcodeGenerator:
             BarcodeGenError: On generation/render failure
         """
         self.validate()
-        logger.debug("Rendering image for barcode [%s] data=%s", self.barcode_type, self.data)
+        logger.debug(
+            "Rendering image for barcode [%s] data=%s", self.barcode_type, self.data
+        )
 
         barcode_name = self._pybarcode_support.get(self.barcode_type)
         if not barcode_name:
@@ -169,7 +179,9 @@ class BarcodeGenerator:
             )
             return img
         except (BarcodeNotFoundError, Exception) as e:
-            logger.error("Barcode image generation failed: %s; %s", self.barcode_type, e)
+            logger.error(
+                "Barcode image generation failed: %s; %s", self.barcode_type, e
+            )
             return Image.new("RGB", (width, height), color="white")
 
     def render_bytes(self, options: Optional[Dict] = None) -> bytes:

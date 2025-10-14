@@ -55,7 +55,10 @@ def isolate_manager_lock(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture
 def patch_fido2_class(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    for modname in ["src.security.auth.second_method.fido2", "security.auth.second_method.fido2"]:
+    for modname in [
+        "src.security.auth.second_method.fido2",
+        "security.auth.second_method.fido2",
+    ]:
         fake_module: types.ModuleType = types.ModuleType(modname)
         setattr(fake_module, "Fido2Factor", DummyFido2Factor)
         sys.modules[modname] = fake_module
@@ -111,7 +114,9 @@ def test_get_fido2_secret_for_storage_success(
     ctx = f2s.get_app_context()
     mgr = cast(DummyContext, ctx).mfa_manager
     mgr._factors[user] = {"fido2": [{"state": {}}]}
-    monkeypatch.setattr(f2s, "derive_key_argon2id", lambda pw, salt, length: b"key" * (length // 3))
+    monkeypatch.setattr(
+        f2s, "derive_key_argon2id", lambda pw, salt, length: b"key" * (length // 3)
+    )
     secret = f2s.get_fido2_secret_for_storage(
         user, {"allow": "ok", "credential_id": "cid", "signature": "sig"}
     )

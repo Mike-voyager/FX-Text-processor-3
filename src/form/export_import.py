@@ -151,7 +151,9 @@ def optimize_for_floppy(form: dict) -> dict:
     # Keep only essential metadata
     if "meta" in optimized:
         optimized["meta"] = {
-            k: optimized["meta"][k] for k in optimized.get("meta", {}) if k in {"id", "author"}
+            k: optimized["meta"][k]
+            for k in optimized.get("meta", {})
+            if k in {"id", "author"}
         }
     logging.info("Form optimized for floppy.")
     return optimized
@@ -201,7 +203,9 @@ def export_as_protected_blank(form: dict, blank_series: str, **kwargs: Any) -> s
         raise ExportImportError("BlankManager is unavailable")
     blank_mgr = BlankManager()
     blank_id = blank_mgr.issue_blank_series(blank_series, count=1, blank_type="form")
-    blank_mgr.print_blank(blank_id, document=form, user_id=kwargs.get("user_id", "system"))
+    blank_mgr.print_blank(
+        blank_id, document=form, user_id=kwargs.get("user_id", "system")
+    )
     logging.info("Form exported as protected blank: %s", blank_id)
     return str(blank_id)
 
@@ -246,7 +250,9 @@ def generate_compatibility_report(form: dict) -> Dict[str, Any]:
     report = {
         "schema_version": form.get("schema_version", "unknown"),
         "floppy_fit": len(json.dumps(form).encode()) <= MAX_FLOPPY_BYTES,
-        "image_embeds": [el for el in form.get("elements", []) if el.get("type") == "image"],
+        "image_embeds": [
+            el for el in form.get("elements", []) if el.get("type") == "image"
+        ],
         "unsupported_fields": [],
     }
     # Add more checks here as needed
@@ -415,7 +421,9 @@ def serialize_fxsf(
             if meta and "id" in meta
             else hashlib.sha1(json.dumps(form, sort_keys=True).encode()).hexdigest()[:8]
         ),
-        "created": meta.get("created") if meta and "created" in meta else _get_now_iso(),
+        "created": (
+            meta.get("created") if meta and "created" in meta else _get_now_iso()
+        ),
         "author": (
             meta.get("author")
             if meta and "author" in meta
@@ -429,10 +437,14 @@ def serialize_fxsf(
         "encryption_algo": encryption_algo if encrypted else None,
         "body": form if not encrypted else None,
     }
-    raw = json.dumps(fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8")
+    raw = json.dumps(fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2).encode(
+        "utf-8"
+    )
     fxsf_obj["checksum"] = _sha256_bytes(raw)
     fxsf_obj["sig"] = "<not_implemented>" if sign else None
-    final_raw = json.dumps(fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8")
+    final_raw = json.dumps(
+        fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2
+    ).encode("utf-8")
     logging.info("Form serialized. id=%s encrypted=%s", fxsf_obj["form_id"], encrypted)
     return final_raw
 
@@ -446,16 +458,23 @@ def _validate_image_embeds(form: dict, max_img_bytes: int = MAX_IMAGE_EMBED) -> 
                 sz = len(base64.b64decode(img_b64.encode()))
             except Exception:
                 logging.error("Invalid base64 in image element %s", el.get("id"))
-                raise ExportImportError(f"Invalid base64 in image element {el.get('id')}")
+                raise ExportImportError(
+                    f"Invalid base64 in image element {el.get('id')}"
+                )
             if sz > max_img_bytes:
-                logging.warning("Image element %s too large for floppy: %d bytes", el.get("id"), sz)
+                logging.warning(
+                    "Image element %s too large for floppy: %d bytes", el.get("id"), sz
+                )
                 raise ExportImportError(
                     f"Image too large for floppy in element {el.get('id')}, size={sz} bytes"
                 )
 
 
 def validate_fxsf_structure(
-    obj: dict, schema: Optional[FormSchema], floppy: bool = False, max_bytes: int = MAX_FLOPPY_BYTES
+    obj: dict,
+    schema: Optional[FormSchema],
+    floppy: bool = False,
+    max_bytes: int = MAX_FLOPPY_BYTES,
 ) -> None:
     """Validates the FXSF structure for size, images, and schema.
 
@@ -536,16 +555,22 @@ def export_form(
             "form_id": (
                 meta.get("id")
                 if meta and "id" in meta
-                else hashlib.sha1(json.dumps(form, sort_keys=True).encode()).hexdigest()[:8]
+                else hashlib.sha1(
+                    json.dumps(form, sort_keys=True).encode()
+                ).hexdigest()[:8]
             ),
-            "created": meta.get("created") if meta and "created" in meta else _get_now_iso(),
+            "created": (
+                meta.get("created") if meta and "created" in meta else _get_now_iso()
+            ),
             "author": (
                 meta.get("author")
                 if meta and "author" in meta
                 else os.environ.get("USERNAME", "unknown")
             ),
             "schema_version": (
-                meta.get("schema_version") if meta and "schema_version" in meta else "1.1"
+                meta.get("schema_version")
+                if meta and "schema_version" in meta
+                else "1.1"
             ),
             "meta": meta if meta else {},
             "encrypted": True,
@@ -554,7 +579,9 @@ def export_form(
             ),
             "body": None,
         }
-        plain_body = json.dumps(form, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        plain_body = json.dumps(form, ensure_ascii=False, sort_keys=True).encode(
+            "utf-8"
+        )
         body_enc_bytes = encrypt_bytes(plain_body, profile=encryption_profile)
         fxsf_obj["body_enc"] = base64.b64encode(body_enc_bytes).decode()
 
@@ -566,7 +593,9 @@ def export_form(
         ).encode("utf-8")
         fxsf_obj["checksum"] = _sha256_bytes(meta_blob)
         fxsf_obj["sig"] = "<not_implemented>" if sign else None
-        raw = json.dumps(fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8")
+        raw = json.dumps(fxsf_obj, ensure_ascii=False, sort_keys=True, indent=2).encode(
+            "utf-8"
+        )
         logging.info(
             "Form exported as secure .fxsfs; id=%s algo=%s",
             fxsf_obj["form_id"],
@@ -635,13 +664,15 @@ def import_form(
             del chk_obj["checksum"]
         if "sig" in chk_obj:
             del chk_obj["sig"]
-        meta_blob = json.dumps(chk_obj, ensure_ascii=False, sort_keys=True, indent=2).encode(
-            "utf-8"
-        )
+        meta_blob = json.dumps(
+            chk_obj, ensure_ascii=False, sort_keys=True, indent=2
+        ).encode("utf-8")
         calc = _sha256_bytes(meta_blob)
         if stored != calc:
             logging.error("Checksum mismatch: stored=%s, calculated=%s", stored, calc)
-            raise ExportImportError(f"Checksum mismatch: stored={stored}, calculated={calc}")
+            raise ExportImportError(
+                f"Checksum mismatch: stored={stored}, calculated={calc}"
+            )
 
     body: dict = {}
     if use_decrypt:
@@ -669,6 +700,8 @@ def import_form(
         raise ExportImportError("Signature verification not implemented")
 
     logging.info(
-        "Form imported; id=%s encrypted=%s", obj.get("form_id", None), obj.get("encrypted", False)
+        "Form imported; id=%s encrypted=%s",
+        obj.get("form_id", None),
+        obj.get("encrypted", False),
     )
     return body

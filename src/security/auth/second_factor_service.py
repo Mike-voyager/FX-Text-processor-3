@@ -52,7 +52,9 @@ def _log_and_return_error(fn: str, exc: Exception) -> FactorStatus:
 def _validate_input(user_id: str, factor_type: Optional[str] = None) -> None:
     if not isinstance(user_id, str) or not user_id.strip():
         raise ValueError("user_id must be a non-empty string")
-    if factor_type is not None and (not isinstance(factor_type, str) or not factor_type.strip()):
+    if factor_type is not None and (
+        not isinstance(factor_type, str) or not factor_type.strip()
+    ):
         raise ValueError("factor_type must be a non-empty string")
 
 
@@ -99,8 +101,12 @@ def verify_factor(
         if status.get("ttlseconds") and status.get("created"):
             import time
 
-            expired = (int(time.time()) - int(status["created"])) > int(status["ttlseconds"])
-        return FactorStatus(valid=bool(valid and not expired), expired=expired, state=status)
+            expired = (int(time.time()) - int(status["created"])) > int(
+                status["ttlseconds"]
+            )
+        return FactorStatus(
+            valid=bool(valid and not expired), expired=expired, state=status
+        )
     except Exception as e:
         return _log_and_return_error("verify_factor", e)
 

@@ -22,7 +22,9 @@ from typing import Final, Optional
 try:
     import argon2
 except ImportError:
-    raise ImportError("argon2-cffi is required for Argon2id KDF (pip install argon2-cffi)")
+    raise ImportError(
+        "argon2-cffi is required for Argon2id KDF (pip install argon2-cffi)"
+    )
 
 logger = logging.getLogger("security.crypto.kdf")
 logger.addHandler(logging.NullHandler())
@@ -98,10 +100,16 @@ def recommend_entropy_warning(password: bytes, salt: bytes) -> None:
         return len(set(data)) / len(data)
 
     if entropy_estimate(password) < 0.20:
-        logger.warning("Password likely has very low entropy. Use longer/semi-random secret.")
-        raise KDFEntropyWarning("Password likely weak; consider increasing length and complexity.")
+        logger.warning(
+            "Password likely has very low entropy. Use longer/semi-random secret."
+        )
+        raise KDFEntropyWarning(
+            "Password likely weak; consider increasing length and complexity."
+        )
     if entropy_estimate(salt) < 0.2:
-        logger.warning("Salt has low entropy; should be random bytes, not reused/constant.")
+        logger.warning(
+            "Salt has low entropy; should be random bytes, not reused/constant."
+        )
 
 
 def derive_key(
@@ -151,7 +159,14 @@ def derive_key(
     if salt is None:
         salt = generate_salt(16)
     validate_parameters(
-        password, salt, length, iterations, algorithm, memory_cost, parallelism, time_cost
+        password,
+        salt,
+        length,
+        iterations,
+        algorithm,
+        memory_cost,
+        parallelism,
+        time_cost,
     )
     recommend_entropy_warning(password, salt)
     logger.info(
@@ -215,9 +230,15 @@ def validate_parameters(
     Raises:
         KDFParameterError, KDFAlgorithmError
     """
-    if not isinstance(password, bytes) or len(password) < 8 or len(password) > _MAX_INPUT_LENGTH:
+    if (
+        not isinstance(password, bytes)
+        or len(password) < 8
+        or len(password) > _MAX_INPUT_LENGTH
+    ):
         logger.warning("Password length should be 8..4096 bytes; got %d", len(password))
-        raise KDFParameterError("Password must be 8..4096 bytes, recommend >=16 and high entropy.")
+        raise KDFParameterError(
+            "Password must be 8..4096 bytes, recommend >=16 and high entropy."
+        )
     if not isinstance(salt, bytes) or len(salt) < 8 or len(salt) > 64:
         logger.warning("Salt length should be 8..64 bytes; got %d", len(salt))
         raise KDFParameterError("Salt length must be 8..64 bytes.")
@@ -229,7 +250,9 @@ def validate_parameters(
             logger.warning("Argon2id time_cost must be 1..10; got %d", time_cost)
             raise KDFParameterError("Argon2id time_cost/iterations must be 1..10.")
         if not (2**14 <= memory_cost <= 2**19):
-            logger.warning("Argon2id memory_cost must be 16 KiB–512 MiB; got %d", memory_cost)
+            logger.warning(
+                "Argon2id memory_cost must be 16 KiB–512 MiB; got %d", memory_cost
+            )
             raise KDFParameterError("Argon2id memory must be 16384..524288 bytes.")
         if not (1 <= parallelism <= 8):
             logger.warning("Argon2id parallelism must be 1..8; got %d", parallelism)
@@ -237,7 +260,9 @@ def validate_parameters(
     elif algorithm == KDFAlgorithm.PBKDF2_HMAC_SHA256:
         iter_rounds = iterations if iterations is not None else 100_000
         if not (10_000 <= iter_rounds <= 1_000_000):
-            logger.warning("PBKDF2 iterations must be 10,000..1,000,000; got %d", iter_rounds)
+            logger.warning(
+                "PBKDF2 iterations must be 10,000..1,000,000; got %d", iter_rounds
+            )
             raise KDFParameterError("PBKDF2 iterations must be 10,000..1,000,000.")
     else:
         logger.warning("Unsupported KDF algorithm: %s", algorithm)

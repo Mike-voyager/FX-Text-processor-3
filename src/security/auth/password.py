@@ -24,7 +24,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple, Final, Callable, Dict, Any, Protocol, Union
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import blake2b
 from argon2 import PasswordHasher as _Argon2Hasher, exceptions as argon2_exc
 
@@ -90,7 +90,9 @@ def is_valid_password(
     return True
 
 
-def get_pepper(env_var: str = _PEPPER_ENV_VAR) -> Tuple[Optional[bytes], Optional[bytes]]:
+def get_pepper(
+    env_var: str = _PEPPER_ENV_VAR,
+) -> Tuple[Optional[bytes], Optional[bytes]]:
     v = os.environ.get(env_var)
     if v is None:
         return None, None
@@ -131,7 +133,8 @@ class AuditEvent:
 
 
 def _now() -> str:
-    return datetime.utcnow().isoformat()
+    """Return current UTC timestamp in ISO format."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,7 +161,9 @@ class PasswordHasher:
             self.kdf
             if self.kdf is not None
             else _Argon2Hasher(
-                time_cost=self.time_cost, memory_cost=self.memory_cost, parallelism=self.parallelism
+                time_cost=self.time_cost,
+                memory_cost=self.memory_cost,
+                parallelism=self.parallelism,
             )
         )
         object.__setattr__(self, "_ph", kdf)
@@ -166,19 +171,27 @@ class PasswordHasher:
         object.__setattr__(self, "_attempts", {})
 
     def _event(
-        self, event: str, user_id: str = "unknown", metadata: Optional[Dict[str, Any]] = None
+        self,
+        event: str,
+        user_id: str = "unknown",
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> AuditEvent:
         meta = dict(metadata) if metadata else {}
         meta["timestamp"] = _now()
         return AuditEvent(event, user_id, meta["timestamp"], meta)
 
     def _fire_mfa(
-        self, event: str, user_id: str = "unknown", metadata: Optional[Dict[str, Any]] = None
+        self,
+        event: str,
+        user_id: str = "unknown",
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         e = self._event(event, user_id, metadata)
         if self.mfa_callback:
             try:
-                self.mfa_callback(e.event, e.user_id, {"timestamp": e.timestamp, **e.metadata})
+                self.mfa_callback(
+                    e.event, e.user_id, {"timestamp": e.timestamp, **e.metadata}
+                )
             except Exception as exc:
                 _LOG.error("MFA callback error for %s: %s", event, exc)
 
@@ -187,7 +200,9 @@ class PasswordHasher:
         _LOG.debug("Generated salt: %s", salt.hex())
         return salt
 
-    def _mix_password(self, password: str, salt: bytes, pepper: Optional[bytes] = None) -> str:
+    def _mix_password(
+        self, password: str, salt: bytes, pepper: Optional[bytes] = None
+    ) -> str:
         salt_marker = blake2b(salt, digest_size=8).hexdigest()
         mix = salt_marker + password
         if pepper:
@@ -200,7 +215,9 @@ class PasswordHasher:
         with self._lock:
             if not is_valid_password(password, blacklist=_PASSWORD_BLACKLIST):
                 self._fire_mfa(
-                    MfaEvent.PASSWORD_POLICY_VIOLATION, user_id, metadata={"reason": "complexity"}
+                    MfaEvent.PASSWORD_POLICY_VIOLATION,
+                    user_id,
+                    metadata={"reason": "complexity"},
                 )
                 _LOG.warning("Password policy violation for user %s", user_id)
                 raise ValueError("Password failed policy requirements.")
@@ -223,7 +240,9 @@ class PasswordHasher:
                 user_id,
                 metadata={"audited": True, "ver": _HASH_FORMAT_VERSION},
             )
-            _LOG.info("Password hashed for user %s: ver=%s", user_id, _HASH_FORMAT_VERSION)
+            _LOG.info(
+                "Password hashed for user %s: ver=%s", user_id, _HASH_FORMAT_VERSION
+            )
             return result
 
     async def hash_password_async(
@@ -235,22 +254,52 @@ class PasswordHasher:
         )
 
     def verify_password(
-        self, password: str, hashed: str, user_id: str = "unknown", allow_lockout: bool = True
+        self,
+        password: str,
+        hashed: str,
+        user_id: str = "unknown",
+        track_attempts: bool = True,  # ← Переименовано из allow_lockout
     ) -> bool:
+        """
+        Verify password against stored hash.
+
+        Args:
+            password: Plain text password to verify
+            hashed: Stored password hash
+            user_id: User identifier (for attempt tracking)
+            track_attempts: Whether to track failed attempts and enforce lockout (default: True)
+                        Set to False for internal operations like password changes
+
+        Returns:
+            True if password matches, False otherwise
+
+        Example:
+            >>> # For authentication (with lockout):
+            >>> hasher.verify_password("pass", hash, "user1", track_attempts=True)
+            >>>
+            >>> # For internal checks (without lockout):
+            >>> hasher.verify_password("pass", hash, "user1", track_attempts=False)
+        """
         with self._lock:
             attempts = self._attempts.get(user_id, 0)
-            if allow_lockout and attempts >= MAX_FAILED_ATTEMPTS:
+
+            # Check lockout only if tracking is enabled
+            if track_attempts and attempts >= MAX_FAILED_ATTEMPTS:
                 self._fire_mfa(
                     MfaEvent.PASSWORD_LOCKOUT,
                     user_id,
                     metadata={"locked": True, "attempts": attempts},
                 )
-                _LOG.warning("User %s locked out after %d failed attempts.", user_id, attempts)
+                _LOG.warning(
+                    "User %s locked out after %d failed attempts.", user_id, attempts
+                )
                 return False
+
             try:
                 version, salt, argon_hash = self._parse_hash(hashed)
                 peppers = (self.pepper, self.pepper_old)
                 success = False
+
                 for p in peppers:
                     mix = self._mix_password(password, salt, p)
                     try:
@@ -259,33 +308,50 @@ class PasswordHasher:
                         break
                     except argon2_exc.VerifyMismatchError:
                         continue
+
                 zero_memory(password)
                 zero_memory(salt)
+
                 if success:
-                    self._attempts[user_id] = 0
+                    # Reset attempts on success (only if tracking)
+                    if track_attempts:
+                        self._attempts[user_id] = 0
                     self._fire_mfa(MfaEvent.PASSWORD_VERIFY_SUCCESS, user_id)
                     return True
                 else:
-                    self._attempts[user_id] = attempts + 1
-                    self._fire_mfa(
-                        MfaEvent.PASSWORD_VERIFY_FAILED,
-                        user_id,
-                        metadata={"attempts": self._attempts[user_id]},
-                    )
-                    if self._attempts[user_id] >= MAX_FAILED_ATTEMPTS:
-                        self._fire_mfa(MfaEvent.PASSWORD_LOCKOUT, user_id)
+                    # Increment attempts on failure (only if tracking)
+                    if track_attempts:
+                        self._attempts[user_id] = attempts + 1
+                        self._fire_mfa(
+                            MfaEvent.PASSWORD_VERIFY_FAILED,
+                            user_id,
+                            metadata={"attempts": self._attempts[user_id]},
+                        )
+                        if self._attempts[user_id] >= MAX_FAILED_ATTEMPTS:
+                            self._fire_mfa(MfaEvent.PASSWORD_LOCKOUT, user_id)
                     return False
+
             except Exception as exc:
                 self._fire_mfa(MfaEvent.ALERT, user_id, metadata={"error": str(exc)})
                 _LOG.error("Error verifying password for user %s: %s", user_id, exc)
                 return False
 
     async def verify_password_async(
-        self, password: str, hashed: str, user_id: str = "unknown", allow_lockout: bool = True
+        self,
+        password: str,
+        hashed: str,
+        user_id: str = "unknown",
+        track_attempts: bool = True,  # ← Переименовано
     ) -> bool:
+        """Async password verification with optional attempt tracking."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            get_thread_pool(), self.verify_password, password, hashed, user_id, allow_lockout
+            get_thread_pool(),
+            self.verify_password,
+            password,
+            hashed,
+            user_id,
+            track_attempts,
         )
 
     def needs_rehash(self, hashed: str, user_id: str = "unknown") -> bool:
@@ -314,7 +380,9 @@ class PasswordHasher:
                 _LOG.error("Error during needs_rehash user %s: %s", user_id, exc)
                 return True
 
-    def update_password(self, password: str, hashed: str, user_id: str = "unknown") -> str:
+    def update_password(
+        self, password: str, hashed: str, user_id: str = "unknown"
+    ) -> str:
         with self._lock:
             if self.verify_password(password, hashed, user_id):
                 if self.needs_rehash(hashed, user_id):
@@ -368,6 +436,58 @@ class PasswordHasher:
             if _thread_pool:
                 _thread_pool.shutdown(wait=True)
                 _thread_pool = None
+
+    def zeroize_all_secrets(self) -> None:
+        """
+        Zeroize all sensitive data in memory and shutdown thread pool.
+
+        Clears:
+        - Current and old pepper values
+        - Failed attempts tracking
+        - Thread pool executor
+
+        This method should be called when the PasswordHasher instance
+        is no longer needed to ensure all secrets are cleared from memory.
+
+        Example:
+            >>> hasher = PasswordHasher()
+            >>> hasher.hash_password("secret", hasher.generate_salt(), "user1")
+            >>> hasher.zeroize_all_secrets()  # Clean up all secrets
+
+        Note:
+            After calling this method, the hasher instance should not be reused.
+        """
+        with self._lock:
+            # Zeroize pepper if present
+            if self.pepper:
+                zero_memory(self.pepper)
+                object.__setattr__(self, "pepper", None)
+
+            if self.pepper_old:
+                zero_memory(self.pepper_old)
+                object.__setattr__(self, "pepper_old", None)
+
+            # Clear attempts dictionary (contains user_id strings)
+            if self._attempts:
+                self._attempts.clear()
+
+            _LOG.info("All secrets zeroized and cleared from memory")
+
+        # Shutdown thread pool
+        self.shutdown()
+
+    def __enter__(self) -> "PasswordHasher":
+        """Context manager entry."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
+        """Context manager exit with cleanup."""
+        self.zeroize_all_secrets()
 
     @staticmethod
     def _parse_hash(hashed: str) -> Tuple[str, bytes, str]:

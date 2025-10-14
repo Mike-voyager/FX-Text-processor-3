@@ -91,8 +91,12 @@ class DocumentMetadata:
         return cls(
             title=data.get("title", ""),
             author=data.get("author", ""),
-            created=datetime.fromisoformat(data.get("created", datetime.now().isoformat())),
-            modified=datetime.fromisoformat(data.get("modified", datetime.now().isoformat())),
+            created=datetime.fromisoformat(
+                data.get("created", datetime.now().isoformat())
+            ),
+            modified=datetime.fromisoformat(
+                data.get("modified", datetime.now().isoformat())
+            ),
             subject=data.get("subject", ""),
             keywords=data.get("keywords", []),
             version=data.get("version", "1.0"),
@@ -220,7 +224,8 @@ class PrinterSettings:
         """Создает настройки принтера из словаря."""
         return cls(
             printer_name=data.get("printer_name", "Epson FX-890"),
-            codepage=CodePage.from_string(data.get("codepage", "pc866")) or CodePage.PC866,
+            codepage=CodePage.from_string(data.get("codepage", "pc866"))
+            or CodePage.PC866,
             print_quality=PrintQuality.from_string(data.get("print_quality", "draft"))
             or PrintQuality.DRAFT,
             font_family=FontFamily.from_string(data.get("font_family", "draft"))
@@ -229,13 +234,19 @@ class PrinterSettings:
                 data.get("characters_per_inch", "10cpi")
             )
             or CharactersPerInch.CPI_10,
-            print_direction=PrintDirection.from_string(data.get("print_direction", "bidirectional"))
+            print_direction=PrintDirection.from_string(
+                data.get("print_direction", "bidirectional")
+            )
             or PrintDirection.BIDIRECTIONAL,
-            paper_type=PaperType.from_string(data.get("paper_type", "continuous_tractor"))
+            paper_type=PaperType.from_string(
+                data.get("paper_type", "continuous_tractor")
+            )
             or PaperType.CONTINUOUS_TRACTOR,
             paper_source=PaperSource.from_string(data.get("paper_source", "auto"))
             or PaperSource.AUTO,
-            default_alignment=Alignment.from_string(data.get("default_alignment", "left"))
+            default_alignment=Alignment.from_string(
+                data.get("default_alignment", "left")
+            )
             or Alignment.LEFT,
         )
 
@@ -341,7 +352,9 @@ class Document:
             IndexError: Если индекс вне границ
         """
         if index < 0 or index >= len(self.sections):
-            raise IndexError(f"Индекс секции {index} вне диапазона [0, {len(self.sections)})")
+            raise IndexError(
+                f"Индекс секции {index} вне диапазона [0, {len(self.sections)})"
+            )
 
         section = self.sections.pop(index)
         logger.debug(f"Удалена секция на индексе {index}")
@@ -362,7 +375,9 @@ class Document:
             IndexError: Если индекс вне границ
         """
         if index < 0 or index >= len(self.sections):
-            raise IndexError(f"Индекс секции {index} вне диапазона [0, {len(self.sections)})")
+            raise IndexError(
+                f"Индекс секции {index} вне диапазона [0, {len(self.sections)})"
+            )
         return self.sections[index]
 
     def iter_sections(self) -> Iterator[Any]:  # Вернёт Iterator[Section] при реализации
@@ -381,7 +396,9 @@ class Document:
 
     def get_character_count(self) -> int:
         """Получает общее количество символов (без пробелов)."""
-        return sum(len(text.replace(" ", "")) for text in self.get_text_content().split())
+        return sum(
+            len(text.replace(" ", "")) for text in self.get_text_content().split()
+        )
 
     def get_word_count(self) -> int:
         """Получает общее количество слов."""

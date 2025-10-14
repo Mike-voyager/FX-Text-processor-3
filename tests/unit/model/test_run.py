@@ -316,7 +316,9 @@ class TestListMarkerInfo:
             (ListStyleType.UPPER_ROMAN, 3),
         ],
     )
-    def test_list_marker_styles_and_levels(self, style: ListStyleType, level: int) -> None:
+    def test_list_marker_styles_and_levels(
+        self, style: ListStyleType, level: int
+    ) -> None:
         """Test various list styles and levels"""
         marker = ListMarkerInfo(list_style=style, list_level=level)
         assert marker.list_style == style
@@ -429,13 +431,17 @@ class TestRunConstruction:
 class TestRunPostInit:
     """Test Run.__post_init__ method"""
 
-    def test_post_init_invalid_cpi_font_combination(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_post_init_invalid_cpi_font_combination(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test post_init performs CPI/font compatibility check"""
         with caplog.at_level(logging.INFO):  # Изменили уровень на INFO
             run = Run(text="test", font=FontFamily.DRAFT, cpi=CharactersPerInch.CPI_10)
             # Should complete without error even if combination check encounters issues
         # Проверяем, что проверка совместимости была выполнена:
-        assert any("compatibility checked" in rec.message.lower() for rec in caplog.records)
+        assert any(
+            "compatibility checked" in rec.message.lower() for rec in caplog.records
+        )
 
     def test_post_init_special_chars_detection(self) -> None:
         """Test post_init auto-detects special characters"""
@@ -531,7 +537,9 @@ class TestRunValidation:
         run = Run(text="Hello")
         highlight = HighlightRange(start_offset=3, end_offset=1)
         run.highlights = [highlight]
-        with pytest.raises(ValueError, match="Invalid highlight range \\[3:1\\] for text length 5"):
+        with pytest.raises(
+            ValueError, match="Invalid highlight range \\[3:1\\] for text length 5"
+        ):
             run.validate()
 
     def test_validate_invalid_group_info_type(self) -> None:
@@ -545,7 +553,9 @@ class TestRunValidation:
         """Test validation fails with invalid list_marker type"""
         run = Run(text="test")
         object.__setattr__(run, "list_marker", "not_list_marker")  # type: ignore[assignment]
-        with pytest.raises(TypeError, match="list_marker must be ListMarkerInfo or None"):
+        with pytest.raises(
+            TypeError, match="list_marker must be ListMarkerInfo or None"
+        ):
             run.validate()
 
     def test_validate_encoding_error(self) -> None:
@@ -553,7 +563,8 @@ class TestRunValidation:
         # Create a run with text that can't be encoded in PC866
         run = Run(text="Hello 世界", codepage=CodePage.PC866)  # Chinese characters
         with pytest.raises(
-            ValueError, match="Text contains characters incompatible with pc866 encoding"
+            ValueError,
+            match="Text contains characters incompatible with pc866 encoding",
         ):
             run.validate()
 
@@ -621,7 +632,9 @@ class TestRunHighlightManagement:
         run = Run(text="Hello")  # length 5
 
         # Start > end
-        with pytest.raises(ValueError, match="Invalid highlight range \\[3:1\\] for text length 5"):
+        with pytest.raises(
+            ValueError, match="Invalid highlight range \\[3:1\\] for text length 5"
+        ):
             run.add_highlight(3, 1)
 
         # End > text length
@@ -1215,7 +1228,9 @@ class TestRunMerging:
         """Test merge_with raises error for incompatible runs"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.DRAFT)
-        with pytest.raises(ValueError, match="Cannot merge runs with different formatting"):
+        with pytest.raises(
+            ValueError, match="Cannot merge runs with different formatting"
+        ):
             run1.merge_with(run2)
 
     def test_merge_with_user_data_and_annotations(self) -> None:
@@ -1234,7 +1249,11 @@ class TestRunMerging:
 
         # run2 values should take precedence
         expected_user_data = {"key1": "value1", "key2": "value2", "common": "from_run2"}
-        expected_annotations = {"note1": "first", "note2": "second", "common_note": "from_run2"}
+        expected_annotations = {
+            "note1": "first",
+            "note2": "second",
+            "common_note": "from_run2",
+        }
 
         assert merged.user_data == expected_user_data
         assert merged.annotations == expected_annotations
@@ -1260,8 +1279,12 @@ class TestRunMerging:
 
     def test_merge_with_boolean_flags(self) -> None:
         """Test merge_with handles boolean flags correctly"""
-        run1 = Run(text="Hello ", is_deleted=True, is_inserted=False, has_special_chars=False)
-        run2 = Run(text="World\t", is_deleted=False, is_inserted=True, has_special_chars=True)
+        run1 = Run(
+            text="Hello ", is_deleted=True, is_inserted=False, has_special_chars=False
+        )
+        run2 = Run(
+            text="World\t", is_deleted=False, is_inserted=True, has_special_chars=True
+        )
         merged = run1.merge_with(run2)
 
         # OR logic for is_deleted and is_inserted
@@ -1709,8 +1732,12 @@ class TestRunSerialization:
         assert len(restored.highlights) == len(original.highlights)
 
         # group_info may be optional; compare safely
-        restored_group_type = restored.group_info.group_type if restored.group_info else None
-        original_group_type = original.group_info.group_type if original.group_info else None
+        restored_group_type = (
+            restored.group_info.group_type if restored.group_info else None
+        )
+        original_group_type = (
+            original.group_info.group_type if original.group_info else None
+        )
         assert restored_group_type == original_group_type
 
 
@@ -1811,7 +1838,9 @@ class TestRunFormatSummary:
 
     def test_format_summary_with_styles(self) -> None:
         """Test format summary with text styles"""
-        run = Run(text="Hello", style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE)
+        run = Run(
+            text="Hello", style=TextStyle.BOLD | TextStyle.ITALIC | TextStyle.UNDERLINE
+        )
         summary = run._format_summary()
 
         assert "style=B+I+U" in summary
@@ -1870,7 +1899,9 @@ class TestRunFormatSummary:
 class TestUtilityFunctions:
     """Test utility functions"""
 
-    def test_merge_consecutive_runs_empty_list(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_merge_consecutive_runs_empty_list(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test merge_consecutive_runs with empty list"""
         with caplog.at_level(logging.DEBUG):
             result = merge_consecutive_runs([])
@@ -1878,7 +1909,9 @@ class TestUtilityFunctions:
         assert result == []
         assert "empty list" in caplog.text
 
-    def test_merge_consecutive_runs_single_run(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_merge_consecutive_runs_single_run(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test merge_consecutive_runs with single run"""
         run = Run(text="Hello")
 
@@ -1890,7 +1923,9 @@ class TestUtilityFunctions:
         assert result[0] is not run  # Should be a copy
         assert "single run" in caplog.text
 
-    def test_merge_consecutive_runs_mergeable(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_merge_consecutive_runs_mergeable(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test merge_consecutive_runs with mergeable runs"""
         run1 = Run(text="Hello ", font=FontFamily.ROMAN)
         run2 = Run(text="World", font=FontFamily.ROMAN)
@@ -1946,7 +1981,9 @@ class TestUtilityFunctions:
         assert len(result) == 2  # Should keep separate
         assert "Failed to merge runs" in caplog.text
 
-    def test_split_by_formatting_empty_runs(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_split_by_formatting_empty_runs(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test split_by_formatting with empty runs list"""
         with caplog.at_level(logging.WARNING):
             result = split_by_formatting("Hello World", [])
@@ -1965,7 +2002,9 @@ class TestUtilityFunctions:
         ):
             split_by_formatting(text, runs)
 
-    def test_split_by_formatting_success(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_split_by_formatting_success(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test successful split_by_formatting"""
         text = "Hello World"
         template_runs = [
@@ -2183,7 +2222,13 @@ class TestEdgeCases:
 
     def test_serialization_with_none_values(self) -> None:
         """Test serialization handles None values correctly"""
-        run = Run(text="Hello", language=None, hyperlink=None, group_info=None, list_marker=None)
+        run = Run(
+            text="Hello",
+            language=None,
+            hyperlink=None,
+            group_info=None,
+            list_marker=None,
+        )
 
         data = run.to_dict()
 
@@ -2229,7 +2274,12 @@ class TestIntegration:
     def test_complex_document_workflow(self) -> None:
         """Test a complex document processing workflow"""
         runs = [
-            Run(text="Title", font=FontFamily.ROMAN, style=TextStyle.BOLD, color=Color.BLACK),
+            Run(
+                text="Title",
+                font=FontFamily.ROMAN,
+                style=TextStyle.BOLD,
+                color=Color.BLACK,
+            ),
             Run(text="\n\n"),
             Run(text="This is ", font=FontFamily.DRAFT),
             Run(text="important", font=FontFamily.DRAFT, style=TextStyle.ITALIC),

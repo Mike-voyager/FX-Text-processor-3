@@ -18,12 +18,18 @@ DEFAULT_TTL = 3600 * 24 * 90  # 90 дней
 
 
 def format_code(raw_hex: str, block_size: int = BLOCK_SIZE) -> str:
-    return "-".join([raw_hex[i : i + block_size] for i in range(0, len(raw_hex), block_size)])
+    return "-".join(
+        [raw_hex[i : i + block_size] for i in range(0, len(raw_hex), block_size)]
+    )
 
 
 class BackupCodeFactor:
     def setup(
-        self, user_id: str, count: int = 10, ttl_seconds: int = DEFAULT_TTL, **kwargs: Any
+        self,
+        user_id: str,
+        count: int = 10,
+        ttl_seconds: int = DEFAULT_TTL,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         created: int = int(time.time())
         codes: list[Dict[str, Any]] = [
@@ -77,9 +83,18 @@ class BackupCodeFactor:
         remaining_lock_sec = max(0, lock_until - now)
         if now < lock_until:
             audit.append(
-                {"ts": now, "code": code, "result": "lockout", "locked_for": remaining_lock_sec}
+                {
+                    "ts": now,
+                    "code": code,
+                    "result": "lockout",
+                    "locked_for": remaining_lock_sec,
+                }
             )
-            return {"status": "lockout", "remaining_lock_sec": remaining_lock_sec, "audit": audit}
+            return {
+                "status": "lockout",
+                "remaining_lock_sec": remaining_lock_sec,
+                "audit": audit,
+            }
 
         # Нормализуем формат кода (убираем дефисы и пробелы)
         normalized_code = code.replace("-", "").replace(" ", "").lower()
@@ -103,7 +118,11 @@ class BackupCodeFactor:
         if state["failed_attempts"] >= MAX_ATTEMPTS:
             state["lock_until"] = now + LOCK_SECONDS
             state["failed_attempts"] = 0
-            return {"status": "lockout", "remaining_lock_sec": LOCK_SECONDS, "audit": audit}
+            return {
+                "status": "lockout",
+                "remaining_lock_sec": LOCK_SECONDS,
+                "audit": audit,
+            }
         return {"status": "fail", "remaining_lock_sec": 0, "audit": audit}
 
     def expire(self, state: Dict[str, Any]) -> None:

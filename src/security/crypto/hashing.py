@@ -58,13 +58,17 @@ _DEFAULT_PARALLELISM = 2
 _MAX_PASSWORD_LEN = 1024
 
 
-def add_audit(event: str, user_id: Optional[str], context: Optional[Dict[str, Any]] = None) -> None:
+def add_audit(
+    event: str, user_id: Optional[str], context: Optional[Dict[str, Any]] = None
+) -> None:
     """Add audit trail event to memory (for SIEM/forensic)."""
     ent = {
         "event": event,
         "user_id": user_id,
         "context": context,
-        "ts": hashlib.blake2b(repr(secrets.token_bytes(16)).encode(), digest_size=8).hexdigest(),
+        "ts": hashlib.blake2b(
+            repr(secrets.token_bytes(16)).encode(), digest_size=8
+        ).hexdigest(),
     }
     _AUDIT_TRAIL.append(ent)
     _LOG.debug(f"Audit event added: {ent}")
@@ -76,7 +80,11 @@ def get_hash_scheme(hashed: str) -> str:
         return "unknown"
     if hashed.startswith("$argon2id$") or hashed.startswith("argon2id$"):
         return HashScheme.ARGON2ID.value
-    if hashed.startswith("$2a$") or hashed.startswith("$2b$") or hashed.startswith("$2y$"):
+    if (
+        hashed.startswith("$2a$")
+        or hashed.startswith("$2b$")
+        or hashed.startswith("$2y$")
+    ):
         return HashScheme.BCRYPT.value
     if hashed.startswith("pbkdf2:"):
         return HashScheme.PBKDF2.value
@@ -157,7 +165,9 @@ def hash_password(
         else:
             try:
                 ph = PasswordHasher(
-                    time_cost=time_cost, memory_cost=memory_cost, parallelism=parallelism
+                    time_cost=time_cost,
+                    memory_cost=memory_cost,
+                    parallelism=parallelism,
                 )
                 managed_hash: str = ph.hash(password)
                 _LOG.info("Password hashed with argon2id (managed salt).")
@@ -176,7 +186,9 @@ def hash_password(
         return bcrypt_hash
     elif scheme_e == HashScheme.PBKDF2:
         pbkdf2_salt: bytes = salt if salt is not None else secrets.token_bytes(16)
-        pbkdf2_hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode(), pbkdf2_salt, 100_000)
+        pbkdf2_hash_bytes = hashlib.pbkdf2_hmac(
+            "sha256", password.encode(), pbkdf2_salt, 100_000
+        )
         salt_str: str = b64encode(pbkdf2_salt).decode("ascii")
         hash_str: str = b64encode(pbkdf2_hash_bytes).decode("ascii")
         return f"pbkdf2:{salt_str}:{hash_str}"

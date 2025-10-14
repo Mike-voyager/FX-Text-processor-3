@@ -9,7 +9,7 @@ import pytest
 import secrets
 from typing import Any, Dict
 
-from security.crypto.kdf import (
+from src.security.crypto.kdf import (
     derive_key,
     validate_parameters,
     generate_salt,
@@ -216,14 +216,32 @@ def test_argon2id_determinism() -> None:
     pw = b"deterministic"
     salt = generate_salt(32)
     k1 = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 32, time_cost=2, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        32,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2,
     )
     k2 = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 32, time_cost=2, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        32,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2,
     )
     assert k1 == k2
     k3 = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 32, time_cost=3, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        32,
+        time_cost=3,
+        memory_cost=65536,
+        parallelism=2,
     )
     assert k1 != k3
 
@@ -242,7 +260,13 @@ def test_derive_key_hex_and_b64_are_distinct() -> None:
     pw = b"distinct-pw"
     salt = generate_salt(32)
     bx = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 32, time_cost=2, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        32,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2,
     )
     hx = derive_key(
         KDFAlgorithm.ARGON2ID,
@@ -276,10 +300,22 @@ def test_key_length_edge_cases() -> None:
     pw = b"edgekeypw"
     salt = generate_salt(32)
     key16 = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 16, time_cost=2, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        16,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2,
     )
     key64 = derive_key(
-        KDFAlgorithm.ARGON2ID, pw, salt, 64, time_cost=2, memory_cost=65536, parallelism=2
+        KDFAlgorithm.ARGON2ID,
+        pw,
+        salt,
+        64,
+        time_cost=2,
+        memory_cost=65536,
+        parallelism=2,
     )
     assert len(key16) == 16
     assert len(key64) == 64

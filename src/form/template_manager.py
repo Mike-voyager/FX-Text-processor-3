@@ -75,7 +75,10 @@ class Template:
         self.add_version(data, author, comment)
 
     def add_version(
-        self, data: Dict[str, Any], author: Optional[str] = None, comment: Optional[str] = None
+        self,
+        data: Dict[str, Any],
+        author: Optional[str] = None,
+        comment: Optional[str] = None,
     ) -> Optional[int]:
         latest = self.versions[-1].template if self.versions else None
         if latest is not None and self._is_duplicate(latest, data):
@@ -96,7 +99,9 @@ class Template:
                 comment=comment,
             )
         )
-        logger.info("Template %s: version %d saved by %s", self.name, version, real_author)
+        logger.info(
+            "Template %s: version %d saved by %s", self.name, version, real_author
+        )
         return version
 
     def _is_duplicate(self, a: Dict[str, Any], b: Dict[str, Any]) -> bool:
@@ -107,15 +112,23 @@ class Template:
             raise TemplateManagerError(f"No versions for template {self.name}")
         return deepcopy(self.versions[-1].template)
 
-    def promote_version(self, version_num: int, author: str, comment: Optional[str] = None) -> int:
+    def promote_version(
+        self, version_num: int, author: str, comment: Optional[str] = None
+    ) -> int:
         for v in self.versions:
             if v.version == version_num:
                 self.add_version(
-                    deepcopy(v.template), author, comment or f"rollback to v{version_num}"
+                    deepcopy(v.template),
+                    author,
+                    comment or f"rollback to v{version_num}",
                 )
-                logger.info("Template %s: rolled back to version %d", self.name, version_num)
+                logger.info(
+                    "Template %s: rolled back to version %d", self.name, version_num
+                )
                 return len(self.versions)
-        raise TemplateManagerError(f"Version {version_num} not found in template {self.name}")
+        raise TemplateManagerError(
+            f"Version {version_num} not found in template {self.name}"
+        )
 
     def history(self) -> List[Dict[str, Any]]:
         return [v.as_dict() for v in self.versions]
@@ -194,12 +207,17 @@ class TemplateManager:
         hierarchy = {"guest": 0, "user": 1, "editor": 2, "admin": 3}
         if hierarchy.get(user_role, 0) < hierarchy.get(required_role, 1):
             self._security_log(
-                "access_denied", template_name or "", {"action": action, "user_role": user_role}
+                "access_denied",
+                template_name or "",
+                {"action": action, "user_role": user_role},
             )
             raise TemplateManagerError(f"Access denied: {action} on {template_name}")
 
     def _check_rate_limit(
-        self, user_id: str, max_requests: Optional[int] = None, window_seconds: int = 3600
+        self,
+        user_id: str,
+        max_requests: Optional[int] = None,
+        window_seconds: int = 3600,
     ) -> None:
         max_requests_val = (
             max_requests
@@ -208,7 +226,9 @@ class TemplateManager:
         )
         now = time.time()
         user_requests = self._rate_limits[user_id]
-        self._rate_limits[user_id] = [t for t in user_requests if now - t < window_seconds]
+        self._rate_limits[user_id] = [
+            t for t in user_requests if now - t < window_seconds
+        ]
         if len(self._rate_limits[user_id]) >= max_requests_val:
             self._security_log("rate_limit", "", {"user_id": user_id})
             raise TemplateManagerError(f"Rate limit exceeded for user {user_id}")
@@ -252,7 +272,9 @@ class TemplateManager:
                 if stored_checksum:
                     calculated = self._calculate_checksum(data)
                     if stored_checksum != calculated:
-                        logger.error("Checksum mismatch for %s - file may be corrupted", file)
+                        logger.error(
+                            "Checksum mismatch for %s - file may be corrupted", file
+                        )
                         continue
                 tmpl = Template.from_dict(data)
                 self.templates[tmpl.name] = tmpl
@@ -262,12 +284,18 @@ class TemplateManager:
 
     def list_templates(self, include_deleted: bool = False) -> List[str]:
         return sorted(
-            [n for n, tmpl in self.templates.items() if (not tmpl.deleted or include_deleted)]
+            [
+                n
+                for n, tmpl in self.templates.items()
+                if (not tmpl.deleted or include_deleted)
+            ]
         )
 
     def get_template(self, name: str, include_deleted: bool = False) -> Template:
         self._check_permission(name, "read")
-        if name not in self.templates or (self.templates[name].deleted and not include_deleted):
+        if name not in self.templates or (
+            self.templates[name].deleted and not include_deleted
+        ):
             raise TemplateManagerError(f"Template '{name}' not found")
         return self.templates[name]
 
@@ -292,7 +320,9 @@ class TemplateManager:
             self.templates[name] = Template(name, data, author, comment, metadata)
             version = 1
         self._persist_template(name)
-        self._security_log("save_template", name, {"author": author, "comment": comment})
+        self._security_log(
+            "save_template", name, {"author": author, "comment": comment}
+        )
         return version
 
     def _persist_template(self, name: str) -> None:
@@ -346,7 +376,10 @@ class TemplateManager:
                 obj = obj.replace("{{" + k + "}}", safe_v)
             return obj
         elif isinstance(obj, dict):
-            return {k: self.safe_substitute(v, variables, max_var_size) for k, v in obj.items()}
+            return {
+                k: self.safe_substitute(v, variables, max_var_size)
+                for k, v in obj.items()
+            }
         elif isinstance(obj, list):
             return [self.safe_substitute(x, variables, max_var_size) for x in obj]
         else:
@@ -369,7 +402,9 @@ class TemplateManager:
                     template = deepcopy(v.template)
                     break
             else:
-                raise TemplateManagerError(f"Version {version_number} not found in template {name}")
+                raise TemplateManagerError(
+                    f"Version {version_number} not found in template {name}"
+                )
         else:
             template = tmpl.latest()
         if variables:
@@ -381,7 +416,9 @@ class TemplateManager:
         )
         return template
 
-    def search(self, query: str, limit: int = 20, include_deleted: bool = False) -> List[str]:
+    def search(
+        self, query: str, limit: int = 20, include_deleted: bool = False
+    ) -> List[str]:
         self._check_permission(None, "read")
         q = query.lower()
         result = [
@@ -397,8 +434,13 @@ class TemplateManager:
         ]
         return sorted(result)[:limit]
 
-    def validate_template_struct(self, data: Dict[str, Any], raise_exc: bool = False) -> bool:
-        if len(json.dumps(data)) > self.security_config["max_template_size_mb"] * 1_000_000:
+    def validate_template_struct(
+        self, data: Dict[str, Any], raise_exc: bool = False
+    ) -> bool:
+        if (
+            len(json.dumps(data))
+            > self.security_config["max_template_size_mb"] * 1_000_000
+        ):
             msg = "Template too large."
             if raise_exc:
                 raise TemplateManagerError(msg)
@@ -430,7 +472,9 @@ class TemplateManager:
         tmpl = self.get_template(name)
         new_ver = tmpl.promote_version(version_number, author, comment)
         self._persist_template(name)
-        self._security_log("promote_version", name, {"version": version_number, "by": author})
+        self._security_log(
+            "promote_version", name, {"version": version_number, "by": author}
+        )
         return new_ver
 
     def batch_migrate(
@@ -450,7 +494,8 @@ class TemplateManager:
                 new = migrate_fn(deepcopy(old))
                 if not self.validate_template_struct(new, raise_exc=False):
                     logger.warning(
-                        "Migration function produced invalid structure in '%s': skipped", name
+                        "Migration function produced invalid structure in '%s': skipped",
+                        name,
                     )
                     continue
                 ver = tmpl.add_version(new, author, comment or "migration")

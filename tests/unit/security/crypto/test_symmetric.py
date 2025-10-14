@@ -200,7 +200,9 @@ def test_zeroize_full_branch() -> None:
     assert all(x == 0 for x in ba)
 
 
-def test_encrypt_decrypt_bytearray_zeroize_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_encrypt_decrypt_bytearray_zeroize_branches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from security.crypto import symmetric
 
     monkeypatch.setattr(symmetric.SymmetricCipher, "validate_key", lambda k: None)

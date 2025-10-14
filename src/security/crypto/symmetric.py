@@ -52,11 +52,16 @@ def _audit_entropy(data: bytes) -> None:
     unique_count = len(set(data))
     if zero_count > len(data) // 2 or unique_count < len(data) // 4:
         _LOGGER.error(
-            "Random audit: low entropy detected (zeros=%d unique=%d)", zero_count, unique_count
+            "Random audit: low entropy detected (zeros=%d unique=%d)",
+            zero_count,
+            unique_count,
         )
         raise ValueError("Entropy mixer: suspicious randomness detected.")
     _LOGGER.info(
-        "Entropy audit OK: unique=%d zeros=%d total=%d", unique_count, zero_count, len(data)
+        "Entropy audit OK: unique=%d zeros=%d total=%d",
+        unique_count,
+        zero_count,
+        len(data),
     )
 
 
@@ -143,7 +148,9 @@ class SymmetricCipher:
             TypeError: if not bytes or None.
         """
         if associated_data is not None and not isinstance(associated_data, bytes):
-            _LOGGER.error("Associated data must be bytes or None, got: %r", type(associated_data))
+            _LOGGER.error(
+                "Associated data must be bytes or None, got: %r", type(associated_data)
+            )
             raise TypeError("Associated data (aad) must be bytes or None.")
 
     @staticmethod
@@ -186,7 +193,9 @@ class SymmetricCipher:
                 encryptor.authenticate_additional_data(associated_data)
             ciphertext = encryptor.update(data) + encryptor.finalize()
             result = ciphertext + encryptor.tag
-            _LOGGER.info("Data encrypted (len=%d, tag len=%d).", len(result), len(encryptor.tag))
+            _LOGGER.info(
+                "Data encrypted (len=%d, tag len=%d).", len(result), len(encryptor.tag)
+            )
             if isinstance(key, bytearray):
                 _zeroize(key)
             if isinstance(nonce, bytearray):
@@ -224,7 +233,9 @@ class SymmetricCipher:
         SymmetricCipher.validate_nonce(nonce)
         SymmetricCipher.validate_aad(associated_data)
         if not isinstance(ciphertext, bytes):
-            _LOGGER.error("Ciphertext to decrypt must be bytes, got %r", type(ciphertext))
+            _LOGGER.error(
+                "Ciphertext to decrypt must be bytes, got %r", type(ciphertext)
+            )
             raise TypeError("Ciphertext to decrypt must be bytes.")
         if len(ciphertext) < 16:
             _LOGGER.error("Ciphertext too short for AES-GCM decryption.")
@@ -248,7 +259,9 @@ class SymmetricCipher:
                 _zeroize(nonce)
             return plaintext
         except InvalidTag as itag:
-            _LOGGER.warning("Decryption failed: Invalid authentication tag (possible tampering).")
+            _LOGGER.warning(
+                "Decryption failed: Invalid authentication tag (possible tampering)."
+            )
             raise
         except Exception as exc:
             _LOGGER.error("Decryption failed: %s", exc)

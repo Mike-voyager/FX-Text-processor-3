@@ -23,7 +23,9 @@ def test_verify_no_devices() -> None:
 
 def test_verify_credential_id_mismatch() -> None:
     factor = Fido2Factor()
-    state: Dict[str, Any] = factor.setup("user1", {"credential_id": "A", "public_key": b"pk"})
+    state: Dict[str, Any] = factor.setup(
+        "user1", {"credential_id": "A", "public_key": b"pk"}
+    )
     response: Dict[str, Any] = {"credential_id": "B", "challenge": b"test"}
     result = factor.verify("user1", response, state)
     assert result["status"] == "fail"
@@ -33,7 +35,9 @@ def test_verify_credential_id_mismatch() -> None:
 
 def test_verify_challenge_type_error() -> None:
     factor = Fido2Factor()
-    state: Dict[str, Any] = factor.setup("user1", {"credential_id": "A", "public_key": b"pk"})
+    state: Dict[str, Any] = factor.setup(
+        "user1", {"credential_id": "A", "public_key": b"pk"}
+    )
     response: Dict[str, Any] = {"credential_id": "A", "challenge": 12345}
     result = factor.verify("user1", response, state)
     assert result["status"] == "fail"
@@ -42,7 +46,9 @@ def test_verify_challenge_type_error() -> None:
 
 def test_verify_missing_challenge() -> None:
     factor = Fido2Factor()
-    state: Dict[str, Any] = factor.setup("user1", {"credential_id": "A", "public_key": b"pk"})
+    state: Dict[str, Any] = factor.setup(
+        "user1", {"credential_id": "A", "public_key": b"pk"}
+    )
     response: Dict[str, Any] = {"credential_id": "A"}
     result = factor.verify("user1", response, state)
     assert result["status"] == "fail"
@@ -51,7 +57,9 @@ def test_verify_missing_challenge() -> None:
 
 def test_verify_success_signature(monkeypatch: pytest.MonkeyPatch) -> None:
     factor = Fido2Factor()
-    state: Dict[str, Any] = factor.setup("user1", {"credential_id": "CRED", "public_key": b"pk"})
+    state: Dict[str, Any] = factor.setup(
+        "user1", {"credential_id": "CRED", "public_key": b"pk"}
+    )
     response: Dict[str, Any] = {
         "credential_id": "CRED",
         "challenge": b"challenge",
@@ -80,7 +88,9 @@ def test_setup_no_device_info() -> None:
 
 def test_verify_signature_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     factor = Fido2Factor()
-    state: Dict[str, Any] = factor.setup("user1", {"credential_id": "ERR", "public_key": b"pk"})
+    state: Dict[str, Any] = factor.setup(
+        "user1", {"credential_id": "ERR", "public_key": b"pk"}
+    )
     response: Dict[str, Any] = {
         "credential_id": "ERR",
         "challenge": b"challenge",

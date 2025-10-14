@@ -47,7 +47,9 @@ class FileEncryptedStorageBackend(StorageBackend):
         try:
             os.chmod(self._filepath, stat.S_IRUSR | stat.S_IWUSR)
         except Exception as e:
-            logging.warning(f"Could not set strict permissions for {self._filepath}: {e}")
+            logging.warning(
+                f"Could not set strict permissions for {self._filepath}: {e}"
+            )
 
     def save(self, key: str, encrypted_data: bytes) -> None:
         self._db[key] = encrypted_data
@@ -110,7 +112,9 @@ class SecureStorage:
     MFA_STATE_KEY = "__mfa_state__"
     DEFAULT_LOCK_TIMEOUT = 600
 
-    def __init__(self, backend: StorageBackend, lock_timeout: int = DEFAULT_LOCK_TIMEOUT) -> None:
+    def __init__(
+        self, backend: StorageBackend, lock_timeout: int = DEFAULT_LOCK_TIMEOUT
+    ) -> None:
         self._backend = backend
         self._session_key: Optional[bytearray] = None
         self._is_unlocked: bool = False
@@ -123,7 +127,9 @@ class SecureStorage:
         key = self._mfa_auth(factor, user_id, value)
         if isinstance(key, str):
             key = key.encode("utf-8")
-        session_key = bytearray(derive_key_argon2id(key, salt=factor.value.encode(), length=32))
+        session_key = bytearray(
+            derive_key_argon2id(key, salt=factor.value.encode(), length=32)
+        )
         _zeroize(self._session_key)
         self._session_key = session_key
         self._is_unlocked = True
@@ -194,7 +200,9 @@ class SecureStorage:
         key_material = self._mfa_auth(factor, user_id, value)
         if isinstance(key_material, str):
             key_material = key_material.encode("utf-8")
-        session_key = derive_key_argon2id(key_material, salt=factor.value.encode(), length=32)
+        session_key = derive_key_argon2id(
+            key_material, salt=factor.value.encode(), length=32
+        )
         enc = self._backend.load(key)
         if enc is None:
             audit_log(f"Key not found: {key}")
@@ -236,7 +244,9 @@ class SecureStorage:
         if isinstance(key_material, str):
             key_material = key_material.encode("utf-8")
         session_key = bytearray(
-            derive_key_argon2id(key_material, salt=MFAFactor.BACKUP_CODE.value.encode(), length=32)
+            derive_key_argon2id(
+                key_material, salt=MFAFactor.BACKUP_CODE.value.encode(), length=32
+            )
         )
         _zeroize(self._session_key)
         self._session_key = session_key
@@ -263,7 +273,9 @@ class SecureStorage:
             self._backend.save(key, enc)
             audit_log(f"Stored key in batch: {key}")
 
-    def batch_rotate_salt(self, keys: List[str], old_context: str, new_context: str) -> None:
+    def batch_rotate_salt(
+        self, keys: List[str], old_context: str, new_context: str
+    ) -> None:
         self._op_access()
         for key in keys:
             self.rotate_salt(key, old_context, new_context)

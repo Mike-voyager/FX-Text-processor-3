@@ -61,7 +61,11 @@ def complex_form() -> dict:
         "elements": [
             {"id": "e1", "type": "text", "value": "hello", "refs": ["e2"]},
             {"id": "e2", "type": "text", "value": "world"},
-            {"id": "e3", "type": "image", "base64": base64.b64encode(b"x" * 1000).decode()},
+            {
+                "id": "e3",
+                "type": "image",
+                "base64": base64.b64encode(b"x" * 1000).decode(),
+            },
         ]
     }
 
@@ -280,13 +284,17 @@ def test_validate_printer_compatibility(simple_form: dict) -> None:
 
 
 def test_floppy_limit_exceeded() -> None:
-    large_form: dict = {"elements": [{"type": "text", "value": "x" * (MAX_FLOPPY_BYTES)}]}
+    large_form: dict = {
+        "elements": [{"type": "text", "value": "x" * (MAX_FLOPPY_BYTES)}]
+    }
     with pytest.raises(ExportImportError):
         validate_fxsf_structure({"body": large_form}, None, floppy=True)
 
 
 def test_invalid_base64_image() -> None:
-    bad_form: dict = {"elements": [{"id": "img1", "type": "image", "base64": "invalid_base64!"}]}
+    bad_form: dict = {
+        "elements": [{"id": "img1", "type": "image", "base64": "invalid_base64!"}]
+    }
     with pytest.raises(ExportImportError):
         validate_fxsf_structure({"body": bad_form}, None, floppy=True)
 

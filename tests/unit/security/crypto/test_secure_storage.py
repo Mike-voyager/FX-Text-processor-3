@@ -13,7 +13,7 @@ from pytest import MonkeyPatch
 from types import ModuleType
 import sys
 import types
-from security.crypto.secure_storage import (
+from src.security.crypto.secure_storage import (
     SecureStorage,
     StorageBackend,
     InMemoryEncryptedStorageBackend,
@@ -56,12 +56,20 @@ def dummy_decrypt_aes_gcm(data: bytes, key: bytes, context: bytes) -> bytes:
 
 @pytest.fixture(autouse=True)
 def monkeypatch_crypto(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr("security.crypto.secure_storage.derive_key_argon2id", dummy_derive_key)
-    monkeypatch.setattr("security.crypto.secure_storage.encrypt_aes_gcm", dummy_encrypt_aes_gcm)
-    monkeypatch.setattr("security.crypto.secure_storage.decrypt_aes_gcm", dummy_decrypt_aes_gcm)
+    monkeypatch.setattr(
+        "security.crypto.secure_storage.derive_key_argon2id", dummy_derive_key
+    )
+    monkeypatch.setattr(
+        "security.crypto.secure_storage.encrypt_aes_gcm", dummy_encrypt_aes_gcm
+    )
+    monkeypatch.setattr(
+        "security.crypto.secure_storage.decrypt_aes_gcm", dummy_decrypt_aes_gcm
+    )
 
 
-def dummy_mfa_auth(self: SecureStorage, factor: MFAFactor, user_id: str, value: str) -> bytes:
+def dummy_mfa_auth(
+    self: SecureStorage, factor: MFAFactor, user_id: str, value: str
+) -> bytes:
     # Always return fixed key for tests
     return b"Y" * 32
 
@@ -188,14 +196,16 @@ def test_backend_delete_not_found(storage: SecureStorage) -> None:
 
 
 def test_filebackend_setperms(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    from security.crypto.secure_storage import FileEncryptedStorageBackend
+    from src.security.crypto.secure_storage import FileEncryptedStorageBackend
 
     path: str = str(tmp_path / "permtest.bin")
     with open(path, "wb") as f:
         pickle.dump({}, f)
     backend = FileEncryptedStorageBackend(path)
     called: dict[str, bool] = {}
-    monkeypatch.setattr("os.chmod", lambda *a, **k: (_ for _ in ()).throw(PermissionError("fail")))
+    monkeypatch.setattr(
+        "os.chmod", lambda *a, **k: (_ for _ in ()).throw(PermissionError("fail"))
+    )
     backend._set_file_perms()  # покрывает выдачу warning
 
 
@@ -208,7 +218,9 @@ def test_store_pickle_fail(storage: SecureStorage, monkeypatch: MonkeyPatch) -> 
         storage.store("k", {"x": 1}, context="c")
 
 
-def test_retrieve_decrypt_error(storage: SecureStorage, monkeypatch: MonkeyPatch) -> None:
+def test_retrieve_decrypt_error(
+    storage: SecureStorage, monkeypatch: MonkeyPatch
+) -> None:
     storage.unlock(MFAFactor.TOTP, "user", "x")
     storage.store("errkey", 123, context="ctx")
     monkeypatch.setattr(
@@ -225,7 +237,9 @@ def test_rotate_salt_key_error(storage: SecureStorage) -> None:
         storage.rotate_salt("not_found", "a", "b")
 
 
-def test_high_security_op_decrypt_fail(storage: SecureStorage, monkeypatch: MonkeyPatch) -> None:
+def test_high_security_op_decrypt_fail(
+    storage: SecureStorage, monkeypatch: MonkeyPatch
+) -> None:
     storage.unlock(MFAFactor.TOTP, "who", "123")
     storage.store("secure", 42, context="x")
     monkeypatch.setattr(
@@ -236,7 +250,9 @@ def test_high_security_op_decrypt_fail(storage: SecureStorage, monkeypatch: Monk
         storage.high_security_op(MFAFactor.FIDO2, "who", "z", "secure", context="x")
 
 
-def test_high_security_op_pickle_error(storage: SecureStorage, monkeypatch: MonkeyPatch) -> None:
+def test_high_security_op_pickle_error(
+    storage: SecureStorage, monkeypatch: MonkeyPatch
+) -> None:
     storage.unlock(MFAFactor.TOTP, "wz", "pass")
     storage.store("p", {"x": 1}, context="ct")
     monkeypatch.setattr(

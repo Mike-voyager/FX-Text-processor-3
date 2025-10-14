@@ -97,7 +97,9 @@ class BaseFormElement:
     metadata: Optional[Dict[str, Any]] = None
 
     kind: ElementKind = ElementKind.BASE
-    _unknown_attrs: Dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+    _unknown_attrs: Dict[str, Any] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     def as_dict(self) -> Dict[str, Any]:
         if hasattr(self, "__dataclass_fields__"):
@@ -113,11 +115,17 @@ class BaseFormElement:
             raise ValueError("Element type must be string and non-empty")
         # strict ID: alphanumeric, optional [_-]
         if self.id is not None:
-            if not isinstance(self.id, str) or not re.fullmatch(r"^[a-zA-Z0-9_\-]+$", self.id):
-                raise ValueError("Element id must be an alphanumeric string (a-zA-Z0-9_-) or None")
+            if not isinstance(self.id, str) or not re.fullmatch(
+                r"^[a-zA-Z0-9_\-]+$", self.id
+            ):
+                raise ValueError(
+                    "Element id must be an alphanumeric string (a-zA-Z0-9_-) or None"
+                )
 
     @classmethod
-    def from_dict(cls: Type[T], data: Dict[str, Any], collect_unused: bool = False) -> T:
+    def from_dict(
+        cls: Type[T], data: Dict[str, Any], collect_unused: bool = False
+    ) -> T:
         allowed = set(f.name for f in cls.__dataclass_fields__.values() if f.init)
         filtered = {k: v for k, v in data.items() if k in allowed}
         unknown = {k: v for k, v in data.items() if k not in allowed}
@@ -159,7 +167,9 @@ class GroupFormElement(BaseFormElement):
             or not isinstance(self.elements, list)
             or not all(isinstance(e, str) for e in self.elements)
         ):
-            raise ValueError("GroupFormElement must have a non-empty list of element ids (str)")
+            raise ValueError(
+                "GroupFormElement must have a non-empty list of element ids (str)"
+            )
 
 
 @element_class("extension", order=999)
@@ -180,7 +190,9 @@ class ExtensionFormElement(BaseFormElement):
 FormElementRegistry.register("base", BaseFormElement, order=0)
 
 
-def element_from_dict(data: Dict[str, Any], collect_unused: bool = False) -> BaseFormElement:
+def element_from_dict(
+    data: Dict[str, Any], collect_unused: bool = False
+) -> BaseFormElement:
     """
     Factory function to create a form element instance from a dictionary.
     Uses the 'type' key to determine the element class.

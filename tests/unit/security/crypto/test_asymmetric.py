@@ -2,7 +2,7 @@ import pytest
 from typing import cast
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa, ec
 from _pytest.logging import LogCaptureFixture
-from security.crypto.asymmetric import (
+from src.security.crypto.asymmetric import (
     _validate_keypair,
     AsymmetricKeyPair,
     KeyFormatError,
@@ -10,7 +10,7 @@ from security.crypto.asymmetric import (
 )
 
 
-from security.crypto.asymmetric import (
+from src.security.crypto.asymmetric import (
     AsymmetricKeyPair,
     load_public_key,
     import_public_key_pem,
@@ -131,7 +131,9 @@ def test_unsupported_algorithm_and_key_type() -> None:
     with pytest.raises(KeyFormatError):
         load_public_key(ed_kp.export_public_bytes(), "rsa4096")
     with pytest.raises(KeyFormatError):
-        import_public_key_pem("-----BEGIN PUBLIC KEY-----\nxxxx\n-----END PUBLIC KEY-----")
+        import_public_key_pem(
+            "-----BEGIN PUBLIC KEY-----\nxxxx\n-----END PUBLIC KEY-----"
+        )
     # from_public_bytes: unknown algo
     with pytest.raises(UnsupportedAlgorithmError):
         AsymmetricKeyPair.from_public_bytes(b"1234", "bad_algo")
@@ -147,7 +149,7 @@ def test_algorithm_factory_dispatch() -> None:
 
 
 def test_safe_log_and_sanitize_password(caplog: LogCaptureFixture) -> None:
-    from security.crypto.asymmetric import _secure_log, _sanitize_password
+    from src.security.crypto.asymmetric import _secure_log, _sanitize_password
 
     _secure_log("foo without secret", 123)
     _secure_log("pw", "password=404notfound")
@@ -224,7 +226,7 @@ def test_ecdsa_invalid_key_material() -> None:
 def test_algorithm_factory_invalid() -> None:
     # попытка вызвать генератор с неправильными аргументами/размерами
     with pytest.raises(TypeError):
-        from security.crypto.asymmetric import AlgorithmFactory
+        from src.security.crypto.asymmetric import AlgorithmFactory
 
         AlgorithmFactory["rsa4096"]("not_expected_argument")
     # Отсутствующий алгоритм
@@ -321,7 +323,7 @@ def test_import_public_key_pem_bad() -> None:
 
 # 2. Фабрика: несуществующие алгоритмы, плохие аргументы
 def test_algorithm_factory_keyerror() -> None:
-    from security.crypto.asymmetric import AlgorithmFactory
+    from src.security.crypto.asymmetric import AlgorithmFactory
 
     with pytest.raises(KeyError):
         AlgorithmFactory["notalgo"]()
