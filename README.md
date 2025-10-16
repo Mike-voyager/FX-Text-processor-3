@@ -1,4 +1,4 @@
-# ESC/P Text Editor
+# FX Text Processor 3
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

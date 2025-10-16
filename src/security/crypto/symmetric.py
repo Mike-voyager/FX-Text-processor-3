@@ -1,19 +1,24 @@
 """Модуль симметричного шифрования для ESC/P Text Editor.
-Реализует AES-256-GCM с аутентификацией и журналированием событий.
 
-- Соответствие military-grade crypto (NIST SP 800-38D).
-- Fail-secure: все ошибки приводят к исключению, а не к silent fail.
-- Полная типизация, строгие проверки, подробные docstring.
-- Военный хардeнинг: миксер случайных байт, диагностика, entropy audit, zeroization.
+Реализует AES-256-GCM с аутентификацией, zeroization и журналированием событий.
+Интерфейс совместим с DI/Protocol для тестируемой, расширяемой архитектуры.
+
+- Соответствие military-grade crypto (NIST SP 800-38D)
+- Fail-secure: все ошибки приводят к исключению, а не к silent fail
+- Полная типизация, строгие проверки, подробные docstring
+- Военный hardening: миксер случайных байт, диагностика, entropy audit, zeroization
 
 Classes:
-    SymmetricCipher: Authenticated AES-256-GCM encryption/decryption for documents and credentials.
+    SymmetricCipherProtocol: protocol-type interface for symmetric ciphers.
+    SymmetricCipher: AES-256-GCM encryption/decryption for documents and credentials.
 """
 
 import logging
 import os
-from typing import ClassVar, Final, Optional
+from typing import ClassVar, Final, Optional, Protocol, runtime_checkable
+
 from secrets import token_bytes
+
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
@@ -77,8 +82,44 @@ def _zeroize(data: Optional[bytearray]) -> None:
         del data
 
 
+@runtime_checkable
+class SymmetricCipherProtocol(Protocol):
+    """Protocol interface for symmetric ciphers (for dependency injection and testability)."""
+
+    KEY_LENGTH: ClassVar[int]
+    NONCE_LENGTH: ClassVar[int]
+
+    @staticmethod
+    def generate_key() -> bytes: ...
+    @staticmethod
+    def generate_nonce() -> bytes: ...
+    @staticmethod
+    def encrypt(
+        data: bytes, key: bytes, nonce: bytes, associated_data: Optional[bytes] = None
+    ) -> bytes: ...
+    @staticmethod
+    def decrypt(
+        ciphertext: bytes,
+        key: bytes,
+        nonce: bytes,
+        associated_data: Optional[bytes] = None,
+    ) -> bytes: ...
+    @staticmethod
+    def validate_key(key: bytes) -> None: ...
+    @staticmethod
+    def validate_nonce(nonce: bytes) -> None: ...
+    @staticmethod
+    def validate_aad(associated_data: Optional[bytes]) -> None: ...
+
+    # zero_memory доступен по требованию (но не для bytes, а для bytearray)
+    @staticmethod
+    def zeroize(buf: Optional[bytearray]) -> None: ...
+
+
 class SymmetricCipher:
     """AES-256-GCM authenticated encryption for sensitive data.
+
+    Compatible with SymmetricCipherProtocol for DI, testing, and swapping implementations.
 
     Example:
         >>> key = SymmetricCipher.generate_key()
@@ -107,7 +148,6 @@ class SymmetricCipher:
 
         Args:
             key: AES key.
-
         Raises:
             TypeError: If key is not bytes.
             ValueError: If key length is invalid.
@@ -125,7 +165,6 @@ class SymmetricCipher:
 
         Args:
             nonce: AES-GCM nonce.
-
         Raises:
             TypeError: If nonce is not bytes.
             ValueError: If nonce length is invalid.
@@ -143,7 +182,6 @@ class SymmetricCipher:
 
         Args:
             associated_data: additional authenticated data.
-
         Raises:
             TypeError: if not bytes or None.
         """
@@ -167,10 +205,8 @@ class SymmetricCipher:
             key: AES-256 key (32 bytes).
             nonce: GCM nonce (12 bytes).
             associated_data: Optional authenticated data (bytes or None).
-
         Returns:
             bytes: Authenticated ciphertext.
-
         Raises:
             ValueError: Invalid key/nonce size.
             TypeError: Invalid type(s).
@@ -182,6 +218,7 @@ class SymmetricCipher:
         if not isinstance(data, bytes):
             _LOGGER.error("Data to encrypt must be bytes, got %r", type(data))
             raise TypeError("Data to encrypt must be bytes.")
+
         try:
             cipher = Cipher(
                 algorithms.AES(key),
@@ -219,10 +256,8 @@ class SymmetricCipher:
             key: AES-256 key (32 bytes).
             nonce: GCM nonce (12 bytes).
             associated_data: Optional authenticated data (bytes or None).
-
         Returns:
             bytes: Decrypted plaintext.
-
         Raises:
             ValueError: Invalid key/nonce/tag or input types.
             InvalidTag: Authentication failed.
@@ -240,6 +275,7 @@ class SymmetricCipher:
         if len(ciphertext) < 16:
             _LOGGER.error("Ciphertext too short for AES-GCM decryption.")
             raise ValueError("Ciphertext too short for AES-GCM.")
+
         tag = ciphertext[-16:]
         actual_ciphertext = ciphertext[:-16]
         try:
@@ -267,7 +303,18 @@ class SymmetricCipher:
             _LOGGER.error("Decryption failed: %s", exc)
             raise
 
+    @staticmethod
+    def zeroize(buf: Optional[bytearray]) -> None:
+        """Manually zero mutable buffer after use (e.g., in tests or secure service)."""
+        _zeroize(buf)
+
 
 encrypt_aes_gcm = SymmetricCipher.encrypt
 decrypt_aes_gcm = SymmetricCipher.decrypt
-__all__ = ["SymmetricCipher", "encrypt_aes_gcm", "decrypt_aes_gcm"]
+
+__all__ = [
+    "SymmetricCipherProtocol",
+    "SymmetricCipher",
+    "encrypt_aes_gcm",
+    "decrypt_aes_gcm",
+]

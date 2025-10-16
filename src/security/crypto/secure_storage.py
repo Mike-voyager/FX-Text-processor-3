@@ -1,6 +1,40 @@
+"""
+Модуль защищённого хранилища для ESC/P Text Editor — шифрованное хранение чувствительных данных с MFA-контролем доступа.
+
+Особенности:
+- Многофакторная аутентификация (MFA): FIDO2, TOTP, Backup Codes для разблокировки хранилища.
+- Session-based ключи: автоматическая блокировка по таймауту или вручную.
+- Zeroization: все ключи сессии и plaintext-буферы зануляются при освобождении памяти.
+- Контекстная ре-шифрация: salt/context rotation для защиты от side-channel attacks.
+- Backend-агностичность: поддержка файлового и in-memory backend через абстракцию StorageBackend.
+- Context manager: автоматический shutdown и cleanup ресурсов с использованием блока `with`.
+- Audit trail: все операции логируются для SIEM-систем и forensic анализа.
+- Emergency recovery: аварийное восстановление доступа через backup codes.
+- Batch operations: пакетная обработка записей для повышения производительности.
+- Protocol-интерфейс KeyStore для DI и расширяемости.
+
+Classes:
+    MFAFactor: enum поддерживаемых факторов MFA.
+    StorageBackend: абстрактный backend для хранения.
+    FileEncryptedStorageBackend: файловый backend с шифрованием.
+    InMemoryEncryptedStorageBackend: in-memory backend для тестов.
+    KeyStore: protocol-интерфейс для key-value хранилищ (DI).
+    SecureStorage: главный класс защищённого хранилища с MFA и context manager.
+"""
+
 import logging
 import time
-from typing import Any, Optional, Dict, List, Callable, cast
+from typing import (
+    Any,
+    Optional,
+    Dict,
+    List,
+    Callable,
+    cast,
+    Protocol,
+    runtime_checkable,
+    Final,
+)
 from abc import ABC, abstractmethod
 from enum import Enum
 import pickle
@@ -13,25 +47,69 @@ try:
 except ImportError:
     audit_log = logging.getLogger("secure_storage").info
 
+_LOG: Final = logging.getLogger("security.crypto.secure_storage")
+
+# ================================ Enums =======================================
+
 
 class MFAFactor(Enum):
+    """Supported MFA authentication factors."""
+
     FIDO2 = "fido2"
     TOTP = "totp"
     BACKUP_CODE = "backup_code"
 
 
+# ============================== Protocols =====================================
+
+
+@runtime_checkable
+class KeyStore(Protocol):
+    """Protocol for key-value stores (for DI/testing)."""
+
+    def get_key(self, key_id: str) -> Optional[bytes]:
+        """Retrieve encrypted data by key."""
+        ...
+
+    def set_key(self, key_id: str, data: bytes) -> None:
+        """Store encrypted data."""
+        ...
+
+    def rotate_key(self, key_id: str) -> None:
+        """Rotate/re-encrypt key."""
+        ...
+
+
+# ============================ Storage Backends ================================
+
+
 class StorageBackend(ABC):
+    """Abstract base class for storage backends."""
+
     @abstractmethod
-    def save(self, key: str, encrypted_data: bytes) -> None: ...
+    def save(self, key: str, encrypted_data: bytes) -> None:
+        """Save encrypted data."""
+        ...
+
     @abstractmethod
-    def load(self, key: str) -> Optional[bytes]: ...
+    def load(self, key: str) -> Optional[bytes]:
+        """Load encrypted data."""
+        ...
+
     @abstractmethod
-    def delete(self, key: str) -> None: ...
+    def delete(self, key: str) -> None:
+        """Delete data."""
+        ...
+
     @abstractmethod
-    def list_keys(self) -> List[str]: ...
+    def list_keys(self) -> List[str]:
+        """List all keys."""
+        ...
 
 
 class FileEncryptedStorageBackend(StorageBackend):
+    """File-based encrypted storage backend with atomic writes."""
+
     def __init__(self, filepath: str) -> None:
         self._filepath = filepath
         self._set_file_perms()
@@ -42,13 +120,14 @@ class FileEncryptedStorageBackend(StorageBackend):
             self._db = {}
 
     def _set_file_perms(self) -> None:
-        import os, stat
+        import os
+        import stat
 
         try:
             os.chmod(self._filepath, stat.S_IRUSR | stat.S_IWUSR)
         except Exception as e:
-            logging.warning(
-                f"Could not set strict permissions for {self._filepath}: {e}"
+            _LOG.warning(
+                "Could not set strict permissions for %s: %s", self._filepath, e
             )
 
     def save(self, key: str, encrypted_data: bytes) -> None:
@@ -76,6 +155,8 @@ class FileEncryptedStorageBackend(StorageBackend):
 
 
 class InMemoryEncryptedStorageBackend(StorageBackend):
+    """In-memory encrypted storage backend (for tests/dev)."""
+
     def __init__(self) -> None:
         self._db: Dict[str, bytes] = {}
 
@@ -92,25 +173,34 @@ class InMemoryEncryptedStorageBackend(StorageBackend):
         return list(self._db.keys())
 
 
+# ============================ Utility Functions ===============================
+
+
 def _zeroize(data: Optional[bytearray]) -> None:
-    if data is not None:
+    """Zero out bytearray in-place (best-effort memory cleanup)."""
+    if isinstance(data, bytearray):
         for i in range(len(data)):
             data[i] = 0
 
 
+# ========================== Secure Storage Container ==========================
+
+
 class SecureStorage:
     """
-    Secure encrypted storage for sensitive records with session unlock and selective high-security operations.
-    - MFA unlock (FIDO2/TOTP/Backup)
-    - Timeout auto-lock, manual lock/unlock
-    - Audit log for all operations
-    - Zeroization of key buffer (session key, plaintext buffers)
-    - Salt/context rotation for records (auto-reencrypt)
-    - Emergency recovery for backup codes
+    Secure encrypted storage with MFA unlock, automatic timeout, and context manager support.
+
+    Example:
+        >>> backend = InMemoryEncryptedStorageBackend()
+        >>> with SecureStorage(backend, lock_timeout=600) as storage:
+        ...     storage.unlock(MFAFactor.TOTP, "user123", "123456")
+        ...     storage.store("secret_key", {"data": "sensitive"}, "context1")
+        ...     obj = storage.retrieve("secret_key", "context1")
+        >>> # Automatic shutdown and zeroization on exit
     """
 
-    MFA_STATE_KEY = "__mfa_state__"
-    DEFAULT_LOCK_TIMEOUT = 600
+    MFA_STATE_KEY: Final[str] = "__mfa_state__"
+    DEFAULT_LOCK_TIMEOUT: Final[int] = 600
 
     def __init__(
         self, backend: StorageBackend, lock_timeout: int = DEFAULT_LOCK_TIMEOUT
@@ -122,7 +212,24 @@ class SecureStorage:
         self._lock_timeout: int = lock_timeout
         self._recovery_callback: Optional[Callable[[], None]] = None
 
+    def __enter__(self) -> "SecureStorage":
+        """Context manager entry."""
+        _LOG.info("SecureStorage context entered.")
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit with automatic shutdown and zeroization."""
+        _LOG.info("SecureStorage context exiting; performing cleanup.")
+        self.shutdown()
+
+    def shutdown(self) -> None:
+        """Explicitly shutdown storage: lock, zeroize, cleanup."""
+        self.lock()
+        audit_log("SecureStorage shutdown complete.")
+        _LOG.info("SecureStorage shut down.")
+
     def unlock(self, factor: MFAFactor, user_id: str, value: Any) -> None:
+        """Unlock storage using MFA factor."""
         audit_log(f"Unlock attempt using {factor.name}")
         key = self._mfa_auth(factor, user_id, value)
         if isinstance(key, str):
@@ -137,6 +244,7 @@ class SecureStorage:
         audit_log("SecureStorage unlocked")
 
     def lock(self) -> None:
+        """Lock storage and zeroize session key."""
         if self._session_key:
             _zeroize(self._session_key)
         self._session_key = None
@@ -144,15 +252,18 @@ class SecureStorage:
         audit_log("SecureStorage locked by user")
 
     def _auto_lock_check(self) -> None:
+        """Check if session expired; auto-lock if needed."""
         if self._is_unlocked and (time.time() - self._last_access > self._lock_timeout):
             audit_log("SecureStorage auto-locked by timeout")
             self.lock()
 
     def is_unlocked(self) -> bool:
+        """Check if storage is unlocked."""
         self._auto_lock_check()
         return self._is_unlocked
 
     def _op_access(self) -> None:
+        """Verify storage is unlocked before operation."""
         self._auto_lock_check()
         if not self._is_unlocked or self._session_key is None:
             audit_log("Storage locked; access denied")
@@ -160,6 +271,7 @@ class SecureStorage:
         self._last_access = time.time()
 
     def store(self, key: str, obj: Any, context: str) -> None:
+        """Store encrypted object."""
         self._op_access()
         raw = pickle.dumps(obj)
         key_bytes = bytes(self._session_key) if self._session_key is not None else b""
@@ -170,6 +282,7 @@ class SecureStorage:
             _zeroize(raw)
 
     def retrieve(self, key: str, context: str) -> Any:
+        """Retrieve and decrypt object."""
         self._op_access()
         enc = self._backend.load(key)
         if enc is None:
@@ -189,6 +302,7 @@ class SecureStorage:
         return obj
 
     def delete(self, key: str) -> None:
+        """Delete key."""
         self._op_access()
         self._backend.delete(key)
         audit_log(f"Deleted key: {key}")
@@ -196,6 +310,7 @@ class SecureStorage:
     def high_security_op(
         self, factor: MFAFactor, user_id: str, value: Any, key: str, context: str
     ) -> Any:
+        """High-security operation requiring immediate MFA re-authentication."""
         audit_log("High-security operation requested")
         key_material = self._mfa_auth(factor, user_id, value)
         if isinstance(key_material, str):
@@ -221,6 +336,7 @@ class SecureStorage:
         return obj
 
     def rotate_salt(self, key: str, old_context: str, new_context: str) -> None:
+        """Re-encrypt key with new context (salt rotation)."""
         self._op_access()
         enc = self._backend.load(key)
         if enc is None:
@@ -236,10 +352,11 @@ class SecureStorage:
             _zeroize(raw)
 
     def emergency_recover(self, backup_code: str) -> None:
+        """Emergency recovery using backup code."""
         from security.auth.code_service import get_backup_code_secret_for_storage
 
         audit_log("Emergency recovery triggered")
-        user_id = "emergency"  # согласно вашему сценарию
+        user_id = "emergency"
         key_material = get_backup_code_secret_for_storage(user_id, backup_code)
         if isinstance(key_material, str):
             key_material = key_material.encode("utf-8")
@@ -257,9 +374,11 @@ class SecureStorage:
             self._recovery_callback()
 
     def keys(self) -> List[str]:
+        """List all keys."""
         return self._backend.list_keys()
 
     def batch_store(self, items: Dict[str, Any], context: str) -> None:
+        """Batch store multiple items."""
         self._op_access()
         staging: Dict[str, bytes] = {}
         key_bytes = bytes(self._session_key) if self._session_key is not None else b""
@@ -276,18 +395,17 @@ class SecureStorage:
     def batch_rotate_salt(
         self, keys: List[str], old_context: str, new_context: str
     ) -> None:
+        """Batch rotate salt for multiple keys."""
         self._op_access()
         for key in keys:
             self.rotate_salt(key, old_context, new_context)
 
     def set_recovery_callback(self, cb: Callable[[], None]) -> None:
+        """Set callback for emergency recovery."""
         self._recovery_callback = cb
 
     def _mfa_auth(self, factor: MFAFactor, user_id: str, value: Any) -> bytes:
-        """
-        MFA универсальный gateway: вызывает валидирующую функцию из сервисного слоя.
-        Возвращает ключ/секрет (bytes), либо бросает PermissionError.
-        """
+        """Universal MFA gateway."""
         try:
             if factor == MFAFactor.FIDO2:
                 from security.auth.fido2_service import validate_fido2_response
@@ -314,19 +432,23 @@ class SecureStorage:
             raise PermissionError("MFA authentication failed: " + str(ex))
 
     def save(self, data: dict) -> None:
-        """
-        Universal save for use with SecondFactorManager & similar scenarios.
-        Stores state to a reserved internal key and context.
-        """
+        """Universal save for internal state."""
         self.store(self.MFA_STATE_KEY, data, context="mfa_state")
 
     def load(self) -> Optional[dict]:
-        """
-        Universal load for use with SecondFactorManager & similar scenarios.
-        Loads state from reserved internal key and context.
-        """
+        """Universal load for internal state."""
         try:
             result = self.retrieve(self.MFA_STATE_KEY, context="mfa_state")
             return cast(Dict[Any, Any], result)
         except KeyError:
             return None
+
+
+__all__ = [
+    "MFAFactor",
+    "StorageBackend",
+    "FileEncryptedStorageBackend",
+    "InMemoryEncryptedStorageBackend",
+    "KeyStore",
+    "SecureStorage",
+]

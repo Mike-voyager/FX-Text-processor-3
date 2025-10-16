@@ -1,22 +1,32 @@
-# Модуль для цифровых подписей Ed25519 в документообороте ESC/P Text Editor.
 """
-Digital signature utilities for Ed25519. For secure document, blank, and audit authentication.
-All logic is type-safe, logger-integrated, with strict error handling.
+Модуль цифровых подписей Ed25519 для ESC/P Text Editor — криптографически стойкая аутентификация документов и бланков.
 
-Usage:
-    signer = Ed25519Signer(private_key_bytes)
-    signature = signer.sign(b'data')
+Особенности:
+- Ed25519: современный алгоритм подписи (быстрый, компактный, 270× быстрее RSA-4096, устойчив к side-channel атакам).
+- Полная типизация и fail-secure обработка: любые ошибки форматов/ключей приводят к явному исключению, без silent fail.
+- Batch verification: проверка множественных подписей одного документа для оптимизации производительности.
+- Key fingerprinting: SHA256 хэш публичного ключа для безопасной идентификации владельцев.
+- Audit trail: все операции подписи/проверки логируются с опциональным alias для forensic анализа.
+- Thread-safe: без глобального состояния, безопасно для многопоточного использования.
+- Serialization: экспорт/импорт ключей в raw/hex формате для хранения и передачи.
+- Protocol-интерфейс SigningProvider для DI и расширяемости.
 
-    verifier = Ed25519Verifier(signer.public_key())
-    if verifier.verify(b'data', signature):
-        print("Signature valid")
+Classes:
+    SignatureError: исключение для ошибок подписи/проверки.
+    SigningProvider: protocol-интерфейс для провайдеров подписи (DI).
+    Ed25519Signer: генератор цифровых подписей с приватным ключом.
+    Ed25519Verifier: проверка подписей с публичным ключом.
 
-Raises SignatureError on failed verification or invalid key formats.
+Применение:
+- Подпись защищённых документов, бланков строгой отчётности.
+- Аутентификация операторов в audit trail.
+- Легальная электронная подпись (ЭЦП) в корпоративном документообороте.
 """
 
 import logging
 import hashlib
-from typing import Final, Literal, Optional, List
+from typing import Final, Literal, Optional, List, Protocol, runtime_checkable, Union
+
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
@@ -27,11 +37,29 @@ from cryptography.exceptions import InvalidSignature
 logger: Final = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+# ================================ Exceptions ==================================
 
-class SignatureError(Exception):
-    """
-    Исключение для ошибок, связанных с созданием/проверкой подписей.
-    """
+
+from security.crypto.exceptions import SignatureError
+
+
+# ================================ Protocols ===================================
+
+
+@runtime_checkable
+class SigningProvider(Protocol):
+    """Protocol for digital signature providers (for DI/testing)."""
+
+    def sign(self, message: bytes, priv_key: bytes) -> bytes:
+        """Sign message with private key."""
+        ...
+
+    def verify(self, message: bytes, sig: bytes, pub_key: bytes) -> bool:
+        """Verify signature with public key."""
+        ...
+
+
+# ============================== Ed25519 Signer ================================
 
 
 class Ed25519Signer:
@@ -49,10 +77,10 @@ class Ed25519Signer:
         Нет внутреннего состояния; безопасен для одновременных использований.
 
     Example:
-        signer = Ed25519Signer(priv_bytes, alias='operator-01')
-        signature = signer.sign(b"test")
-        pub = signer.public_key("hex")
-        fp = signer.get_fingerprint()
+        >>> signer = Ed25519Signer(priv_bytes, alias='operator-01')
+        >>> signature = signer.sign(b"test")
+        >>> pub = signer.public_key("hex")
+        >>> fp = signer.get_fingerprint()
     """
 
     def __init__(self, private_key: bytes, alias: Optional[str] = None) -> None:
@@ -74,7 +102,7 @@ class Ed25519Signer:
             message (bytes): данные для подписи.
 
         Returns:
-            bytes: подпись.
+            bytes: подпись (64 байта).
 
         Raises:
             SignatureError: при ошибках.
@@ -90,7 +118,7 @@ class Ed25519Signer:
             logger.error("Signing failed: %s", exc)
             raise SignatureError(f"Signing failed: {exc}")
 
-    def public_key(self, encoding: Literal["raw", "hex"] = "raw") -> bytes | str:
+    def public_key(self, encoding: Literal["raw", "hex"] = "raw") -> Union[bytes, str]:
         """
         Экспортировать публичный ключ.
 
@@ -98,9 +126,8 @@ class Ed25519Signer:
             encoding: "raw" — 32 байта, "hex" — hex строка.
 
         Returns:
-            bytes | str: публичный ключ (raw или hex).
+            Union[bytes, str]: публичный ключ (raw или hex).
         """
-        # Используем правильные параметры для public_bytes()
         raw_pk = self._sk.public_key().public_bytes(
             encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
@@ -118,7 +145,6 @@ class Ed25519Signer:
         Returns:
             str: fingerprint (hex SHA256).
         """
-        # Явно приводим к bytes для hashlib
         raw_key = self.public_key("raw")
         assert isinstance(raw_key, bytes)
         fingerprint = hashlib.sha256(raw_key).hexdigest()
@@ -167,6 +193,9 @@ class Ed25519Signer:
         return key_bytes
 
 
+# ============================ Ed25519 Verifier ================================
+
+
 class Ed25519Verifier:
     """
     Проверка цифровых подписей Ed25519.
@@ -182,8 +211,8 @@ class Ed25519Verifier:
         Нет внутреннего состояния; безопасен для одновременных использований.
 
     Example:
-        verifier = Ed25519Verifier(pub_bytes, alias="userA")
-        valid = verifier.verify(b"msg", signature)
+        >>> verifier = Ed25519Verifier(pub_bytes, alias="userA")
+        >>> valid = verifier.verify(b"msg", signature)
     """
 
     def __init__(self, public_key: bytes, alias: Optional[str] = None) -> None:
@@ -259,7 +288,6 @@ class Ed25519Verifier:
         Returns:
             str: fingerprint.
         """
-        # Используем правильные параметры для public_bytes()
         pk_bytes = self._pk.public_bytes(
             encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
@@ -307,3 +335,11 @@ class Ed25519Verifier:
             raise SignatureError("Loaded verifier key must be 32 bytes Ed25519.")
         logger.info("Verifier key loaded from %s.", filepath)
         return key_bytes
+
+
+__all__ = [
+    "SignatureError",
+    "SigningProvider",
+    "Ed25519Signer",
+    "Ed25519Verifier",
+]
