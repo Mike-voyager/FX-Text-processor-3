@@ -245,12 +245,14 @@ def test_rsa_public_as_ecdsa_rejected() -> None:
     with pytest.raises(asym.KeyFormatError):
         _ = asym.AsymmetricKeyPair.from_public_bytes(pem, "ecdsa_p256")
 
+
 def test_from_private_bytes_unsupported_container_format_raises() -> None:
     # Создадим valid EC private key, импортируем как rsa4096 → должно упасть проверкой формата/типа
     ec_kp = asym.AsymmetricKeyPair.generate("ecdsa_p256")
     pem_ec = ec_kp.export_private_bytes()
     with pytest.raises(asym.KeyFormatError):
         _ = asym.AsymmetricKeyPair.from_private_bytes(pem_ec, "rsa4096")
+
 
 def test_from_public_bytes_der_data_rejected() -> None:
     # Возьмём PEM и «испорчим» заголовки, чтобы это больше не было PEM
@@ -260,8 +262,11 @@ def test_from_public_bytes_der_data_rejected() -> None:
     with pytest.raises(asym.KeyFormatError):
         _ = asym.AsymmetricKeyPair.from_public_bytes(der_like, "ed25519")
 
+
 def test_rsa_public_only_decrypt_rejected() -> None:
     priv = asym.AsymmetricKeyPair.generate("rsa4096", key_size=2048)
-    pub_only = asym.AsymmetricKeyPair.from_public_bytes(priv.export_public_bytes(), "rsa4096")
+    pub_only = asym.AsymmetricKeyPair.from_public_bytes(
+        priv.export_public_bytes(), "rsa4096"
+    )
     with pytest.raises(NotImplementedError):
         _ = pub_only.decrypt(b"\x00" * 256)
