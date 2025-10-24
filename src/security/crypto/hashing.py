@@ -1,403 +1,392 @@
+# security/crypto/hashing.py
+# -*- coding: utf-8 -*-
 """
-Модуль безопасного хэширования паролей для FX Text processor 3 — корпоративный стандарт по хранению и проверке паролей/секретов.
+RU: Безопасное хэширование паролей с полной поддержкой PBKDF2-HMAC-SHA256 и Argon2id,
+опциональным pepper, DI-параметрами, needs_rehash и constant-time верификацией.
 
-Особенности:
-- Поддержка современных схем: Argon2id (по умолчанию; memory-hard, защитит даже от ASIC/GPU), bcrypt (legacy), PBKDF2-HMAC-SHA256 (совместимость), SHA256 (только для миграций).
-- Гибко настраиваемые параметры (cost/memory/parallelism) для всех алгоритмов через API.
-- Встроенный аудит всего процесса — все операции хэширования/проверки фиксируются в памяти для forensic/SIEM.
-- Fail-secure политика — любые ошибки не раскрывают деталей, результат — False или явный raise; предотвращение утечек и side-effects.
-- Автоматическая проверка на устаревание параметров или схем (needs_rehash).
-- Оптимизирован для многопоточной среды, идемпотентен, глобального состояния не хранит; secure wipe реализован для чувствительных данных.
-- Дополнительно — поддержка миграции старых/нестандартных паролей через legacy_verify (рекомендуется только для перехода).
-- Подробные docstring и примеры — легко использовать с тестами/CI/CD.
+EN: Secure password hashing with full PBKDF2-HMAC-SHA256 and Argon2id support,
+optional pepper, DI parameters, needs_rehash, and constant-time verification.
 
-Classes:
-    HashScheme: enum для поддерживаемых схем хэширования.
-    HashProvider: протокол для расширяемости (может быть интегрирован в DI).
+Formats:
+- PBKDF2 (legacy):        "pbkdf2:sha256:<iterations>:<b64salt>:<b64dk>"
+- PBKDF2 (+pepper):       "pbkdf2:sha256:<iterations>:pv=<ver>:<b64salt>:<b64dk>"
+- Argon2id (no pepper):   "argon2id:<t>:<m>:<p>[:v=19]:<b64salt>:<b64hash>"
+- Argon2id (+pepper):     "argon2id:<t>:<m>:<p>[:pv=<ver>][:v=19]:<b64salt>:<b64hash>"
+
+Notes:
+- Pepper is applied via HMAC-SHA256(pepper, password_bytes) before hashing.
+- Argon2id uses fixed low-level version 19 (Argon2 v1.3) for deterministic outputs (v=19 is recorded in the hash).
+- No secrets (passwords, peppers, salts, hashes) are logged.
 """
 
-import logging
-import secrets
+from __future__ import annotations
+
+import base64
 import hashlib
-from typing import Optional, Dict, Any, List, Protocol, runtime_checkable, Final
-from enum import Enum
-from base64 import b64encode, b64decode
-from types import ModuleType
+import hmac
+import logging
+from typing import Callable, Any, Final, Optional, Tuple
 
-# Optional dependencies
-argon2_ll: Optional[ModuleType]
-argon2_exc: Optional[ModuleType]
-try:
-    from argon2 import PasswordHasher, exceptions as argon2_exc, low_level as argon2_ll  # type: ignore
-except ImportError:
-    argon2_ll = None
-    argon2_exc = None
+from security.crypto.exceptions import HashSchemeError
+from security.crypto.protocols import HashingProtocol
+from security.crypto.utils import generate_salt, secure_compare
 
-bcrypt: Optional[ModuleType]
-try:
-    import bcrypt  # type: ignore
-except ImportError:
-    bcrypt = None
+_LOGGER: Final = logging.getLogger(__name__)
 
-_LOG: Final = logging.getLogger("fxtext.security.hashing")
-_LOG.setLevel(logging.INFO)
+# PBKDF2 policy
+_SCHEME_PBKDF2: Final[str] = "pbkdf2"
+_HASH_NAME: Final[str] = "sha256"
+_MIN_ITERS: Final[int] = 100_000
+_MIN_SALT_LEN: Final[int] = 8
+_MAX_SALT_LEN: Final[int] = 64
 
-_AUDIT_TRAIL: List[Dict[str, Any]] = []
-
-# System-wide defaults
-_DEFAULT_TIME_COST: Final[int] = 3
-_DEFAULT_MEMORY_COST: Final[int] = 65536
-_DEFAULT_PARALLELISM: Final[int] = 2
-_MAX_PASSWORD_LEN: Final[int] = 1024
-
-__all__ = [
-    "hash_password",
-    "verify_password",
-    "needs_rehash",
-    "get_hash_scheme",
-    "HashScheme",
-    "HashProvider",
-    "legacy_verify_password",
-    "add_audit",
-]
+# Argon2id defaults (can be overridden via ctor)
+_DEF_T: Final[int] = 3
+_DEF_M: Final[int] = 65_536  # KiB (~64 MiB)
+_DEF_P: Final[int] = 2
 
 
-class HashScheme(str, Enum):
-    """Supported password hashing schemes."""
+def _try_import_argon2() -> Tuple[Callable[..., bytes], Any, int]:
+    """
+    Lazy import for argon2.low_level; returns (hash_secret_raw, Type, version).
+    Raises ImportError if argon2-cffi is unavailable.
+    """
+    from argon2.low_level import hash_secret_raw, Type  # type: ignore[import]
 
-    ARGON2ID = "argon2id"
-    BCRYPT = "bcrypt"
-    PBKDF2 = "pbkdf2"
-    SHA256 = "sha256"
-
-
-@runtime_checkable
-class HashProvider(Protocol):
-    """Protocol for password hashing providers (for DI/testing)."""
-
-    def hash_password(self, password: str, **kwargs: Any) -> str: ...
-    def verify_password(self, password: str, hashed: str) -> bool: ...
+    return hash_secret_raw, Type, 19
 
 
-def add_audit(
-    event: str, user_id: Optional[str], context: Optional[Dict[str, Any]] = None
-) -> None:
-    """Add audit trail event to memory (for SIEM/forensic).
+class PasswordHasher(HashingProtocol):
+    """
+    Password hashing provider supporting PBKDF2-HMAC-SHA256 and Argon2id.
 
     Args:
-        event: Event name/type.
-        user_id: User identifier (if applicable).
-        context: Additional context data.
+        scheme: "pbkdf2" or "argon2id".
+        iterations: PBKDF2 iterations (>= 100_000).
+        salt_len: salt length (8..64).
+        pepper_provider: optional callable returning pepper bytes.
+        pepper_version: optional version label embedded into hash when pepper is used.
+        time_cost: Argon2id time cost (>= 2).
+        memory_cost: Argon2id memory cost in KiB (>= 65536).
+        parallelism: Argon2id parallelism (>= 1).
     """
-    ent: Dict[str, Any] = {
-        "event": event,
-        "user_id": user_id,
-        "context": context,
-        "ts": hashlib.blake2b(
-            repr(secrets.token_bytes(16)).encode(), digest_size=8
-        ).hexdigest(),
-    }
-    _AUDIT_TRAIL.append(ent)
-    _LOG.debug("Audit event added: %s", ent)
 
+    __slots__ = (
+        "_scheme",
+        "_iterations",
+        "_salt_len",
+        "_pepper_provider",
+        "_pepper_version",
+        "_t",
+        "_m",
+        "_p",
+    )
 
-def get_hash_scheme(hashed: str) -> str:
-    """Heuristic parse hash string to determine scheme.
+    def __init__(
+        self,
+        scheme: str = "pbkdf2",
+        *,
+        iterations: int = 200_000,
+        salt_len: int = 16,
+        pepper_provider: Optional[Callable[[], bytes]] = None,
+        pepper_version: Optional[str] = None,
+        time_cost: int = _DEF_T,
+        memory_cost: int = _DEF_M,
+        parallelism: int = _DEF_P,
+    ) -> None:
+        if scheme not in ("pbkdf2", "argon2id"):
+            raise HashSchemeError("Unsupported hashing scheme")
+        if not isinstance(salt_len, int) or not (
+            _MIN_SALT_LEN <= salt_len <= _MAX_SALT_LEN
+        ):
+            raise HashSchemeError("Salt length must be between 8 and 64 bytes")
 
-    Args:
-        hashed: Hash string to analyze.
+        self._scheme = scheme
+        self._salt_len = salt_len
+        self._pepper_provider = pepper_provider
+        self._pepper_version = pepper_version
+        if pepper_provider is None and pepper_version is not None:
+            raise HashSchemeError("pepper_version requires pepper_provider")
 
-    Returns:
-        Scheme name or "unknown".
-    """
-    if not isinstance(hashed, str):
-        return "unknown"
-    if hashed.startswith("$argon2id$") or hashed.startswith("argon2id$"):
-        return HashScheme.ARGON2ID.value
-    if (
-        hashed.startswith("$2a$")
-        or hashed.startswith("$2b$")
-        or hashed.startswith("$2y$")
-    ):
-        return HashScheme.BCRYPT.value
-    if hashed.startswith("pbkdf2:"):
-        return HashScheme.PBKDF2.value
-    if len(hashed) == 64 and all(c in "0123456789abcdef" for c in hashed):
-        return HashScheme.SHA256.value
-    return "unknown"
-
-
-def _validate_costs(time_cost: int, memory_cost: int, parallelism: int) -> None:
-    """Validate hashing parameters.
-
-    Raises:
-        ValueError: If parameters are out of safe range.
-    """
-    errors: List[str] = []
-    if time_cost < 2:
-        errors.append("time_cost must be >=2")
-    if memory_cost < 8192:
-        errors.append("memory_cost must be >=8192KB")
-    if not (1 <= parallelism <= 16):
-        errors.append("parallelism must be in [1,16]")
-    if errors:
-        _LOG.warning("Parameter validation failed: %s", errors)
-        raise ValueError("; ".join(errors))
-    _LOG.debug("Parameter validation passed.")
-
-
-def _wipe_sensitive_data(obj: Optional[Any]) -> None:
-    """Attempt to zero out sensitive data (best-effort in Python).
-
-    Args:
-        obj: Object containing sensitive data.
-    """
-    if obj is not None:
-        _LOG.debug("Wiping sensitive data from memory (best-effort).")
-        del obj
-
-
-def hash_password(
-    password: str,
-    salt: Optional[bytes] = None,
-    *,
-    time_cost: int = _DEFAULT_TIME_COST,
-    memory_cost: int = _DEFAULT_MEMORY_COST,
-    parallelism: int = _DEFAULT_PARALLELISM,
-    scheme: str = "argon2id",
-) -> str:
-    """Hash password using configurable scheme (default: Argon2id).
-
-    Args:
-        password: UTF-8 string, max 1024 chars.
-        salt: Optional salt (used only for low-level Argon2id, bcrypt, pbkdf2).
-        time_cost: Time cost parameter.
-        memory_cost: Memory cost parameter (KB).
-        parallelism: Parallelism parameter (threads).
-        scheme: HashScheme; one of {"argon2id", "bcrypt", "pbkdf2", "sha256"}.
-
-    Returns:
-        Encoded hash string.
-
-    Raises:
-        ValueError: Invalid password or parameters.
-        ImportError: Required library not available.
-
-    Example:
-        >>> hashval = hash_password("Pa$$w0rd!")
-        >>> assert verify_password("Pa$$w0rd!", hashval)
-    """
-    add_audit("hash_password", None, {"scheme": scheme})
-    if not isinstance(password, str) or not password:
-        _LOG.error("Empty/invalid password.")
-        raise ValueError("Password must be non-empty string.")
-    if len(password) > _MAX_PASSWORD_LEN:
-        _LOG.warning("Password length exceeds maximum allowed, will be truncated.")
-        password = password[:_MAX_PASSWORD_LEN]
-
-    _validate_costs(time_cost, memory_cost, parallelism)
-    scheme_e = HashScheme(scheme)
-
-    try:
-        if scheme_e == HashScheme.ARGON2ID:
-            if salt is not None and argon2_ll is not None:
-                hashval_bytes = argon2_ll.hash_secret(
-                    password.encode("utf-8"),
-                    salt,
-                    time_cost=time_cost,
-                    memory_cost=memory_cost,
-                    parallelism=parallelism,
-                    hash_len=32,
-                    type=argon2_ll.Type.ID,
-                )
-                argon2_hash: str = hashval_bytes.decode("utf-8")
-                _LOG.info("Password hashed with argon2id (custom salt, low-level).")
-                return argon2_hash
-            else:
-                if argon2_ll is None:
-                    raise ImportError("argon2-cffi not available.")
-                ph = PasswordHasher(
-                    time_cost=time_cost,
-                    memory_cost=memory_cost,
-                    parallelism=parallelism,
-                )
-                managed_hash: str = ph.hash(password)
-                _LOG.info("Password hashed with argon2id (managed salt).")
-                return managed_hash
-
-        elif scheme_e == HashScheme.BCRYPT:
-            if bcrypt is None:
-                _LOG.error("bcrypt package required.")
-                raise ImportError("bcrypt not available.")
-            bcrypt_salt: bytes = salt if salt is not None else bcrypt.gensalt()
-            bcrypt_hash_bytes = bcrypt.hashpw(password.encode("utf-8"), bcrypt_salt)
-            bcrypt_hash: str = bcrypt_hash_bytes.decode("utf-8")
-            _LOG.info("Password hashed with bcrypt.")
-            return bcrypt_hash
-
-        elif scheme_e == HashScheme.PBKDF2:
-            pbkdf2_salt: bytes = salt if salt is not None else secrets.token_bytes(16)
-            pbkdf2_hash_bytes = hashlib.pbkdf2_hmac(
-                "sha256", password.encode(), pbkdf2_salt, 100_000
+        if scheme == "pbkdf2":
+            if not isinstance(iterations, int) or iterations < _MIN_ITERS:
+                raise HashSchemeError(f"Iterations must be >= {_MIN_ITERS}")
+            self._iterations = iterations
+            self._t = _DEF_T
+            self._m = _DEF_M
+            self._p = _DEF_P
+        else:
+            # Argon2id parameter validation
+            if not (isinstance(time_cost, int) and time_cost >= 2):
+                raise HashSchemeError("Argon2id time_cost must be >= 2")
+            if not (isinstance(memory_cost, int) and memory_cost >= 65_536):
+                raise HashSchemeError("Argon2id memory_cost must be >= 65536 (KiB)")
+            if not (isinstance(parallelism, int) and parallelism >= 1):
+                raise HashSchemeError("Argon2id parallelism must be >= 1")
+            self._iterations = (
+                _MIN_ITERS  # unused for argon2id, keep for interface parity
             )
-            salt_str: str = b64encode(pbkdf2_salt).decode("ascii")
-            hash_str: str = b64encode(pbkdf2_hash_bytes).decode("ascii")
-            result = f"pbkdf2:{salt_str}:{hash_str}"
-            _LOG.info("Password hashed with PBKDF2.")
-            return result
+            self._t = time_cost
+            self._m = memory_cost
+            self._p = parallelism
 
-        elif scheme_e == HashScheme.SHA256:
-            sha_salt: bytes = salt if salt is not None else secrets.token_bytes(8)
-            d: str = hashlib.sha256(sha_salt + password.encode()).hexdigest()
-            _LOG.warning("SHA256 hash used (legacy/insecure for passwords).")
-            return d
+    # Internal: pepper application
+    def _peppered(self, password: str) -> bytes:
+        if self._pepper_provider is None:
+            return password.encode("utf-8")
+        pepper = self._pepper_provider()
+        return hmac.new(pepper, password.encode("utf-8"), hashlib.sha256).digest()
 
-        else:
-            _LOG.error("Unknown scheme selected.")
-            raise ValueError("Unsupported hashing scheme.")
-    finally:
-        _wipe_sensitive_data(password)
+    # Public API
 
+    def hash_password(self, password: str) -> str:
+        if not isinstance(password, str) or password == "":
+            raise HashSchemeError("Password must be a non-empty string")
 
-def verify_password(password: str, hashed: str) -> bool:
-    """Verify password against hash, auto-detecting scheme.
-
-    Args:
-        password: Plain password string.
-        hashed: Hashed password string.
-
-    Returns:
-        True if password matches, False otherwise.
-
-    Example:
-        >>> hashval = hash_password("test123")
-        >>> verify_password("test123", hashval)
-        True
-        >>> verify_password("wrong", hashval)
-        False
-    """
-    if not isinstance(hashed, str):
-        _LOG.warning("Hash must be a string.")
-        return False
-
-    scheme = get_hash_scheme(hashed)
-    add_audit("verify_password", None, {"scheme": scheme})
-
-    try:
-        if scheme == HashScheme.ARGON2ID.value:
-            if argon2_ll is None:
-                _LOG.error("argon2-cffi not available.")
-                return False
-            ph = PasswordHasher()
-            ph.verify(hashed, password)
-            _LOG.info("Password verification succeeded (argon2id).")
-            return True
-
-        elif scheme == HashScheme.BCRYPT.value and bcrypt:
-            match = bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-            if match:
-                _LOG.info("Password verification succeeded (bcrypt).")
-            else:
-                _LOG.warning("Password mismatch (bcrypt).")
-            return bool(match)
-
-        elif scheme == HashScheme.PBKDF2.value:
-            parts = hashed.split(":")
-            if len(parts) != 3:
-                _LOG.warning("Invalid pbkdf2 hash format.")
-                return False
-            salt = b64decode(parts[1])
-            expected = b64decode(parts[2])
-            actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)
-            match = secrets.compare_digest(actual, expected)
-            if match:
-                _LOG.info("Password verification succeeded (pbkdf2).")
-            else:
-                _LOG.warning("Password mismatch (pbkdf2).")
-            return bool(match)
-
-        elif scheme == HashScheme.SHA256.value:
-            _LOG.warning("Legacy SHA256 verification detected—unsafe for passwords!")
-            return False  # Always refuse legacy for passwords
-
-        else:
-            _LOG.warning("Hash format not recognized during verification.")
-            return False
-
-    except Exception as exc:
-        if argon2_exc and isinstance(exc, argon2_exc.VerifyMismatchError):
-            _LOG.warning("Password mismatch (argon2id).")
-            return False
-        _LOG.warning("Verification error: %s", exc)
-        return False
-    finally:
-        _wipe_sensitive_data(password)
-
-
-def legacy_verify_password(password: str, hashed: str, scheme: str) -> bool:
-    """Direct legacy check (for migration only - insecure).
-
-    Args:
-        password: Plain password.
-        hashed: Legacy hash.
-        scheme: Legacy scheme identifier.
-
-    Returns:
-        Always False (stub for migration).
-    """
-    _LOG.debug("Legacy verify for scheme: %s", scheme)
-    if scheme == "sha256":
-        # Insecure: do not use in production, only for migration!
-        # You must know original salt; this example is unsafe!
-        return False
-    # Add more legacy checks as needed
-    return False
-
-
-def needs_rehash(
-    hashed: str,
-    *,
-    time_cost: int = _DEFAULT_TIME_COST,
-    memory_cost: int = _DEFAULT_MEMORY_COST,
-    parallelism: int = _DEFAULT_PARALLELISM,
-    scheme: str = "argon2id",
-) -> bool:
-    """Check if a hash needs to be updated (parameters/scheme).
-
-    Args:
-        hashed: Current hash string.
-        time_cost: Desired time cost.
-        memory_cost: Desired memory cost.
-        parallelism: Desired parallelism.
-        scheme: Desired scheme.
-
-    Returns:
-        True if rehash needed, False otherwise.
-    """
-    real_scheme = get_hash_scheme(hashed)
-    add_audit("needs_rehash", None, {"scheme": scheme, "actual": real_scheme})
-
-    if real_scheme != scheme:
-        _LOG.info(
-            "Hash scheme changed from %s → %s: needs rehash.", real_scheme, scheme
-        )
-        return True
-
-    scheme_enum = HashScheme(scheme)
-    if scheme_enum == HashScheme.ARGON2ID:
         try:
-            if argon2_ll is None:
-                return True
-            ph = PasswordHasher(
-                time_cost=time_cost, memory_cost=memory_cost, parallelism=parallelism
+            pw_bytes = self._peppered(password)
+            salt = generate_salt(self._salt_len)
+
+            if self._scheme == "pbkdf2":
+                dk = hashlib.pbkdf2_hmac(
+                    _HASH_NAME, pw_bytes, salt, self._iterations, dklen=32
+                )
+                parts = [_SCHEME_PBKDF2, _HASH_NAME, str(self._iterations)]
+                if (
+                    self._pepper_provider is not None
+                    and self._pepper_version is not None
+                ):
+                    parts.append(f"pv={self._pepper_version}")
+                parts.append(base64.b64encode(salt).decode("ascii"))
+                parts.append(base64.b64encode(dk).decode("ascii"))
+                out = ":".join(parts)
+                _LOGGER.debug("Password hashed with PBKDF2.")
+                return out
+
+            # Argon2id
+            hash_secret_raw, Type, ver = _try_import_argon2()
+            dk = hash_secret_raw(
+                secret=pw_bytes,
+                salt=salt,
+                time_cost=self._t,
+                memory_cost=self._m,
+                parallelism=self._p,
+                hash_len=32,
+                type=Type.ID,
+                version=ver,
             )
-            needs = ph.check_needs_rehash(hashed)
-            if needs:
-                _LOG.info("Argon2id hash parameters changed: needs rehash.")
-            return needs
+            parts = ["argon2id", str(self._t), str(self._m), str(self._p)]
+            if self._pepper_provider is not None and self._pepper_version is not None:
+                parts.append(f"pv={self._pepper_version}")
+            # always record Argon2 low-level version for transparency/backward-compat
+            parts.append(f"v={ver}")
+            parts.append(base64.b64encode(salt).decode("ascii"))
+            parts.append(base64.b64encode(dk).decode("ascii"))
+            out = ":".join(parts)
+            _LOGGER.debug("Password hashed with Argon2id.")
+            return out
+
+        except ImportError as exc:
+            _LOGGER.error("Argon2id not available: %s", exc.__class__.__name__)
+            raise HashSchemeError("Argon2id not available") from exc
         except Exception as exc:
-            _LOG.error("Failed to check needs_rehash: %s", exc)
+            _LOGGER.error("Password hashing failed: %s", exc.__class__.__name__)
+            raise HashSchemeError("Hashing failed") from exc
+
+    def verify_password(self, password: str, hashed: str) -> bool:
+        try:
+            parts = hashed.split(":")
+            if not parts:
+                return False
+
+            if parts[0] == _SCHEME_PBKDF2:
+                # pbkdf2:sha256:<iters>[:pv=...]:<salt>:<dk>
+                if len(parts) not in (5, 6):
+                    return False
+                _, name, iters_s = parts[0], parts[1], parts[2]
+                if name != _HASH_NAME:
+                    return False
+                iters = int(iters_s)
+                if len(parts) == 6:
+                    pv_field = parts[3]
+                    if not pv_field.startswith("pv="):
+                        return False
+                    if self._pepper_provider is None:
+                        return False
+                    pw_bytes = self._peppered(
+                        password
+                    )  # will use current pepper; pv checked in needs_rehash
+                    salt_b64, dk_b64 = parts[4], parts[5]
+                else:
+                    # legacy without pepper
+                    pw_bytes = password.encode("utf-8")
+                    salt_b64, dk_b64 = parts[3], parts[4]
+
+                salt = base64.b64decode(salt_b64.encode("ascii"), validate=True)
+                stored = base64.b64decode(dk_b64.encode("ascii"), validate=True)
+                candidate = hashlib.pbkdf2_hmac(
+                    _HASH_NAME, pw_bytes, salt, iters, dklen=len(stored)
+                )
+                return secure_compare(candidate, stored)
+
+            if parts[0] == "argon2id":
+                # argon2id:<t>:<m>:<p>[:pv=...][:v=19]:<salt>:<hash>
+                if len(parts) < 6:
+                    return False
+                t = int(parts[1])
+                m = int(parts[2])
+                p = int(parts[3])
+
+                # parse optional pv and v (order-insensitive, up to two fields)
+                idx = 4
+                saw_pv = False
+                saw_v = False
+                if idx < len(parts) and parts[idx].startswith("pv="):
+                    saw_pv = True
+                    if self._pepper_provider is None:
+                        return False
+                    pw_bytes = self._peppered(password)
+                    idx += 1
+                else:
+                    pw_bytes = password.encode("utf-8")
+
+                # second optional field could be v=19 (or pv if first was v)
+                # if first was not pv, pw_bytes already set above
+                if idx < len(parts) and parts[idx].startswith("v="):
+                    saw_v = True
+                    # do not hard-fail here; verification will naturally fail if versions mismatch
+                    idx += 1
+                elif not saw_pv and idx < len(parts) and parts[idx].startswith("pv="):
+                    # order: v then pv (rare) — handle as well
+                    saw_pv = True
+                    if self._pepper_provider is None:
+                        return False
+                    pw_bytes = self._peppered(password)
+                    idx += 1
+                    if idx < len(parts) and parts[idx].startswith("v="):
+                        saw_v = True
+                        idx += 1
+
+                # now expect salt and hash
+                if idx + 1 >= len(parts):
+                    return False
+                salt_b64 = parts[idx]
+                dk_b64 = parts[idx + 1]
+                salt = base64.b64decode(salt_b64.encode("ascii"), validate=True)
+                stored = base64.b64decode(dk_b64.encode("ascii"), validate=True)
+
+                hash_secret_raw, Type, ver = _try_import_argon2()
+                candidate = hash_secret_raw(
+                    secret=pw_bytes,
+                    salt=salt,
+                    time_cost=t,
+                    memory_cost=m,
+                    parallelism=p,
+                    hash_len=len(stored),
+                    type=Type.ID,
+                    version=ver,
+                )
+                return secure_compare(candidate, stored)
+
+            return False
+
+        except Exception:
+            return False
+
+    def needs_rehash(self, hashed: str) -> bool:
+        """
+        Policy:
+        - PBKDF2: iters < configured OR salt_len < configured OR pv mismatch (presence/version).
+        - Argon2id: any of t/m/p < configured OR salt_len < configured OR pv mismatch OR (if present) v != 19.
+        - Unknown/malformed formats => True.
+        """
+        try:
+            parts = hashed.split(":")
+            if not parts:
+                return True
+
+            if parts[0] == _SCHEME_PBKDF2:
+                # pbkdf2:sha256:iters[:pv=..]:salt:dk
+                if len(parts) not in (5, 6):
+                    return True
+                _, name, iters_s = parts[0], parts[1], parts[2]
+                if name != _HASH_NAME:
+                    return True
+                iters = int(iters_s)
+                if len(parts) == 6:
+                    pv_field = parts[3]
+                    if not pv_field.startswith("pv="):
+                        return True
+                    stored_pv = pv_field[3:]
+                    # NEW: пустое значение pv трактуем как malformed → needs_rehash = True
+                    if stored_pv == "":
+                        return True
+                    salt_b64 = parts[4]
+                else:
+                    stored_pv = None
+                    salt_b64 = parts[3]
+
+                salt_len = len(
+                    base64.b64decode(salt_b64.encode("ascii"), validate=True)
+                )
+                if iters < self._iterations:
+                    return True
+                if salt_len < self._salt_len:
+                    return True
+                if (
+                    self._pepper_provider is not None
+                    and self._pepper_version is not None
+                ):
+                    if stored_pv != self._pepper_version:
+                        return True
+                return False
+
+            if parts[0] == "argon2id":
+                if len(parts) < 6:
+                    return True
+                t = int(parts[1])
+                m = int(parts[2])
+                p = int(parts[3])
+
+                idx = 4
+                stored_pv = None
+                stored_v: Optional[str] = None
+
+                for _ in range(2):
+                    if idx < len(parts) and parts[idx].startswith("pv="):
+                        stored_pv = parts[idx][3:]
+                        idx += 1
+                        continue
+                    if idx < len(parts) and parts[idx].startswith("v="):
+                        stored_v = parts[idx][2:]
+                        idx += 1
+                        continue
+                    break
+
+                if idx >= len(parts):
+                    return True
+                salt_b64 = parts[idx]
+                salt_len = len(
+                    base64.b64decode(salt_b64.encode("ascii"), validate=True)
+                )
+
+                if t < self._t or m < self._m or p < self._p:
+                    return True
+                if salt_len < self._salt_len:
+                    return True
+                if (
+                    self._pepper_provider is not None
+                    and self._pepper_version is not None
+                ):
+                    if stored_pv != self._pepper_version:
+                        return True
+                if stored_v is not None and stored_v != "19":
+                    return True
+                return False
+
+            return True
+        except Exception:
             return True
 
-    # For legacy/Bcrypt/PBKDF2, always recommend upgrade if params mismatched
-    return False
+
+__all__ = ["PasswordHasher"]

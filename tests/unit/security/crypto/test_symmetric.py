@@ -1,229 +1,119 @@
+from __future__ import annotations
+
+import concurrent.futures
+import os
+from typing import cast, Tuple, Dict, Callable  # NEW
+
 import pytest
 
-from security.crypto.symmetric import SymmetricCipher, _entropy_mixer, _zeroize
+from security.crypto.exceptions import DecryptionError, EncryptionError
+from security.crypto import utils as utils_mod
+from security.crypto.symmetric import (
+    KEY_LEN,
+    NONCE_LEN,
+    TAG_LEN,
+    SymmetricCipher,
+    decrypt_aes_gcm,
+    encrypt_aes_gcm,
+)
 
 
-def test_generate_key_and_nonce_type_and_length() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    assert isinstance(key, bytes)
-    assert isinstance(nonce, bytes)
-    assert len(key) == SymmetricCipher.KEY_LENGTH
-    assert len(nonce) == SymmetricCipher.NONCE_LENGTH
+def test_roundtrip_basic() -> None:
+    key = b"\x01" * KEY_LEN
+    cipher = SymmetricCipher()
+    nonce, combined = cast(
+        Tuple[bytes, bytes], cipher.encrypt(key, b"hello", aad=b"hdr")
+    )  # NEW
+    assert isinstance(nonce, bytes) and len(nonce) == NONCE_LEN
+    pt = cipher.decrypt(key, nonce, combined, aad=b"hdr")
+    assert pt == b"hello"
 
 
-def test_validate_key_and_nonce() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    SymmetricCipher.validate_key(key)
-    SymmetricCipher.validate_nonce(nonce)
-    with pytest.raises(TypeError):
-        SymmetricCipher.validate_key(123)  # type: ignore
-    with pytest.raises(ValueError):
-        SymmetricCipher.validate_key(b"x" * 31)
-    with pytest.raises(TypeError):
-        SymmetricCipher.validate_nonce(456)  # type: ignore
-    with pytest.raises(ValueError):
-        SymmetricCipher.validate_nonce(b"x" * 9)
+def test_roundtrip_with_separate_tag() -> None:
+    key = os.urandom(KEY_LEN)
+    cipher = SymmetricCipher()
+    nonce, ct, tag = cast(
+        Tuple[bytes, bytes, bytes],
+        cipher.encrypt(key, b"payload", return_combined=False),
+    )  # NEW
+    assert len(tag) == TAG_LEN and len(nonce) == NONCE_LEN
+    pt = cipher.decrypt(key, nonce, ct, tag=tag)
+    assert pt == b"payload"
 
 
-def test_validate_aad() -> None:
-    SymmetricCipher.validate_aad(None)
-    SymmetricCipher.validate_aad(b"aad")
-    with pytest.raises(TypeError):
-        SymmetricCipher.validate_aad(123)  # type: ignore
+def test_encrypt_uses_utils_rng_for_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: Dict[str, int] = {"n": 0}
 
-
-def test_entropy_mixer_and_audit() -> None:
-    b = _entropy_mixer(16)
-    assert isinstance(b, bytes)
-    assert len(b) == 16
-
-
-def test_encrypt_decrypt_roundtrip() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    data = b"payload"
-    ct = SymmetricCipher.encrypt(data, key, nonce)
-    pt = SymmetricCipher.decrypt(ct, key, nonce)
-    assert pt == data
-
-
-def test_encrypt_decrypt_with_aad() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    aad = b"hdrmeta"
-    data = b"important!"
-    ct = SymmetricCipher.encrypt(data, key, nonce, associated_data=aad)
-    pt = SymmetricCipher.decrypt(ct, key, nonce, associated_data=aad)
-    assert pt == data
-    from cryptography.exceptions import InvalidTag
-
-    with pytest.raises(InvalidTag):
-        SymmetricCipher.decrypt(ct, key, nonce, associated_data=b"not_aad")
-
-
-def test_encrypt_validation_errors() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    with pytest.raises(TypeError):
-        SymmetricCipher.encrypt("notbytes", key, nonce)  # type: ignore
-    with pytest.raises(TypeError):
-        SymmetricCipher.encrypt(b"x", 123, nonce)  # type: ignore
-    with pytest.raises(TypeError):
-        SymmetricCipher.encrypt(b"x", key, "nonstr")  # type: ignore
-    with pytest.raises(TypeError):
-        SymmetricCipher.encrypt(b"x", key, nonce, associated_data=object())  # type: ignore
-
-
-def test_decrypt_validation_errors() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    ct = SymmetricCipher.encrypt(b"aaaa", key, nonce)
-    with pytest.raises(TypeError):
-        SymmetricCipher.decrypt(1234, key, nonce)  # type: ignore
-    with pytest.raises(ValueError):
-        SymmetricCipher.decrypt(b"", key, nonce)
-    with pytest.raises(TypeError):
-        SymmetricCipher.decrypt(ct, 123, nonce)  # type: ignore
-    with pytest.raises(TypeError):
-        SymmetricCipher.decrypt(ct, key, object())  # type: ignore
-    with pytest.raises(TypeError):
-        SymmetricCipher.decrypt(ct, key, nonce, associated_data=object())  # type: ignore
-
-
-def test_encrypt_decrypt_tampered() -> None:
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    ct = SymmetricCipher.encrypt(b"top secret", key, nonce)
-    tampered = bytes([c ^ 0x12 for c in ct])
-    from cryptography.exceptions import InvalidTag
-
-    with pytest.raises(InvalidTag):
-        SymmetricCipher.decrypt(tampered, key, nonce)
-
-
-def test_decrypt_exception_branch(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Monkeypatch Cipher to forcibly raise generic Exception
-    key = SymmetricCipher.generate_key()
-    nonce = SymmetricCipher.generate_nonce()
-    ct = SymmetricCipher.encrypt(b"xyzt", key, nonce)
-    import security.crypto.symmetric as symmod
-
-    class DummyCipher:
-        def __init__(self, *a: object, **k: object) -> None:
-            raise ZeroDivisionError("Coverage hack")
-
-    monkeypatch.setattr(symmod, "Cipher", DummyCipher)
-    with pytest.raises(ZeroDivisionError):
-        SymmetricCipher.decrypt(ct, key, nonce)
-
-
-def test_audit_entropy_ok() -> None:
-    from security.crypto import symmetric
-
-    # валидное значение
-    symmetric._audit_entropy(b"\xaa\xbb\xcc\x01\x02\x03\x04")
-    # низкая энтропия
-    with pytest.raises(ValueError):
-        symmetric._audit_entropy(b"\x00" * 16)
-    with pytest.raises(ValueError):
-        symmetric._audit_entropy(b"")
-
-
-def test_diagnose_rng(monkeypatch: pytest.MonkeyPatch) -> None:
-    from security.crypto import symmetric
-
-    # тест удачного вызова (os.urandom всегда есть)
-    symmetric._diagnose_rng()
-    # эмулируем отсутствие os.urandom
-    monkeypatch.setattr(symmetric.os, "urandom", lambda n: None)
-    with pytest.raises(RuntimeError):
-        symmetric._diagnose_rng()
-
-
-def test_entropy_mixer_calls_diagnose(monkeypatch: pytest.MonkeyPatch) -> None:
-    from security.crypto import symmetric
-
-    called = {}
-
-    def fake_diag() -> None:
-        called["trig"] = True
-
-    monkeypatch.setattr(symmetric, "_diagnose_rng", fake_diag)
-    monkeypatch.setattr(symmetric, "_audit_entropy", lambda d: None)
-    result = symmetric._entropy_mixer(8)
-    assert isinstance(result, bytes) and called["trig"]
-
-
-def test_zeroize_none() -> None:
-    from security.crypto import symmetric
-
-    symmetric._zeroize(None)  # Должно не вызывать ошибку
-
-
-def test_audit_entropy_empty_and_low_entropy() -> None:
-    from security.crypto import symmetric
-
-    with pytest.raises(ValueError):
-        symmetric._audit_entropy(b"")  # пустой поток
-    with pytest.raises(ValueError):
-        symmetric._audit_entropy(b"\x00" * 40)
-    with pytest.raises(ValueError):
-        symmetric._audit_entropy(b"\xff" * 40)
-
-
-def test_encrypt_fails_on_validate(monkeypatch: pytest.MonkeyPatch) -> None:
-    from security.crypto import symmetric
+    def fake_rng(n: int) -> bytes:
+        called["n"] += 1
+        assert n == 4
+        return b"\x00\x00\x00\x01"
 
     monkeypatch.setattr(
-        symmetric.SymmetricCipher,
-        "validate_key",
-        lambda k: (_ for _ in ()).throw(ValueError("fail!")),
+        "security.crypto.symmetric.generate_random_bytes", fake_rng, raising=True
     )
-    with pytest.raises(ValueError):
-        symmetric.SymmetricCipher.encrypt(b"x", b"x" * 32, b"x" * 12)
+
+    key = b"\x02" * KEY_LEN
+    cipher = SymmetricCipher()
+    nonce1, combined1 = cast(
+        Tuple[bytes, bytes], cipher.encrypt(key, b"a")
+    )  # NEW (avoid assigning to "_")
+    nonce2, combined2 = cast(Tuple[bytes, bytes], cipher.encrypt(key, b"b"))  # NEW
+    assert nonce1[:4] == nonce2[:4] == b"\x00\x00\x00\x01"
+    assert int.from_bytes(nonce2[4:], "big") == int.from_bytes(nonce1[4:], "big") + 1
+    assert called["n"] == 1
 
 
-def test_zeroize_python_none_or_not_bytearray() -> None:
-    from security.crypto import symmetric
+def test_nonce_uniqueness_parallel() -> None:
+    key = os.urandom(KEY_LEN)
+    cipher = SymmetricCipher()
 
-    symmetric._zeroize(None)
-    symmetric._zeroize(123)  # type: ignore
+    def one(i: int) -> bytes:  # rename parameter to avoid "_" reuse
+        nonce, combined = cast(Tuple[bytes, bytes], cipher.encrypt(key, b"x"))  # NEW
+        return nonce
+
+    N = 1000
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as ex:
+        nonces = list(ex.map(one, range(N)))
+    assert len(set(nonces)) == N
+    assert all(len(n) == NONCE_LEN for n in nonces)
 
 
-def test_zeroize_full_branch() -> None:
-    from security.crypto import symmetric
+def test_decrypt_invalid_params_raise() -> None:
+    cipher = SymmetricCipher()
+    key = os.urandom(KEY_LEN)
+    nonce, combined = encrypt_aes_gcm(key, b"p")
+    with pytest.raises(DecryptionError):
+        cipher.decrypt(key, b"\x00", combined)  # bad nonce
+    with pytest.raises(DecryptionError):
+        cipher.decrypt(key, nonce, b"x" * 15, has_combined=True)  # < TAG_LEN
+    with pytest.raises(DecryptionError):
+        cipher.decrypt(key, nonce, b"ct", has_combined=False)  # no tag provided
+    with pytest.raises(DecryptionError):
+        cipher.decrypt(
+            key, nonce, b"ct", has_combined=False, tag=b"short"
+        )  # bad tag size
 
-    ba = bytearray(b"x" * 10)
-    symmetric._zeroize(ba)  # покрывает for + del data ветку полностью
-    assert all(x == 0 for x in ba)
+
+def test_invalid_tag_raises() -> None:
+    key = os.urandom(KEY_LEN)
+    nonce, combined = encrypt_aes_gcm(key, b"secret")
+    tampered = combined[:-1] + bytes([combined[-1] ^ 0xFF])
+    with pytest.raises(DecryptionError):
+        decrypt_aes_gcm(key, nonce, tampered)
 
 
-def test_encrypt_decrypt_bytearray_zeroize_branches(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from security.crypto import symmetric
+def test_encrypt_internal_failure_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None:
+    key = os.urandom(KEY_LEN)
+    cipher = SymmetricCipher()
 
-    monkeypatch.setattr(symmetric.SymmetricCipher, "validate_key", lambda k: None)
-    monkeypatch.setattr(symmetric.SymmetricCipher, "validate_nonce", lambda n: None)
+    class Boom(Exception):
+        pass
 
-    ba_key = bytearray(b"\x01" * 32)
-    ba_nonce = bytearray(b"\x02" * 12)
-    ct = symmetric.SymmetricCipher.encrypt(b"top_secret", ba_key, ba_nonce)
-    assert all(b == 0 for b in ba_key)
-    assert all(b == 0 for b in ba_nonce)
-
-    # Новые ключ/nonce для decrypt, также bytearray
-    ba_key2 = bytearray(b"\x03" * 32)
-    ba_nonce2 = bytearray(b"\x04" * 12)
-    ct2 = symmetric.SymmetricCipher.encrypt(b"test_payload", ba_key2, ba_nonce2)
-    import cryptography.exceptions
-
-    monkeypatch.setattr(symmetric.SymmetricCipher, "validate_key", lambda k: None)
-    monkeypatch.setattr(symmetric.SymmetricCipher, "validate_nonce", lambda n: None)
-    # На этот раз подаём валидный по длине ct2, но ключ/nonce — bytearray
-    with pytest.raises(cryptography.exceptions.InvalidTag):
-        symmetric.SymmetricCipher.decrypt(ct2, ba_key2, ba_nonce2)
-    assert all(b == 0 for b in ba_key2)
-    assert all(b == 0 for b in ba_nonce2)
+    # Патчим конструктор Cipher, чтобы он падал
+    monkeypatch.setattr(
+        "security.crypto.symmetric.Cipher",
+        lambda *a, **k: (_ for _ in ()).throw(Boom()),
+    )
+    with pytest.raises(EncryptionError):
+        cipher.encrypt(key, b"data")

@@ -1,320 +1,293 @@
-"""Модуль симметричного шифрования для FX Text processor 3.
+# -*- coding: utf-8 -*-
+"""
+RU: Симметричное шифрование AES‑256‑GCM с потокобезопасным менеджером nonce-per-key,
+унифицированным RNG из utils и best‑effort zeroization.
 
-Реализует AES-256-GCM с аутентификацией, zeroization и журналированием событий.
-Интерфейс совместим с DI/Protocol для тестируемой, расширяемой архитектуры.
+EN: AES-256-GCM symmetric cipher with thread-safe per-key nonce manager,
+unified RNG from utils, and best-effort zeroization.
 
-- Соответствие military-grade crypto (NIST SP 800-38D)
-- Fail-secure: все ошибки приводят к исключению, а не к silent fail
-- Полная типизация, строгие проверки, подробные docstring
-- Военный hardening: миксер случайных байт, диагностика, entropy audit, zeroization
+This module provides:
+- Strict nonce-per-key policy using a 96-bit nonce composed of a random 32-bit prefix and
+  a 64-bit monotonic counter protected by a lock (per instance). This prevents catastrophic
+  nonce reuse under the same key.
+- Unified entropy source via security.crypto.utils.generate_random_bytes to centralize
+  RNG policy and audits.
+- Best-effort zeroization for in-memory mutable buffers (bytearray) using utils.zero_memory.
+- Fail-secure exceptions (no silent fallbacks) and log messages without secrets.
 
-Classes:
-    SymmetricCipherProtocol: protocol-type interface for symmetric ciphers.
-    SymmetricCipher: AES-256-GCM encryption/decryption for documents and credentials.
+Public API remains compatible by exposing both a class (DI-friendly) and plain helpers:
+- SymmetricCipher.encrypt/decrypt with flexible combined/separate tag handling.
+- encrypt_aes_gcm/decrypt_aes_gcm helpers returning (nonce, ciphertext||tag) and plaintext.
+
+Thread-safety:
+- Nonce generation is thread-safe within a SymmetricCipher instance.
+- No global state is used; for cross-instance nonce coordination, keep a long-lived DI instance.
+
+Security notes:
+- Keys are 32 bytes (AES-256). Nonce is 12 bytes (GCM standard). Tag length is 16 bytes.
+- No secrets, keys, nonces, tags, or plaintext fragments are logged.
+- Zeroization only applies to mutable bytearray inputs; Python bytes cannot be wiped.
 """
 
+from __future__ import annotations
+
+import hashlib
 import logging
-import os
-from typing import ClassVar, Final, Optional, Protocol, runtime_checkable
+import threading
+from dataclasses import dataclass
+from typing import Dict, Final, Optional, Tuple, Union, overload, Literal
 
-from secrets import token_bytes
-
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-_LOGGER: Final = logging.getLogger("security.crypto.symmetric")
-_KEY_LENGTH: Final[int] = 32  # 256-bit key for AES-256
-_NONCE_LENGTH: Final[int] = 12  # Standard GCM nonce
+from security.crypto.exceptions import DecryptionError, EncryptionError
+from security.crypto.utils import generate_random_bytes, zero_memory
 
+_LOGGER: Final = logging.getLogger(__name__)
 
-def _diagnose_rng() -> None:
-    """Диагностика наличия CSPRNG (os.urandom) в системе."""
-    try:
-        b = os.urandom(8)
-        if not isinstance(b, bytes) or len(b) != 8:
-            raise RuntimeError
-    except Exception:
-        _LOGGER.error("CSPRNG health check failed!")
-        raise RuntimeError("OS-level CSPRNG unavailable.")
+KEY_LEN: Final[int] = 32
+NONCE_LEN: Final[int] = 12
+TAG_LEN: Final[int] = 16
+
+BytesLike = Union[bytes, bytearray]
 
 
-def _entropy_mixer(length: int) -> bytes:
-    """Генерирует ключ или nonce как XOR поток двух независимых источников random; аудирует результат."""
-    _diagnose_rng()
-    a = token_bytes(length)
-    b = os.urandom(length)
-    mixed = bytes(x ^ y for x, y in zip(a, b))
-    _audit_entropy(mixed)
-    return mixed
+@dataclass(frozen=True)
+class _KeyId:
+    """Immutable identifier for a key derived from SHA-256 digest."""
+
+    value: bytes
 
 
-def _audit_entropy(data: bytes) -> None:
-    """Mini-аудит: даёт предупреждение, если поток энтропии подозрительно слабый или не случайный."""
-    if not data:
-        raise ValueError("Empty entropy stream.")
-    zero_count = data.count(0)
-    unique_count = len(set(data))
-    if zero_count > len(data) // 2 or unique_count < len(data) // 4:
-        _LOGGER.error(
-            "Random audit: low entropy detected (zeros=%d unique=%d)",
-            zero_count,
-            unique_count,
-        )
-        raise ValueError("Entropy mixer: suspicious randomness detected.")
-    _LOGGER.info(
-        "Entropy audit OK: unique=%d zeros=%d total=%d",
-        unique_count,
-        zero_count,
-        len(data),
-    )
+class _NonceState:
+    """
+    Per-key nonce state with a 96-bit nonce structure:
+    - 32-bit random prefix (stable for the key within this instance)
+    - 64-bit big-endian counter (monotonic)
+    """
+
+    __slots__ = ("prefix", "counter")
+
+    def __init__(self, prefix: bytes) -> None:
+        if len(prefix) != 4:
+            raise ValueError("Prefix must be 4 bytes")
+        self.prefix: bytes = prefix
+        self.counter: int = 0
+
+    def next(self) -> bytes:
+        self.counter += 1
+        # 64-bit counter, wraps after 2^64 - practically unreachable
+        return self.prefix + self.counter.to_bytes(8, "big", signed=False)
 
 
-def auditentropy(data: bytes) -> None:
-    return _audit_entropy(data)
+class _NonceManager:
+    """Thread-safe per-key nonce manager."""
 
+    __slots__ = ("_lock", "_states")
 
-def _zeroize(data: Optional[bytearray]) -> None:
-    """Zeroization — очистка секретов в памяти."""
-    if isinstance(data, bytearray):
-        for i in range(len(data)):
-            data[i] = 0
-        del data
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._states: Dict[bytes, _NonceState] = {}
 
+    def _key_id(self, key: bytes) -> _KeyId:
+        h = hashlib.sha256(key).digest()
+        return _KeyId(h)
 
-@runtime_checkable
-class SymmetricCipherProtocol(Protocol):
-    """Protocol interface for symmetric ciphers (for dependency injection and testability)."""
-
-    KEY_LENGTH: ClassVar[int]
-    NONCE_LENGTH: ClassVar[int]
-
-    @staticmethod
-    def generate_key() -> bytes: ...
-    @staticmethod
-    def generate_nonce() -> bytes: ...
-    @staticmethod
-    def encrypt(
-        data: bytes, key: bytes, nonce: bytes, associated_data: Optional[bytes] = None
-    ) -> bytes: ...
-    @staticmethod
-    def decrypt(
-        ciphertext: bytes,
-        key: bytes,
-        nonce: bytes,
-        associated_data: Optional[bytes] = None,
-    ) -> bytes: ...
-    @staticmethod
-    def validate_key(key: bytes) -> None: ...
-    @staticmethod
-    def validate_nonce(nonce: bytes) -> None: ...
-    @staticmethod
-    def validate_aad(associated_data: Optional[bytes]) -> None: ...
-
-    # zero_memory доступен по требованию (но не для bytes, а для bytearray)
-    @staticmethod
-    def zeroize(buf: Optional[bytearray]) -> None: ...
+    def next_nonce(self, key: bytes) -> bytes:
+        """Return a fresh 12-byte nonce for the given key with per-key monotonicity."""
+        kid = self._key_id(key).value
+        with self._lock:
+            st = self._states.get(kid)
+            if st is None:
+                prefix = generate_random_bytes(4)
+                st = _NonceState(prefix)
+                self._states[kid] = st
+            return st.next()
 
 
 class SymmetricCipher:
-    """AES-256-GCM authenticated encryption for sensitive data.
+    """
+    AES-256-GCM encryption/decryption with per-key nonce manager.
 
-    Compatible with SymmetricCipherProtocol for DI, testing, and swapping implementations.
+    Methods:
+        encrypt(key, plaintext, aad, return_combined) -> (nonce, combined) or (nonce, ct, tag)
+        decrypt(key, nonce, data, aad, has_combined, tag) -> plaintext
 
-    Example:
-        >>> key = SymmetricCipher.generate_key()
-        >>> nonce = SymmetricCipher.generate_nonce()
-        >>> ciphertext = SymmetricCipher.encrypt(b"secret", key, nonce)
-        >>> plaintext = SymmetricCipher.decrypt(ciphertext, key, nonce)
-        >>> assert plaintext == b"secret"
+    Examples:
+        >>> cipher = SymmetricCipher()
+        >>> nonce, combined = cipher.encrypt(key=b"0"*32, plaintext=b"hello")
+        >>> plain = cipher.decrypt(key=b"0"*32, nonce=nonce, data=combined)
+        >>> assert plain == b"hello"
     """
 
-    KEY_LENGTH: ClassVar[int] = _KEY_LENGTH
-    NONCE_LENGTH: ClassVar[int] = _NONCE_LENGTH
+    __slots__ = ("_nonce_mgr",)
+
+    def __init__(self) -> None:
+        self._nonce_mgr = _NonceManager()
 
     @staticmethod
-    def generate_key() -> bytes:
-        """Generate a new random AES-256 key (XOR-mixer + audit)."""
-        return _entropy_mixer(SymmetricCipher.KEY_LENGTH)
+    def _validate_key(key: bytes) -> None:
+        if not isinstance(key, (bytes, bytearray)) or len(key) != KEY_LEN:
+            raise EncryptionError("AES-256-GCM key must be 32 bytes")
 
     @staticmethod
-    def generate_nonce() -> bytes:
-        """Generate a random GCM nonce (XOR-mixer + audit)."""
-        return _entropy_mixer(SymmetricCipher.NONCE_LENGTH)
+    def _validate_nonce(nonce: bytes) -> None:
+        if not isinstance(nonce, (bytes, bytearray)) or len(nonce) != NONCE_LEN:
+            raise DecryptionError("GCM nonce must be 12 bytes")
 
-    @staticmethod
-    def validate_key(key: bytes) -> None:
-        """Validate key type and length for AES-256-GCM.
-
-        Args:
-            key: AES key.
-        Raises:
-            TypeError: If key is not bytes.
-            ValueError: If key length is invalid.
-        """
-        if not isinstance(key, bytes):
-            _LOGGER.error("Invalid AES key type: %r", type(key))
-            raise TypeError("Key must be bytes for AES-256-GCM.")
-        if len(key) != SymmetricCipher.KEY_LENGTH:
-            _LOGGER.error("Invalid AES key length: %d", len(key))
-            raise ValueError("Key must be 32 bytes for AES-256-GCM.")
-
-    @staticmethod
-    def validate_nonce(nonce: bytes) -> None:
-        """Validate nonce type and length for AES-GCM.
-
-        Args:
-            nonce: AES-GCM nonce.
-        Raises:
-            TypeError: If nonce is not bytes.
-            ValueError: If nonce length is invalid.
-        """
-        if not isinstance(nonce, bytes):
-            _LOGGER.error("Invalid AES-GCM nonce type: %r", type(nonce))
-            raise TypeError("Nonce must be bytes for AES-GCM.")
-        if len(nonce) != SymmetricCipher.NONCE_LENGTH:
-            _LOGGER.error("Invalid AES-GCM nonce length: %d", len(nonce))
-            raise ValueError("Nonce must be 12 bytes for AES-GCM.")
-
-    @staticmethod
-    def validate_aad(associated_data: Optional[bytes]) -> None:
-        """Validate associated authenticated data for type.
-
-        Args:
-            associated_data: additional authenticated data.
-        Raises:
-            TypeError: if not bytes or None.
-        """
-        if associated_data is not None and not isinstance(associated_data, bytes):
-            _LOGGER.error(
-                "Associated data must be bytes or None, got: %r", type(associated_data)
-            )
-            raise TypeError("Associated data (aad) must be bytes or None.")
-
-    @staticmethod
+    # Overloads for precise return typing
+    @overload
     def encrypt(
-        data: bytes,
+        self,
         key: bytes,
-        nonce: bytes,
-        associated_data: Optional[bytes] = None,
-    ) -> bytes:
-        """Encrypt data using AES-256-GCM.
+        plaintext: BytesLike,
+        aad: Optional[bytes] = ...,
+        *,
+        return_combined: Literal[True] = True,
+    ) -> Tuple[bytes, bytes]: ...
+    @overload
+    def encrypt(
+        self,
+        key: bytes,
+        plaintext: BytesLike,
+        aad: Optional[bytes] = ...,
+        *,
+        return_combined: Literal[False],
+    ) -> Tuple[bytes, bytes, bytes]: ...
+
+    def encrypt(
+        self,
+        key: bytes,
+        plaintext: BytesLike,
+        aad: Optional[bytes] = None,
+        *,
+        return_combined: bool = True,
+    ) -> Union[Tuple[bytes, bytes], Tuple[bytes, bytes, bytes]]:
+        """
+        Encrypt with AES-256-GCM.
 
         Args:
-            data: Plaintext to encrypt.
-            key: AES-256 key (32 bytes).
-            nonce: GCM nonce (12 bytes).
-            associated_data: Optional authenticated data (bytes or None).
-        Returns:
-            bytes: Authenticated ciphertext.
-        Raises:
-            ValueError: Invalid key/nonce size.
-            TypeError: Invalid type(s).
-            Exception: Other cryptographic errors.
-        """
-        SymmetricCipher.validate_key(key)
-        SymmetricCipher.validate_nonce(nonce)
-        SymmetricCipher.validate_aad(associated_data)
-        if not isinstance(data, bytes):
-            _LOGGER.error("Data to encrypt must be bytes, got %r", type(data))
-            raise TypeError("Data to encrypt must be bytes.")
+            key: 32-byte AES key.
+            plaintext: message to encrypt; bytearray will be wiped best-effort after use.
+            aad: additional authenticated data (not encrypted).
+            return_combined: if True, returns (nonce, ciphertext||tag); else returns (nonce, ciphertext, tag).
 
+        Returns:
+            Either (nonce, combined) or (nonce, ciphertext, tag).
+
+        Raises:
+            EncryptionError: on invalid inputs or crypto failure.
+        """
+        self._validate_key(key)
+        nonce = self._nonce_mgr.next_nonce(bytes(key))
+
+        pt_is_mutable = isinstance(plaintext, bytearray)
         try:
-            cipher = Cipher(
-                algorithms.AES(key),
-                modes.GCM(nonce),
-                backend=default_backend(),
-            )
+            pt_bytes = bytes(plaintext)
+            cipher = Cipher(algorithms.AES(bytes(key)), modes.GCM(nonce))
             encryptor = cipher.encryptor()
-            if associated_data is not None:
-                encryptor.authenticate_additional_data(associated_data)
-            ciphertext = encryptor.update(data) + encryptor.finalize()
-            result = ciphertext + encryptor.tag
-            _LOGGER.info(
-                "Data encrypted (len=%d, tag len=%d).", len(result), len(encryptor.tag)
-            )
-            if isinstance(key, bytearray):
-                _zeroize(key)
-            if isinstance(nonce, bytearray):
-                _zeroize(nonce)
-            return result
+            if aad:
+                encryptor.authenticate_additional_data(aad)
+            ciphertext = encryptor.update(pt_bytes) + encryptor.finalize()
+            tag = encryptor.tag
         except Exception as exc:
-            _LOGGER.error("Encryption failed: %s", exc)
-            raise
+            _LOGGER.error("AES-GCM encryption failed: %s", exc.__class__.__name__)
+            raise EncryptionError("AES-GCM encryption failed") from exc
+        finally:
+            if pt_is_mutable:
+                # best-effort wipe for bytearray inputs
+                zero_memory(plaintext)  # type: ignore[arg-type]
 
-    @staticmethod
+        if return_combined:
+            combined = ciphertext + tag
+            return nonce, combined
+        return nonce, ciphertext, tag
+
     def decrypt(
-        ciphertext: bytes,
+        self,
         key: bytes,
         nonce: bytes,
-        associated_data: Optional[bytes] = None,
+        data: bytes,
+        aad: Optional[bytes] = None,
+        *,
+        has_combined: bool = True,
+        tag: Optional[bytes] = None,
     ) -> bytes:
-        """Decrypt data using AES-256-GCM.
+        """
+        Decrypt with AES-256-GCM.
 
         Args:
-            ciphertext: Authenticated encrypted data.
-            key: AES-256 key (32 bytes).
-            nonce: GCM nonce (12 bytes).
-            associated_data: Optional authenticated data (bytes or None).
+            key: 32-byte AES key.
+            nonce: 12-byte GCM nonce.
+            data: ciphertext||tag if has_combined=True, else ciphertext.
+            aad: additional authenticated data (must match encryption AAD).
+            has_combined: indicates that `data` includes tag at the end.
+            tag: optional explicit 16-byte GCM tag; if provided, overrides has_combined.
+
         Returns:
-            bytes: Decrypted plaintext.
+            Plaintext bytes.
+
         Raises:
-            ValueError: Invalid key/nonce/tag or input types.
-            InvalidTag: Authentication failed.
-            TypeError: Invalid type(s).
-            Exception: Other cryptographic errors.
+            DecryptionError: on invalid inputs, mismatched tag, or crypto failure.
         """
-        SymmetricCipher.validate_key(key)
-        SymmetricCipher.validate_nonce(nonce)
-        SymmetricCipher.validate_aad(associated_data)
-        if not isinstance(ciphertext, bytes):
-            _LOGGER.error(
-                "Ciphertext to decrypt must be bytes, got %r", type(ciphertext)
-            )
-            raise TypeError("Ciphertext to decrypt must be bytes.")
-        if len(ciphertext) < 16:
-            _LOGGER.error("Ciphertext too short for AES-GCM decryption.")
-            raise ValueError("Ciphertext too short for AES-GCM.")
+        self._validate_key(key)
+        self._validate_nonce(nonce)
 
-        tag = ciphertext[-16:]
-        actual_ciphertext = ciphertext[:-16]
+        if tag is not None:
+            if not isinstance(tag, (bytes, bytearray)) or len(tag) != TAG_LEN:
+                raise DecryptionError("GCM tag must be 16 bytes")
+            ct = data
+            tg = bytes(tag)
+        else:
+            if not has_combined or len(data) < TAG_LEN:
+                raise DecryptionError("Combined ciphertext must include 16-byte tag")
+            ct = data[:-TAG_LEN]
+            tg = data[-TAG_LEN:]
+
         try:
-            cipher = Cipher(
-                algorithms.AES(key),
-                modes.GCM(nonce, tag),
-                backend=default_backend(),
-            )
+            cipher = Cipher(algorithms.AES(bytes(key)), modes.GCM(nonce, tg))
             decryptor = cipher.decryptor()
-            if associated_data is not None:
-                decryptor.authenticate_additional_data(associated_data)
-            plaintext = decryptor.update(actual_ciphertext) + decryptor.finalize()
-            _LOGGER.info("Data decrypted (len=%d, tag verified).", len(plaintext))
-            if isinstance(key, bytearray):
-                _zeroize(key)
-            if isinstance(nonce, bytearray):
-                _zeroize(nonce)
+            if aad:
+                decryptor.authenticate_additional_data(aad)
+            plaintext = decryptor.update(ct) + decryptor.finalize()
             return plaintext
-        except InvalidTag as itag:
-            _LOGGER.warning(
-                "Decryption failed: Invalid authentication tag (possible tampering)."
-            )
-            raise
+        except InvalidTag as exc:
+            _LOGGER.warning("AES-GCM tag verification failed")
+            raise DecryptionError("Invalid authentication tag") from exc
         except Exception as exc:
-            _LOGGER.error("Decryption failed: %s", exc)
-            raise
-
-    @staticmethod
-    def zeroize(buf: Optional[bytearray]) -> None:
-        """Manually zero mutable buffer after use (e.g., in tests or secure service)."""
-        _zeroize(buf)
+            _LOGGER.error("AES-GCM decryption failed: %s", exc.__class__.__name__)
+            raise DecryptionError("AES-GCM decryption failed") from exc
 
 
-encrypt_aes_gcm = SymmetricCipher.encrypt
-decrypt_aes_gcm = SymmetricCipher.decrypt
+def encrypt_aes_gcm(
+    key: bytes,
+    plaintext: BytesLike,
+    aad: Optional[bytes] = None,
+) -> Tuple[bytes, bytes]:
+    """
+    Functional helper that returns (nonce, ciphertext||tag).
 
-__all__ = [
-    "SymmetricCipherProtocol",
-    "SymmetricCipher",
-    "encrypt_aes_gcm",
-    "decrypt_aes_gcm",
-]
+    Example:
+        >>> nonce, combined = encrypt_aes_gcm(key=b"0"*32, plaintext=b"hi")
+        >>> decrypt_aes_gcm(b"0"*32, nonce, combined) == b"hi"
+        True
+    """
+    # Overload with default Literal[True] ensures precise return type
+    return SymmetricCipher().encrypt(key, plaintext, aad, return_combined=True)
+
+
+def decrypt_aes_gcm(
+    key: bytes,
+    nonce: bytes,
+    combined: bytes,
+    aad: Optional[bytes] = None,
+) -> bytes:
+    """
+    Functional helper for (nonce, ciphertext||tag) tuple.
+
+    Example:
+        >>> nonce, combined = encrypt_aes_gcm(key=b"0"*32, plaintext=b"hello")
+        >>> decrypt_aes_gcm(b"0"*32, nonce, combined)
+        b'hello'
+    """
+    return SymmetricCipher().decrypt(key, nonce, combined, aad, has_combined=True)

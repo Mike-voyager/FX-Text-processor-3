@@ -511,7 +511,7 @@ DEFAULT_MARGIN_UNITS: Final[MarginUnits] = MarginUnits.INCHES
 DEFAULT_ORIENTATION: Final[Orientation] = Orientation.PORTRAIT
 
 
-# === HARDWARE-AWARE VALIDATION ===
+# === HARDWARE-AWARE VALIDATION ===
 def validate_cpi_font_combination(
     cpi: CharactersPerInch,
     font: FontFamily,

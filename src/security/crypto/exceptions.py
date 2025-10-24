@@ -1,320 +1,133 @@
+# -*- coding: utf-8 -*-
 """
-Иерархия исключений для криптографической подсистемы.
+RU: Централизованная иерархия исключений криптоподсистемы без конфликтов с built-in и с узкими подклассами
+для fail-secure обработки ошибок (без утечек секретов в тексты сообщений).
 
-Централизованные исключения обеспечивают:
-- Единый обработчик ошибок на верхних уровнях
-- Чёткую типизацию ошибок
-- Структурированное логирование
+EN: Centralized exception hierarchy for the crypto subsystem that avoids conflicts with Python built-ins
+and provides narrow subclasses to enable fail-secure error handling (no leakage of secrets in messages).
 
-Иерархия:
-    CryptoError (базовое)
-    ├── EncryptionError
-    ├── DecryptionError
-    ├── SignatureError
-    │   ├── InvalidSignatureError
-    │   ├── SignatureVerificationError
-    │   └── SignatureGenerationError
-    ├── KeyError
-    │   ├── KeyNotFoundError
-    │   ├── KeyGenerationError
-    │   ├── InvalidKeyError
-    │   └── KeyRotationError
-    ├── KdfError
-    │   ├── KDFParameterError
-    │   └── KDFAlgorithmError
-    ├── HashingError
-    │   └── HashSchemeError
-    └── StorageError
-        ├── StorageReadError
-        └── StorageWriteError
-
-Example:
-    >>> from security.crypto.exceptions import DecryptionError
-    >>> try:
-    ...     cipher.decrypt(bad_data, key, nonce)
-    ... except DecryptionError as e:
-    ...     logger.error(f"Decryption failed: {e}")
+Guidelines:
+- Do not log secrets (keys, nonces, tags, plaintexts, salts) inside exception messages.
+- Use specific subclasses at call sites for precise handling and better auditability.
+- Keep messages concise and operational (what failed), not forensic (no sensitive data).
 """
 
-from typing import Optional, Any
+from __future__ import annotations
+
+from typing import Any, Optional
 
 
 class CryptoError(Exception):
-    """
-    Базовое исключение для всех криптографических ошибок.
-
-    Все специфичные исключения должны наследоваться от этого класса.
-    """
+    """Base exception for all crypto-related failures."""
 
     def __init__(
-        self,
-        message: str,
-        cause: Optional[Exception] = None,
-        details: Optional[dict[str, Any]] = None,
+        self, message: str = "", *, cause: Optional[BaseException] = None
     ) -> None:
-        """
-        Args:
-            message: Описание ошибки
-            cause: Исходное исключение (если есть)
-            details: Дополнительная информация для логирования
-        """
         super().__init__(message)
-        self.message = message
-        self.cause = cause
-        self.details = details or {}
+        self.__cause__ = cause
 
 
-# ============================================================================
-# Encryption/Decryption Errors
-# ============================================================================
-
-
+# Symmetric/asymmetric encryption
 class EncryptionError(CryptoError):
-    """Ошибка при шифровании данных."""
-
-    pass
+    """Raised on encryption failures (e.g., invalid parameters, provider errors)."""
 
 
 class DecryptionError(CryptoError):
-    """
-    Ошибка при дешифровании данных.
-
-    Может быть вызвана:
-    - Неверным ключом
-    - Повреждёнными данными
-    - Неверным MAC/тегом аутентификации
-    """
-
-    pass
+    """Raised on decryption failures (e.g., invalid tag, corrupted payload)."""
 
 
-# ============================================================================
-# Signature Errors
-# ============================================================================
-
-
+# Signatures
 class SignatureError(CryptoError):
-    """Базовое исключение для ошибок подписи."""
-
-    pass
-
-
-class InvalidSignatureError(SignatureError):
-    """Цифровая подпись недействительна или повреждена."""
-
-    pass
-
-
-class SignatureVerificationError(SignatureError):
-    """Ошибка при проверке цифровой подписи."""
-
-    pass
+    """Base class for signature errors."""
 
 
 class SignatureGenerationError(SignatureError):
-    """Ошибка при создании цифровой подписи."""
-
-    pass
+    """Raised when signing fails (e.g., missing private key or provider error)."""
 
 
-# ============================================================================
-# Key Management Errors
-# ============================================================================
+class SignatureVerificationError(SignatureError):
+    """Raised when verification fails structurally (bad key, bad length, provider error)."""
 
 
-class KeyError(CryptoError):
-    """Базовое исключение для ошибок управления ключами."""
-
-    pass
+class InvalidSignatureError(SignatureVerificationError):
+    """Raised when a signature does not validate for given data and key."""
 
 
-class KeyNotFoundError(KeyError):
-    """Ключ не найден в хранилище."""
-
-    def __init__(self, key_id: str, message: Optional[str] = None) -> None:
-        """
-        Args:
-            key_id: Идентификатор ненайденного ключа
-            message: Кастомное сообщение (опционально)
-        """
-        msg = message or f"Key '{key_id}' not found in keystore"
-        super().__init__(msg, details={"key_id": key_id})
-        self.key_id = key_id
+# Keys (avoid shadowing built-in KeyError)
+class CryptoKeyError(CryptoError):
+    """Base class for key management errors (generation/import/rotation)."""
 
 
-class KeyGenerationError(KeyError):
-    """Ошибка при генерации ключа."""
-
-    pass
+class KeyNotFoundError(CryptoKeyError):
+    """Raised when a requested key is not found in a keystore/provider."""
 
 
-class InvalidKeyError(KeyError):
-    """
-    Неверный формат, длина или содержимое ключа.
-
-    Может быть вызвана:
-    - Неправильной длиной ключа
-    - Некорректным форматом (PEM/DER)
-    - Повреждённым ключом
-    """
-
-    pass
+class KeyGenerationError(CryptoKeyError):
+    """Raised on key generation failures."""
 
 
-class KeyRotationError(KeyError):
-    """Ошибка при ротации ключа."""
-
-    pass
+class InvalidKeyError(CryptoKeyError):
+    """Raised when a key has invalid size/format/algorithm for the requested operation."""
 
 
-# ============================================================================
-# KDF Errors
-# ============================================================================
+class KeyRotationError(CryptoKeyError):
+    """Raised on failures related to key rotation procedures."""
 
 
+# KDF
 class KdfError(CryptoError):
-    """Базовое исключение для ошибок Key Derivation Function."""
-
-    pass
+    """Base class for key-derivation failures."""
 
 
 class KDFParameterError(KdfError):
-    """
-    Неверные параметры для KDF.
-
-    Может быть вызвана:
-    - Слишком коротким/длинным паролем
-    - Неверной длиной соли
-    - Некорректными параметрами Argon2id (memory, time, parallelism)
-    """
-
-    pass
+    """Raised on invalid KDF parameters (e.g., salt length, time/memory/parallelism)."""
 
 
 class KDFAlgorithmError(KdfError):
-    """Неподдерживаемый или неизвестный алгоритм KDF."""
-
-    pass
+    """Raised when the requested KDF algorithm is unsupported or fails internally."""
 
 
-class KDFEntropyWarning(Warning):
-    """
-    Предупреждение о низкой энтропии пароля/соли.
-
-    Не останавливает выполнение, но логируется для аудита.
-    """
-
-    pass
-
-
-# ============================================================================
-# Hashing Errors
-# ============================================================================
-
-
+# Hashing
 class HashingError(CryptoError):
-    """Ошибка при хешировании или HMAC."""
-
-    pass
+    """Base class for hashing subsystem errors."""
 
 
 class HashSchemeError(HashingError):
-    """Неподдерживаемая схема хеширования."""
-
-    def __init__(self, scheme: str) -> None:
-        """
-        Args:
-            scheme: Название неподдерживаемой схемы
-        """
-        super().__init__(
-            f"Unsupported hashing scheme: '{scheme}'", details={"scheme": scheme}
-        )
-        self.scheme = scheme
+    """Raised on unsupported/invalid hash scheme (e.g., bad header/parameters)."""
 
 
-# ============================================================================
-# Storage Errors
-# ============================================================================
-
-
+# Storage
 class StorageError(CryptoError):
-    """Базовое исключение для ошибок хранилища."""
-
-    pass
+    """Base class for secure storage (keystore) failures."""
 
 
 class StorageReadError(StorageError):
-    """Ошибка при чтении из зашифрованного хранилища."""
-
-    pass
+    """Raised when reading or parsing the storage backend fails."""
 
 
 class StorageWriteError(StorageError):
-    """Ошибка при записи в зашифрованное хранилище."""
+    """Raised when persisting changes to the storage backend fails."""
 
-    pass
-
-
-# ============================================================================
-# Configuration Errors
-# ============================================================================
-
-
-class ConfigurationError(CryptoError):
-    """Ошибка конфигурации криптографической подсистемы."""
-
-    pass
-
-
-class UnsupportedAlgorithmError(ConfigurationError):
-    """Запрошенный алгоритм не поддерживается."""
-
-    def __init__(self, algorithm: str) -> None:
-        """
-        Args:
-            algorithm: Название неподдерживаемого алгоритма
-        """
-        super().__init__(
-            f"Algorithm '{algorithm}' is not supported",
-            details={"algorithm": algorithm},
-        )
-        self.algorithm = algorithm
-
-
-# ============================================================================
-# Export for convenience
-# ============================================================================
 
 __all__ = [
-    # Base
     "CryptoError",
-    # Encryption/Decryption
     "EncryptionError",
     "DecryptionError",
-    # Signatures
     "SignatureError",
-    "InvalidSignatureError",
-    "SignatureVerificationError",
     "SignatureGenerationError",
-    # Keys
-    "KeyError",
+    "SignatureVerificationError",
+    "InvalidSignatureError",
+    "CryptoKeyError",
     "KeyNotFoundError",
     "KeyGenerationError",
     "InvalidKeyError",
     "KeyRotationError",
-    # KDF
     "KdfError",
     "KDFParameterError",
     "KDFAlgorithmError",
-    "KDFEntropyWarning",
-    # Hashing
     "HashingError",
     "HashSchemeError",
-    # Storage
     "StorageError",
     "StorageReadError",
     "StorageWriteError",
-    # Configuration
-    "ConfigurationError",
-    "UnsupportedAlgorithmError",
 ]

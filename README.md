@@ -219,13 +219,17 @@ FX-Text-processor-3/
 ├── security/
 │   ├── __init__.py # ✅ DONE
 │   ├── crypto/ # ✅ DONE
-│   │   ├── __init__.py     # ✅ DONE
-│   │   ├── symmetric.py    # ✅ DONE
-│   │   ├── asymmetric.py   # ✅ DONE
-│   │   ├── kdf.py          # ✅ DONE
-│   │   ├── signatures.py   # ✅ DONE
-│   │   ├── secure_storage.py   # ✅ DONE
-│   │   └── hashing.py      # ✅ DONE
+│   │   ├── __init__.py             # ✅ DONE
+│   │   ├── symmetric.py            # ✅ DONE
+│   │   ├── asymmetric.py           # ✅ DONE
+│   │   ├── kdf.py                  # ✅ DONE
+│   │   ├── signatures.py           # ✅ DONE
+│   │   ├── secure_storage.py       # ✅ DONE
+│   │   ├── hashing.py              # ✅ DONE
+│   │   ├── exceptions.py           # ✅ DONE
+│   │   ├── protocols.py            # ✅ DONE
+│   │   ├── utils.py                # ✅ DONE
+│   │   └── crypto_service.py       # ✅ DONE
 │   ├── auth/               # 🚧 TODO
 │   │   ├── __init__.py                 # ✅ DONE
 │   │   ├── password.py                 # ✅ DONE
@@ -250,7 +254,7 @@ FX-Text-processor-3/
 │   │   ├── logger.py           # 🚧 TODO
 │   │   ├── exporters.py        # 🚧 TODO
 │   │   └── integrity.py        # 🚧 TODO
-│   ├── blanks/ # 🚧 TODO 
+│   ├── blanks/ # 🚧 TODO
 │   │   ├── __init__.py         # 🚧 TODO
 │   │   ├── manager.py #🔐      # 🚧 TODO
 │   │   ├── watermark.py        # 🚧 TODO

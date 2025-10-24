@@ -1,345 +1,267 @@
+# -*- coding: utf-8 -*-
 """
-Модуль цифровых подписей Ed25519 для FX Text processor 3 — криптографически стойкая аутентификация документов и бланков.
+RU: Провайдер подписей Ed25519 с безопасной сериализацией ключей и DI‑совместимым API.
 
-Особенности:
-- Ed25519: современный алгоритм подписи (быстрый, компактный, 270× быстрее RSA-4096, устойчив к side-channel атакам).
-- Полная типизация и fail-secure обработка: любые ошибки форматов/ключей приводят к явному исключению, без silent fail.
-- Batch verification: проверка множественных подписей одного документа для оптимизации производительности.
-- Key fingerprinting: SHA256 хэш публичного ключа для безопасной идентификации владельцев.
-- Audit trail: все операции подписи/проверки логируются с опциональным alias для forensic анализа.
-- Thread-safe: без глобального состояния, безопасно для многопоточного использования.
-- Serialization: экспорт/импорт ключей в raw/hex формате для хранения и передачи.
-- Protocol-интерфейс SigningProvider для DI и расширяемости.
+EN: Ed25519 signatures provider with safe key serialization and DI‑friendly API.
 
-Classes:
-    SignatureError: исключение для ошибок подписи/проверки.
-    SigningProvider: protocol-интерфейс для провайдеров подписи (DI).
-    Ed25519Signer: генератор цифровых подписей с приватным ключом.
-    Ed25519Verifier: проверка подписей с публичным ключом.
+Security & design:
+- No global state; instances are independent and thread-safe (cryptography backend is thread-safe).
+- Secrets are never logged; only structural events.
+- Private key material uses 32-byte seed (Ed25519) in memory; best-effort zeroization applies only to bytearray inputs.
+- Optional 'context' performs deterministic domain separation via prehash: H = SHA-512("CTX:" + context + ":" + data),
+  then sign/verify H instead of raw data. This does not implement Ed25519ph standard, but provides consistent separation.
 
-Применение:
-- Подпись защищённых документов, бланков строгой отчётности.
-- Аутентификация операторов в audit trail.
-- Легальная электронная подпись (ЭЦП) в корпоративном документообороте.
+Public API (implements SigningProtocol):
+- sign(data, *, context) -> bytes
+- verify(data, signature, *, context) -> bool
+- public_key(fmt="raw") -> bytes|str
+- get_fingerprint() -> str
+
+Key I/O helpers:
+- generate(), from_private_bytes(), from_public_bytes()
+- save_seed_encrypted(...), load_seed_encrypted(...)
+
+Examples:
+    >>> signer = Ed25519Signer.generate()
+    >>> sig = signer.sign(b"hello")
+    >>> assert signer.verify(b"hello", sig)
+    >>> pub_hex = signer.public_key("hex")
+    >>> fp = signer.get_fingerprint()
 """
+from __future__ import annotations
 
-import logging
 import hashlib
-from typing import Final, Literal, Optional, List, Protocol, runtime_checkable, Union
+import logging
+from dataclasses import dataclass
+from typing import (
+    Callable,
+    Final,
+    Literal,
+    Optional,
+    Protocol,
+    TYPE_CHECKING,
+    Union,
+)
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
 from cryptography.hazmat.primitives import serialization
-from cryptography.exceptions import InvalidSignature
 
-logger: Final = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+from security.crypto.exceptions import (
+    SignatureError,
+    SignatureGenerationError,
+    SignatureVerificationError,
+)
+from security.crypto.protocols import SigningProtocol
+from security.crypto.utils import (
+    generate_random_bytes,
+    zero_memory,
+)
 
-# ================================ Exceptions ==================================
+if TYPE_CHECKING:
+    # Optional: for documentation purposes; not required due to local Protocols below.
+    from security.crypto.crypto_service import CryptoService  # noqa: F401
 
+_LOGGER: Final = logging.getLogger(__name__)
 
-from security.crypto.exceptions import SignatureError
-
-
-# ================================ Protocols ===================================
-
-
-@runtime_checkable
-class SigningProvider(Protocol):
-    """Protocol for digital signature providers (for DI/testing)."""
-
-    def sign(self, message: bytes, priv_key: bytes) -> bytes:
-        """Sign message with private key."""
-        ...
-
-    def verify(self, message: bytes, sig: bytes, pub_key: bytes) -> bool:
-        """Verify signature with public key."""
-        ...
+BytesLike = Union[bytes, bytearray]
+PubFmt = Literal["raw", "hex", "pem"]
 
 
-# ============================== Ed25519 Signer ================================
+class _KeystoreProto(Protocol):
+    def save(self, name: str, data: bytes) -> None: ...
+    def load(self, name: str) -> bytes: ...
+    def delete(self, name: str) -> None: ...
 
 
-class Ed25519Signer:
-    """
-    Генератор цифровых подписей Ed25519.
+class _CryptoServiceProto(Protocol):
+    def create_encrypted_keystore(
+        self,
+        filepath: str,
+        *,
+        password_provider: Callable[[], Union[str, bytes, bytearray]],
+        salt_path: str,
+        key_len: int = 32,
+    ) -> _KeystoreProto: ...
 
-    Args:
-        private_key (bytes): приватный ключ Ed25519 (32 байта).
-        alias (Optional[str]): опциональный идентификатор ключа/оператора для аудита.
 
-    Raises:
-        SignatureError: при некорректном ключе.
+def _prehash_with_context(data: bytes, context: Optional[bytes]) -> bytes:
+    if context is None:
+        return data
+    h = hashlib.sha512()
+    h.update(b"CTX:")
+    h.update(context)
+    h.update(b":")
+    h.update(data)
+    return h.digest()
 
-    Thread safety:
-        Нет внутреннего состояния; безопасен для одновременных использований.
 
-    Example:
-        >>> signer = Ed25519Signer(priv_bytes, alias='operator-01')
-        >>> signature = signer.sign(b"test")
-        >>> pub = signer.public_key("hex")
-        >>> fp = signer.get_fingerprint()
-    """
+@dataclass(frozen=True)
+class _PublicKeyView:
+    raw: bytes
 
-    def __init__(self, private_key: bytes, alias: Optional[str] = None) -> None:
-        if len(private_key) != 32:
-            logger.error("Invalid Ed25519 private key length: %d", len(private_key))
-            raise SignatureError("Ed25519 private key must be 32 bytes")
+
+class Ed25519Signer(SigningProtocol):
+    __slots__ = ("_priv", "_pub")
+
+    def __init__(self, private_key: Optional[BytesLike] = None) -> None:
+        self._priv: Optional[Ed25519PrivateKey] = None
+        self._pub: Optional[_PublicKeyView] = None
+        if private_key is None:
+            return
         try:
-            self._sk = Ed25519PrivateKey.from_private_bytes(private_key)
-            self.alias = alias
-        except Exception as exc:
-            logger.error("Failed to initialize Ed25519PrivateKey: %s", exc)
-            raise SignatureError(f"Invalid Ed25519 private key: {exc}")
-
-    def sign(self, message: bytes) -> bytes:
-        """
-        Подписать сообщение приватным ключом.
-
-        Args:
-            message (bytes): данные для подписи.
-
-        Returns:
-            bytes: подпись (64 байта).
-
-        Raises:
-            SignatureError: при ошибках.
-        """
-        try:
-            signature = self._sk.sign(message)
-            logger.debug(
-                "Message signed successfully%s.",
-                f" [Alias: {self.alias}]" if self.alias else "",
+            seed = bytes(private_key)
+            if len(seed) != 32:
+                raise ValueError("Ed25519 private seed must be 32 bytes")
+            priv = Ed25519PrivateKey.from_private_bytes(seed)
+            pub = priv.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
             )
-            return signature
+            self._priv = priv
+            self._pub = _PublicKeyView(pub)
         except Exception as exc:
-            logger.error("Signing failed: %s", exc)
-            raise SignatureError(f"Signing failed: {exc}")
+            _LOGGER.error("Ed25519 init failed: %s", exc.__class__.__name__)
+            raise SignatureError("Invalid Ed25519 private key material") from exc
+        finally:
+            if isinstance(private_key, bytearray):
+                try:
+                    zero_memory(private_key)
+                except Exception:
+                    pass
 
-    def public_key(self, encoding: Literal["raw", "hex"] = "raw") -> Union[bytes, str]:
-        """
-        Экспортировать публичный ключ.
+    @classmethod
+    def generate(cls) -> "Ed25519Signer":
+        seed = generate_random_bytes(32)
+        return cls(seed)
 
-        Args:
-            encoding: "raw" — 32 байта, "hex" — hex строка.
+    @classmethod
+    def from_private_bytes(cls, seed32: BytesLike) -> "Ed25519Signer":
+        return cls(seed32)
 
-        Returns:
-            Union[bytes, str]: публичный ключ (raw или hex).
-        """
-        raw_pk = self._sk.public_key().public_bytes(
-            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
-        )
-        logger.debug("Ed25519 public key exported [%s].", encoding)
-        if encoding == "raw":
-            return raw_pk
-        elif encoding == "hex":
-            return raw_pk.hex()
-        raise ValueError("Invalid encoding: choose 'raw' or 'hex'.")
-
-    def get_fingerprint(self) -> str:
-        """
-        Получить SHA256 хэш публичного ключа (fingerprint).
-
-        Returns:
-            str: fingerprint (hex SHA256).
-        """
-        raw_key = self.public_key("raw")
-        assert isinstance(raw_key, bytes)
-        fingerprint = hashlib.sha256(raw_key).hexdigest()
-        logger.debug(
-            "Ed25519 public key fingerprint calculated%s.",
-            f" [Alias: {self.alias}]" if self.alias else "",
-        )
-        return fingerprint
-
-    @staticmethod
-    def save_key_bytes(filepath: str, key_bytes: bytes) -> None:
-        """
-        Сохранить bytes ключа в файл.
-
-        Args:
-            filepath: путь для сохранения.
-            key_bytes: 32 байта ключа.
-
-        Raises:
-            OSError: ошибки записи.
-        """
-        with open(filepath, "wb") as f:
-            f.write(key_bytes)
-        logger.info("Key bytes saved to %s.", filepath)
-
-    @staticmethod
-    def load_key_bytes(filepath: str) -> bytes:
-        """
-        Загрузить bytes ключа из файла.
-
-        Args:
-            filepath: откуда читать.
-
-        Returns:
-            bytes: прочитанный ключ.
-
-        Raises:
-            OSError: ошибки чтения.
-            SignatureError: некорректная длина.
-        """
-        with open(filepath, "rb") as f:
-            key_bytes = f.read()
-        if len(key_bytes) != 32:
-            raise SignatureError("Loaded key must be 32 bytes Ed25519.")
-        logger.info("Key bytes loaded from %s.", filepath)
-        return key_bytes
-
-
-# ============================ Ed25519 Verifier ================================
-
-
-class Ed25519Verifier:
-    """
-    Проверка цифровых подписей Ed25519.
-
-    Args:
-        public_key (bytes): публичный ключ Ed25519 (32 байта).
-        alias (Optional[str]): опциональный идентификатор для аудита.
-
-    Raises:
-        SignatureError: при некорректном ключе.
-
-    Thread safety:
-        Нет внутреннего состояния; безопасен для одновременных использований.
-
-    Example:
-        >>> verifier = Ed25519Verifier(pub_bytes, alias="userA")
-        >>> valid = verifier.verify(b"msg", signature)
-    """
-
-    def __init__(self, public_key: bytes, alias: Optional[str] = None) -> None:
-        if len(public_key) != 32:
-            logger.error("Invalid Ed25519 public key length: %d", len(public_key))
-            raise SignatureError("Ed25519 public key must be 32 bytes")
+    @classmethod
+    def from_public_bytes(cls, pub32: bytes) -> "Ed25519Signer":
+        if not isinstance(pub32, (bytes, bytearray)) or len(pub32) != 32:
+            raise SignatureError("Invalid Ed25519 public key length")
+        obj = cls()
         try:
-            self._pk = Ed25519PublicKey.from_public_bytes(public_key)
-            self.alias = alias
+            Ed25519PublicKey.from_public_bytes(bytes(pub32))
+            object.__setattr__(obj, "_pub", _PublicKeyView(bytes(pub32)))
         except Exception as exc:
-            logger.error("Failed to initialize Ed25519PublicKey: %s", exc)
-            raise SignatureError(f"Invalid Ed25519 public key: {exc}")
+            _LOGGER.error("Invalid public key: %s", exc.__class__.__name__)
+            raise SignatureError("Invalid Ed25519 public key material") from exc
+        return obj
 
-    def verify(self, message: bytes, signature: bytes) -> bool:
-        """
-        Проверить подпись сообщения.
-
-        Args:
-            message (bytes): оригинальные данные.
-            signature (bytes): подпись для проверки.
-
-        Returns:
-            bool: True — подпись валидна, False — нет.
-
-        Raises:
-            SignatureError: при ошибках валидации/разбора.
-        """
-        if len(signature) != 64:
-            logger.warning("Signature length incorrect: %d bytes", len(signature))
-            return False
+    def sign(self, data: bytes, *, context: Optional[bytes] = None) -> bytes:
+        if self._priv is None:
+            raise SignatureGenerationError("No private key available")
         try:
-            self._pk.verify(signature, message)
-            logger.info(
-                "Signature verified successfully%s.",
-                f" [Alias: {self.alias}]" if self.alias else "",
+            message = _prehash_with_context(data, context)
+            return self._priv.sign(message)
+        except Exception as exc:
+            _LOGGER.error("Ed25519 sign failed: %s", exc.__class__.__name__)
+            raise SignatureGenerationError("Signing failed") from exc
+
+    def verify(
+        self,
+        data: bytes,
+        signature: bytes,
+        *,
+        context: Optional[bytes] = None,
+    ) -> bool:
+        if self._pub is None:
+            if self._priv is None:
+                raise SignatureVerificationError("No public key available")
+            pub_raw = self._priv.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
             )
+            self._pub = _PublicKeyView(pub_raw)
+
+        if not isinstance(signature, (bytes, bytearray)) or len(signature) != 64:
+            raise SignatureVerificationError("Invalid signature length")
+
+        try:
+            pub = Ed25519PublicKey.from_public_bytes(self._pub.raw)
+            message = _prehash_with_context(data, context)
+            pub.verify(bytes(signature), message)
             return True
-        except InvalidSignature:
-            logger.warning(
-                "Invalid signature for message%s.",
-                f" [Alias: {self.alias}]" if self.alias else "",
-            )
+        except Exception:
             return False
-        except Exception as exc:
-            logger.error("Verification failed: %s", exc)
-            raise SignatureError(f"Verification error: {exc}")
 
-    def verify_batch(self, message: bytes, signatures: List[bytes]) -> List[bool]:
-        """
-        Проверить сразу несколько подписей одного сообщения.
+    def public_key(self, fmt: PubFmt = "raw") -> Union[bytes, str]:
+        if self._pub is None:
+            if self._priv is None:
+                raise SignatureError("No public key available")
+            pub_raw = self._priv.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+            self._pub = _PublicKeyView(pub_raw)
 
-        Args:
-            message (bytes): исходные данные.
-            signatures (List[bytes]): подряд подписи.
-
-        Returns:
-            List[bool]: для каждой подписи — True/False.
-        """
-        results: List[bool] = []
-        for sig in signatures:
-            results.append(self.verify(message, sig))
-        logger.debug(
-            "Batch verification completed for %d signatures%s.",
-            len(signatures),
-            f" [Alias: {self.alias}]" if self.alias else "",
-        )
-        return results
+        raw = self._pub.raw
+        if fmt == "raw":
+            return raw
+        if fmt == "hex":
+            return raw.hex()
+        if fmt == "pem":
+            pub = Ed25519PublicKey.from_public_bytes(raw)
+            pem = pub.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            return pem.decode("ascii")
+        raise ValueError("Unsupported public key format")
 
     def get_fingerprint(self) -> str:
-        """
-        Получить fingerprint ключа (SHA256 hex).
-
-        Returns:
-            str: fingerprint.
-        """
-        pk_bytes = self._pk.public_bytes(
-            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
-        )
-        fingerprint = hashlib.sha256(pk_bytes).hexdigest()
-        logger.debug(
-            "Ed25519 verifier public key fingerprint calculated%s.",
-            f" [Alias: {self.alias}]" if self.alias else "",
-        )
-        return fingerprint
+        raw = self.public_key("raw")
+        assert isinstance(raw, (bytes, bytearray))
+        return hashlib.sha256(bytes(raw)).hexdigest()
 
     @staticmethod
-    def save_key_bytes(filepath: str, key_bytes: bytes) -> None:
+    def save_seed_encrypted(
+        keystore_path: str,
+        salt_path: str,
+        password_provider: Callable[[], Union[str, bytes, bytearray]],
+        seed: bytes,
+        *,
+        crypto_service_factory: Callable[[], _CryptoServiceProto],
+        item_name: str = "ed25519_seed",
+    ) -> None:
         """
-        Сохранить bytes ключа в файл.
-
-        Args:
-            filepath: путь для сохранения.
-            key_bytes: 32 байта ключа.
-
-        Raises:
-            OSError: ошибки записи.
+        Save 32-byte Ed25519 seed into encrypted keystore using AES-GCM key derived via Argon2id.
         """
-        with open(filepath, "wb") as f:
-            f.write(key_bytes)
-        logger.info("Verifier key bytes saved to %s.", filepath)
+        svc = crypto_service_factory()
+        ks: _KeystoreProto = svc.create_encrypted_keystore(
+            keystore_path,
+            password_provider=password_provider,
+            salt_path=salt_path,
+            key_len=32,
+        )
+        ks.save(item_name, seed)
 
     @staticmethod
-    def load_key_bytes(filepath: str) -> bytes:
+    def load_seed_encrypted(
+        keystore_path: str,
+        salt_path: str,
+        password_provider: Callable[[], Union[str, bytes, bytearray]],
+        *,
+        crypto_service_factory: Callable[[], _CryptoServiceProto],
+        item_name: str = "ed25519_seed",
+    ) -> bytes:
         """
-        Загрузить bytes ключа из файла.
-
-        Args:
-            filepath: откуда читать.
-
-        Returns:
-            bytes: прочитанный ключ.
-
-        Raises:
-            OSError: ошибки чтения.
-            SignatureError: некорректная длина.
+        Load 32-byte Ed25519 seed from encrypted keystore.
         """
-        with open(filepath, "rb") as f:
-            key_bytes = f.read()
-        if len(key_bytes) != 32:
-            raise SignatureError("Loaded verifier key must be 32 bytes Ed25519.")
-        logger.info("Verifier key loaded from %s.", filepath)
-        return key_bytes
+        svc = crypto_service_factory()
+        ks: _KeystoreProto = svc.create_encrypted_keystore(
+            keystore_path,
+            password_provider=password_provider,
+            salt_path=salt_path,
+            key_len=32,
+        )
+        return ks.load(item_name)
 
 
-__all__ = [
-    "SignatureError",
-    "SigningProvider",
-    "Ed25519Signer",
-    "Ed25519Verifier",
-]
+__all__ = ["Ed25519Signer"]
