@@ -10,7 +10,8 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Type, cast
 
-from src.security.crypto.secure_storage import SecureStorage
+from src.app_context import get_app_context
+from src.security.crypto.protocols import SecureStorageProtocol
 from .second_method.totp import TotpFactor
 from .second_method.fido2 import Fido2Factor
 from .second_method.code import BackupCodeFactor
@@ -23,12 +24,8 @@ class SecondFactorManager:
     DI: SecureStorage и logger передаются параметрами конструктора.
     """
 
-    def __init__(
-        self,
-        storage: SecureStorage,
-        logger: Optional[logging.Logger] = None,
-    ) -> None:
-        self._logger = logger or logging.getLogger("security.second_factor")
+    def __init__(self, storage: SecureStorageProtocol | None = None, ...):
+        self._storage: SecureStorageProtocol = storage or get_app_context().secure_storage  # DI via AppContext
         self.storage = storage
         self._lock = threading.RLock()
         self._factor_registry: Dict[str, Type] = {
@@ -301,6 +298,3 @@ class SecondFactorManager:
             if factor_type:
                 history = [rec for rec in history if rec.get("type") == factor_type]
             return list(history)
-
-
-# Конец production version.

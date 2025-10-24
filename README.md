@@ -222,7 +222,7 @@ FX-Text-processor-3/
 │   │   ├── __init__.py             # ✅ DONE
 │   │   ├── symmetric.py            # ✅ DONE
 │   │   ├── asymmetric.py           # ✅ DONE
-│   │   ├── kdf.py                  # ✅ DONE
+│   │   ├── kdf.py                  # 🚧 DONE/TODO tests
 │   │   ├── signatures.py           # ✅ DONE
 │   │   ├── secure_storage.py       # ✅ DONE
 │   │   ├── hashing.py              # ✅ DONE
@@ -232,23 +232,23 @@ FX-Text-processor-3/
 │   │   └── crypto_service.py       # ✅ DONE
 │   ├── auth/               # 🚧 TODO
 │   │   ├── __init__.py                 # ✅ DONE
-│   │   ├── password.py                 # ✅ DONE
-│   │   ├── password_service.py         # ✅ DONE
-│   │   ├── second_factor.py            # ✅ DONE
-│   │   ├── second_factor_service.py    # ✅ DONE
-│   │   ├── fido2_service.py            # ✅ DONE
-│   │   ├── totp_service.py             # ✅ DONE
-│   │   ├── code_service.py             # ✅ DONE
-│   │   ├── session.py                  # ✅ DONE
+│   │   ├── password.py                 # 🚧 DONE/TODO tests
+│   │   ├── password_service.py         # 🚧 DONE/TODO tests
+│   │   ├── second_factor.py            # 🚧 refractor
+│   │   ├── second_factor_service.py    # 🚧 refractor
+│   │   ├── fido2_service.py            # 🚧 DONE/TODO tests
+│   │   ├── totp_service.py             # 🚧 refractor
+│   │   ├── code_service.py             # 🚧 DONE/TODO tests
+│   │   ├── session.py                  # 🚧 ?DONE/TODO tests
 │   │   ├── session_service.py          # 🚧 TODO
 │   │   ├── permissions.py              # 🚧 TODO
 │   │   ├── permissions_service.py      # 🚧 TODO
 │   │   ├── auth_service.py             # 🚧 TODO
-│   │   └── second_method/  # ✅ DONE
+│   │   └── second_method/  # 🚧 DONE/TODO tests
 │   │       ├── __init__.py # ✅ DONE
-│   │       ├── fido2.py    # ✅ DONE
-│   │       ├── totp.py     # ✅ DONE
-│   │       └── code.py     # ✅ DONE
+│   │       ├── fido2.py    # 🚧 DONE/TODO tests
+│   │       ├── totp.py     # 🚧 DONE/TODO tests
+│   │       └── code.py     # 🚧 DONE/TODO tests
 │   ├── audit/  # 🚧 TODO
 │   │   ├── __init__.py         # 🚧 TODO
 │   │   ├── logger.py           # 🚧 TODO

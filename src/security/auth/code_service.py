@@ -1,106 +1,211 @@
+# -*- coding: utf-8 -*-
 """
 Thread-safe proxy API for backup/recovery codes via SecondFactorManager.
-Operations guarded by module-level mutex.
-Extended for per-user salt, status methods, explicit documentation.
+All operations are guarded by a module-level mutex.
+Uses ONLY public manager APIs (no private fields).
 """
+
+from __future__ import annotations
 
 import logging
 import threading
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from src.app_context import get_app_context
-from security.crypto.kdf import derive_key_argon2id
+from src.security.crypto.kdf import (
+    derive_key_argon2id,
+)  # ensure exported in kdf.__all__
 
-_manager_lock = threading.Lock()
+_logger = logging.getLogger("security.auth.code_service")
+_lock = threading.Lock()
 
 
-def _get_latest_code_state(mgr: Any, user_id: str) -> Dict[str, Any]:
-    factors: List[dict] = mgr._factors.get(user_id, {}).get("backupcode", [])
-    if not factors:
-        return {}
-    return factors[-1]["state"]  # type: ignore
+class BackupCodeStatus(TypedDict, total=False):
+    codes: List[Dict[str, Any]]
+    remaining: int
+    consumed: int
+    ttl_seconds: Optional[int]
+    audit: List[Any]
+    error: Optional[str]
+
+
+def _export_state(user_id: str) -> Dict[str, Any]:
+    """
+    Export factor state snapshot for 'backupcode' via a public manager method (if available).
+    Fallback to {} to avoid private access.
+    """
+    mgr = get_app_context().mfa_manager
+    export = getattr(mgr, "export_factor_state", None)
+    if callable(export):
+        snap = export(user_id, "backupcode")
+        return cast(Dict[str, Any], snap or {})
+    return {}
 
 
 def issue_backup_codes_for_user(
-    user_id: str, count: int = 12, ttlsec: int = 604800
-) -> List[Dict[str, Any]]:
+    user_id: str, count: int = 12, ttlsec: int = 7 * 24 * 3600
+) -> BackupCodeStatus:
     """
-    Issues a batch of backup codes for user.
-    Returns a list of code dicts.
+    Issue a batch of backup codes for a user and return a typed status DTO.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        mgr.setup_factor(user_id, "backupcode", count=count, ttlseconds=ttlsec)
-        state: Dict[str, Any] = _get_latest_code_state(mgr, user_id)
-        codes_raw = state.get("codes", [])
-        codes: List[Dict[str, Any]] = [
-            code if isinstance(code, dict) else dict(code) for code in codes_raw
-        ]
-        logging.info("Backup codes issued for user %s. Count: %d", user_id, count)
-        return list(codes_raw)
+    # Basic input validation for robustness
+    if not isinstance(user_id, str) or not user_id.strip():
+        return BackupCodeStatus(error="user_id must be a non-empty string")
+    if not isinstance(count, int) or count < 1 or count > 20:
+        return BackupCodeStatus(error="count must be between 1 and 20")
+    if not isinstance(ttlsec, int) or ttlsec < 60 or ttlsec > 90 * 24 * 3600:
+        return BackupCodeStatus(error="ttlsec must be in [60, 7776000]")
+
+    with _lock:
+        try:
+            mgr = get_app_context().mfa_manager
+            mgr.setup_factor(user_id, "backupcode", count=count, ttlseconds=ttlsec)
+            state = _export_state(user_id)
+            raw_codes = state.get("codes", [])
+            codes: List[Dict[str, Any]] = [
+                c if isinstance(c, dict) else dict(c) for c in raw_codes
+            ]
+            remaining = int(state.get("remaining", len(codes)))
+            consumed = int(state.get("consumed", 0))
+            _logger.info("Backup codes issued: user=%s count=%d", user_id, count)
+            return BackupCodeStatus(
+                codes=codes,  # initial reveal only; do not re-expose in status endpoints
+                remaining=remaining,
+                consumed=consumed,
+                ttl_seconds=(
+                    int(state.get("ttl_seconds", ttlsec))
+                    if "ttl_seconds" in state
+                    else ttlsec
+                ),
+            )
+        except Exception as exc:
+            _logger.error(
+                "Issue backup codes failed: user=%s err=%s",
+                user_id,
+                exc.__class__.__name__,
+            )
+            return BackupCodeStatus(error=str(exc))
 
 
 def validate_backup_code_for_user(user_id: str, code: str) -> bool:
     """
-    Validates or burns (single-use) a backup code for user.
-    Returns True if valid and burned, False if not valid.
+    Validate (and burn) a single backup code for the user.
+    Returns True if accepted and consumed; False otherwise.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        return mgr.verify_factor(user_id, "backupcode", code)
+    if not isinstance(user_id, str) or not user_id.strip():
+        return False
+    if not isinstance(code, str) or not code.strip():
+        return False
+
+    with _lock:
+        try:
+            mgr = get_app_context().mfa_manager
+            # Manager expects 'credential' argument
+            ok: bool = bool(mgr.verify_factor(user_id, "backupcode", credential=code))
+            _logger.debug("Backup code validate: user=%s ok=%s", user_id, ok)
+            return ok
+        except Exception as exc:
+            _logger.warning(
+                "Validate backup code failed: user=%s err=%s",
+                user_id,
+                exc.__class__.__name__,
+            )
+            return False
 
 
 def remove_backup_codes_for_user(user_id: str) -> None:
     """
-    Deletes (expires) all backup codes for user.
+    Expire all backup codes for the user.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        mgr.remove_factor(user_id, "backupcode")
-        logging.warning("Backup codes removed for user %s.", user_id)
+    if not isinstance(user_id, str) or not user_id.strip():
+        return
+
+    with _lock:
+        try:
+            mgr = get_app_context().mfa_manager
+            mgr.remove_factor(user_id, "backupcode")
+            _logger.warning("Backup codes removed: user=%s", user_id)
+        except Exception as exc:
+            _logger.error(
+                "Remove backup codes failed: user=%s err=%s",
+                user_id,
+                exc.__class__.__name__,
+            )
 
 
 def partial_revoke_backup_code(user_id: str, code: str) -> bool:
     """
-    Marks a single backup code as used/burned (partial revoke).
-    Returns True if successful.
+    Mark a single backup code as used/burned (delegates to validate).
     """
-    # Эта функция полагается на то, что validate_* реально делает expire/отметку used
     return validate_backup_code_for_user(user_id, code)
 
 
-def get_backup_codes_status(user_id: str) -> Dict[str, Any]:
+def get_backup_codes_status(user_id: str) -> BackupCodeStatus:
     """
-    Returns current status/info for backup codes of user.
-    Example: {"codes": [...], "ttl": ...}
+    Return a typed status snapshot for backup codes.
+    Note: does not re-expose actual code values.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        return _get_latest_code_state(mgr, user_id)
+    if not isinstance(user_id, str) or not user_id.strip():
+        return BackupCodeStatus(error="user_id must be a non-empty string")
+
+    with _lock:
+        try:
+            state = _export_state(user_id)
+            return BackupCodeStatus(
+                remaining=int(state.get("remaining", 0)),
+                consumed=int(state.get("consumed", 0)),
+                ttl_seconds=cast(Optional[int], state.get("ttl_seconds")),
+                audit=cast(List[Any], state.get("audit", [])),
+            )
+        except Exception as exc:
+            _logger.error(
+                "Get backup codes status failed: user=%s err=%s",
+                user_id,
+                exc.__class__.__name__,
+            )
+            return BackupCodeStatus(error=str(exc))
 
 
 def get_backup_codes_audit(user_id: str) -> List[Any]:
     """
-    Returns audit trail for backup codes.
+    Return audit trail entries for backup codes.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        state: Dict[str, Any] = _get_latest_code_state(mgr, user_id)
-        audit: List[Any] = state.get("audit", [])
-        logging.debug("Requested audit trail for %s.", user_id)
-        return audit
+    if not isinstance(user_id, str) or not user_id.strip():
+        return []
+
+    with _lock:
+        try:
+            state = _export_state(user_id)
+            audit = cast(List[Any], state.get("audit", []))
+            _logger.debug(
+                "Backup code audit requested: user=%s size=%d", user_id, len(audit)
+            )
+            return audit
+        except Exception as exc:
+            _logger.error(
+                "Get backup codes audit failed: user=%s err=%s",
+                user_id,
+                exc.__class__.__name__,
+            )
+            return []
 
 
 def get_backup_code_secret_for_storage(user_id: str, code: str) -> bytes:
     """
-    Returns cryptographic key for SecureStorage by user+backup code.
-    Per-user unique salt to strengthen KDF.
-    Throws PermissionError if code invalid.
+    Return a deterministic 32-byte key derived from user_id|code with a per-user salt.
+    Raises PermissionError if the code is invalid.
     """
-    if validate_backup_code_for_user(user_id, code):
-        # уникальная соль для каждого user_id/backup code класса!
-        personal_salt = ("backup/user/" + user_id).encode("utf-8")
-        return derive_key_argon2id(
-            (user_id + "|" + code).encode("utf-8"), salt=personal_salt, length=32
-        )
-    raise PermissionError("Invalid backup code")
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise PermissionError("Invalid user_id")
+    if not isinstance(code, str) or not code.strip():
+        raise PermissionError("Invalid backup code")
+
+    if not validate_backup_code_for_user(user_id, code):
+        raise PermissionError("Invalid backup code")
+
+    personal_salt = ("backup/user/" + user_id).encode("utf-8")
+    return derive_key_argon2id(
+        password=(user_id + "|" + code),
+        salt=personal_salt,
+        length=32,
+    )

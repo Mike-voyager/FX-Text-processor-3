@@ -135,4 +135,87 @@ class DefaultKdfProvider(KdfProtocol):
             raise KDFAlgorithmError("Argon2id failed") from exc
 
 
-__all__ = ["DefaultKdfProvider", "generate_salt"]
+# --- Public API surface ---
+
+__all__ = [
+    "DefaultKdfProvider",
+    "generate_salt",
+    "derive_key",
+    "derive_key_argon2id",
+    "make_pbkdf2_params",
+    "make_argon2id_params",
+]
+
+from typing import Optional
+
+
+def make_pbkdf2_params(
+    *,
+    iterations: int = 100_000,
+    hash_name: str = "sha256",
+) -> PBKDF2Params:
+    """Construct PBKDF2 params dict compliant with KdfParams union."""
+    return cast(
+        PBKDF2Params,
+        {"version": "pbkdf2", "iterations": iterations, "hash_name": hash_name},
+    )
+
+
+def make_argon2id_params(
+    *,
+    time_cost: int = 2,
+    memory_cost: int = 64 * 1024,
+    parallelism: int = 1,
+) -> Argon2idParams:
+    """Construct Argon2id params dict compliant with KdfParams union."""
+    return cast(
+        Argon2idParams,
+        {
+            "version": "argon2id",
+            "time_cost": time_cost,
+            "memory_cost": memory_cost,
+            "parallelism": parallelism,
+        },
+    )
+
+
+def derive_key(
+    password: Union[str, bytes, bytearray],
+    salt: bytes,
+    length: int = 32,
+    *,
+    params: Optional[KdfParams] = None,
+    provider: Optional["DefaultKdfProvider"] = None,
+) -> bytes:
+    """
+    High-level KDF API. If params is None, defaults to Argon2id with safe baseline settings.
+    Never returns Any; always bytes.
+    """
+    if provider is None:
+        provider = DefaultKdfProvider()
+    if params is None:
+        params = make_argon2id_params()
+    return provider.derive_key(
+        password=password, salt=salt, length=length, params=params
+    )
+
+
+def derive_key_argon2id(
+    password: Union[str, bytes, bytearray],
+    salt: bytes,
+    length: int = 32,
+    *,
+    time_cost: int = 2,
+    memory_cost: int = 64 * 1024,
+    parallelism: int = 1,
+    provider: Optional["DefaultKdfProvider"] = None,
+) -> bytes:
+    """
+    Convenience wrapper for Argon2id derivation with explicit tuning.
+    """
+    params = make_argon2id_params(
+        time_cost=time_cost, memory_cost=memory_cost, parallelism=parallelism
+    )
+    return derive_key(
+        password=password, salt=salt, length=length, params=params, provider=provider
+    )

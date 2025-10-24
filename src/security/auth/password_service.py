@@ -1,5 +1,4 @@
-# Модуль: src/security/auth/password_service.py
-# Назначение (RU): Сервисный фасад управления паролями: создание, проверка, смена, reset, политики, истории, блокировки, аудит.
+# -*- coding: utf-8 -*-
 """
 Enterprise PasswordService — полный жизненный цикл управления паролями:
 - Создание, валидация, смена, сброс
@@ -13,6 +12,7 @@ Enterprise PasswordService — полный жизненный цикл упра
 """
 
 from __future__ import annotations
+
 from typing import Optional, Dict, Any, List, Protocol
 from datetime import datetime, timedelta, timezone
 import logging
@@ -21,6 +21,10 @@ from security.auth.password import (
     PasswordHasher,
     is_valid_password,
     MAX_FAILED_ATTEMPTS,
+    PolicyViolation,
+    LockoutActive,
+    InvalidHashFormat,
+    InternalError,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,47 +37,18 @@ TEMP_PASSWORD_FLAG: str = "__TEMP__"
 class UserStorage(Protocol):
     """Protocol for user storage backend with extended password management."""
 
-    def get_password_hash(self, user_id: str) -> Optional[str]:
-        """Retrieve stored password hash for user."""
-        ...
-
-    def set_password_hash(self, user_id: str, password_hash: str) -> None:
-        """Store password hash for user."""
-        ...
-
-    def user_exists(self, user_id: str) -> bool:
-        """Check if user exists."""
-        ...
-
+    def get_password_hash(self, user_id: str) -> Optional[str]: ...
+    def set_password_hash(self, user_id: str, password_hash: str) -> None: ...
+    def user_exists(self, user_id: str) -> bool: ...
     def get_password_history(
         self, user_id: str, limit: int = PASSWORD_HISTORY_LENGTH
-    ) -> List[str]:
-        """Get password history for user."""
-        ...
-
-    def add_password_to_history(self, user_id: str, password_hash: str) -> None:
-        """Add password hash to history."""
-        ...
-
-    def get_password_created_at(self, user_id: str) -> Optional[datetime]:
-        """Get password creation timestamp."""
-        ...
-
-    def set_password_created_at(self, user_id: str, timestamp: datetime) -> None:
-        """Set password creation timestamp."""
-        ...
-
-    def is_temporary_password(self, user_id: str) -> bool:
-        """Check if password is temporary."""
-        ...
-
-    def set_temporary_flag(self, user_id: str, is_temp: bool) -> None:
-        """Set temporary password flag."""
-        ...
-
-    def user_ids(self) -> List[str]:
-        """Get list of all user IDs."""
-        ...
+    ) -> List[str]: ...
+    def add_password_to_history(self, user_id: str, password_hash: str) -> None: ...
+    def get_password_created_at(self, user_id: str) -> Optional[datetime]: ...
+    def set_password_created_at(self, user_id: str, timestamp: datetime) -> None: ...
+    def is_temporary_password(self, user_id: str) -> bool: ...
+    def set_temporary_flag(self, user_id: str, is_temp: bool) -> None: ...
+    def user_ids(self) -> List[str]: ...
 
 
 class InMemoryUserStorage:
@@ -153,17 +128,6 @@ class PasswordService:
 
     Orchestrates PasswordHasher and UserStorage for complete
     password lifecycle management with security policies and auditing.
-
-    Args:
-        hasher: PasswordHasher instance (creates default if None)
-        user_storage: UserStorage implementation (creates in-memory if None)
-
-    Example:
-        >>> service = PasswordService()
-        >>> service.create_password("alice", "Secure!123")
-        True
-        >>> service.verify_password("alice", "Secure!123")
-        True
     """
 
     def __init__(
@@ -181,7 +145,9 @@ class PasswordService:
         """Check if password was used recently."""
         history = self.storage.get_password_history(user_id)
         for old_hash in history:
-            if self.hasher.verify_password(new_password, old_hash, user_id):
+            if self.hasher.verify_password(
+                new_password, old_hash, user_id, track_attempts=False
+            ):
                 return False
         return True
 
@@ -195,7 +161,6 @@ class PasswordService:
         )
 
     def _audit_log(self, event: str, user_id: str, details: Dict[str, Any]) -> None:
-        """Log structured audit event."""
         record: Dict[str, Any] = {
             "event": event,
             "user_id": user_id,
@@ -223,7 +188,14 @@ class PasswordService:
             raise WeakPasswordError(self.last_error)
 
         salt = self.hasher.generate_salt()
-        password_hash = self.hasher.hash_password(password, salt, user_id)
+        try:
+            password_hash = self.hasher.hash_password(password, salt, user_id)
+        except PolicyViolation as e:
+            self.last_error = str(e) or "Password policy violation"
+            self._audit_log(
+                "password_policy_violation", user_id, {"reason": "hasher_rejected"}
+            )
+            raise WeakPasswordError(self.last_error)
         self.storage.set_password_hash(user_id, password_hash)
         self.storage.set_temporary_flag(user_id, False)
         self._audit_log("password_created", user_id, {})
@@ -231,15 +203,7 @@ class PasswordService:
 
     def _verify_password_internal(self, user_id: str, password: str) -> bool:
         """
-        Internal password verification without side effects.
-
-        Performs password verification without:
-        - Tracking failed attempts
-        - Enforcing account lockout
-        - Modifying attempt counters
-
-        Use this for internal operations like password changes where
-        lockout enforcement is not appropriate.
+        Internal password verification without side effects (no tracking, no lockout).
         """
         if not self.storage.user_exists(user_id):
             return False
@@ -248,12 +212,14 @@ class PasswordService:
         if not stored_hash:
             return False
 
-        # Use track_attempts=False to skip lockout logic
-        return bool(
-            self.hasher.verify_password(
-                password, stored_hash, user_id=user_id, track_attempts=False
+        try:
+            return bool(
+                self.hasher.verify_password(
+                    password, stored_hash, user_id=user_id, track_attempts=False
+                )
             )
-        )
+        except (InvalidHashFormat, InternalError):
+            return False
 
     def verify_password(self, user_id: str, password: str) -> bool:
         """Verify password during authentication."""
@@ -272,7 +238,14 @@ class PasswordService:
             self.last_error = "No password set"
             return False
 
-        result = bool(self.hasher.verify_password(password, stored_hash, user_id))
+        try:
+            result = bool(self.hasher.verify_password(password, stored_hash, user_id))
+        except LockoutActive:
+            self.last_error = "Account locked"
+            raise AccountLockedError(self.last_error)
+        except (InvalidHashFormat, InternalError) as e:
+            self.last_error = str(e) or "Verification error"
+            return False
 
         if result and self.hasher.needs_rehash(stored_hash, user_id):
             new_hash = self.hasher.update_password(password, stored_hash, user_id)
@@ -290,7 +263,6 @@ class PasswordService:
         """Change user password (requires old password verification)."""
         self.last_error = None
 
-        # Use internal verification without side effects
         if not self._verify_password_internal(user_id, old_password):
             self.last_error = "Old password incorrect"
             raise PasswordServiceError(self.last_error)
@@ -304,7 +276,11 @@ class PasswordService:
             raise WeakPasswordError(self.last_error)
 
         salt = self.hasher.generate_salt()
-        new_hash = self.hasher.hash_password(new_password, salt, user_id)
+        try:
+            new_hash = self.hasher.hash_password(new_password, salt, user_id)
+        except PolicyViolation as e:
+            self.last_error = str(e) or "Password policy violation"
+            raise WeakPasswordError(self.last_error)
         self.storage.set_password_hash(user_id, new_hash)
         self.storage.set_temporary_flag(user_id, False)
         self._audit_log("password_changed", user_id, {})
@@ -321,10 +297,16 @@ class PasswordService:
             raise WeakPasswordError(self.last_error)
 
         salt = self.hasher.generate_salt()
-        new_hash = self.hasher.hash_password(new_password, salt, user_id)
+        try:
+            new_hash = self.hasher.hash_password(new_password, salt, user_id)
+        except PolicyViolation as e:
+            self.last_error = str(e) or "Reset password policy violation"
+            raise WeakPasswordError(self.last_error)
         self.storage.set_password_hash(user_id, new_hash)
         self.storage.set_temporary_flag(user_id, True)
-        self.hasher._attempts[user_id] = 0
+
+        # Unlock via public API
+        self.hasher.reset_attempts(user_id)
         self._audit_log("password_reset", user_id, {"admin_id": admin_id or "system"})
         return True
 
@@ -337,7 +319,11 @@ class PasswordService:
             raise WeakPasswordError(self.last_error)
 
         salt = self.hasher.generate_salt()
-        temp_hash = self.hasher.hash_password(temp_password, salt, user_id)
+        try:
+            temp_hash = self.hasher.hash_password(temp_password, salt, user_id)
+        except PolicyViolation as e:
+            self.last_error = str(e) or "Temporary password policy violation"
+            raise WeakPasswordError(self.last_error)
         self.storage.set_password_hash(user_id, temp_hash)
         self.storage.set_temporary_flag(user_id, True)
         self._audit_log("temporary_password_set", user_id, {})
@@ -347,47 +333,25 @@ class PasswordService:
         """Check if current password is temporary."""
         return bool(self.storage.is_temporary_password(user_id))
 
-    def check_password_strength(self, password: str) -> Dict[str, Any]:
-        """Check password strength and provide feedback."""
-        issues: List[str] = []
-
-        if len(password) < 8:
-            issues.append("length<8")
-        if len(password) > 256:
-            issues.append("length>256")
-        if not any(c.isupper() for c in password):
-            issues.append("no_uppercase")
-        if not any(c.isdigit() for c in password):
-            issues.append("no_digit")
-        if not any(c in "!@#$%^&*()-_=+[]{}|;:'\"<>,.?/" for c in password):
-            issues.append("no_special_char")
-        if not any(c.isalpha() for c in password):
-            issues.append("no_alpha")
-
-        valid = len(issues) == 0
-        score = max(0, 100 - len(issues) * 20)
-
-        return {
-            "valid": valid,
-            "score": score,
-            "issues": issues,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+    def _get_attempts(self, user_id: str) -> int:
+        """Read attempts via public audit export."""
+        audit = self.hasher.export_audit(user_id)
+        return int(audit.get("attempts", 0))
 
     def is_locked_out(self, user_id: str) -> bool:
         """Check if user is locked out due to failed attempts."""
-        attempts = int(self.hasher._attempts.get(user_id, 0))
+        attempts = self._get_attempts(user_id)
         return bool(attempts >= MAX_FAILED_ATTEMPTS)
 
     def unlock_user(self, user_id: str, admin_id: str) -> bool:
         """Unlock user account (admin operation)."""
-        self.hasher._attempts[user_id] = 0
+        self.hasher.reset_attempts(user_id)
         self._audit_log("user_unlocked", user_id, {"admin_id": admin_id})
         return True
 
     def get_failed_attempts(self, user_id: str) -> int:
         """Get number of failed login attempts for user."""
-        return int(self.hasher._attempts.get(user_id, 0))
+        return self._get_attempts(user_id)
 
     def export_policy(self) -> Dict[str, Any]:
         """Export current password policy configuration."""
@@ -414,7 +378,6 @@ class PasswordService:
         total_users = len(all_users)
 
         locked_accounts = sum(1 for u in all_users if self.is_locked_out(u))
-
         total_failed = sum(self.get_failed_attempts(u) for u in all_users)
         avg_failed = total_failed / max(1, total_users)
 
@@ -432,10 +395,7 @@ class PasswordService:
         }
 
     def __enter__(self) -> "PasswordService":
-        """Context manager entry."""
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Context manager exit with cleanup."""
-        # Теперь метод существует!
         self.hasher.zeroize_all_secrets()

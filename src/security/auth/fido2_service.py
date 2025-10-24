@@ -1,115 +1,114 @@
+# -*- coding: utf-8 -*-
 """
 Thread-safe proxy API for controller/UI to interact with FIDO2/WebAuthn factor using SecondFactorManager.
-All security logic is delegated to Fido2Factor. Operations guarded by module-level mutex.
+All security logic is delegated to the manager via public APIs. Operations guarded by a module-level mutex.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Dict, Any, List
 import threading
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
-from security.crypto.kdf import derive_key_argon2id
-from security.auth.second_factor import SecondFactorManager
-from app_context import get_app_context
+from src.app_context import get_app_context
+from security.crypto.kdf import (
+    derive_key_argon2id,
+)  # ensure it's exported in kdf.__all__
 
-_manager_lock = threading.Lock()
+_logger = logging.getLogger("security.auth.fido2_service")
+_lock = threading.Lock()
 
 
-def _get_latest_fido2_state(mgr: SecondFactorManager, user_id: str) -> Dict[str, Any]:
-    factors: List[dict] = mgr._factors.get(user_id, {}).get("fido2", [])
-    if not factors:
-        return {}
-    return factors[-1]["state"]  # type: ignore
+def _export_state(user_id: str) -> Dict[str, Any]:
+    """
+    Export factor state snapshot for 'fido2' via a public manager method if available.
+    Falls back to empty dict to avoid private access.
+    """
+    mgr = get_app_context().mfa_manager
+    export = getattr(mgr, "export_factor_state", None)
+    if callable(export):
+        snap = export(user_id, "fido2")
+        return cast(Dict[str, Any], snap or {})
+    return {}
 
 
 def setup_fido2_for_user(user_id: str, device_info: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Registers a new FIDO2 device for user. Returns device state dict.
+    Register a new FIDO2 device for the user and return a state snapshot.
     """
-    with _manager_lock:
+    with _lock:
         mgr = get_app_context().mfa_manager
         mgr.setup_factor(user_id, "fido2", deviceinfo=device_info)
-        state: Dict[str, Any] = _get_latest_fido2_state(mgr, user_id)
-        logging.info("FIDO2 factor setup for user %s", user_id)
+        state = _export_state(user_id)
+        _logger.info("FIDO2 factor setup: user=%s", user_id)
         return state
 
 
 def validate_fido2_response(user_id: str, response: Dict[str, Any]) -> bool:
     """
-    Verifies user WebAuthn/FIDO2 response for user device.
+    Verify the user's WebAuthn/FIDO2 response for the registered device.
     """
-    with _manager_lock:
+    with _lock:
         mgr = get_app_context().mfa_manager
-        result = mgr.verify_factor(user_id, "fido2", response)
-        return bool(result)  # Явное приведение к bool
+        ok: bool = bool(mgr.verify_factor(user_id, "fido2", credential=response))
+        _logger.debug("FIDO2 validate: user=%s ok=%s", user_id, ok)
+        return ok
 
 
 def remove_fido2_for_user(user_id: str) -> None:
     """
-    Deletes user's FIDO2/WebAuthn device.
+    Remove user's FIDO2/WebAuthn device.
     """
-    with _manager_lock:
+    with _lock:
         mgr = get_app_context().mfa_manager
         mgr.remove_factor(user_id, "fido2")
-        logging.warning("FIDO2 factor removed for user %s.", user_id)
+        _logger.warning("FIDO2 factor removed: user=%s", user_id)
 
 
 def get_fido2_status(user_id: str) -> Dict[str, Any]:
     """
-    Returns current status/info for FIDO2 factor of user.
+    Return the current state snapshot for the user's FIDO2 factor.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        return _get_latest_fido2_state(mgr, user_id)
+    with _lock:
+        return _export_state(user_id)
 
 
 def get_fido2_audit(user_id: str) -> List[Any]:
     """
-    Returns audit trail for FIDO2 factor.
+    Return audit trail for the user's FIDO2 factor.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        state: Dict[str, Any] = _get_latest_fido2_state(mgr, user_id)
-        audit: List[Any] = state.get("audit", [])
-        logging.debug("Requested audit trail for %s.", user_id)
+    with _lock:
+        state = _export_state(user_id)
+        audit = cast(List[Any], state.get("audit", []))
+        _logger.debug("FIDO2 audit requested: user=%s size=%d", user_id, len(audit))
         return audit
 
 
-def get_fido2_secret_for_storage(user_id: str, response: dict) -> bytes:
+def get_fido2_secret_for_storage(user_id: str, response: Dict[str, Any]) -> bytes:
     """
-    Derives encryption key from FIDO2 response for secure storage.
-
-    Args:
-        user_id: User identifier
-        response: FIDO2 authentication response
-
-    Returns:
-        32-byte derived key for storage encryption
-
-    Raises:
-        PermissionError: If FIDO2 response is invalid
+    Derive a deterministic 32-byte key for SecureStorage from stable device/user attributes.
+    Raises PermissionError if the response is invalid.
     """
-    with _manager_lock:
-        mgr = get_app_context().mfa_manager
-        state = _get_latest_fido2_state(mgr, user_id)
-        from .second_method.fido2 import Fido2Factor
-
-        factor = Fido2Factor()
-        result = factor.verify(user_id, response, state)
-        if result.get("status") != "success":
+    with _lock:
+        if not validate_fido2_response(user_id, response):
             raise PermissionError("Invalid FIDO2 response")
 
+        # Prefer stable attributes for repeatable key derivation
         credential_id = response.get("credential_id", "")
-        signature = response.get("signature", "")
-        if not credential_id or not signature:
-            raise PermissionError("Missing credential_id or signature")
+        if not credential_id:
+            raise PermissionError("Missing credential_id")
+
+        # Read registered public_key from state snapshot if present
+        state = _export_state(user_id)
+        pubkey = state.get("public_key", "")
+        if not pubkey:
+            # Fallback: still deterministic with credential_id only, but weaker entropy
+            pubkey = ""
 
         personal_salt = f"fido2/user/{user_id}/dev/{credential_id}".encode("utf-8")
 
-        # Явно приводим к bytes
-        derived_key: bytes = derive_key_argon2id(
-            (user_id + credential_id + str(signature)).encode("utf-8"),
+        return derive_key_argon2id(
+            password=(user_id + "|" + credential_id + "|" + str(pubkey)),
             salt=personal_salt,
             length=32,
         )
-
-        return derived_key
