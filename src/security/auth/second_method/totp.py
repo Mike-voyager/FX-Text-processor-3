@@ -126,11 +126,13 @@ class TotpFactor:
         """
         now_str = _now_str()
         state["audit"] = state.get("audit", [])
-        state["audit"].append({
-            "action": "remove",
-            "timestamp": now_str,
-            "user_id": user_id,
-        })
+        state["audit"].append(
+            {
+                "action": "remove",
+                "timestamp": now_str,
+                "user_id": user_id,
+            }
+        )
         if "secret" in state:
             del state["secret"]
 
@@ -171,12 +173,16 @@ class TotpFactor:
         # Validate format first
         digits = state.get("digits", DEFAULT_DIGITS)
         if not self.validate_otp_format(otp, digits):
-            audit.append({
-                "timestamp": now_str,
-                "result": "invalid_format",
-                "otp": otp[:2] + "****" if len(otp) >= 2 else "****",
-            })
-            raise TotpVerificationFailed(f"Invalid OTP format (expected {digits} digits)")
+            audit.append(
+                {
+                    "timestamp": now_str,
+                    "result": "invalid_format",
+                    "otp": otp[:2] + "****" if len(otp) >= 2 else "****",
+                }
+            )
+            raise TotpVerificationFailed(
+                f"Invalid OTP format (expected {digits} digits)"
+            )
 
         # Anti-replay check
         if enable_anti_replay:
@@ -184,13 +190,18 @@ class TotpFactor:
             current_time_step = int(_now().timestamp() / interval)
             last_used_time_step = state.get("last_used_time_step")
 
-            if last_used_time_step is not None and current_time_step <= last_used_time_step:
-                audit.append({
-                    "timestamp": now_str,
-                    "result": "replay_detected",
-                    "otp": otp[:2] + "****",
-                    "time_step": current_time_step,
-                })
+            if (
+                last_used_time_step is not None
+                and current_time_step <= last_used_time_step
+            ):
+                audit.append(
+                    {
+                        "timestamp": now_str,
+                        "result": "replay_detected",
+                        "otp": otp[:2] + "****",
+                        "time_step": current_time_step,
+                    }
+                )
                 raise TotpVerificationFailed("Code already used (replay detected)")
 
         try:
@@ -207,28 +218,34 @@ class TotpFactor:
                     interval = state.get("interval", DEFAULT_INTERVAL)
                     state["last_used_time_step"] = int(_now().timestamp() / interval)
 
-                audit.append({
-                    "timestamp": now_str,
-                    "result": "success",
-                    "otp": otp[:2] + "****",  # partial masking
-                })
+                audit.append(
+                    {
+                        "timestamp": now_str,
+                        "result": "success",
+                        "otp": otp[:2] + "****",  # partial masking
+                    }
+                )
                 return True
             else:
-                audit.append({
-                    "timestamp": now_str,
-                    "result": "fail",
-                    "otp": otp[:2] + "****",
-                })
+                audit.append(
+                    {
+                        "timestamp": now_str,
+                        "result": "fail",
+                        "otp": otp[:2] + "****",
+                    }
+                )
                 raise TotpVerificationFailed("Invalid TOTP code")
 
         except TotpVerificationFailed:
             raise
         except Exception as e:
-            audit.append({
-                "timestamp": now_str,
-                "result": "error",
-                "error": str(e),
-            })
+            audit.append(
+                {
+                    "timestamp": now_str,
+                    "result": "error",
+                    "error": str(e),
+                }
+            )
             raise TotpVerificationFailed(f"TOTP verification error: {e}") from e
 
     def is_secret_configured(self, state: Dict[str, Any]) -> bool:
@@ -245,7 +262,9 @@ class TotpFactor:
             >>> if factor.is_secret_configured(state):
             ...     factor.verify("alice", "123456", state)
         """
-        return "secret" in state and state["secret"] is not None and state["secret"] != ""
+        return (
+            "secret" in state and state["secret"] is not None and state["secret"] != ""
+        )
 
     @staticmethod
     def validate_otp_format(otp: str, expected_digits: int = DEFAULT_DIGITS) -> bool:
@@ -298,7 +317,9 @@ class TotpFactor:
         totp = pyotp.TOTP(secret, digits=digits, interval=interval)
         return totp.provisioning_uri(name=username, issuer_name=issuer)
 
-    def rotate_secret(self, state: Dict[str, Any], new_secret: Optional[str] = None) -> str:
+    def rotate_secret(
+        self, state: Dict[str, Any], new_secret: Optional[str] = None
+    ) -> str:
         """
         Rotate TOTP secret (for security refresh).
 
@@ -327,10 +348,12 @@ class TotpFactor:
         state["rotated"] = True
         state["rotated_at"] = now_str
         state["last_used_time_step"] = None  # reset anti-replay
-        state.setdefault("audit", []).append({
-            "action": "secret_rotated",
-            "timestamp": now_str,
-        })
+        state.setdefault("audit", []).append(
+            {
+                "action": "secret_rotated",
+                "timestamp": now_str,
+            }
+        )
 
         return new_secret
 
@@ -415,7 +438,9 @@ class TotpFactor:
         audit = state.get("audit", [])
         success_count = sum(1 for event in audit if event.get("result") == "success")
         fail_count = sum(1 for event in audit if event.get("result") == "fail")
-        replay_count = sum(1 for event in audit if event.get("result") == "replay_detected")
+        replay_count = sum(
+            1 for event in audit if event.get("result") == "replay_detected"
+        )
 
         data = {
             "created_at": state.get("created_at"),
