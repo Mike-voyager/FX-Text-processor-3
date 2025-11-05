@@ -1,20 +1,15 @@
-# src/security/auth/second_factor_service.py
+# -*- coding: utf-8 -*-
 """
-Сервисный слой/Thin API над SecondFactorManager для всех операций MFA/2FA.
-Интеграция через AppContext/DI.
-Внедрены:
-1. Exception/обработка ошибок
-2. Логирование ошибок и инцидентов
-3. Валидация входных данных
-4. TypedDict для ответов
-5. Docstrings с примерами
+Сервисный слой/Thin API над SecondFactorManager для операций MFA/2FA.
+RU: Обработка ошибок, валидация, контракты ответов, logging.
+EN: Thin API on SecondFactorManager; error handling, validation, response contracts, logging.
 """
 
-from typing import Any, Dict, Optional, List, TypedDict, Union
+from typing import Any, Dict, Optional, List, TypedDict, Union, Type
 import logging
 
 from src.app_context import get_app_context
-from src.security.auth.second_factor import SecondFactorManager
+from src.security.auth.second_factor import SecondFactorManager, FactorProtocol
 
 # --- Typed Response Contracts ---
 
@@ -100,7 +95,6 @@ def verify_factor(
         expired = False
         if status.get("ttlseconds") and status.get("created"):
             import time
-
             expired = (int(time.time()) - int(status["created"])) > int(
                 status["ttlseconds"]
             )
@@ -139,7 +133,9 @@ def rotate_factor(
     """
     try:
         _validate_input(user_id, factor_type)
-        state = _manager.rotate_factor(user_id, factor_type, **kwargs) or {}
+        _manager.remove_all_factors(user_id, factor_type)
+        factor_id = _manager.setup_factor(user_id, factor_type, **kwargs)
+        state = _manager.get_status(user_id, factor_type) or {}
         return FactorStatus(valid=True, state=state)
     except Exception as e:
         return _log_and_return_error("rotate_factor", e)
@@ -171,6 +167,7 @@ def get_factor_audit(
     Returns: List of AuditRecord
     """
     try:
+        # Manager’s get_audit already returns the format compatible with AuditRecord
         return _manager.get_audit(user_id, factor_type)  # type: ignore
     except Exception as e:
         logging.error("SecondFactorService [get_factor_audit] error: %s", e)
@@ -187,14 +184,14 @@ def get_factor_audit(
 
 def register_factor_type(
     name: str,
-    cls: type,
+    cls: Type[FactorProtocol],
 ) -> FactorStatus:
     """
     Register a new factor (dynamic extension).
     """
     try:
         _manager.register_factor_type(name, cls)
-        return {"valid": True}
+        return FactorStatus(valid=True)
     except Exception as e:
         return _log_and_return_error("register_factor_type", e)
 
@@ -207,6 +204,6 @@ def unregister_factor_type(
     """
     try:
         _manager.unregister_factor_type(name)
-        return {"valid": True}
+        return FactorStatus(valid=True)
     except Exception as e:
         return _log_and_return_error("unregister_factor_type", e)
