@@ -501,6 +501,7 @@ def test_delete_logs_and_handles_missing(
         ks.delete("x")
     # при необходимости проверь caplog.records на сообщение (если логируется)
 
+
 @pytest.mark.breaks_pytest
 def test_write_serialization_error_maps_to_write_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -517,7 +518,6 @@ def test_write_serialization_error_maps_to_write_error(
     monkeypatch.setattr("json.dumps", bad_dump)
     with pytest.raises(StorageWriteError):
         ks.save("b", b"w")
-
 
 
 def test_save_rejects_memoryview(tmp_path: Path) -> None:
