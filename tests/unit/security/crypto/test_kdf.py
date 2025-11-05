@@ -226,8 +226,10 @@ def test_argon2id_success_and_fixed_version(monkeypatch: pytest.MonkeyPatch) -> 
     # Мок‑функция, имитирующая hash_secret_raw из argon2.low_level
     # Она сохраняет переданные kwargs и возвращает фиктивный хеш
     def hash_secret_raw(**kwargs: Any) -> bytes:
-        captured.update(kwargs)          # Сохраняем все аргументы для последующей проверки
-        return b"Y" * int(kwargs["hash_len"])  # Возвращаем строку из 'Y', длиной hash_len
+        captured.update(kwargs)  # Сохраняем все аргументы для последующей проверки
+        return b"Y" * int(
+            kwargs["hash_len"]
+        )  # Возвращаем строку из 'Y', длиной hash_len
 
     # Мок‑класс, имитирующий enum Type из argon2.low_level
     class TypeNS:
@@ -240,11 +242,11 @@ def test_argon2id_success_and_fixed_version(monkeypatch: pytest.MonkeyPatch) -> 
     # Создаём провайдер ключей и задаём параметры Argon2id
     kdf = DefaultKdfProvider()
     ap: Argon2idParams = {
-        "version": "argon2id",      # Указываем тип алгоритма
-        "time_cost": 2,             # Количество итераций
-        "memory_cost": 65536,       # Потребляемая память (в KiB)
-        "parallelism": 1,           # Параллельность
-        "salt_len": 16,             # Длина соли
+        "version": "argon2id",  # Указываем тип алгоритма
+        "time_cost": 2,  # Количество итераций
+        "memory_cost": 65536,  # Потребляемая память (в KiB)
+        "parallelism": 1,  # Параллельность
+        "salt_len": 16,  # Длина соли
     }
 
     # Генерируем ключ длиной 32 байта
@@ -254,8 +256,8 @@ def test_argon2id_success_and_fixed_version(monkeypatch: pytest.MonkeyPatch) -> 
     assert isinstance(key, (bytes, bytearray)) and len(key) == 32
 
     # Проверяем, что в мок‑функцию передали правильные параметры
-    assert captured.get("version") == 19          # Версия Argon2 (19 соответствует 1.3)
-    assert captured.get("type") == TypeNS.ID      # Тип алгоритма (1 – Argon2i)
+    assert captured.get("version") == 19  # Версия Argon2 (19 соответствует 1.3)
+    assert captured.get("type") == TypeNS.ID  # Тип алгоритма (1 – Argon2i)
 
 
 # --- Generic input validation ---
