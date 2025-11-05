@@ -235,11 +235,11 @@ FX-Text-processor-3/
 │   │   ├── password.py                 # 🚧 DONE/TODO tests
 │   │   ├── password_service.py         # 🚧 DONE/TODO tests
 │   │   ├── second_factor.py            # 🚧 DONE/TODO tests
-│   │   ├── second_factor_service.py    # 🚧 refractor
+│   │   ├── second_factor_service.py    # 🚧 DONE/TODO tests
 │   │   ├── fido2_service.py            # 🚧 DONE/TODO tests
 │   │   ├── totp_service.py             # 🚧 DONE/TODO tests
 │   │   ├── code_service.py             # 🚧 DONE/TODO tests
-│   │   ├── session.py                  # 🚧 ?DONE/TODO tests
+│   │   ├── session.py                  # 🚧 DONE/TODO tests
 │   │   ├── session_service.py          # 🚧 TODO
 │   │   ├── permissions.py              # 🚧 TODO
 │   │   ├── permissions_service.py      # 🚧 TODO
