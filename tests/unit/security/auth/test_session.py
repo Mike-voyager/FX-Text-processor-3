@@ -238,10 +238,11 @@ def test_invalid_user_id_raises(mgr: SessionManager) -> None:
         mgr.issue("")
 
 
-
 def test_issue_with_remember_respects_policy(clock: Clock) -> None:
     # allow_remember=False -> игнорируем remember и используем базовый refresh TTL
-    mgr = SessionManager(clock=clock.now, allow_remember=False, refresh_ttl_seconds=7 * 24 * 3600)
+    mgr = SessionManager(
+        clock=clock.now, allow_remember=False, refresh_ttl_seconds=7 * 24 * 3600
+    )
     b = mgr.issue("uR", remember=True)
     assert (b.refresh_expires_at - clock.now()) == 7 * 24 * 3600
 
@@ -252,7 +253,9 @@ def test_issue_with_remember_respects_policy(clock: Clock) -> None:
 
 
 def test_require_mfa_with_custom_freshness(clock: Clock) -> None:
-    mgr = SessionManager(clock=clock.now, mfa_freshness_seconds=300)  # дефолт 5 мин, но переопределим в вызове
+    mgr = SessionManager(
+        clock=clock.now, mfa_freshness_seconds=300
+    )  # дефолт 5 мин, но переопределим в вызове
     b = mgr.issue("uF", mfa_required=True)
     # Не удовлетворена MFA
     with pytest.raises(PermissionError):
@@ -277,7 +280,9 @@ def test_update_scopes_fails_when_refresh_expired(clock: Clock) -> None:
 
 def test_list_active_sessions_mixed_states(clock: Clock) -> None:
     # idle_timeout=60s, refresh_ttl=120s
-    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=60, refresh_ttl_seconds=120)
+    mgr = SessionManager(
+        clock=clock.now, idle_timeout_seconds=60, refresh_ttl_seconds=120
+    )
 
     # Создаём три сессии одного пользователя
     alive = mgr.issue("uMix")
@@ -313,7 +318,6 @@ def test_list_active_sessions_mixed_states(clock: Clock) -> None:
     assert cnt2 == 0
 
 
-
 def test_validate_access_ip_mapping_and_literal(clock: Clock) -> None:
     mgr = SessionManager(clock=clock.now)
     # Нормализуем IPv4 и пробуем разные представления
@@ -328,6 +332,7 @@ def test_validate_access_ip_mapping_and_literal(clock: Clock) -> None:
     # Проверим, что неизвестный токен остаётся InvalidToken, а не DeviceMismatch
     with pytest.raises(InvalidToken):
         mgr.validate_access("nope", ip="127.0.0.1")
+
 
 def test_revoke_idempotent_and_noop_purge(clock: Clock) -> None:
     logging.getLogger("security.auth.session").setLevel(logging.DEBUG)
@@ -361,7 +366,9 @@ def test_ip_bound_missing_ip_raises_mismatch(clock: Clock) -> None:
     assert "ip mismatch" in str(e.value).lower()
 
 
-def test_update_scopes_elevation_without_fresh_mfa_allowed_when_flag_off(clock: Clock) -> None:
+def test_update_scopes_elevation_without_fresh_mfa_allowed_when_flag_off(
+    clock: Clock,
+) -> None:
     # mfa_freshness_seconds=1, но будем повышать с require_fresh_mfa=False
     mgr = SessionManager(clock=clock.now, mfa_freshness_seconds=1)
 
@@ -396,7 +403,9 @@ def test_issue_with_allow_remember_affects_refresh_ttl(clock: Clock) -> None:
 
 def test_validate_access_after_idle_but_before_refresh(clock: Clock) -> None:
     # idle короткий, refresh длинный — validate должен падать по idle
-    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600)
+    mgr = SessionManager(
+        clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600
+    )
     b = mgr.issue("uIdle")
     # Превысим idle, но далеко не refresh
     clock.add(31)
@@ -406,7 +415,9 @@ def test_validate_access_after_idle_but_before_refresh(clock: Clock) -> None:
 
 def test_refresh_after_idle_still_checks_idle(clock: Clock) -> None:
     # refresh должен проверять idle — при неактивности тоже падать
-    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600)
+    mgr = SessionManager(
+        clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600
+    )
     b = mgr.issue("uIdleRef")
     clock.add(31)
     with pytest.raises(TokenExpired):

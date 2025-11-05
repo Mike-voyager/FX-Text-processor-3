@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import builtins
-import sys
-import types
-from typing import Any, Sequence, cast
+import builtins  # Import built-in functions and objects
+import sys  # Import system-specific modules and function
+import types  # Import type for Python's type object
+from typing import Any, Sequence, cast  # Import generic types from the typing module
 
 import pytest
 
@@ -19,6 +19,7 @@ from security.crypto.protocols import PBKDF2Params, Argon2idParams
 
 
 def test_generate_salt_ok_default() -> None:
+    """Тест соли по умолчанию"""
     s = generate_salt()
     assert isinstance(s, bytes)
     assert 8 <= len(s) <= 64
@@ -33,21 +34,29 @@ def test_generate_salt_invalid_length(n: int) -> None:
 # --- PBKDF2 path ---
 
 
+# --- PBKDF2 path ---
+
+
 def test_pbkdf2_success_and_length_bounds() -> None:
+    """Тест успешного вычисления ключа PBKDF2 и ограничений длины"""
     kdf = DefaultKdfProvider()
-    salt = b"SALT0123"
+    salt = b"SALT0123"  # Salt для вычисления ключа
     pb: PBKDF2Params = {
-        "version": "pbkdf2",
-        "iterations": 100_000,
-        "hash_name": "sha256",
-        "salt_len": 16,
+        "version": "pbkdf2",  # Версия алгоритма
+        "iterations": 100_000,  # Количество итераций
+        "hash_name": "sha256",  # Название хеш-функции
+        "salt_len": 16,  # Длина соли
     }
-    # minimal valid length
+    # минимальная допустимая длина
     key16 = kdf.derive_key("pw", salt, 16, params=pb)
-    assert isinstance(key16, (bytes, bytearray)) and len(key16) == 16
-    # maximal valid length
+    assert (
+        isinstance(key16, (bytes, bytearray)) and len(key16) == 16
+    ), "Ключ не имеет длину 16 байт"
+    # максимальная допустимая длина
     key64 = kdf.derive_key(b"pw", salt, 64, params=pb)
-    assert isinstance(key64, (bytes, bytearray)) and len(key64) == 64
+    assert (
+        isinstance(key64, (bytes, bytearray)) and len(key64) == 64
+    ), "Ключ не имеет длину 64 байта"
 
 
 @pytest.mark.parametrize(
@@ -211,35 +220,45 @@ def test_argon2id_invalid_params_raise(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_argon2id_success_and_fixed_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Словарь для сбора аргументов, которые будут переданы в мок‑функцию hash_secret_raw
     captured: dict[str, Any] = {}
 
+    # Мок‑функция, имитирующая hash_secret_raw из argon2.low_level
+    # Она сохраняет переданные kwargs и возвращает фиктивный хеш
     def hash_secret_raw(**kwargs: Any) -> bytes:
-        captured.update(kwargs)
-        return b"Y" * int(kwargs["hash_len"])
+        captured.update(kwargs)          # Сохраняем все аргументы для последующей проверки
+        return b"Y" * int(kwargs["hash_len"])  # Возвращаем строку из 'Y', длиной hash_len
 
+    # Мок‑класс, имитирующий enum Type из argon2.low_level
     class TypeNS:
-        ID = 1
+        ID = 1  # В реальном argon2.Type.ID = 1 (Argon2i)
 
+    # Создаём имитацию модуля argon2.low_level
     fake = types.SimpleNamespace(hash_secret_raw=hash_secret_raw, Type=TypeNS)
     monkeypatch.setitem(sys.modules, "argon2.low_level", fake)
 
+    # Создаём провайдер ключей и задаём параметры Argon2id
     kdf = DefaultKdfProvider()
     ap: Argon2idParams = {
-        "version": "argon2id",
-        "time_cost": 2,
-        "memory_cost": 65536,
-        "parallelism": 1,
-        "salt_len": 16,
+        "version": "argon2id",      # Указываем тип алгоритма
+        "time_cost": 2,             # Количество итераций
+        "memory_cost": 65536,       # Потребляемая память (в KiB)
+        "parallelism": 1,           # Параллельность
+        "salt_len": 16,             # Длина соли
     }
+
+    # Генерируем ключ длиной 32 байта
     key = kdf.derive_key("pw", b"SALT0123", 32, params=ap)
+
+    # Проверяем, что ключ корректный
     assert isinstance(key, (bytes, bytearray)) and len(key) == 32
-    assert captured.get("version") == 19
-    assert captured.get("type") == TypeNS.ID
+
+    # Проверяем, что в мок‑функцию передали правильные параметры
+    assert captured.get("version") == 19          # Версия Argon2 (19 соответствует 1.3)
+    assert captured.get("type") == TypeNS.ID      # Тип алгоритма (1 – Argon2i)
 
 
 # --- Generic input validation ---
-
-
 def test_invalid_password_type_raises() -> None:
     kdf = DefaultKdfProvider()
     pb: PBKDF2Params = {
@@ -253,13 +272,18 @@ def test_invalid_password_type_raises() -> None:
 
 
 def test_invalid_salt_type_raises() -> None:
+    # Создаем экземпляр класса DefaultKdfProvider, который является провайдером алгоритма KDF
     kdf = DefaultKdfProvider()
+
+    # Определяем параметры для алгоритма PBKDF2
     pb: PBKDF2Params = {
-        "version": "pbkdf2",
-        "iterations": 100_000,
-        "hash_name": "sha256",
-        "salt_len": 16,
+        "version": "pbkdf2",  # Версия алгоритма
+        "iterations": 100_000,  # Количество итераций
+        "hash_name": "sha256",  # Название хеш-функции
+        "salt_len": 16,  # Длина соли в байтах
     }
+
+    # Проверяем, что вызов метода derive_key() с неправильным типом соли будет вызывать исключение KDFParameterError
     with pytest.raises(KDFParameterError):
         _ = kdf.derive_key("pw", cast(bytes, "SALTSTR"), 32, params=pb)
 
