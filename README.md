@@ -246,7 +246,7 @@ FX-Text-processor-3/
 │   │   ├── auth_service.py             # 🚧 TODO
 │   │   └── second_method/  # 🚧 DONE/TODO tests
 │   │       ├── __init__.py # ✅ DONE
-│   │       ├── fido2.py    # 🚧 DONE/TODO tests
+│   │       ├── fido2.py    # ✅ DONE
 │   │       ├── totp.py     # ✅ DONE
 │   │       └── code.py     # ✅ DONE
 │   ├── audit/  # 🚧 TODO
