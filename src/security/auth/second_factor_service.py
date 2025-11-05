@@ -95,6 +95,7 @@ def verify_factor(
         expired = False
         if status.get("ttlseconds") and status.get("created"):
             import time
+
             expired = (int(time.time()) - int(status["created"])) > int(
                 status["ttlseconds"]
             )

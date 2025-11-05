@@ -13,7 +13,17 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Type, cast, Protocol, runtime_checkable, Final
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Type,
+    cast,
+    Protocol,
+    runtime_checkable,
+    Final,
+)
 
 from src.security.crypto.protocols import KeyStoreProtocol  # type: ignore
 
@@ -29,8 +39,11 @@ class FactorProtocol(Protocol):
     EN: Abstract protocol for second factor implementation (TOTP, FIDO2, BackupCode).
     Signature must match for DI registration.
     """
+
     def setup(self, user_id: str, **kwargs: Any) -> Dict[str, Any]: ...
-    def verify(self, user_id: str, credential: Any, state: Dict[str, Any], **kwargs: Any) -> Any: ...
+    def verify(
+        self, user_id: str, credential: Any, state: Dict[str, Any], **kwargs: Any
+    ) -> Any: ...
     def remove(self, user_id: str, state: Dict[str, Any]) -> None: ...
 
 
@@ -79,6 +92,7 @@ def _copy_for_public(state: Dict[str, Any]) -> Dict[str, Any]:
 
 _STORAGE_ITEM: Final[str] = "mfa_state"
 
+
 class SecondFactorManager:
     """
     Production MFA/2FA manager for factor lifecycle, secure storage, DI registry, audit and TTL.
@@ -89,7 +103,9 @@ class SecondFactorManager:
         >>> ok = mgr.verify_factor("uid1", "totp", otp="123456")
     """
 
-    def __init__(self, storage: KeyStoreProtocol, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self, storage: KeyStoreProtocol, logger: Optional[logging.Logger] = None
+    ) -> None:
         self._logger = logger or logging.getLogger("security.second_factor")
         self._lock = threading.RLock()
         self._storage: KeyStoreProtocol = storage
@@ -98,7 +114,9 @@ class SecondFactorManager:
         self._factor_registry: Dict[str, Type[FactorProtocol]] = {}
         self.register_factor_type("totp", cast(Type[FactorProtocol], TotpFactor))
         self.register_factor_type("fido2", cast(Type[FactorProtocol], Fido2Factor))
-        self.register_factor_type("backupcode", cast(Type[FactorProtocol], BackupCodeFactor))
+        self.register_factor_type(
+            "backupcode", cast(Type[FactorProtocol], BackupCodeFactor)
+        )
 
         self._factors: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         self._audit: List[Dict[str, Any]] = []
@@ -121,9 +139,13 @@ class SecondFactorManager:
             return
         try:
             obj = json.loads(raw_bytes.decode("utf-8"))
-            self._factors = cast(Dict[str, Dict[str, List[Dict[str, Any]]]], obj.get("factors", {}))
+            self._factors = cast(
+                Dict[str, Dict[str, List[Dict[str, Any]]]], obj.get("factors", {})
+            )
             self._audit = cast(List[Dict[str, Any]], obj.get("audit", []))
-            self._logger.debug("Loaded MFA state from keystore item '%s'", _STORAGE_ITEM)
+            self._logger.debug(
+                "Loaded MFA state from keystore item '%s'", _STORAGE_ITEM
+            )
         except Exception as e:
             self._logger.error("Failed to parse MFA state JSON: %s", e)
             self._factors = {}
@@ -135,7 +157,9 @@ class SecondFactorManager:
                 "factors": self._factors,
                 "audit": self._audit,
             }
-            data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            data = json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":")
+            ).encode("utf-8")
             self._storage.save(_STORAGE_ITEM, data)
             self._logger.debug("Saved MFA state to keystore item '%s'", _STORAGE_ITEM)
         except Exception as e:
@@ -207,7 +231,9 @@ class SecondFactorManager:
                 factor_state["created_at"] = _now_iso()
             if "created" not in factor_state:
                 try:
-                    factor_state["created"] = int(datetime.fromisoformat(factor_state["created_at"]).timestamp())
+                    factor_state["created"] = int(
+                        datetime.fromisoformat(factor_state["created_at"]).timestamp()
+                    )
                 except Exception:
                     factor_state["created"] = _now_ts()
 
@@ -215,16 +241,22 @@ class SecondFactorManager:
                 "state": factor_state,
                 "ts": _state_created_ts(factor_state),
             }
-            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(entry)
-            self._audit.append({
-                "action": "setup",
-                "user": user_id,
-                "type": factor_type,
-                "id": factor_state.get("id"),
-                "ts": _now_iso(),
-            })
+            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(
+                entry
+            )
+            self._audit.append(
+                {
+                    "action": "setup",
+                    "user": user_id,
+                    "type": factor_type,
+                    "id": factor_state.get("id"),
+                    "ts": _now_iso(),
+                }
+            )
             self._save_storage()
-            return cast(str, factor_state.get("id")) or str(factor_state.get("created", ""))
+            return cast(str, factor_state.get("id")) or str(
+                factor_state.get("created", "")
+            )
 
     def verify_factor(
         self,
@@ -263,9 +295,15 @@ class SecondFactorManager:
             state = entry["state"]
 
             if _state_is_expired(state):
-                self._audit.append({
-                    "action": "expired", "user": user_id, "type": factor_type, "id": state.get("id"), "ts": _now_iso()
-                })
+                self._audit.append(
+                    {
+                        "action": "expired",
+                        "user": user_id,
+                        "type": factor_type,
+                        "id": state.get("id"),
+                        "ts": _now_iso(),
+                    }
+                )
                 self._save_storage()
                 return False
 
@@ -283,7 +321,9 @@ class SecondFactorManager:
                     ok = result
                 elif isinstance(result, dict):
                     status = result.get("status")
-                    ok = bool(status == "success" or result.get("ok") or result.get("valid"))
+                    ok = bool(
+                        status == "success" or result.get("ok") or result.get("valid")
+                    )
                     reason = result.get("detail") or result.get("reason")
                 else:
                     ok = bool(result)
@@ -291,9 +331,17 @@ class SecondFactorManager:
                 ok = False
                 reason = f"exception:{e}"
 
-            self._audit.append({
-                "action": "verify", "user": user_id, "type": factor_type, "id": state.get("id"), "result": ok, "reason": reason, "ts": _now_iso(),
-            })
+            self._audit.append(
+                {
+                    "action": "verify",
+                    "user": user_id,
+                    "type": factor_type,
+                    "id": state.get("id"),
+                    "result": ok,
+                    "reason": reason,
+                    "ts": _now_iso(),
+                }
+            )
             self._save_storage()
             return ok
 
@@ -339,7 +387,11 @@ class SecondFactorManager:
                 del factor_list[idx]
             except Exception:
                 pass
-            if user_id in self._factors and factor_type in self._factors[user_id] and not self._factors[user_id][factor_type]:
+            if (
+                user_id in self._factors
+                and factor_type in self._factors[user_id]
+                and not self._factors[user_id][factor_type]
+            ):
                 try:
                     del self._factors[user_id][factor_type]
                 except Exception:
@@ -349,7 +401,15 @@ class SecondFactorManager:
                         del self._factors[user_id]
                     except Exception:
                         pass
-            self._audit.append({"action": "remove", "user": user_id, "type": factor_type, "id": state.get("id"), "ts": _now_iso()})
+            self._audit.append(
+                {
+                    "action": "remove",
+                    "user": user_id,
+                    "type": factor_type,
+                    "id": state.get("id"),
+                    "ts": _now_iso(),
+                }
+            )
             self._save_storage()
 
     def remove_all_factors(
@@ -376,7 +436,9 @@ class SecondFactorManager:
 
     # ---------- Read operations ----------
 
-    def get_status(self, user_id: str, factor_type: str, *, redact: bool = False) -> Optional[Dict[str, Any]]:
+    def get_status(
+        self, user_id: str, factor_type: str, *, redact: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """
         Get latest factor status (optionally redacted).
         """
@@ -389,7 +451,9 @@ class SecondFactorManager:
             state = cast(Dict[str, Any], factor_list[-1]["state"])
             return _copy_for_public(state) if redact else dict(state)
 
-    def get_status_public(self, user_id: str, factor_type: str) -> Optional[Dict[str, Any]]:
+    def get_status_public(
+        self, user_id: str, factor_type: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Public factor status for UI: returns ID, timestamps, TTL etc.
         """
@@ -405,19 +469,26 @@ class SecondFactorManager:
         }
         return {k: v for k, v in pub.items() if v is not None}
 
-    def get_history(self, user_id: str, factor_type: str, *, redact: bool = False) -> List[Dict[str, Any]]:
+    def get_history(
+        self, user_id: str, factor_type: str, *, redact: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         Return history of issued factors.
         """
         with self._lock:
             self._validate_user_id(user_id)
             self._validate_factor_type(factor_type)
-            records = [entry["state"] for entry in self._factors.get(user_id, {}).get(factor_type, [])]
+            records = [
+                entry["state"]
+                for entry in self._factors.get(user_id, {}).get(factor_type, [])
+            ]
             if not redact:
                 return [dict(r) for r in records]
             return [_copy_for_public(r) for r in records]
 
-    def get_audit(self, user_id: Optional[str] = None, factor_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_audit(
+        self, user_id: Optional[str] = None, factor_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Return operation audit log (optionally filtered).
         """

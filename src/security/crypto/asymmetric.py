@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Optional, Union, Callable, Dict, Mapping, Final
+from typing import Any, Optional, Callable, Dict, Final
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa, padding, ec
@@ -67,31 +67,27 @@ class AsymmetricKeyPair:
         >>> assert kp.verify(b"hello", sig)
     """
 
-    private_key: Union[
-        ed25519.Ed25519PrivateKey, rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey, None
-    ]
-    public_key: Union[
-        ed25519.Ed25519PublicKey, rsa.RSAPublicKey, ec.EllipticCurvePublicKey, None
-    ]
+    private_key: Any
+    public_key: Any
     algorithm: str
 
     @staticmethod
     def generate(algorithm: str, key_size: Optional[int] = None) -> "AsymmetricKeyPair":
         _secure_log("Generating keypair: algorithm=%s", algorithm)
+        priv: Any
         if algorithm == "ed25519":
             priv = ed25519.Ed25519PrivateKey.generate()
-            return AsymmetricKeyPair(priv, priv.public_key(), algorithm)
-        if algorithm == "rsa4096":
+        elif algorithm == "rsa4096":
             ks = key_size or DEFAULT_RSA_KEYSIZE
             if ks < 2048 or ks % 256 != 0:
                 raise ValueError("RSA key_size must be >= 2048 and divisible by 256")
             priv = rsa.generate_private_key(public_exponent=65537, key_size=ks)
-            return AsymmetricKeyPair(priv, priv.public_key(), algorithm)
-        if algorithm == "ecdsa_p256":
+        elif algorithm == "ecdsa_p256":
             priv = ec.generate_private_key(ec.SECP256R1())
-            return AsymmetricKeyPair(priv, priv.public_key(), algorithm)
-        logger.error("Unsupported algorithm: %s", algorithm)
-        raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
+        else:
+            logger.error("Unsupported algorithm: %s", algorithm)
+            raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
+        return AsymmetricKeyPair(priv, priv.public_key(), algorithm)
 
     @staticmethod
     def from_private_bytes(
@@ -145,18 +141,22 @@ class AsymmetricKeyPair:
             if password
             else serialization.NoEncryption()
         )
-        return self.private_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            enc,
+        return bytes(
+            self.private_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                enc,
+            )
         )
 
     def export_public_bytes(self) -> bytes:
         if self.public_key is None:
             raise NotImplementedError("No public key present.")
-        return self.public_key.public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo,
+        return bytes(
+            self.public_key.public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
         )
 
     def sign(self, data: bytes) -> bytes:

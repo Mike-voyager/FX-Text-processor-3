@@ -3,16 +3,23 @@ from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
 from src.security.auth.second_method.fido2 import (
-    Fido2Factor, DeviceNotFound, CredentialMismatch, SignatureVerificationFailed
+    Fido2Factor,
+    DeviceNotFound,
+    CredentialMismatch,
+    SignatureVerificationFailed,
 )
 
-def mk_device_info(cid: str = "cid1", pk: str = "pk1", name: str = "YubiKey 5") -> Dict[str, Any]:
+
+def mk_device_info(
+    cid: str = "cid1", pk: str = "pk1", name: str = "YubiKey 5"
+) -> Dict[str, Any]:
     return {
         "credential_id": cid,
         "public_key": pk,
         "name": name,
         "type": "yubikey",
     }
+
 
 def mk_server_response(
     cid: str = "cid1",
@@ -31,10 +38,12 @@ def mk_server_response(
         "user_handle": None,
     }
 
+
 def setup_basic_state_with_device() -> Tuple[Fido2Factor, Dict[str, Any]]:
     factor = Fido2Factor()
     state = factor.setup("userX", device_info=mk_device_info())
     return factor, state
+
 
 def test_setup_no_device_info() -> None:
     factor = Fido2Factor()
@@ -44,6 +53,7 @@ def test_setup_no_device_info() -> None:
     # При отсутствии device_info ожидается 1 unknown device
     assert len(state["devices"]) == 1
     assert state["devices"][0]["type"] == "unknown"
+
 
 def test_add_device_and_count() -> None:
     factor, state = setup_basic_state_with_device()
@@ -57,6 +67,7 @@ def test_add_device_and_count() -> None:
     assert len(devices) == 2
     assert any(d["name"] == "WinHello" for d in devices)
 
+
 def test_remove_device_by_credential() -> None:
     factor, state = setup_basic_state_with_device()
     # Remove existing
@@ -67,6 +78,7 @@ def test_remove_device_by_credential() -> None:
     res2 = factor.remove_device(state, "nonexistent")
     assert not res2
 
+
 def test_remove_all_devices() -> None:
     factor, state = setup_basic_state_with_device()
     factor.add_device(state, mk_device_info("cid2", "pk2", "test"))
@@ -74,10 +86,13 @@ def test_remove_all_devices() -> None:
     assert state["devices"] == []
     assert any(a.get("action") == "remove" for a in state["audit"])
 
+
 def test_verify_success_path(monkeypatch: pytest.MonkeyPatch) -> None:
     factor, state = setup_basic_state_with_device()
+
     def dummy_authenticate_complete(*args: Any, **kwargs: Any) -> bool:
         return True
+
     monkeypatch.setattr(
         "fido2.server.Fido2Server.authenticate_complete",
         dummy_authenticate_complete,
@@ -87,6 +102,7 @@ def test_verify_success_path(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = factor.get_audit_log(state)
     assert any(a.get("result") == "success" for a in audit)
 
+
 def test_verify_no_devices() -> None:
     factor = Fido2Factor()
     state = factor.setup("userA")
@@ -95,16 +111,20 @@ def test_verify_no_devices() -> None:
     with pytest.raises(DeviceNotFound):
         factor.verify("userA", mk_server_response(), state)
 
+
 def test_verify_wrong_credential_id() -> None:
     factor, state = setup_basic_state_with_device()
     response = mk_server_response("wrong_cid")
     with pytest.raises(CredentialMismatch):
         factor.verify("userX", response, state)
 
+
 def test_verify_signature_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     factor, state = setup_basic_state_with_device()
+
     def dummy_authenticate_complete(*args: Any, **kwargs: Any) -> None:
         raise Exception("Broken signature")
+
     monkeypatch.setattr(
         "fido2.server.Fido2Server.authenticate_complete",
         dummy_authenticate_complete,
@@ -115,6 +135,7 @@ def test_verify_signature_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = factor.get_audit_log(state)
     assert any(a.get("result") == "signature_fail" for a in audit)
 
+
 def test_audit_and_policy_exports() -> None:
     factor, state = setup_basic_state_with_device()
     pol = factor.export_policy(deterministic=True)
@@ -122,20 +143,24 @@ def test_audit_and_policy_exports() -> None:
     audit = factor.export_audit(state)
     assert "device_count" in audit
 
+
 def test_get_audit_log_empty() -> None:
     factor = Fido2Factor()
     state: Dict[str, Any] = {"devices": [], "audit": []}
     assert factor.get_audit_log(state) == []
+
 
 def test_export_policy_nondeterministic() -> None:
     factor = Fido2Factor()
     res = factor.export_policy(deterministic=False)
     assert isinstance(res, dict) and res.get("multi_device_support", False)
 
+
 def test_export_audit_nondeterministic() -> None:
     factor, state = setup_basic_state_with_device()
     res = factor.export_audit(state, deterministic=False)
     assert isinstance(res, dict) and "device_count" in res
+
 
 def test_remove_device_empty() -> None:
     factor = Fido2Factor()

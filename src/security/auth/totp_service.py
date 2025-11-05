@@ -37,12 +37,15 @@ except Exception:  # pragma: no cover
 try:
     from src.security.crypto.kdf import derive_key_argon2id  # type: ignore
 except Exception:  # pragma: no cover
+
     def derive_key_argon2id(password: Union[bytes, str], salt: bytes, length: int) -> bytes:  # type: ignore
         raise RuntimeError("derive_key_argon2id is not available")
+
 
 # App context provider; callers/tests should monkeypatch this to a concrete context
 def get_app_context() -> Any:  # pragma: no cover
     raise RuntimeError("Application context is not configured for totp_service")
+
 
 # Logger
 _logger = logging.getLogger(__name__)
@@ -53,8 +56,8 @@ _manager_lock = threading.RLock()
 # ---- Service Configuration (DI) ----
 DEFAULT_ISSUER: str = "FX Text Processor"
 DEFAULT_DIGITS: int = 6
-DEFAULT_INTERVAL: int = 30        # seconds
-DEFAULT_VALID_WINDOW: int = 1     # accepts codes in adjacent steps ±1
+DEFAULT_INTERVAL: int = 30  # seconds
+DEFAULT_VALID_WINDOW: int = 1  # accepts codes in adjacent steps ±1
 
 # Rate limiting and lockout
 RATE_LIMIT_MAX_FAILS: int = 5
@@ -64,14 +67,14 @@ RATE_LIMIT_MIN_INTERVAL_SECONDS: int = 2
 # QR generation parameters
 QR_BOX_SIZE: int = 6
 QR_BORDER: int = 2
-QR_MIN_INTERVAL_SECONDS: int = 5   # minimal interval between QR regenerations per user
+QR_MIN_INTERVAL_SECONDS: int = 5  # minimal interval between QR regenerations per user
 
 # DI container
 _config: Dict[str, Any] = {
     "issuer": DEFAULT_ISSUER,
-    "pepper": None,                   # Optional[Union[str, bytes]]
+    "pepper": None,  # Optional[Union[str, bytes]]
     "kdf": derive_key_argon2id,
-    "argon2_params": None,            # Reserved for passing Argon2 params to provider
+    "argon2_params": None,  # Reserved for passing Argon2 params to provider
     "valid_window": DEFAULT_VALID_WINDOW,
     "digits": DEFAULT_DIGITS,
     "interval": DEFAULT_INTERVAL,
@@ -82,6 +85,7 @@ _config: Dict[str, Any] = {
         "qr_min_interval": QR_MIN_INTERVAL_SECONDS,
     },
 }
+
 
 def configure_totp_service(
     *,
@@ -115,30 +119,40 @@ def configure_totp_service(
         if rate is not None:
             _config["rate"].update({k: int(v) for k, v in rate.items()})
 
+
 # ---- Domain Exceptions ----
 class TotpError(RuntimeError):
     pass
 
+
 class TotpNotConfigured(TotpError):
     pass
+
 
 class TotpInvalidCode(TotpError):
     pass
 
+
 class TotpRuntimeUnavailable(TotpError):
     pass
+
 
 class TotpLockedOut(TotpError):
     def __init__(self, remaining_seconds: int) -> None:
         super().__init__(f"TOTP locked for {remaining_seconds} seconds")
         self.remaining_seconds = remaining_seconds
 
+
 # ---- Internal State for Rate Limiting ----
 # Keep minimal per-user counters in memory; for multi-process, back these by shared store
-_rl_state: Dict[str, Dict[str, Any]] = {}  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} }
+_rl_state: Dict[str, Dict[str, Any]] = (
+    {}
+)  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} }
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
 
 def _get_rl(user_id: str) -> Dict[str, Any]:
     st = _rl_state.get(user_id)
@@ -147,12 +161,14 @@ def _get_rl(user_id: str) -> Dict[str, Any]:
         _rl_state[user_id] = st
     return st
 
+
 def _check_locked(user_id: str) -> None:
     st = _get_rl(user_id)
     lock_until: Optional[datetime] = st.get("lock_until")
     if lock_until and _now() < lock_until:
         remaining = int((lock_until - _now()).total_seconds())
         raise TotpLockedOut(max(remaining, 1))
+
 
 def _check_min_interval(user_id: str) -> None:
     st = _get_rl(user_id)
@@ -162,6 +178,7 @@ def _check_min_interval(user_id: str) -> None:
         # treat as soft violation; do not raise, but log and delay should be implemented by caller if desired
         _logger.debug("TOTP attempt too frequent for user=%s", user_id)
 
+
 def _register_failure(user_id: str) -> None:
     st = _get_rl(user_id)
     st["failed"] = int(st.get("failed", 0)) + 1
@@ -170,20 +187,27 @@ def _register_failure(user_id: str) -> None:
         st["failed"] = 0
         st["lock_until"] = _now() + timedelta(seconds=_config["rate"]["lock_seconds"])
 
+
 def _register_success(user_id: str) -> None:
     st = _get_rl(user_id)
     st["failed"] = 0
     st["lock_until"] = None
     st["last_try"] = _now()
 
+
 def _check_qr_rate_limit(user_id: str) -> None:
     st = _get_rl(user_id)
     last_qr: Optional[datetime] = st.get("last_qr")
-    if last_qr and (_now() - last_qr).total_seconds() < _config["rate"]["qr_min_interval"]:
+    if (
+        last_qr
+        and (_now() - last_qr).total_seconds() < _config["rate"]["qr_min_interval"]
+    ):
         _logger.debug("QR generation too frequent for user=%s", user_id)
     st["last_qr"] = _now()
 
+
 # ---- Internal helpers ----
+
 
 def _get_first_totp_state(ctx: Any, user_id: str) -> Dict[str, Any]:
     """
@@ -202,6 +226,7 @@ def _get_first_totp_state(ctx: Any, user_id: str) -> Dict[str, Any]:
                     return st
     return {}
 
+
 def _validate_label(text: str, *, max_len: int = 64) -> str:
     """
     Ensure username/issuer are safe for otpauth URI: clip length, strip control chars.
@@ -211,7 +236,15 @@ def _validate_label(text: str, *, max_len: int = 64) -> str:
         sanitized = sanitized[:max_len]
     return sanitized
 
-def _provisioning_uri(secret: str, name: str, issuer: str, *, digits: Optional[int] = None, interval: Optional[int] = None) -> str:
+
+def _provisioning_uri(
+    secret: str,
+    name: str,
+    issuer: str,
+    *,
+    digits: Optional[int] = None,
+    interval: Optional[int] = None,
+) -> str:
     """
     Build otpauth provisioning URI using pyotp if available; empty string otherwise.
     """
@@ -225,6 +258,7 @@ def _provisioning_uri(secret: str, name: str, issuer: str, *, digits: Optional[i
         interval=(interval if interval is not None else _config["interval"]),
     )  # type: ignore
     return totp_obj.provisioning_uri(name=name, issuer_name=issuer)
+
 
 def _make_qr_bytes(uri: str) -> Tuple[bytes, str]:
     """
@@ -253,17 +287,20 @@ def _make_qr_bytes(uri: str) -> Tuple[bytes, str]:
         _logger.warning("QR generation failed: %s", e)
         return b"", "image/png"
 
+
 def _normalize_otp(otp: str) -> str:
     """
     Normalize user-entered OTP: remove spaces and dashes.
     """
     return otp.replace(" ", "").replace("-", "")
 
+
 def _deterministic_salt(user_id: str) -> bytes:
     """
     Deterministic, user-bound salt for storage key derivation (does not expose TOTP secret).
     """
     return f"totp:{user_id}".encode("utf-8")
+
 
 def _redact_secret(secret: Optional[str]) -> str:
     """
@@ -273,11 +310,13 @@ def _redact_secret(secret: Optional[str]) -> str:
         return ""
     return "****"
 
+
 # Typed API structures
 class SetupResult(TypedDict, total=True):
     uri: str
     qr: bytes
     qr_mime: str
+
 
 class StatusPublic(TypedDict, total=False):
     username: str
@@ -286,12 +325,15 @@ class StatusPublic(TypedDict, total=False):
     interval: int
     created_at: str
 
+
 class QRResult(TypedDict, total=True):
     uri: str
     qr: bytes
     qr_mime: str
 
+
 # ---- Public API ----
+
 
 def setup_totp_for_user(
     user_id: str,
@@ -323,16 +365,24 @@ def setup_totp_for_user(
         state = _get_first_totp_state(ctx, user_id)
 
         secret = state.get("secret", "")
-        uri = _provisioning_uri(secret, state.get("username", eff_username), state.get("issuer", eff_issuer), digits=digits, interval=interval)
+        uri = _provisioning_uri(
+            secret,
+            state.get("username", eff_username),
+            state.get("issuer", eff_issuer),
+            digits=digits,
+            interval=interval,
+        )
         qr, mime = _make_qr_bytes(uri)
 
         # Attempt to append audit event if storage supports it
         try:
-            state.setdefault("audit", []).append({
-                "ts": _now().isoformat(),
-                "action": "setup",
-                "result": "success",
-            })
+            state.setdefault("audit", []).append(
+                {
+                    "ts": _now().isoformat(),
+                    "action": "setup",
+                    "result": "success",
+                }
+            )
         except Exception:
             pass
 
@@ -340,6 +390,7 @@ def setup_totp_for_user(
         if include_secret:
             result["secret"] = secret
         return result
+
 
 def validate_totp_code(user_id: str, code: str) -> bool:
     """
@@ -356,6 +407,7 @@ def validate_totp_code(user_id: str, code: str) -> bool:
             _register_failure(user_id)
         return ok
 
+
 def remove_totp_for_user(user_id: str) -> None:
     """
     Remove TOTP factor for a user via manager and clear state.
@@ -365,13 +417,16 @@ def remove_totp_for_user(user_id: str) -> None:
         # Best-effort audit
         try:
             st = _get_first_totp_state(ctx, user_id)
-            st.setdefault("audit", []).append({
-                "ts": _now().isoformat(),
-                "action": "remove",
-            })
+            st.setdefault("audit", []).append(
+                {
+                    "ts": _now().isoformat(),
+                    "action": "remove",
+                }
+            )
         except Exception:
             pass
         ctx.mfa_manager.remove_factor(user_id, "totp")
+
 
 def get_totp_status(user_id: str, *, redact: bool = False) -> Dict[str, Any]:
     """
@@ -397,11 +452,13 @@ def get_totp_status(user_id: str, *, redact: bool = False) -> Dict[str, Any]:
             return dict(pub)
         return st
 
+
 def get_totp_status_public(user_id: str) -> Dict[str, Any]:
     """
     Public-friendly status for UI: secret is always redacted and only safe fields are returned.
     """
     return get_totp_status(user_id, redact=True)
+
 
 def get_totp_audit(user_id: str) -> List[Any]:
     """
@@ -411,6 +468,7 @@ def get_totp_audit(user_id: str) -> List[Any]:
         ctx = get_app_context()
         state = _get_first_totp_state(ctx, user_id)
         return list(state.get("audit", []))
+
 
 def generate_totp_qr_uri(user_id: str) -> QRResult:
     """
@@ -432,11 +490,13 @@ def generate_totp_qr_uri(user_id: str) -> QRResult:
         qr, mime = _make_qr_bytes(uri)
         return {"uri": uri, "qr": qr, "qr_mime": mime}
 
+
 def regenerate_totp_qr(user_id: str) -> QRResult:
     """
     Regenerate provisioning URI and QR (same as generate, but semantic alias for UI flows).
     """
     return generate_totp_qr_uri(user_id)
+
 
 def get_totp_secret_for_storage(
     user_id: str,
@@ -483,22 +543,26 @@ def get_totp_secret_for_storage(
             _register_failure(user_id)
             # Best-effort audit
             try:
-                state.setdefault("audit", []).append({
-                    "ts": _now().isoformat(),
-                    "action": "verify",
-                    "result": "fail",
-                })
+                state.setdefault("audit", []).append(
+                    {
+                        "ts": _now().isoformat(),
+                        "action": "verify",
+                        "result": "fail",
+                    }
+                )
             except Exception:
                 pass
             raise TotpInvalidCode("Invalid TOTP credential")
 
         _register_success(user_id)
         try:
-            state.setdefault("audit", []).append({
-                "ts": _now().isoformat(),
-                "action": "verify",
-                "result": "success",
-            })
+            state.setdefault("audit", []).append(
+                {
+                    "ts": _now().isoformat(),
+                    "action": "verify",
+                    "result": "success",
+                }
+            )
         except Exception:
             pass
 
@@ -522,6 +586,7 @@ def get_totp_secret_for_storage(
         if not isinstance(derived, (bytes, bytearray)):
             derived = bytes(derived)
         return bytes(derived)
+
 
 def export_policy() -> Dict[str, Any]:
     """
