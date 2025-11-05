@@ -21,6 +21,7 @@ __all__ = [
     "CodeExpired",
     "CodeUsed",
     "CodeLockout",
+    "DEFAULT_TTL_DAYS",
 ]
 
 # ---- Constants ----
