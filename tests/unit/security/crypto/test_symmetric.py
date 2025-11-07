@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import concurrent.futures
 import os
-from typing import Dict, Tuple, cast  # NEW
+from typing import cast, Tuple, Dict, Callable  # NEW
 
 import pytest
 
 from security.crypto.exceptions import DecryptionError, EncryptionError
+from security.crypto import utils as utils_mod
 from security.crypto.symmetric import (
     KEY_LEN,
     NONCE_LEN,

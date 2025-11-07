@@ -1,29 +1,37 @@
 # style_manager.py
 
+from typing import Dict, Any, Optional, Union, List, Type
 import json
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Union
-
 from model.enums import (
-    Alignment,
-    BarcodeType,
-    CharactersPerInch,
-    Color,
-    DitheringAlgorithm,
     FontFamily,
-    GraphicsMode,
-    ImagePosition,
-    LineSpacing,
-    MarginUnits,
+    CharactersPerInch,
     PrintQuality,
+    LineSpacing,
+    CodePage,
+    Color,
+    Alignment,
+    TabAlignment,
     TableStyle,
     TextStyle,
-    validate_barcode,
-    validate_codepage,
+    MarginUnits,
+    Orientation,
+    PageSize,
+    BarcodeType,
+    Matrix2DCodeType,
+    GraphicsMode,
+    PaperType,
+    ListType,
+    PrintDirection,
+    PaperSource,
+    DitheringAlgorithm,
+    ImagePosition,
     validate_cpi_font_combination,
-    validate_graphics_mode,
-    validate_margin,
     validate_quality_font_combination,
+    validate_codepage,
+    validate_margin,
+    validate_barcode,
+    validate_graphics_mode,
 )
 
 
@@ -269,15 +277,15 @@ class StyleManager:
 
     def import_styles(self, data: Union[str, Dict[str, Any]]) -> None:
         from src.model.enums import (
-            BarcodeType,
-            CharactersPerInch,
-            Color,
-            DitheringAlgorithm,
             FontFamily,
-            GraphicsMode,
+            CharactersPerInch,
             PrintQuality,
-            TableStyle,
+            Color,
             TextStyle,
+            TableStyle,
+            BarcodeType,
+            GraphicsMode,
+            DitheringAlgorithm,
         )
 
         self.styles.clear()

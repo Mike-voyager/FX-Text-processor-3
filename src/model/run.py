@@ -12,15 +12,15 @@ Project: ESC/P Text Editor
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Final, Optional
+from typing import Any, Final, Optional, Union
 from uuid import uuid4
 
 from .enums import (
-    CharactersPerInch,
-    CodePage,
-    Color,
     FontFamily,
+    CharactersPerInch,
     TextStyle,
+    Color,
+    CodePage,
     validate_cpi_font_combination,
 )
 

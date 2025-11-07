@@ -1,15 +1,14 @@
 """RU: Построитель форм для FX-Text-processor-3 с поддержкой обычных и специальных (защищённых) форм, QR-кодов, цифровых подписей, водяных знаков и композитных электронных печатей только для спецформ."""
 
 from __future__ import annotations
-
-import copy
-import json
-import logging
-import uuid
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field, asdict
+from typing import List, Dict, Any, Optional, Tuple, Type, TypeVar, Union, Callable, Set
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+import logging
+import json
+import copy
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound="FormElement")

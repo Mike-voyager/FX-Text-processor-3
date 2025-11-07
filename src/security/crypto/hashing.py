@@ -25,7 +25,7 @@ import base64
 import hashlib
 import hmac
 import logging
-from typing import Any, Callable, Final, Optional, Tuple
+from typing import Callable, Any, Final, Optional, Tuple
 
 from security.crypto.exceptions import HashSchemeError
 from security.crypto.protocols import HashingProtocol
@@ -51,7 +51,7 @@ def _try_import_argon2() -> Tuple[Callable[..., bytes], Any, int]:
     Lazy import for argon2.low_level; returns (hash_secret_raw, Type, version).
     Raises ImportError if argon2-cffi is unavailable.
     """
-    from argon2.low_level import Type, hash_secret_raw  # type: ignore[import]
+    from argon2.low_level import hash_secret_raw, Type  # type: ignore[import]
 
     return hash_secret_raw, Type, 19
 

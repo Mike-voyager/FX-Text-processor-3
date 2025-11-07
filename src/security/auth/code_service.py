@@ -12,9 +12,9 @@ import threading
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from src.app_context import get_app_context
-from src.security.crypto.kdf import (  # ensure exported in kdf.__all__
+from src.security.crypto.kdf import (
     derive_key_argon2id,
-)
+)  # ensure exported in kdf.__all__
 
 _logger = logging.getLogger("security.auth.code_service")
 _lock = threading.Lock()

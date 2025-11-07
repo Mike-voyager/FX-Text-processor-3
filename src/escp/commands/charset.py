@@ -9,6 +9,7 @@ Primary Encoding: PC866 (Cyrillic)
 """
 
 from enum import Enum
+from typing import Final
 
 __all__ = [
     "CharacterTable",

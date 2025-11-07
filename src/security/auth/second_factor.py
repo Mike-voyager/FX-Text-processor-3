@@ -16,22 +16,21 @@ from datetime import datetime, timezone
 from typing import (
     Any,
     Dict,
-    Final,
     List,
     Optional,
-    Protocol,
     Type,
     cast,
+    Protocol,
     runtime_checkable,
+    Final,
 )
 
 from src.security.crypto.protocols import KeyStoreProtocol  # type: ignore
 
-from .second_method.code import BackupCodeFactor
-from .second_method.fido2 import Fido2Factor
-
 # Факторы: импорт строго через Protocol для расширяемости и типизации
 from .second_method.totp import TotpFactor
+from .second_method.fido2 import Fido2Factor
+from .second_method.code import BackupCodeFactor
 
 
 @runtime_checkable

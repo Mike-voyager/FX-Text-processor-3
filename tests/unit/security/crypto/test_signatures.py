@@ -1,23 +1,25 @@
-import concurrent.futures
-import hashlib
 import os
-from pathlib import Path
-from typing import Any, Callable, Dict, Union
-
 import pytest
+import hashlib
+import concurrent.futures
+from pathlib import Path
+from typing import Callable, Dict, Union, Any
+
+from security.crypto.signatures import (
+    Ed25519Signer,
+    SignatureVerificationError,
+    SignatureGenerationError,
+    SignatureError,
+)
 
 from security.crypto.exceptions import (
     SignatureError,
     SignatureGenerationError,
     SignatureVerificationError,
 )
-from security.crypto.signatures import (  # импортируй протокол из production!
-    Ed25519Signer,
-    SignatureError,
-    SignatureGenerationError,
-    SignatureVerificationError,
+from security.crypto.signatures import (
     _KeystoreProto,
-)
+)  # импортируй протокол из production!
 
 # ---------------------------
 # Basic API Coverage

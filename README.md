@@ -338,7 +338,7 @@ text
 | Image Processing        | ❌ 0%        | -        | Graphics processing for matrix printers                                                    |
 | Charset Management      | ❌ 0%        | -        | PC866 and multi-codepage support                                                           |
 | I/O Handlers            | ❌ 0%        | -        | JSON, RTF, Markdown import/export                                                          |
-| Security System     | ⚠️ In Progress      | ~60%    | Full cryptography stack, MFA, audit logging, blank management                              |
+| Security System     | ⚠️ In Progress      | ~40%    | Full cryptography stack, MFA, audit logging, blank management                              |
 
 
 Progress Summary:

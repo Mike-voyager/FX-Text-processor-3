@@ -11,36 +11,37 @@ HighlightRange, ListMarkerInfo, all enums, and utility functions.
 """
 
 import logging
-from typing import Any
-
 import pytest
+from dataclasses import FrozenInstanceError
+from typing import Any
+from uuid import uuid4
 
-from src.model.enums import (
-    CharactersPerInch,
-    CodePage,
-    Color,
-    FontFamily,
-    TextStyle,
-)
 from src.model.run import (
-    MAX_TEXT_LENGTH,
-    BorderStyle,
+    Run,
+    TextMetrics,
+    RevisionInfo,
     EmbeddedObject,
     GroupInfo,
     HighlightRange,
-    HighlightType,
     ListMarkerInfo,
-    ListStyleType,
-    RevisionInfo,
-    Run,
     TextDirection,
-    TextMetrics,
     WhitespaceMode,
+    BorderStyle,
+    HighlightType,
+    ListStyleType,
+    MAX_TEXT_LENGTH,
+    merge_consecutive_runs,
+    split_by_formatting,
     find_runs_in_group,
     find_runs_in_thread,
     get_highlighted_text,
-    merge_consecutive_runs,
-    split_by_formatting,
+)
+from src.model.enums import (
+    FontFamily,
+    CharactersPerInch,
+    TextStyle,
+    Color,
+    CodePage,
 )
 
 

@@ -1,11 +1,10 @@
-from typing import Any, Dict, Optional
-
-from src.security.auth.second_factor import SecondFactorManager
+from typing import Optional, Dict, Any
 from src.security.crypto.secure_storage import (
-    FileEncryptedStorageBackend,
     SecureStorage,
     StorageBackend,
+    FileEncryptedStorageBackend,
 )
+from src.security.auth.second_factor import SecondFactorManager
 
 # from src.security.audit.logger import AuditLogger # (если появится/audit)
 

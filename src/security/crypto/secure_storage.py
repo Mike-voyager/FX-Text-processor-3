@@ -1,8 +1,8 @@
 # security/crypto/secure_storage.py
 # -*- coding: utf-8 -*-
 """
-RU: Потокобезопасный зашифрованный файловый backend хранилища (AES-256-GCM) с атомарной записью,
-едиными правами доступа к файлу, best-effort zeroization и DI-совместимостью.
+RU: Потокобезопасный зашифрованный файловый backend хранилища (AES‑256‑GCM) с атомарной записью,
+едиными правами доступа к файлу, best‑effort zeroization и DI‑совместимостью.
 
 EN: Thread-safe encrypted file keystore backend (AES-256-GCM) with atomic writes,
 uniform file permission hardening, best-effort zeroization, and DI compatibility.

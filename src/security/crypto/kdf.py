@@ -14,13 +14,12 @@ from typing import Final, Union, cast
 
 from security.crypto.exceptions import KDFAlgorithmError, KDFParameterError
 from security.crypto.protocols import (
-    Argon2idParams,
-    KdfParams,
     KdfProtocol,
+    KdfParams,
+    Argon2idParams,
     PBKDF2Params,
 )
-from security.crypto.utils import generate_salt as _utils_generate_salt
-from security.crypto.utils import zero_memory
+from security.crypto.utils import generate_salt as _utils_generate_salt, zero_memory
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ class DefaultKdfProvider(KdfProtocol):
         self, pw: bytes, salt: bytes, length: int, params: Argon2idParams
     ) -> bytes:
         try:
-            from argon2.low_level import Type, hash_secret_raw  # type: ignore[import]
+            from argon2.low_level import hash_secret_raw, Type  # type: ignore[import]
         except Exception as exc:  # pragma: no cover
             _LOGGER.warning("Argon2id not available: %s", exc.__class__.__name__)
             raise KDFAlgorithmError("Argon2id not available") from exc

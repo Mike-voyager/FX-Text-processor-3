@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import base64
+import os
 import sys
 import types
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Optional, Union, Tuple, Any, Callable, cast
 
 import pytest
 
 import security.crypto.crypto_service as cs_mod
 from security.crypto.crypto_service import (
     CryptoService,
-    HashingPolicy,
     ServiceConfig,
+    KdfPolicy,
+    HashingPolicy,
 )
 from security.crypto.exceptions import HashSchemeError, KDFAlgorithmError
+
 
 # --- Fakes implementing protocol-compliant surfaces ---
 

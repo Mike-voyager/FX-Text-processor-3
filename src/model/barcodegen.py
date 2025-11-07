@@ -7,9 +7,8 @@ model.barcode
 Generated: 2025
 """
 
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Optional, Tuple, Union
-
+from dataclasses import dataclass, field, asdict
+from typing import Optional, Dict, Any, Tuple, Union
 from .enums import BarcodeType, Matrix2DCodeType
 
 # --- Основные и визуальные параметры:

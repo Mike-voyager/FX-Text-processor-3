@@ -1,17 +1,17 @@
 # tests/unit/security/auth/second_method/test_backup_code_factor.py
 
-from datetime import datetime, timedelta, timezone
-
 import pytest
-
+from datetime import datetime, timedelta, timezone
 from src.security.auth.second_method.code import (
-    DEFAULT_TTL_DAYS,
-    MAX_ATTEMPTS,
     BackupCodeFactor,
-    CodeExpired,
-    CodeLockout,
-    CodeUsed,
     format_code,
+    CODE_BITS,
+    MAX_ATTEMPTS,
+    LOCK_SECONDS,
+    DEFAULT_TTL_DAYS,
+    CodeUsed,
+    CodeLockout,
+    CodeExpired,
 )
 
 

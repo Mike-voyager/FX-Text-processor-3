@@ -2,20 +2,20 @@
 # плюс: версии, миграция, расширенная валидация, пакетная обработка, Protected Blanks, компрессия, резерв, форматы, локализация, диагностика, метрики.
 """Export/import for FX-Text-processor-3 forms (.fxsf – open, .fxsfs – secure), floppy validator, meta, checksum, seamless secure integration, versioning, migration, advanced validation, batch ops, Protected Blanks, compression, backup, external formats, localization, diagnostics, analytics."""
 
-import base64
-import gzip
-import hashlib
-import json
-import logging
 import os
+import json
+import hashlib
+import base64
+import logging
+import gzip
+import shutil
+from typing import Any, Dict, Optional, List, Tuple, Set
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
-
 from src.form.form_schema import FormSchema
 
 try:
+    from src.security.crypto import encrypt_bytes, decrypt_bytes  # type: ignore
     from src.security.blanks import BlankManager  # type: ignore
-    from src.security.crypto import decrypt_bytes, encrypt_bytes  # type: ignore
 except ImportError:
     encrypt_bytes = None
     decrypt_bytes = None

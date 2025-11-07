@@ -34,20 +34,20 @@ import hashlib
 import logging
 from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Callable,
     Final,
     Literal,
     Optional,
     Protocol,
+    TYPE_CHECKING,
     Union,
 )
 
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
+from cryptography.hazmat.primitives import serialization
 
 from security.crypto.exceptions import (
     SignatureError,

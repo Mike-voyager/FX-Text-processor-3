@@ -9,11 +9,11 @@ import pytest
 
 from security.crypto.kdf import (
     DefaultKdfProvider,
-    KDFAlgorithmError,
-    KDFParameterError,
     generate_salt,
+    KDFParameterError,
+    KDFAlgorithmError,
 )
-from security.crypto.protocols import Argon2idParams, PBKDF2Params
+from security.crypto.protocols import PBKDF2Params, Argon2idParams
 
 # --- generate_salt ---
 

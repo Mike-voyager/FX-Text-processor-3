@@ -35,7 +35,7 @@ import hashlib
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Dict, Final, Literal, Optional, Tuple, Union, overload
+from typing import Dict, Final, Optional, Tuple, Union, overload, Literal
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes

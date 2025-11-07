@@ -1,15 +1,14 @@
 # tests/unit/security/auth/test_totp_factor.py
 
 import time
-from unittest.mock import patch
-
 import pyotp
 import pytest
+from unittest.mock import patch
 
 from src.security.auth.second_method.totp import (
     TotpFactor,
-    TotpSecretMissing,
     TotpVerificationFailed,
+    TotpSecretMissing,
 )
 
 

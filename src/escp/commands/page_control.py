@@ -7,6 +7,8 @@ All commands verified for FX-890.
 Reference: Epson FX-890 Technical Reference Manual, Chapter 6
 """
 
+from typing import Final
+
 __all__ = [
     "set_left_margin",
     "set_right_margin",

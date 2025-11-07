@@ -1,9 +1,7 @@
-from typing import Any, Dict, Iterator, List, Optional, Type
-
 import pytest
-
+from typing import Any, Dict, List, Optional, Type, Iterator
 import src.security.auth.second_factor_service as svc
-from src.security.auth.second_factor_service import AuditRecord, FactorStatus
+from src.security.auth.second_factor_service import FactorStatus, AuditRecord
 
 
 class DummyManager:

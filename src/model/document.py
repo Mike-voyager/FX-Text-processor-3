@@ -33,13 +33,18 @@ from src.model.enums import (
     PrintQuality,
 )
 
+from typing import TYPE_CHECKING
+
+
 # Добавить поля доступа: owner, scope ("private"/"shared"/"system"), shared_with (user_id[])
 # Метод проверки доступа (is_accessible(user_id, role))
 
 
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
-    pass
+    from src.model.section import Section
+    from src.model.paragraph import Paragraph
+    from src.model.table import Table
 
 
 logger = logging.getLogger(__name__)

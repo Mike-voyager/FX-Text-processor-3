@@ -9,15 +9,15 @@ Features:
   - security hooks: audit, permission, signature support (safely stubbed if modules missing)
 """
 
-import csv
-import json
-import logging
-import queue
-import threading
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, asdict
+from typing import Callable, List, Any, Dict, Optional, Union
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional
+import threading
+import queue
+import time
+import logging
+import json
+import csv
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 try:
     from security.audit.logger import log_batch_event  # type: ignore
     from security.auth.permissions import check_permission  # type: ignore
-    from security.crypto.symmetric import decrypt, encrypt  # type: ignore
+    from security.crypto.symmetric import encrypt, decrypt  # type: ignore
 except ImportError:
 
     def log_batch_event(*args, **kwargs) -> None:  # type: ignore
@@ -185,7 +185,7 @@ class BatchProcessor:
                 if retries > self.max_retries:
                     break
                 else:
-                    task.add_log("Retrying (delay 0.1s)...", "INFO")
+                    task.add_log(f"Retrying (delay 0.1s)...", "INFO")
                     time.sleep(0.1)
             finally:
                 task.finished = time.monotonic()

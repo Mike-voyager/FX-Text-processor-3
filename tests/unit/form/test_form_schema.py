@@ -1,11 +1,10 @@
-from typing import Any, Optional
-
 import pytest
-
+from typing import Any, Optional
 from src.form.form_schema import (
-    FORM_SCHEMA_DEFAULT,
     FormSchema,
     ValidationError,
+    SchemaError,
+    FORM_SCHEMA_DEFAULT,
     form_schema_from_registry,
 )
 

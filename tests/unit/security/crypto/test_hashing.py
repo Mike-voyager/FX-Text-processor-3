@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import base64
-import builtins
-import hashlib
 import sys
 import types
+import hashlib
+import builtins
 from typing import Any, Sequence
 
 import pytest
 
-from security.crypto.hashing import (  # type: ignore[attr-defined]
-    HashSchemeError,
-    PasswordHasher,
-    _try_import_argon2,
-)
+from security.crypto.hashing import PasswordHasher, HashSchemeError, _try_import_argon2  # type: ignore[attr-defined]
+
 
 # --- Helpers ---
 

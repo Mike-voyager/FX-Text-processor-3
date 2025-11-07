@@ -1,7 +1,6 @@
-import threading
-from typing import Any, Dict, Iterator, List
-
 import pytest
+import threading
+from typing import Any, Dict, List, Iterator, cast
 
 import security.auth.code_service as codes
 

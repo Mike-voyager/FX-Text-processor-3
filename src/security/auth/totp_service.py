@@ -18,7 +18,7 @@ import io
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, List, Tuple, Optional, Union, TypedDict
 
 # External deps expected; callers/tests may monkeypatch these names on this module
 try:
