@@ -1,43 +1,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional, Set
+from io import BytesIO
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
+
+from PIL import Image
+
+if TYPE_CHECKING:
+    from src.model.enums import BarcodeType
 
 import barcode as pybarcode
 from barcode.errors import BarcodeNotFoundError
 from barcode.writer import ImageWriter
-from PIL import Image
 
 from src.model.enums import BarcodeType
 
 logger = logging.getLogger(__name__)
-
-import sys as _sys
-
-# ---------------------------------------------------------------------------
-# Compatibility shim for legacy test import path
-# Некоторые тесты используют patch('src.barcode.barcode_generator.pybarcode'),
-# хотя модуль реально находится в 'src.barcodegen.barcode_generator'.
-# Alias позволяет тестам патчить по старому пути без изменений остального кода.
-# ---------------------------------------------------------------------------
-from importlib import import_module as _import_module
-from types import ModuleType as _ModuleType
-
-_ALIAS_PKG = "src.barcode"
-_ALIAS_MOD = "src.barcode.barcode_generator"
-
-try:
-    # Создать namespace-пакет src.barcode, если отсутствует.
-    _pkg = _sys.modules.get(_ALIAS_PKG)
-    if _pkg is None:
-        _pkg = _ModuleType(_ALIAS_PKG)
-        setattr(_pkg, "__path__", [])
-        _sys.modules[_ALIAS_PKG] = _pkg
-
-    # Перенаправить 'src.barcode.barcode_generator' на этот модуль.
-    _sys.modules.setdefault(_ALIAS_MOD, _sys.modules[__name__])
-except Exception:
-    pass
 
 
 class BarcodeGenError(Exception):
@@ -54,7 +32,7 @@ class BarcodeGenerator:
         options: Optional extra options for barcode generation
     """
 
-    _pybarcode_support = {
+    _pybarcode_support: Dict[BarcodeType, str] = {
         BarcodeType.EAN8: "ean8",
         BarcodeType.EAN13: "ean13",
         BarcodeType.EAN14: "ean14",
@@ -74,25 +52,26 @@ class BarcodeGenerator:
         BarcodeType.PLESSEY: "plessey",
         BarcodeType.TELEPEN: "telepen",
         BarcodeType.TRIOPTIC: "trioptic",
-        # Дополнительно кастомные
     }
 
     def __init__(
         self,
         barcode_type: BarcodeType,
         data: str,
-        options: Optional[Dict] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if not isinstance(barcode_type, BarcodeType):
+            raise TypeError(f"barcode_type must be BarcodeType enum, got {type(barcode_type)!r}")
         self.barcode_type = barcode_type
         self.data = data
-        self.options = options or {}
+        self.options: Dict[str, Any] = options or {}
 
     def validate(self) -> None:
         """
         Validate data against the barcode format rules.
-
+        Проверяет входные данные и доменные ограничения для типа штрихкода.
         Raises:
-            BarcodeGenError: On validation failure.
+            BarcodeGenError: при ошибке данных или несоответствии доменным ограничениям.
         """
         if not isinstance(self.data, str) or not self.data.strip():
             raise BarcodeGenError("Barcode data must be non-empty string")
@@ -167,25 +146,16 @@ class BarcodeGenerator:
         # Возможны дополнительные проверки для custom типов
 
     def render_image(
-        self, width: int = 400, height: int = 120, options: Optional[Dict] = None
+        self,
+        width: int = 400,
+        height: int = 120,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Image.Image:
-        """
-        Generate barcode as PIL Image.
-
-        Args:
-            width: Image width (pixels)
-            height: Image height (pixels)
-            options: Extra options for rendering
-
-        Returns:
-            Image.Image: Ready barcode image
-
-        Raises:
-            BarcodeGenError: On generation/render failure
-        """
         self.validate()
         logger.debug(
-            "Rendering image for barcode [%s] data=%s", self.barcode_type, self.data
+            "Rendering image for barcode [%s] data=%s",
+            self.barcode_type,
+            self.data,
         )
 
         barcode_name = self._pybarcode_support.get(self.barcode_type)
@@ -194,15 +164,14 @@ class BarcodeGenerator:
                 "Barcode type %s not supported by python-barcode, returning placeholder.",
                 self.barcode_type,
             )
-            img = Image.new("RGB", (width, height), color="white")
-            return img
+            return Image.new("RGB", (width, height), color="white")
 
         try:
             bclass = pybarcode.get_barcode_class(barcode_name)
             barcode_inst = bclass(
                 self.data,
                 writer=ImageWriter(),
-                **(self.options or {}),
+                **self.options,
             )
             img = barcode_inst.render(
                 writer_options={
@@ -217,20 +186,30 @@ class BarcodeGenerator:
                     **(options or {}),
                 }
             )
-            return img
-        except (BarcodeNotFoundError, Exception) as e:
+            if isinstance(img, Image.Image):
+                return img
+            else:
+                logger.error(
+                    "Barcode output is not an Image.Image object; returning placeholder."
+                )
+                return Image.new("RGB", (width, height), color="white")
+        except BarcodeNotFoundError as e:
             logger.error(
-                "Barcode image generation failed: %s; %s", self.barcode_type, e
+                "Barcode class not found for type: %s; %s",
+                self.barcode_type,
+                e,
+            )
+            return Image.new("RGB", (width, height), color="white")
+        except Exception as e:
+            logger.error(
+                "Barcode image generation failed: %s; %s",
+                self.barcode_type,
+                e,
             )
             return Image.new("RGB", (width, height), color="white")
 
-    def render_bytes(self, options: Optional[Dict] = None) -> bytes:
-        """
-        Generate barcode as PNG bytes for saving/embedding.
-        """
+    def render_bytes(self, options: Optional[Dict[str, Any]] = None) -> bytes:
         img = self.render_image(options=options)
-        from io import BytesIO
-
         buf = BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
@@ -238,14 +217,8 @@ class BarcodeGenerator:
 
     @classmethod
     def supported_types(cls) -> Set[BarcodeType]:
-        """
-        All barcode types supported for generation.
-        """
         return set(cls._pybarcode_support.keys())
 
     @classmethod
     def barcode_name_map(cls) -> Dict[BarcodeType, str]:
-        """
-        Mapping from BarcodeType to pybarcode name.
-        """
         return dict(cls._pybarcode_support)

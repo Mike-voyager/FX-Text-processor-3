@@ -149,7 +149,7 @@ class TestBarcodeGenerator:
             gen.validate()
 
     # === Image Rendering/BYTE ---
-    @patch("src.barcode.barcode_generator.pybarcode.get_barcode_class")
+    @patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
     def test_render_image_success(
         self, mock_get_barcode_class: Mock, valid_ean13_generator: BarcodeGenerator
     ) -> None:
@@ -187,7 +187,7 @@ class TestBarcodeGenerator:
         with pytest.raises(BarcodeGenError, match="uppercase"):
             gen.validate()
 
-    @patch("src.barcode.barcode_generator.pybarcode.get_barcode_class")
+    @patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
     def test_render_image_unsupported_type(self, mock_get_barcode_class: Mock) -> None:
         mock_get_barcode_class.side_effect = Exception(
             "BarcodeNotFoundError: not found"
@@ -266,7 +266,7 @@ def test_render_image_truly_unsupported_type() -> None:
 from unittest.mock import Mock, patch
 
 
-@patch("src.barcode.barcode_generator.pybarcode.get_barcode_class")
+@patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
 def test_render_image_barcode_creation_error(mock_get_barcode_class: Mock) -> None:
     mock_barcode_class = Mock()
     mock_barcode_class.side_effect = Exception("Barcode creation failed")
@@ -276,3 +276,43 @@ def test_render_image_barcode_creation_error(mock_get_barcode_class: Mock) -> No
     result = gen.render_image()
     assert isinstance(result, Image.Image)
     assert result.size == (400, 120)
+
+
+def test_validate_empty_string_raises() -> None:
+    gen = BarcodeGenerator(BarcodeType.EAN13, "   ")
+    with pytest.raises(BarcodeGenError, match="non-empty"):
+        gen.validate()
+
+@pytest.mark.parametrize("barcode_type,bad_data,expected_msg", [
+    (BarcodeType.EAN8, "A1234567", "digits only"),
+    (BarcodeType.EAN13, "1234ABC890123", "digits only"),
+    (BarcodeType.ITF, "2468A", "even number"),
+])
+def test_validate_digits_strict(barcode_type: BarcodeType, bad_data: str, expected_msg: str) -> None:
+    gen = BarcodeGenerator(barcode_type, bad_data)
+    with pytest.raises(BarcodeGenError, match=expected_msg):
+        gen.validate()
+
+def test_render_image_returns_placeholder_on_type_error() -> None:
+    gen = BarcodeGenerator(BarcodeType.TELEPEN, "FAILNOTYPE")
+    img = gen.render_image(width=88, height=44)
+    assert isinstance(img, Image.Image)
+    assert img.size == (88, 44)
+    assert img.mode == "RGB"
+
+def test_render_bytes_is_correct_type() -> None:
+    gen = BarcodeGenerator(BarcodeType.CODE128, "DATA")
+    data_bytes = gen.render_bytes()
+    assert isinstance(data_bytes, bytes)
+    assert data_bytes[:4] == b'\x89PNG'  # PNG magic bytes
+
+def test_supported_types_and_name_map_are_consistent() -> None:
+    types = BarcodeGenerator.supported_types()
+    name_map = BarcodeGenerator.barcode_name_map()
+    for t in types:
+        assert t in name_map
+
+@pytest.mark.parametrize("invalid_type", [999, "UNKNOWN", None])
+def test_init_with_invalid_type_fails(invalid_type: Any) -> None:
+    with pytest.raises(Exception):
+        BarcodeGenerator(invalid_type, "123")
