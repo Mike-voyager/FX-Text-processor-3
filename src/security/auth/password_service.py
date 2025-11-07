@@ -13,18 +13,18 @@ Enterprise PasswordService — полный жизненный цикл упра
 
 from __future__ import annotations
 
-from typing import Optional, Dict, Any, List, Protocol
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Protocol
 
 from security.auth.password import (
-    PasswordHasher,
-    is_valid_password,
     MAX_FAILED_ATTEMPTS,
-    PolicyViolation,
-    LockoutActive,
-    InvalidHashFormat,
     InternalError,
+    InvalidHashFormat,
+    LockoutActive,
+    PasswordHasher,
+    PolicyViolation,
+    is_valid_password,
 )
 
 logger = logging.getLogger(__name__)

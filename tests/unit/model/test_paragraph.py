@@ -1,7 +1,8 @@
 import pytest
-from src.model.paragraph import Paragraph, EmbeddedObject
-from src.model.run import Run
+
 from src.model.enums import Alignment
+from src.model.paragraph import EmbeddedObject, Paragraph
+from src.model.run import Run
 
 # ---------- BASIC RUNS MANAGEMENT ----------
 

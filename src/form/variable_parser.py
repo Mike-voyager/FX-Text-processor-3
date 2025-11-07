@@ -3,27 +3,27 @@ RU: Полноценный парсер переменных для докуме
 EN: Full-featured variable parser for FX-Text-processor-3 — strict types, safe substitution, profiling, batch, ESC/P support.
 """
 
-from typing import (
-    Dict,
-    Any,
-    Set,
-    List,
-    Iterator,
-    Tuple,
-    Protocol,
-    Callable,
-    Optional,
-    Union,
-    TypedDict,
-)
-import re
+import asyncio
+import dataclasses
+import hashlib
 import html
 import logging
-import hashlib
+import re
 import time
-import asyncio
-from dataclasses import dataclass, is_dataclass, asdict
-import dataclasses
+from dataclasses import asdict, dataclass, is_dataclass
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    TypedDict,
+    Union,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from typing import Callable, Literal, Optional, Tuple, Union
+
 import pytest
-from typing import Optional, Union, Tuple, Callable, Literal
 
 from security.crypto.protocols import (
-    BytesLike,
     Argon2idParams,
-    PBKDF2Params,
-    KdfParams,
-    SymmetricCipherProtocol,
-    SigningProtocol,
-    KdfProtocol,
-    KeyStoreProtocol,
+    BytesLike,
     CryptoServiceProtocol,
     HashingProtocol,
+    KdfParams,
+    KdfProtocol,
+    KeyStoreProtocol,
+    PBKDF2Params,
+    SigningProtocol,
+    SymmetricCipherProtocol,
 )
 
 # --- Basic presence and nominal typing ---

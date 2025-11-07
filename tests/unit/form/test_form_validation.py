@@ -1,13 +1,15 @@
-import pytest
 from typing import Any, Dict, Optional
+
+import pytest
+
 from src.form.validation import (
     FormValidator,
     ValidationError,
     ValidationResult,
     Validator,
-    min_length,
-    max_length,
     greater_than,
+    max_length,
+    min_length,
     required,
 )
 

@@ -1,13 +1,43 @@
 from __future__ import annotations
-from typing import Optional, Dict, Set
+
 import logging
-from PIL import Image
+from typing import Dict, Optional, Set
+
 import barcode as pybarcode
-from barcode.writer import ImageWriter
-from src.model.enums import BarcodeType
 from barcode.errors import BarcodeNotFoundError
+from barcode.writer import ImageWriter
+from PIL import Image
+
+from src.model.enums import BarcodeType
 
 logger = logging.getLogger(__name__)
+
+import sys as _sys
+
+# ---------------------------------------------------------------------------
+# Compatibility shim for legacy test import path
+# Некоторые тесты используют patch('src.barcode.barcode_generator.pybarcode'),
+# хотя модуль реально находится в 'src.barcodegen.barcode_generator'.
+# Alias позволяет тестам патчить по старому пути без изменений остального кода.
+# ---------------------------------------------------------------------------
+from importlib import import_module as _import_module
+from types import ModuleType as _ModuleType
+
+_ALIAS_PKG = "src.barcode"
+_ALIAS_MOD = "src.barcode.barcode_generator"
+
+try:
+    # Создать namespace-пакет src.barcode, если отсутствует.
+    _pkg = _sys.modules.get(_ALIAS_PKG)
+    if _pkg is None:
+        _pkg = _ModuleType(_ALIAS_PKG)
+        setattr(_pkg, "__path__", [])
+        _sys.modules[_ALIAS_PKG] = _pkg
+
+    # Перенаправить 'src.barcode.barcode_generator' на этот модуль.
+    _sys.modules.setdefault(_ALIAS_MOD, _sys.modules[__name__])
+except Exception:
+    pass
 
 
 class BarcodeGenError(Exception):
@@ -29,22 +59,22 @@ class BarcodeGenerator:
         BarcodeType.EAN13: "ean13",
         BarcodeType.EAN14: "ean14",
         BarcodeType.UPCA: "upc",
-        BarcodeType.UPCE: "upc",  # some libs accept UPCE as UPC
+        BarcodeType.UPCE: "upc",
         BarcodeType.CODE39: "code39",
-        BarcodeType.CODE93: "code93",  # ☑️ may require additional library or patch
+        BarcodeType.CODE93: "code93",
         BarcodeType.CODE128: "code128",
         BarcodeType.ITF: "itf",
         BarcodeType.MSI: "msi",
         BarcodeType.PHARMACODE: "pharmacode",
-        BarcodeType.CODABAR: "codabar",  # ☑️ should be supported by barcode library
-        BarcodeType.CODE11: "code11",  # ☑️ extension, may need custom backend
-        BarcodeType.STANDARD2OF5: "standard2of5",  # ☑️ if supported/needed (sometimes called industrial2of5)
-        BarcodeType.GS1128: "gs1128",  # GS1-128, typically supported via Code128 extension
+        BarcodeType.CODABAR: "codabar",
+        BarcodeType.CODE11: "code11",
+        BarcodeType.STANDARD2OF5: "standard2of5",
+        BarcodeType.GS1128: "gs1128",
         BarcodeType.POSTNET: "postnet",
-        BarcodeType.PLESSEY: "plessey",  # ☑️ for retail/legacy systems
-        BarcodeType.TELEPEN: "telepen",  # ☑️ academic legacy
-        BarcodeType.TRIOPTIC: "trioptic",  # ☑️ specialty lens code
-        # Add other custom or patched names if your library supports them
+        BarcodeType.PLESSEY: "plessey",
+        BarcodeType.TELEPEN: "telepen",
+        BarcodeType.TRIOPTIC: "trioptic",
+        # Дополнительно кастомные
     }
 
     def __init__(
@@ -58,13 +88,15 @@ class BarcodeGenerator:
         self.options = options or {}
 
     def validate(self) -> None:
-        """Validate data against the barcode format rules.
+        """
+        Validate data against the barcode format rules.
 
         Raises:
             BarcodeGenError: On validation failure.
         """
         if not isinstance(self.data, str) or not self.data.strip():
             raise BarcodeGenError("Barcode data must be non-empty string")
+
         if self.barcode_type in (
             BarcodeType.EAN8,
             BarcodeType.EAN13,
@@ -75,56 +107,64 @@ class BarcodeGenerator:
                 raise BarcodeGenError(
                     f"{self.barcode_type.name} barcode requires digits only."
                 )
-        if self.barcode_type == BarcodeType.EAN8 and len(self.data) != 8:
-            raise BarcodeGenError("EAN8 must be 8 digits.")
-        elif self.barcode_type == BarcodeType.EAN13 and len(self.data) != 13:
-            raise BarcodeGenError("EAN13 must be 13 digits.")
-        elif self.barcode_type == BarcodeType.EAN14 and len(self.data) != 14:
-            raise BarcodeGenError("EAN14 must be 14 digits.")
+            if self.barcode_type == BarcodeType.EAN8 and len(self.data) != 8:
+                raise BarcodeGenError("EAN8 must be 8 digits.")
+            elif self.barcode_type == BarcodeType.EAN13 and len(self.data) != 13:
+                raise BarcodeGenError("EAN13 must be 13 digits.")
+            elif self.barcode_type == BarcodeType.EAN14 and len(self.data) != 14:
+                raise BarcodeGenError("EAN14 must be 14 digits.")
+
         elif self.barcode_type == BarcodeType.UPCA and len(self.data) != 12:
             raise BarcodeGenError("UPC-A must be 12 digits.")
+
         elif self.barcode_type == BarcodeType.CODE39:
             valid_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.$/+% ")
-            # Добавьте запрет на строчные буквы
             if any(c.islower() for c in self.data):
                 raise BarcodeGenError(
                     "CODE39 supports only uppercase A-Z, 0-9, and -.$/+% chars"
                 )
             if not all(c in valid_chars for c in self.data):
                 raise BarcodeGenError("CODE39 supports only A-Z, 0-9, and -.$/+% chars")
+
         elif self.barcode_type == BarcodeType.CODE93:
             if len(self.data) > 80:
                 raise BarcodeGenError("CODE93 data too long (max ~80)")
-            # Add optional character validation as needed
+            # Дополнительная проверка символов по необходимости
+
         elif self.barcode_type == BarcodeType.CODE128 and len(self.data) > 80:
             raise BarcodeGenError("CODE128 data too long (max ~80)")
+
         elif self.barcode_type == BarcodeType.ITF and (
             not self.data.isdigit() or len(self.data) % 2 != 0
         ):
             raise BarcodeGenError("ITF must be even number of digits.")
+
         elif self.barcode_type == BarcodeType.MSI and not self.data.isdigit():
             raise BarcodeGenError("MSI must contain only digits.")
+
         elif self.barcode_type == BarcodeType.CODABAR:
             valid_chars = set("0123456789-$:/.+ABCD")
             if not all(c in valid_chars for c in self.data.upper()):
                 raise BarcodeGenError(
                     "Codabar supports only 0-9, -$:/.+, and start/stop chars A-D"
                 )
+
         elif self.barcode_type == BarcodeType.POSTNET and (
             not self.data.isdigit() or len(self.data) not in (5, 9, 11)
         ):
             raise BarcodeGenError("POSTNET must be 5, 9, or 11 digits")
+
         elif self.barcode_type == BarcodeType.PHARMACODE:
             if not self.data.isdigit() or not (3 <= int(self.data) <= 131070):
                 raise BarcodeGenError("Pharmacode must be integer between 3 and 131070")
+
         elif self.barcode_type == BarcodeType.CODE11:
-            # Optional: validate allowed chars (digits and '-')
             valid_chars = set("0123456789-")
             if not all(c in valid_chars for c in self.data):
                 raise BarcodeGenError(
                     "Code11 supports only digits and dash ('-') chars"
                 )
-        # Extend with further custom format checks as needed
+        # Возможны дополнительные проверки для custom типов
 
     def render_image(
         self, width: int = 400, height: int = 120, options: Optional[Dict] = None

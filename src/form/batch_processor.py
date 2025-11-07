@@ -9,15 +9,15 @@ Features:
   - security hooks: audit, permission, signature support (safely stubbed if modules missing)
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Callable, List, Any, Dict, Optional, Union
-from enum import Enum, auto
-import threading
-import queue
-import time
-import logging
-import json
 import csv
+import json
+import logging
+import queue
+import threading
+import time
+from dataclasses import asdict, dataclass, field
+from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 try:
     from security.audit.logger import log_batch_event  # type: ignore
     from security.auth.permissions import check_permission  # type: ignore
-    from security.crypto.symmetric import encrypt, decrypt  # type: ignore
+    from security.crypto.symmetric import decrypt, encrypt  # type: ignore
 except ImportError:
 
     def log_batch_event(*args, **kwargs) -> None:  # type: ignore

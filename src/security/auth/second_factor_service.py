@@ -5,11 +5,11 @@ RU: Обработка ошибок, валидация, контракты от
 EN: Thin API on SecondFactorManager; error handling, validation, response contracts, logging.
 """
 
-from typing import Any, Dict, Optional, List, TypedDict, Union, Type
 import logging
+from typing import Any, Dict, List, Optional, Type, TypedDict, Union
 
 from src.app_context import get_app_context
-from src.security.auth.second_factor import SecondFactorManager, FactorProtocol
+from src.security.auth.second_factor import FactorProtocol, SecondFactorManager
 
 # --- Typed Response Contracts ---
 

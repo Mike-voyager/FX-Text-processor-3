@@ -11,9 +11,9 @@ EN: Enterprise-grade FIDO2/WebAuthn second factor with YubiKey, Windows Hello,
 
 from __future__ import annotations
 
-from typing import Dict, Any, List, Optional, Final
-from datetime import datetime, timezone
 from collections import OrderedDict
+from datetime import datetime, timezone
+from typing import Any, Dict, Final, List, Optional
 
 __all__ = [
     "Fido2Factor",
@@ -176,8 +176,8 @@ class Fido2Factor:
         """
         from fido2.server import Fido2Server
         from fido2.webauthn import (
-            PublicKeyCredentialRequestOptions,
             PublicKeyCredentialDescriptor,
+            PublicKeyCredentialRequestOptions,
             PublicKeyCredentialType,
         )
 

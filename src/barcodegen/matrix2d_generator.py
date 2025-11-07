@@ -19,15 +19,16 @@ Requirements: Pillow, qrcode, pdf417gen, pylibdmtx (for DataMatrix)
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Any, Set, List, Tuple, Awaitable
-from PIL import Image, ImageDraw, ImageFont
 import logging
-import qrcode
-import pdf417gen
 import os
-import numpy as np
+from typing import Any, Awaitable, Dict, List, Optional, Set, Tuple
 
-from qrcode.constants import ERROR_CORRECT_M, ERROR_CORRECT_H
+import numpy as np
+import pdf417gen
+import qrcode
+from PIL import Image, ImageDraw, ImageFont
+from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
+
 from src.model.enums import Matrix2DCodeType
 
 # Pillow compatibility layer (L -> new Resampling)
@@ -235,6 +236,7 @@ class Matrix2DCodeGenerator:
                 )
             encoded = encode(payload.encode("utf8"))
             import io
+
             import numpy as np  # import вне блока, если используешь часто
 
             dm_img: Optional[Image.Image] = None

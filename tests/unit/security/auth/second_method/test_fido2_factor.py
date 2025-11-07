@@ -1,11 +1,12 @@
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple
+
 import pytest
-from typing import Dict, Any, Optional, Tuple
-from datetime import datetime, timezone, timedelta
 
 from src.security.auth.second_method.fido2 import (
-    Fido2Factor,
-    DeviceNotFound,
     CredentialMismatch,
+    DeviceNotFound,
+    Fido2Factor,
     SignatureVerificationFailed,
 )
 

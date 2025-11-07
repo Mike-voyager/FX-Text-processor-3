@@ -1,8 +1,9 @@
 import sys
-import types
-import pytest
 import threading
-from typing import Any, Dict, List, Iterator, cast
+import types
+from typing import Any, Dict, Iterator, List, cast
+
+import pytest
 
 import security.auth.fido2_service as f2s
 

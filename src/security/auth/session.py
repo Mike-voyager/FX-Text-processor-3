@@ -39,14 +39,14 @@ from dataclasses import dataclass, field
 from hashlib import blake2b
 from typing import (
     Callable,
+    Dict,
     Final,
     FrozenSet,
     Mapping,
     Optional,
     Protocol,
-    Tuple,
-    Dict,
     Set,
+    Tuple,
 )
 
 __all__ = [

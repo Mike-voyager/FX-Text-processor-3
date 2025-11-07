@@ -25,18 +25,16 @@ References:
 
 from __future__ import annotations
 
-
 from typing import (
-    Optional,
-    Protocol,
-    Union,
-    Tuple,
-    runtime_checkable,
-    TypedDict,
     Callable,
     Literal,
+    Optional,
+    Protocol,
+    Tuple,
+    TypedDict,
+    Union,
+    runtime_checkable,
 )
-
 
 BytesLike = Union[bytes, bytearray]
 

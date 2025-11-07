@@ -1,8 +1,9 @@
 import sys
-import types
-import pytest
 import threading
-from typing import Any, Dict, List, Tuple, Iterator, cast, BinaryIO
+import types
+from typing import Any, BinaryIO, Dict, Iterator, List, Tuple, cast
+
+import pytest
 
 import src.security.auth.totp_service as tots
 

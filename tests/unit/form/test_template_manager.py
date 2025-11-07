@@ -1,15 +1,17 @@
-import os
-import tempfile
-import shutil
-import pytest
 import json
+import os
+import shutil
+import tempfile
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import pytest
+
 from src.form.template_manager import (
+    DEFAULT_SECURITY_CONFIG,
     TemplateManager,
     TemplateManagerError,
-    DEFAULT_SECURITY_CONFIG,
 )
-from typing import Any, Dict, Optional
 
 BASIC_TEMPLATE = {
     "kind": "regular",

@@ -1,15 +1,16 @@
-import os
-import pytest
-import logging
 import asyncio
+import logging
+import os
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from src.security.auth.password import (
-    PasswordHasher,
-    MfaEvent,
-    is_valid_password,
     MAX_FAILED_ATTEMPTS,
+    MfaEvent,
+    PasswordHasher,
+    is_valid_password,
 )
 
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
@@ -214,8 +215,8 @@ def test_mfa_callback_error_handling(caplog: Any) -> None:
 
 
 def test_shutdown_without_pool(monkeypatch: Any) -> None:
-    from src.security.auth.password import _thread_pool
     import src.security.auth.password as mod
+    from src.security.auth.password import _thread_pool
 
     # Ensure the pool is None
     object.__setattr__(mod, "_thread_pool", None)

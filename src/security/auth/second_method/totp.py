@@ -12,10 +12,11 @@ EN: Enterprise-grade TOTP (RFC 6238) second factor with Google Authenticator, Au
 
 from __future__ import annotations
 
-import pyotp
-from typing import Optional, Dict, Any, List, Final
-from datetime import datetime, timezone
 from collections import OrderedDict
+from datetime import datetime, timezone
+from typing import Any, Dict, Final, List, Optional
+
+import pyotp
 
 __all__ = [
     "TotpFactor",

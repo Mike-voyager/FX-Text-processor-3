@@ -10,10 +10,10 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
-from src.app_context import get_app_context
-from security.crypto.kdf import (
+from security.crypto.kdf import (  # ensure it's exported in kdf.__all__
     derive_key_argon2id,
-)  # ensure it's exported in kdf.__all__
+)
+from src.app_context import get_app_context
 
 _logger = logging.getLogger("security.auth.fido2_service")
 _lock = threading.Lock()

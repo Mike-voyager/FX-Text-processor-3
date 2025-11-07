@@ -1,4 +1,5 @@
 import pytest
+
 from src.model.barcodegen import Barcode
 from src.model.enums import BarcodeType, Matrix2DCodeType
 

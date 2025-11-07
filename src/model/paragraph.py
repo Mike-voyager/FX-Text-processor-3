@@ -10,10 +10,10 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Dict
+from typing import Any, Dict, List, Optional
 
-from src.model.run import Run
 from src.model.enums import Alignment, LineSpacing, TabAlignment
+from src.model.run import Run
 
 
 @dataclass(slots=True)

@@ -1,18 +1,20 @@
+from typing import Any, Dict, Union
+
 import pytest
+
 from src.form.style_manager import StyleManager, StyleManagerError
 from src.model.enums import (
-    FontFamily,
-    CharactersPerInch,
-    PrintQuality,
     Alignment,
-    TableStyle,
     BarcodeType,
+    CharactersPerInch,
     Color,
-    TextStyle,
-    GraphicsMode,
     DitheringAlgorithm,
+    FontFamily,
+    GraphicsMode,
+    PrintQuality,
+    TableStyle,
+    TextStyle,
 )
-from typing import Any, Dict, Union
 
 
 def test_register_defaults() -> None:

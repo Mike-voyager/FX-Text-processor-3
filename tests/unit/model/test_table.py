@@ -1,23 +1,25 @@
-import pytest
 import logging
+from typing import Any
+
+import pytest
+
 from src.model.table import (
-    Table,
+    BarCode,
+    BorderChars,
     Cell,
     CellAlignment,
-    VerticalAlignment,
-    TableBorder,
-    CellStyle,
-    TableMetrics,
-    BarCode,
-    PaperSettings,
-    ConditionalRule,
-    BorderChars,
     CellBorders,
+    CellDataType,
+    CellStyle,
+    ConditionalRule,
+    PaperSettings,
     Paragraph,
     Run,
-    CellDataType,
+    Table,
+    TableBorder,
+    TableMetrics,
+    VerticalAlignment,
 )
-from typing import Any
 
 # ----------- BASIC STRUCTURE -----------
 

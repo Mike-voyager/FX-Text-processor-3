@@ -1,27 +1,29 @@
-import pytest
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Set, List, Callable
+from typing import Any, Callable, Dict, List, Set
+
+import pytest
+
 from src.form.form_builder import (
+    AuditElement,
     FormBuilder,
     FormBuilderError,
-    FormLayout,
-    FormKind,
-    FormGroup,
-    TableElement,
-    ImageElement,
-    VariableElement,
-    QRElement,
-    WatermarkElement,
-    SignatureElement,
-    AuditElement,
     FormElement,
     FormElementType,
+    FormGroup,
+    FormKind,
+    FormLayout,
+    ImageElement,
+    QRElement,
+    SignatureElement,
+    TableElement,
+    VariableElement,
+    WatermarkElement,
+    export_to_json,
+    import_from_json,
     validate_form_structure,
     validate_special_form_security,
-    import_from_json,
-    export_to_json,
 )
 
 

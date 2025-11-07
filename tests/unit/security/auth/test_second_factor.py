@@ -1,6 +1,7 @@
-import pytest
 import logging
-from typing import Generator, Dict, Any
+from typing import Any, Dict, Generator
+
+import pytest
 
 from src.security.auth.second_factor import SecondFactorManager
 from src.security.crypto.secure_storage import SecureStorage, StorageBackend

@@ -1,13 +1,14 @@
-import pytest
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Callable
+
+import pytest
+
 from src.form.variable_parser import (
+    CircularReferenceError,
     VariableParser,
     VariableParserError,
-    CircularReferenceError,
 )
-
-from dataclasses import dataclass
 
 
 def test_substitute_simple_str() -> None:

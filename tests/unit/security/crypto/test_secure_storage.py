@@ -2,31 +2,30 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures as cf
 import json
 import os
 import threading
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     Dict,
-    MutableMapping,
     Mapping,
+    MutableMapping,
     Optional,
     Tuple,
     Union,
-    Optional,
-    Any,
 )
-import concurrent.futures as cf
 
 import pytest
 
-from security.crypto.secure_storage import FileEncryptedStorageBackend
 from security.crypto.exceptions import (
     StorageError,
     StorageReadError,
     StorageWriteError,
 )
+from security.crypto.secure_storage import FileEncryptedStorageBackend
 
 # --- Minimal symmetric cipher stub matching the backend's expectations ---
 

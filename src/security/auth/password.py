@@ -19,15 +19,17 @@ import secrets
 import threading
 from collections import OrderedDict
 from concurrent.futures import (
-    ThreadPoolExecutor,
     Future,
-    TimeoutError as FuturesTimeout,
+    ThreadPoolExecutor,
 )
-from typing import Optional, Tuple, Final, Callable, Dict, Any, Protocol, Union
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import blake2b
-from argon2 import PasswordHasher as _Argon2Hasher, exceptions as argon2_exc
+from typing import Any, Callable, Dict, Final, Optional, Protocol, Tuple, Union
+
+from argon2 import PasswordHasher as _Argon2Hasher
+from argon2 import exceptions as argon2_exc
 
 __all__ = [
     "PasswordHasher",

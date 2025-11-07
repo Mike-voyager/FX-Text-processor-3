@@ -1,10 +1,12 @@
-import pytest
 from typing import Any, Optional
+
+import pytest
+
 from src.form.form_schema import (
-    FormSchema,
-    ValidationError,
-    SchemaError,
     FORM_SCHEMA_DEFAULT,
+    FormSchema,
+    SchemaError,
+    ValidationError,
     form_schema_from_registry,
 )
 
