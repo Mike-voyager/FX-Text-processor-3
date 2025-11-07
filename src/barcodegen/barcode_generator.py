@@ -1,11 +1,14 @@
 from __future__ import annotations
-from typing import Optional, Dict, Set
+
 import logging
-from PIL import Image
+from typing import Dict, Optional, Set
+
 import barcode as pybarcode
-from barcode.writer import ImageWriter
-from src.model.enums import BarcodeType
 from barcode.errors import BarcodeNotFoundError
+from barcode.writer import ImageWriter
+from PIL import Image
+
+from src.model.enums import BarcodeType
 
 logger = logging.getLogger(__name__)
 

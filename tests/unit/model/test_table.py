@@ -1,23 +1,25 @@
-import pytest
 import logging
+from typing import Any
+
+import pytest
+
 from src.model.table import (
-    Table,
+    BarCode,
+    BorderChars,
     Cell,
     CellAlignment,
-    VerticalAlignment,
-    TableBorder,
-    CellStyle,
-    TableMetrics,
-    BarCode,
-    PaperSettings,
-    ConditionalRule,
-    BorderChars,
     CellBorders,
+    CellDataType,
+    CellStyle,
+    ConditionalRule,
+    PaperSettings,
     Paragraph,
     Run,
-    CellDataType,
+    Table,
+    TableBorder,
+    TableMetrics,
+    VerticalAlignment,
 )
-from typing import Any
 
 # ----------- BASIC STRUCTURE -----------
 
@@ -300,9 +302,6 @@ def test_table_paper_metrics() -> None:
     t = Table(rows=[[Cell(), Cell()], [Cell(), Cell()]], paper=paper, metrics=tm)
     assert t.paper is not None and t.paper.width_mm == 210
     assert t.metrics is not None and t.metrics.width_mm == 210
-
-
-from typing import Any
 
 
 def test_apply_conditional_formatting_with_error() -> None:

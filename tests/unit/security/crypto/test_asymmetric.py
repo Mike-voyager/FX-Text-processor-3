@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Callable
-from pathlib import Path
+from typing import Any
 
 import pytest
-import re
 
 import security.crypto.asymmetric as asym
 

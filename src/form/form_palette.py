@@ -1,9 +1,9 @@
 """RU: Палитра элементов форм — предустановленные типы, композитные и стандартные пресеты для визуального редактора."""
 
-from typing import Dict, Any, List, Optional
 import copy
-import logging
 import json
+import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

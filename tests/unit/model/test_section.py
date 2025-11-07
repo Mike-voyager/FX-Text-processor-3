@@ -11,16 +11,10 @@ import pytest
 from src.model.paragraph import Paragraph
 from src.model.run import Run
 from src.model.section import (
-    MAX_MARGIN_INCHES,
-    MAX_PAGE_LENGTH_INCHES,
     MAX_PAGE_NUMBER,
-    MAX_PAGE_WIDTH_INCHES,
-    MIN_MARGIN_INCHES,
-    MIN_PAGE_LENGTH_INCHES,
     MIN_PAGE_NUMBER,
     MIN_PAGE_WIDTH_INCHES,
     Margins,
-    PageOrientation,
     PageSettings,
     Section,
     SectionBreak,

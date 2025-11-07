@@ -3,7 +3,7 @@ validation.py — универсальный валидатор структур
 расширяемый механизм встроенных и кастомных правил.
 """
 
-from typing import Any, Dict, List, Callable, Optional, Protocol, Union, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Union
 
 
 class ValidationError(Exception):

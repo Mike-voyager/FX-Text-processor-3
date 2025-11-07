@@ -2,9 +2,9 @@
 
 """EN: Extensible contract-driven schema for FX-Text-processor-3 forms; plugin, custom field/type, validation, i18n, and registry support."""
 
-from typing import Dict, Any, List, Optional, Set, Tuple, Union, Callable
-import logging
 import copy
+import logging
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 logger = logging.getLogger(__name__)
 

@@ -1,22 +1,19 @@
 import logging
-from typing import FrozenSet, Tuple
+from typing import Tuple
 
 import pytest
 
 from security.auth.session import (
+    DEFAULT_ACCESS_TTL_SECONDS,
+    DEFAULT_IDLE_TIMEOUT_SECONDS,
+    DEFAULT_REFRESH_TTL_SECONDS,
+    REMEMBER_REFRESH_TTL_SECONDS,
+    DeviceMismatch,
+    InvalidToken,
     SessionManager,
     TokenBundle,
+    TokenExpired,
     ValidationResult,
-    InvalidToken,
-    TokenExpired,
-    TokenRevoked,
-    DeviceMismatch,
-    DEFAULT_ACCESS_TTL_SECONDS,
-    DEFAULT_REFRESH_TTL_SECONDS,
-    DEFAULT_IDLE_TIMEOUT_SECONDS,
-    REMEMBER_REFRESH_TTL_SECONDS,
-    TokenExpired,
-    InvalidToken,
 )
 
 

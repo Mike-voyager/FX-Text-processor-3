@@ -9,11 +9,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Optional, Callable, Dict, Final
+from typing import Any, Callable, Dict, Final, Optional
 
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519, rsa, padding, ec
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 
 logger: Final = logging.getLogger("fxtext.security.asymmetric")
 

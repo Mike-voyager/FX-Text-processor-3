@@ -14,7 +14,6 @@ IMPORTANT: This module contains ONLY FX-mode compatible commands.
 """
 
 from enum import Enum
-from typing import Final
 
 __all__ = [
     "GraphicsMode",

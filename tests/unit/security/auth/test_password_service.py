@@ -1,15 +1,15 @@
 """Unit tests for PasswordService with comprehensive coverage."""
 
 from datetime import timedelta
+
 import pytest
 
 from src.security.auth.password_service import (
-    PasswordService,
-    InMemoryUserStorage,
-    WeakPasswordError,
-    PasswordServiceError,
     AccountLockedError,
     PasswordExpiredError,
+    PasswordService,
+    PasswordServiceError,
+    WeakPasswordError,
 )
 
 

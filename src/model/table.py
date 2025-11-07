@@ -16,16 +16,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
+    Callable,
+    Dict,
     Final,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
-    Dict,
-    Callable,
-    TypeVar,
-    Literal,
-    Union,
 )
 
 logger: Final = logging.getLogger(__name__)

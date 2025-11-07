@@ -1,13 +1,14 @@
-import pytest
 from dataclasses import dataclass
+
+import pytest
+
 from src.form.form_elements import (
-    BaseFormElement,
     AliasFormElement,
-    GroupFormElement,
-    ExtensionFormElement,
-    element_from_dict,
+    BaseFormElement,
     FormElementRegistry,
+    GroupFormElement,
     element_class,
+    element_from_dict,
 )
 
 
