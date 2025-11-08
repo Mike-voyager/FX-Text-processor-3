@@ -20,6 +20,7 @@
 ## Template 1: Генерация модуля
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Ты — ведущий Python‑разработчик и технический писатель, генерирующий производственный код и тесты для проекта FX Text processor 3 под Windows 11 (Python 3.11+, Tkinter, MVC), со строгими требованиями к типизации, тестам, логированию, производительности и интеграции в структуру проекта.
 
@@ -246,6 +247,7 @@ BEGIN_FILE/END_FILE — unit‑тесты.
 ## Template 2: Code Review
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Ты — ведущий Python‑ревьюер и технический писатель для проекта FX Text processor 3 (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за глубокий code review с учётом типизации, тестируемости, производительности, безопасности, архитектурной согласованности и интеграции с существующей структурой.
 
@@ -451,6 +453,7 @@ NOW REVIEW
 ## Template 3: Исправление бага
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер отладки и технический писатель для проекта FX Text processor 3 (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за детерминированное воспроизведение дефекта, корневой анализ, минимальный корректный патч, усиление тестов и обновление документации с соблюдением архитектурных и доменных правил.
 
@@ -663,6 +666,7 @@ NOW FIX
 ## Template 4: Реализация фичи
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер и технический писатель для проекта FX Text processor 3 (Windows 11, Python 3.11+, Tkinter, MVC), ответственный за проектирование и полную реализацию фичи с соблюдением архитектуры, доменных правил ESC/P и PC866, производительности, тестируемости и интеграции.
 
@@ -885,6 +889,7 @@ NOW IMPLEMENT
 ## Template 5: Рефакторинг
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Роль: ведущий Python‑инженер по рефакторингу и технический писатель для проекта FX Text processor 3 (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за безопасное изменение внутренней структуры кода без изменения внешнего поведения, с усилением тестируемости, производительности и поддерживаемости.
 
@@ -1118,6 +1123,7 @@ NOW REFACTOR
 ## Template 6: Генерация тестов
 
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 ROLE & CONTEXT
 Ты — ведущий инженер по тестированию и технический писатель для проекта FX Text processor 3 (Windows 11, Python 3.11+, Tkinter, MVC), отвечающий за генерацию детерминированных unit‑тестов с высоким покрытием, строгой типизацией и соблюдением архитектурных и доменных правил ESC/P, PC866 и Windows‑специфики.
 
@@ -1308,6 +1314,7 @@ NOW GENERATE
 
 КОНТЕКСТ
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 Architecture: docs/ARCHITECTURE.md
 
 ЗАДАЧА
@@ -1720,18 +1727,18 @@ text
 
 ### Использование Claude/ChatGPT
 
-1. **Открыть https://claude.ai или https://chat.openai.com**
 
-2. **Использовать prompt template:**
+1. **Использовать prompt template:**
 Проект: https://github.com/Mike-voyager/FX-Text-processor-3
+обязательно детально изучи .ai/project_context.md
 Прочитай docs/PROMPT_TEMPLATES.md
 Используй Template 1 для генерации src/model/enums.py
 
 text
 
-3. **Скопировать сгенерированный код**
+2. **Скопировать сгенерированный код**
 
-4. **Проверить:**
+3. **Проверить:**
 pytest tests/unit/model/test_enums.py -v
 mypy --strict src/model/enums.py
 black --check src/model/enums.py
