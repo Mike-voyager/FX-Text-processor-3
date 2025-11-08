@@ -61,7 +61,9 @@ class BarcodeGenerator:
         options: Optional[Dict[str, Any]] = None,
     ) -> None:
         if not isinstance(barcode_type, BarcodeType):
-            raise TypeError(f"barcode_type must be BarcodeType enum, got {type(barcode_type)!r}")
+            raise TypeError(
+                f"barcode_type must be BarcodeType enum, got {type(barcode_type)!r}"
+            )
         self.barcode_type = barcode_type
         self.data = data
         self.options: Dict[str, Any] = options or {}

@@ -283,15 +283,22 @@ def test_validate_empty_string_raises() -> None:
     with pytest.raises(BarcodeGenError, match="non-empty"):
         gen.validate()
 
-@pytest.mark.parametrize("barcode_type,bad_data,expected_msg", [
-    (BarcodeType.EAN8, "A1234567", "digits only"),
-    (BarcodeType.EAN13, "1234ABC890123", "digits only"),
-    (BarcodeType.ITF, "2468A", "even number"),
-])
-def test_validate_digits_strict(barcode_type: BarcodeType, bad_data: str, expected_msg: str) -> None:
+
+@pytest.mark.parametrize(
+    "barcode_type,bad_data,expected_msg",
+    [
+        (BarcodeType.EAN8, "A1234567", "digits only"),
+        (BarcodeType.EAN13, "1234ABC890123", "digits only"),
+        (BarcodeType.ITF, "2468A", "even number"),
+    ],
+)
+def test_validate_digits_strict(
+    barcode_type: BarcodeType, bad_data: str, expected_msg: str
+) -> None:
     gen = BarcodeGenerator(barcode_type, bad_data)
     with pytest.raises(BarcodeGenError, match=expected_msg):
         gen.validate()
+
 
 def test_render_image_returns_placeholder_on_type_error() -> None:
     gen = BarcodeGenerator(BarcodeType.TELEPEN, "FAILNOTYPE")
@@ -300,17 +307,20 @@ def test_render_image_returns_placeholder_on_type_error() -> None:
     assert img.size == (88, 44)
     assert img.mode == "RGB"
 
+
 def test_render_bytes_is_correct_type() -> None:
     gen = BarcodeGenerator(BarcodeType.CODE128, "DATA")
     data_bytes = gen.render_bytes()
     assert isinstance(data_bytes, bytes)
-    assert data_bytes[:4] == b'\x89PNG'  # PNG magic bytes
+    assert data_bytes[:4] == b"\x89PNG"  # PNG magic bytes
+
 
 def test_supported_types_and_name_map_are_consistent() -> None:
     types = BarcodeGenerator.supported_types()
     name_map = BarcodeGenerator.barcode_name_map()
     for t in types:
         assert t in name_map
+
 
 @pytest.mark.parametrize("invalid_type", [999, "UNKNOWN", None])
 def test_init_with_invalid_type_fails(invalid_type: Any) -> None:
