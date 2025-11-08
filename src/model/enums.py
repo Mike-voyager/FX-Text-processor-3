@@ -492,6 +492,92 @@ class ImagePosition(str, Enum):
     def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
         return self.value
 
+class FileExtension(str, Enum):
+    """
+    Расширения файлов FX Super.
+
+    Все расширения начинаются с префикса .fxs (FX Super)
+    для унифицированного распознавания файлов приложения.
+    """
+
+    # Документы
+    DOCUMENT = ".fxsd"              # FX Super Document (незашифрованный)
+    DOCUMENT_ENC = ".fxsd.enc"      # FX Super Document Encrypted
+
+    # Шаблоны
+    TEMPLATE = ".fxstpl"            # FX Super Template
+
+    # Защищённые бланки
+    BLANK = ".fxsblank"             # FX Super Blank (всегда зашифрован)
+
+    # Безопасность
+    KEYSTORE = ".fxskeystore.enc"   # FX Super Keystore
+    SIGNATURE = ".fxssig"           # FX Super Signature
+
+    # Конфигурация
+    CONFIG = ".fxsconfig"           # FX Super Config
+
+    # Бэкапы
+    BACKUP = ".fxsbackup"           # FX Super Backup
+
+    # Экспорт
+    EXPORT_BUNDLE = ".fxsbundle.enc"  # FX Super Bundle (зашифрованный)
+
+    # ESC/P
+    ESCP_RAW = ".escp"              # ESC/P Raw Commands
+    ESCP_SCRIPT = ".escps"          # ESC/P Script
+
+
+class FileType(str, Enum):
+    """
+    Типы файлов приложения.
+
+    Используется для программного определения типа файла
+    без привязки к конкретному расширению.
+    """
+
+    DOCUMENT = "document"
+    TEMPLATE = "template"
+    BLANK = "blank"
+    KEYSTORE = "keystore"
+    SIGNATURE = "signature"
+    CONFIG = "config"
+    BACKUP = "backup"
+    EXPORT_BUNDLE = "bundle"
+    ESCP_RAW = "escp_raw"
+    ESCP_SCRIPT = "escp_script"
+
+
+# MIME types для регистрации в системе
+FILE_MIME_TYPES = {
+    FileExtension.DOCUMENT: "application/x-fxsuper-document",
+    FileExtension.DOCUMENT_ENC: "application/x-fxsuper-document-encrypted",
+    FileExtension.TEMPLATE: "application/x-fxsuper-template",
+    FileExtension.BLANK: "application/x-fxsuper-blank",
+    FileExtension.KEYSTORE: "application/x-fxsuper-keystore",
+    FileExtension.SIGNATURE: "application/x-fxsuper-signature",
+    FileExtension.CONFIG: "application/x-fxsuper-config",
+    FileExtension.BACKUP: "application/x-fxsuper-backup",
+    FileExtension.EXPORT_BUNDLE: "application/x-fxsuper-bundle",
+    FileExtension.ESCP_RAW: "application/x-escp",
+    FileExtension.ESCP_SCRIPT: "text/x-escp-script",
+}
+
+# Описания для Windows File Association
+FILE_DESCRIPTIONS = {
+    FileExtension.DOCUMENT: "FX Super Document",
+    FileExtension.DOCUMENT_ENC: "FX Super Encrypted Document",
+    FileExtension.TEMPLATE: "FX Super Form Template",
+    FileExtension.BLANK: "FX Super Protected Blank",
+    FileExtension.KEYSTORE: "FX Super Keystore",
+    FileExtension.SIGNATURE: "FX Super Digital Signature",
+    FileExtension.CONFIG: "FX Super Configuration",
+    FileExtension.BACKUP: "FX Super Backup Archive",
+    FileExtension.EXPORT_BUNDLE: "FX Super Export Bundle",
+    FileExtension.ESCP_RAW: "ESC/P Raw Commands",
+    FileExtension.ESCP_SCRIPT: "ESC/P Script",
+}
+
 
 # === DEFAULTS ===
 DEFAULT_FONT_FAMILY: Final[FontFamily] = FontFamily.DRAFT
