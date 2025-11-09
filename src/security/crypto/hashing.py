@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 RU: Безопасное хэширование паролей с полной поддержкой PBKDF2-HMAC-SHA256 и Argon2id,
-опциональным pepper, DI-параметрами, needs_rehash и constant-time верификацией.
+опциональным pepper, DI-параметрами, needs_rehash, constant-time верификацией и rate limiting.
 
 EN: Secure password hashing with full PBKDF2-HMAC-SHA256 and Argon2id support,
-optional pepper, DI parameters, needs_rehash, and constant-time verification.
+optional pepper, DI parameters, needs_rehash, constant-time verification, and rate limiting.
 
 Formats:
 - PBKDF2 (legacy):        "pbkdf2:sha256:<iterations>:<b64salt>:<b64dk>"
@@ -17,6 +17,7 @@ Notes:
 - Pepper is applied via HMAC-SHA256(pepper, password_bytes) before hashing.
 - Argon2id uses fixed low-level version 19 (Argon2 v1.3) for deterministic outputs (v=19 is recorded in the hash).
 - No secrets (passwords, peppers, salts, hashes) are logged.
+- Rate limiting prevents brute-force attacks (exponential backoff after max attempts).
 """
 
 from __future__ import annotations
@@ -25,13 +26,17 @@ import base64
 import hashlib
 import hmac
 import logging
-from typing import Any, Callable, Final, Optional, Tuple
+import threading
+import time
+from typing import Any, Callable, Dict, Final, List, Optional, Tuple
 
 from security.crypto.exceptions import HashSchemeError
-from security.crypto.protocols import HashingProtocol
 from security.crypto.utils import generate_salt, secure_compare
 
 _LOGGER: Final = logging.getLogger(__name__)
+
+# Security limits
+_MAX_PASSWORD_LEN: Final[int] = 4096  # 4KB reasonable upper bound to prevent DoS
 
 # PBKDF2 policy
 _SCHEME_PBKDF2: Final[str] = "pbkdf2"
@@ -44,6 +49,17 @@ _MAX_SALT_LEN: Final[int] = 64
 _DEF_T: Final[int] = 3
 _DEF_M: Final[int] = 65_536  # KiB (~64 MiB)
 _DEF_P: Final[int] = 2
+_ARGON2_VERSION: Final[int] = 19  # v1.3
+
+# Rate limiting constants
+_MAX_FAILED_ATTEMPTS: Final[int] = 5
+_LOCKOUT_DURATION: Final[float] = 30.0  # seconds
+_BACKOFF_BASE: Final[float] = 0.5  # seconds
+_BACKOFF_MULTIPLIER: Final[float] = 2.0
+
+# Thread-safe storage for failed attempts
+_failed_attempts: Dict[str, List[float]] = {}
+_attempts_lock = threading.Lock()
 
 
 def _try_import_argon2() -> Tuple[Callable[..., bytes], Any, int]:
@@ -51,19 +67,76 @@ def _try_import_argon2() -> Tuple[Callable[..., bytes], Any, int]:
     Lazy import for argon2.low_level; returns (hash_secret_raw, Type, version).
     Raises ImportError if argon2-cffi is unavailable.
     """
-    from argon2.low_level import Type, hash_secret_raw  # type: ignore[import]
+    from argon2.low_level import Type, hash_secret_raw
 
-    return hash_secret_raw, Type, 19
+    return hash_secret_raw, Type, _ARGON2_VERSION
 
 
-class PasswordHasher(HashingProtocol):
+def _check_rate_limit(identifier: str) -> None:
+    """
+    Check rate limit for password verification attempts.
+
+    Args:
+        identifier: unique identifier (e.g., username or session ID).
+
+    Raises:
+        HashSchemeError: if rate limit exceeded.
+    """
+    now = time.time()
+
+    with _attempts_lock:
+        attempts = _failed_attempts.get(identifier, [])
+        # Clean old attempts (> lockout duration)
+        attempts = [t for t in attempts if now - t < _LOCKOUT_DURATION]
+
+        if len(attempts) >= _MAX_FAILED_ATTEMPTS:
+            # Calculate exponential backoff
+            last_attempt = max(attempts)
+            excess = len(attempts) - _MAX_FAILED_ATTEMPTS
+            wait_time = _BACKOFF_BASE * (_BACKOFF_MULTIPLIER**excess)
+            elapsed = now - last_attempt
+
+            if elapsed < wait_time:
+                remaining = int(wait_time - elapsed) + 1
+                _LOGGER.warning(
+                    "Rate limit exceeded for identifier: %s... (attempts: %d)",
+                    identifier[:8],
+                    len(attempts),
+                )
+                raise HashSchemeError(
+                    f"Слишком много неудачных попыток. Повторите через {remaining} сек."
+                )
+
+
+def _record_failed_attempt(identifier: str) -> None:
+    """Record failed password verification attempt."""
+    now = time.time()
+    with _attempts_lock:
+        if identifier not in _failed_attempts:
+            _failed_attempts[identifier] = []
+        _failed_attempts[identifier].append(now)
+
+
+def _clear_failed_attempts(identifier: str) -> None:
+    """Clear failed attempts on successful verification."""
+    with _attempts_lock:
+        _failed_attempts.pop(identifier, None)
+
+
+class PasswordHasher:
     """
     Password hashing provider supporting PBKDF2-HMAC-SHA256 and Argon2id.
+
+    Implements HashingProtocol interface (duck-typed Protocol):
+      - hash_password(password: str) -> str
+      - verify_password(password: str, hashed: str, identifier: Optional[str]) -> bool
+      - needs_rehash(hashed: str) -> bool
 
     Args:
         scheme: "pbkdf2" or "argon2id".
         iterations: PBKDF2 iterations (>= 100_000).
         salt_len: salt length (8..64).
+        rate_limit_enabled: enable rate limiting (default: True).
         pepper_provider: optional callable returning pepper bytes.
         pepper_version: optional version label embedded into hash when pepper is used.
         time_cost: Argon2id time cost (>= 2).
@@ -73,6 +146,7 @@ class PasswordHasher(HashingProtocol):
 
     __slots__ = (
         "_scheme",
+        "_rate_limit_enabled",
         "_iterations",
         "_salt_len",
         "_pepper_provider",
@@ -87,6 +161,7 @@ class PasswordHasher(HashingProtocol):
         scheme: str = "pbkdf2",
         *,
         iterations: int = 200_000,
+        rate_limit_enabled: bool = True,
         salt_len: int = 16,
         pepper_provider: Optional[Callable[[], bytes]] = None,
         pepper_version: Optional[str] = None,
@@ -102,6 +177,7 @@ class PasswordHasher(HashingProtocol):
             raise HashSchemeError("Salt length must be between 8 and 64 bytes")
 
         self._scheme = scheme
+        self._rate_limit_enabled = rate_limit_enabled
         self._salt_len = salt_len
         self._pepper_provider = pepper_provider
         self._pepper_version = pepper_version
@@ -143,6 +219,11 @@ class PasswordHasher(HashingProtocol):
         if not isinstance(password, str) or password == "":
             raise HashSchemeError("Password must be a non-empty string")
 
+        if len(password) > _MAX_PASSWORD_LEN:
+            raise HashSchemeError(
+                f"Password exceeds maximum length ({_MAX_PASSWORD_LEN} characters)"
+            )
+
         try:
             pw_bytes = self._peppered(password)
             salt = generate_salt(self._salt_len)
@@ -160,7 +241,9 @@ class PasswordHasher(HashingProtocol):
                 parts.append(base64.b64encode(salt).decode("ascii"))
                 parts.append(base64.b64encode(dk).decode("ascii"))
                 out = ":".join(parts)
-                _LOGGER.debug("Password hashed with PBKDF2.")
+                _LOGGER.info(
+                    "Password hashed (scheme=PBKDF2, iters=%d)", self._iterations
+                )
                 return out
 
             # Argon2id
@@ -183,7 +266,9 @@ class PasswordHasher(HashingProtocol):
             parts.append(base64.b64encode(salt).decode("ascii"))
             parts.append(base64.b64encode(dk).decode("ascii"))
             out = ":".join(parts)
-            _LOGGER.debug("Password hashed with Argon2id.")
+            _LOGGER.info(
+                "Password hashed (scheme=Argon2id, t=%d, m=%d)", self._t, self._m
+            )
             return out
 
         except ImportError as exc:
@@ -193,11 +278,36 @@ class PasswordHasher(HashingProtocol):
             _LOGGER.error("Password hashing failed: %s", exc.__class__.__name__)
             raise HashSchemeError("Hashing failed") from exc
 
-    def verify_password(self, password: str, hashed: str) -> bool:
+    def verify_password(
+        self,
+        password: str,
+        hashed: str,
+        identifier: Optional[str] = None,
+    ) -> bool:
+        """
+        Verify password with optional rate limiting.
+
+        Args:
+            password: plaintext password.
+            hashed: stored hash.
+            identifier: unique ID for rate limiting (e.g., username, session ID).
+
+        Returns:
+            True if password matches, False otherwise.
+
+        Raises:
+            HashSchemeError: if rate limit exceeded.
+        """
+        # Check rate limit before expensive hashing
+        if self._rate_limit_enabled and identifier:
+            _check_rate_limit(identifier)
+
         try:
             parts = hashed.split(":")
             if not parts:
                 return False
+
+            result = False
 
             if parts[0] == _SCHEME_PBKDF2:
                 # pbkdf2:sha256:<iters>[:pv=...]:<salt>:<dk>
@@ -211,11 +321,16 @@ class PasswordHasher(HashingProtocol):
                     pv_field = parts[3]
                     if not pv_field.startswith("pv="):
                         return False
+
+                    # Check for empty pepper version (malformed)
+                    stored_pv = pv_field[3:]
+                    if stored_pv == "":
+                        _LOGGER.warning("Empty pepper version in PBKDF2 hash")
+                        return False
+
                     if self._pepper_provider is None:
                         return False
-                    pw_bytes = self._peppered(
-                        password
-                    )  # will use current pepper; pv checked in needs_rehash
+                    pw_bytes = self._peppered(password)
                     salt_b64, dk_b64 = parts[4], parts[5]
                 else:
                     # legacy without pepper
@@ -227,9 +342,9 @@ class PasswordHasher(HashingProtocol):
                 candidate = hashlib.pbkdf2_hmac(
                     _HASH_NAME, pw_bytes, salt, iters, dklen=len(stored)
                 )
-                return secure_compare(candidate, stored)
+                result = secure_compare(candidate, stored)
 
-            if parts[0] == "argon2id":
+            elif parts[0] == "argon2id":
                 # argon2id:<t>:<m>:<p>[:pv=...][:v=19]:<salt>:<hash>
                 if len(parts) < 6:
                     return False
@@ -251,10 +366,8 @@ class PasswordHasher(HashingProtocol):
                     pw_bytes = password.encode("utf-8")
 
                 # second optional field could be v=19 (or pv if first was v)
-                # if first was not pv, pw_bytes already set above
                 if idx < len(parts) and parts[idx].startswith("v="):
                     saw_v = True
-                    # do not hard-fail here; verification will naturally fail if versions mismatch
                     idx += 1
                 elif not saw_pv and idx < len(parts) and parts[idx].startswith("pv="):
                     # order: v then pv (rare) — handle as well
@@ -286,10 +399,19 @@ class PasswordHasher(HashingProtocol):
                     type=Type.ID,
                     version=ver,
                 )
-                return secure_compare(candidate, stored)
+                result = secure_compare(candidate, stored)
 
-            return False
+            # Update rate limiting state
+            if identifier:
+                if result:
+                    _clear_failed_attempts(identifier)
+                elif self._rate_limit_enabled:
+                    _record_failed_attempt(identifier)
 
+            return result
+
+        except HashSchemeError:
+            raise  # re-raise rate limit errors
         except Exception:
             return False
 
@@ -318,9 +440,14 @@ class PasswordHasher(HashingProtocol):
                     if not pv_field.startswith("pv="):
                         return True
                     stored_pv = pv_field[3:]
-                    # NEW: пустое значение pv трактуем как malformed → needs_rehash = True
+
+                    # Validate pepper version (empty = malformed)
                     if stored_pv == "":
+                        _LOGGER.warning(
+                            "Empty pepper version in PBKDF2 hash (needs rehash)"
+                        )
                         return True
+
                     salt_b64 = parts[4]
                 else:
                     stored_pv = None
@@ -380,7 +507,7 @@ class PasswordHasher(HashingProtocol):
                 ):
                     if stored_pv != self._pepper_version:
                         return True
-                if stored_v is not None and stored_v != "19":
+                if stored_v is not None and stored_v != str(_ARGON2_VERSION):
                     return True
                 return False
 

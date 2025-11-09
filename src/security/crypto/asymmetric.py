@@ -1,21 +1,29 @@
-# -*- coding: utf-8 -*-
-"""
-Asymmetric crypto: Ed25519 (sign/verify), RSA (OAEP encrypt/decrypt, PSS sign/verify),
-ECDSA P-256 (sign/verify); PEM import/export, safe logging, and immutable keypair wrapper.
-"""
-
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Callable, Dict, Final, Optional
+from typing import Any, Callable, Dict, Final, Optional, Union
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 
-logger: Final = logging.getLogger("fxtext.security.asymmetric")
+logger: Final = logging.getLogger(__name__)
+
+# Type aliases for key types
+PrivateKeyTypes = Union[
+    ed25519.Ed25519PrivateKey,
+    rsa.RSAPrivateKey,
+    ec.EllipticCurvePrivateKey,
+    None,  # ✅ Может быть None при загрузке только public key
+]
+
+PublicKeyTypes = Union[
+    ed25519.Ed25519PublicKey,
+    rsa.RSAPublicKey,
+    ec.EllipticCurvePublicKey,
+]
 
 SUPPORTED_ALGORITHMS: Final[tuple[str, ...]] = ("ed25519", "rsa4096", "ecdsa_p256")
 DEFAULT_RSA_KEYSIZE: Final[int] = 4096
@@ -67,14 +75,16 @@ class AsymmetricKeyPair:
         >>> assert kp.verify(b"hello", sig)
     """
 
-    private_key: Any
-    public_key: Any
+    private_key: PrivateKeyTypes
+    public_key: PublicKeyTypes
     algorithm: str
 
     @staticmethod
     def generate(algorithm: str, key_size: Optional[int] = None) -> "AsymmetricKeyPair":
         _secure_log("Generating keypair: algorithm=%s", algorithm)
-        priv: Any
+        priv: Union[
+            ed25519.Ed25519PrivateKey, rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey
+        ]
         if algorithm == "ed25519":
             priv = ed25519.Ed25519PrivateKey.generate()
         elif algorithm == "rsa4096":

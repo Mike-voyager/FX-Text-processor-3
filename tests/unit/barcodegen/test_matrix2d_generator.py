@@ -711,9 +711,11 @@ def test_qr_with_custom_fill_and_back_colors() -> None:
     img = gen.render_image()
     assert isinstance(img, Image.Image)
 
+
 # ============================================================================
 # Финальные тесты для покрытия 95%+
 # ============================================================================
+
 
 @patch("qrcode.QRCode.make_image")
 def test_qr_make_image_returns_non_image(mock_make_image: Mock) -> None:
@@ -721,7 +723,9 @@ def test_qr_make_image_returns_non_image(mock_make_image: Mock) -> None:
     mock_make_image.return_value = "NOT_AN_IMAGE"
     gen = Matrix2DCodeGenerator(Matrix2DCodeType.QR, "TEST")
 
-    with pytest.raises(Matrix2DCodeGenError, match="QR code rendering did not produce a valid image"):
+    with pytest.raises(
+        Matrix2DCodeGenError, match="QR code rendering did not produce a valid image"
+    ):
         gen.render_image()
 
 
@@ -733,11 +737,7 @@ def test_qr_logo_with_valid_logo_image() -> None:
     logo = Image.new("RGBA", (50, 50), color="red")
 
     img = gen.render_image(
-        width=200,
-        height=200,
-        logo_image=logo,
-        logo_scale=0.2,
-        logo_round=True
+        width=200, height=200, logo_image=logo, logo_scale=0.2, logo_round=True
     )
 
     assert isinstance(img, Image.Image)
@@ -757,7 +757,7 @@ def test_qr_logo_with_valid_logo_path(tmp_path) -> None:
         height=200,
         logo_path=str(logo_path),
         logo_scale=0.25,
-        logo_round=False
+        logo_round=False,
     )
 
     assert isinstance(img, Image.Image)
@@ -808,7 +808,7 @@ def test_render_svg_output() -> None:
     result = gen.render_bytes(width=100, height=100, output_format="SVG")
 
     assert isinstance(result, bytes)
-    assert result.startswith(b'<svg')
+    assert result.startswith(b"<svg")
     assert b'xmlns="http://www.w3.org/2000/svg"' in result
 
 
@@ -849,7 +849,7 @@ def test_caption_with_custom_font_path_fallback() -> None:
         width=100,
         height=100,
         caption="Test Caption",
-        caption_font_path="/nonexistent/font.ttf"
+        caption_font_path="/nonexistent/font.ttf",
     )
 
     assert isinstance(img, Image.Image)

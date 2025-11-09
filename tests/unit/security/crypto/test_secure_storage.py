@@ -191,11 +191,11 @@ def test_read_file_io_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     def bad_open(*a: Any, **k: Any) -> Any:
         raise OSError("io")
 
-    monkeypatch.setattr("builtins.open", bad_open)
+    monkeypatch.setattr(Path, "open", bad_open)
 
     ks = FileEncryptedStorageBackend(str(p), ProtoCompatibleCipher(), lambda: b"K" * 32)
     with pytest.raises(StorageReadError):
-        _ = ks.load("x")
+        ks.load("x")
 
 
 def test_parse_json_invalid_root_and_records(tmp_path: Path) -> None:
@@ -252,22 +252,21 @@ def test_encrypt_failure_maps_to_write_error(tmp_path: Path) -> None:
 def test_atomic_write_os_replace_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # ensure cleanup branch in _atomically_write_db is exercised
     calls = {"replace": 0, "remove": 0, "perms": 0}
 
-    def bad_replace(src: str, dst: str) -> None:
+    def bad_replace(src: Path, dst: Path) -> None:
         calls["replace"] += 1
         raise OSError("fail")
 
-    def fake_remove(p: str) -> None:
+    def fake_remove(p: Path) -> None:
         calls["remove"] += 1
-        # emulate remove ok
 
     def fake_perms(p: str) -> None:
         calls["perms"] += 1
 
-    monkeypatch.setattr("os.replace", bad_replace)
-    monkeypatch.setattr("os.remove", lambda p: fake_remove(p))
+    # ✅ FIXED: Mock Path.replace() и Path.unlink()
+    monkeypatch.setattr(Path, "replace", bad_replace)
+    monkeypatch.setattr(Path, "unlink", fake_remove)
     monkeypatch.setattr(
         "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
@@ -277,10 +276,10 @@ def test_atomic_write_os_replace_failure(
     )
     with pytest.raises(StorageWriteError):
         ks.save("a", b"v")
-    # replace tried once, perms not called on failure, temp removed once
+
     assert calls["replace"] == 1
     assert calls["perms"] == 0
-    assert calls["remove"] >= 1
+    assert calls["remove"] == 1
 
 
 def test_key_provider_called_each_operation(tmp_path: Path) -> None:
@@ -553,23 +552,22 @@ def test_read_path_is_directory_maps_to_read_error(tmp_path: Path) -> None:
         ks.load("any")
 
 
-def test_save_overwrites_even_if_db_shape_is_unexpected(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_save_with_malformed_existing_db_recovers(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    ks = FileEncryptedStorageBackend(
-        str(tmp_path / "ks.json"), ProtoCompatibleCipher(), lambda: b"K" * 32
-    )
-    original_read = ks._read_db_checked  # type: ignore[attr-defined]
+    """Save operation recovers from malformed DB by rewriting."""
+    p = tmp_path / "ks.json"
 
-    def bad_db() -> MutableMapping[str, Mapping[str, str]]:
-        return {"a": {"n": "123", "c": "str"}}
+    p.write_text('{"item": {"n": "bad", "c": "data"}}', encoding="utf-8")
 
-    # Патчим только на время save
-    monkeypatch.setattr(ks, "_read_db_checked", bad_db)  # type: ignore[attr-defined]
-    ks.save("x", b"y")
-    monkeypatch.setattr(ks, "_read_db_checked", original_read)  # type: ignore[attr-defined]
+    ks = FileEncryptedStorageBackend(str(p), ProtoCompatibleCipher(), lambda: b"K" * 32)
 
-    assert ks.load("x") == b"y"
+    with caplog.at_level("ERROR"):
+        ks.save("new_item", b"value")
+
+    # Проверяем что новый item сохранён
+    loaded = ks.load("new_item")
+    assert loaded == b"value"
 
 
 def test_delete_invalid_name_raises(tmp_path: Path) -> None:
@@ -622,3 +620,47 @@ def test_load_ignores_extra_fields_in_record(tmp_path: Path) -> None:
         ks.load("missing")
     # а вот существующий ключ должен поддаться дешифровке
     _ = ks.load("a")
+
+
+def test_needs_reencryption_detects_old_version(tmp_path: Path) -> None:
+    """needs_reencryption returns True for old key versions."""
+    p = tmp_path / "ks.json"
+    ks = FileEncryptedStorageBackend(str(p), ProtoCompatibleCipher(), lambda: b"K" * 32)
+
+    # Сохраняем с текущей версией
+    ks.save("item1", b"data1")
+
+    # Эмулируем старую версию
+    db = ks._read_db_checked()
+    db["item1"]["v"] = 0  # Старая версия
+    ks._atomically_write_db(db)
+
+    assert ks.needs_reencryption("item1") is True
+
+
+def test_reencrypt_updates_to_new_key(tmp_path: Path) -> None:
+    """reencrypt() re-encrypts item with new key."""
+    p = tmp_path / "ks.json"
+    old_key = b"OLD" + b"K" * 29
+    new_key = b"NEW" + b"K" * 29
+
+    ks = FileEncryptedStorageBackend(str(p), ProtoCompatibleCipher(), lambda: old_key)
+    ks.save("item", b"secret")
+
+    ks.reencrypt("item", lambda: new_key)
+
+    ks._key_provider = lambda: new_key
+    assert ks.load("item") == b"secret"
+
+
+def test_reencrypt_all_processes_all_items(tmp_path: Path) -> None:
+    """reencrypt_all() re-encrypts all items."""
+    p = tmp_path / "ks.json"
+    old_key = b"K" * 32
+    new_key = b"N" * 32
+
+    ks = FileEncryptedStorageBackend(str(p), ProtoCompatibleCipher(), lambda: old_key)
+    ks.save("item1", b"data1")
+    ks.save("item2", b"data2")
+
+    ks.reencrypt_all(lambda: new_key)

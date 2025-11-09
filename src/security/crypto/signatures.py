@@ -10,6 +10,7 @@ Security & design:
 - Private key material uses 32-byte seed (Ed25519) in memory; best-effort zeroization applies only to bytearray inputs.
 - Optional 'context' performs deterministic domain separation via prehash: H = SHA-512("CTX:" + context + ":" + data),
   then sign/verify H instead of raw data. This does not implement Ed25519ph standard, but provides consistent separation.
+- Context length is limited to 64 KB to prevent DoS attacks.
 
 Public API (implements SigningProtocol):
 - sign(data, *, context) -> bytes
@@ -54,7 +55,6 @@ from security.crypto.exceptions import (
     SignatureGenerationError,
     SignatureVerificationError,
 )
-from security.crypto.protocols import SigningProtocol
 from security.crypto.utils import (
     generate_random_bytes,
     zero_memory,
@@ -68,6 +68,9 @@ _LOGGER: Final = logging.getLogger(__name__)
 
 BytesLike = Union[bytes, bytearray]
 PubFmt = Literal["raw", "hex", "pem"]
+
+# Security limits
+_MAX_CONTEXT_LEN: Final[int] = 64 * 1024  # 64 KB reasonable limit to prevent DoS
 
 
 class _KeystoreProto(Protocol):
@@ -88,8 +91,25 @@ class _CryptoServiceProto(Protocol):
 
 
 def _prehash_with_context(data: bytes, context: Optional[bytes]) -> bytes:
+    """
+    Apply domain separation via context prehashing.
+
+    Args:
+        data: message data to hash.
+        context: optional domain separation context.
+
+    Returns:
+        Prehashed message (SHA-512 if context provided, otherwise original data).
+
+    Raises:
+        SignatureError: if context exceeds maximum length.
+    """
     if context is None:
         return data
+
+    if len(context) > _MAX_CONTEXT_LEN:
+        raise SignatureError(f"Context too long (max {_MAX_CONTEXT_LEN} bytes)")
+
     h = hashlib.sha512()
     h.update(b"CTX:")
     h.update(context)
@@ -103,7 +123,23 @@ class _PublicKeyView:
     raw: bytes
 
 
-class Ed25519Signer(SigningProtocol):
+class Ed25519Signer:
+    """
+    Ed25519 digital signature provider with context support.
+
+    Implements SigningProtocol interface (duck-typed Protocol):
+      - sign(data: bytes, *, context: Optional[bytes]) -> bytes
+      - verify(data: bytes, signature: bytes, *, context: Optional[bytes]) -> bool
+      - public_key(fmt: Literal["raw", "hex", "pem"]) -> Union[bytes, str]
+      - get_fingerprint() -> str
+
+    Examples:
+        >>> signer = Ed25519Signer.generate()
+        >>> sig = signer.sign(b"message", context=b"domain1")
+        >>> assert signer.verify(b"message", sig, context=b"domain1")
+        >>> assert not signer.verify(b"message", sig, context=b"domain2")
+    """
+
     __slots__ = ("_priv", "_pub")
 
     def __init__(self, private_key: Optional[BytesLike] = None) -> None:
@@ -133,16 +169,16 @@ class Ed25519Signer(SigningProtocol):
                     pass
 
     @classmethod
-    def generate(cls) -> "Ed25519Signer":
+    def generate(cls) -> Ed25519Signer:
         seed = generate_random_bytes(32)
         return cls(seed)
 
     @classmethod
-    def from_private_bytes(cls, seed32: BytesLike) -> "Ed25519Signer":
+    def from_private_bytes(cls, seed32: BytesLike) -> Ed25519Signer:
         return cls(seed32)
 
     @classmethod
-    def from_public_bytes(cls, pub32: bytes) -> "Ed25519Signer":
+    def from_public_bytes(cls, pub32: bytes) -> Ed25519Signer:
         if not isinstance(pub32, (bytes, bytearray)) or len(pub32) != 32:
             raise SignatureError("Invalid Ed25519 public key length")
         obj = cls()

@@ -354,9 +354,9 @@ text
 - Graphics, barcodes, page control
 - Hardware control, charsets, effects
 
-**Barcode Generation** (2/2 modules, ~95% coverage)
+**Barcode Generation** (2/2 modules, ~92% coverage)
 - `barcode_generator.py` - 1D barcodes (EAN, Code128, etc.)
-- `matrix2d_generator.py` - QR, DataMatrix, PDF417
+- `matrix2d_generator.py` - QR, DataMatrix, PDF417, etc.
 
 **Security: Cryptography** (10/10 modules, ~95% coverage)
 - AES-256-GCM symmetric encryption

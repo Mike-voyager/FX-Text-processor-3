@@ -41,13 +41,15 @@ def test_roundtrip_with_separate_tag() -> None:
     assert pt == b"payload"
 
 
-def test_encrypt_uses_utils_rng_for_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
-    called: Dict[str, int] = {"n": 0}
+def test_encrypt_uses_utils_rng_for_full_nonce(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify encryption uses fully random 96-bit nonce from utils.generate_random_bytes."""
+    called: dict[str, int] = {"n": 0}
 
     def fake_rng(n: int) -> bytes:
         called["n"] += 1
-        assert n == 4
-        return b"\x00\x00\x00\x01"
+
+        assert n == 12, f"Expected 12 bytes for nonce, got {n}"
+        return b"\x00" * 12
 
     monkeypatch.setattr(
         "security.crypto.symmetric.generate_random_bytes", fake_rng, raising=True
@@ -55,12 +57,9 @@ def test_encrypt_uses_utils_rng_for_prefix(monkeypatch: pytest.MonkeyPatch) -> N
 
     key = b"\x02" * KEY_LEN
     cipher = SymmetricCipher()
-    nonce1, combined1 = cast(
-        Tuple[bytes, bytes], cipher.encrypt(key, b"a")
-    )  # NEW (avoid assigning to "_")
-    nonce2, combined2 = cast(Tuple[bytes, bytes], cipher.encrypt(key, b"b"))  # NEW
-    assert nonce1[:4] == nonce2[:4] == b"\x00\x00\x00\x01"
-    assert int.from_bytes(nonce2[4:], "big") == int.from_bytes(nonce1[4:], "big") + 1
+    nonce1, combined1 = cast(Tuple[bytes, bytes], cipher.encrypt(key, b"a"))
+
+    assert len(nonce1) == 12
     assert called["n"] == 1
 
 

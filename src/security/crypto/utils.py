@@ -29,8 +29,24 @@ _SMALL_APT_MIN_N: Final[int] = 32
 
 
 def generate_random_bytes(n: int) -> bytes:
+    """
+    Generate cryptographically secure random bytes with entropy checks.
+
+    Uses dual-source XOR (os.urandom + secrets.token_bytes) mixed via HKDF-SHA256
+    for defense-in-depth against RNG failures.
+
+    Args:
+        n: number of bytes to generate (1..10MiB).
+
+    Returns:
+        Random bytes of requested length.
+
+    Raises:
+        ValueError: if n is out of range or entropy checks fail.
+    """
     if not isinstance(n, int) or n <= 0 or n > _MAX_RANDOM_BYTES:
         raise ValueError("Requested random size must be in 1..10MiB")
+
     src1 = os.urandom(n)
     src2 = secrets.token_bytes(n)
     ikm = bytes(a ^ b for a, b in zip(src1, src2))
@@ -39,6 +55,8 @@ def generate_random_bytes(n: int) -> bytes:
         algorithm=hashes.SHA256(), length=n, salt=salt, info=b"FXTP3-UTILS-RNG-v1"
     )
     out = hkdf.derive(ikm)
+
+    # Entropy quality checks
     _rct_apt_checks(out)
     if n >= _ENTROPY_SAMPLE_THRESHOLD:
         h = _shannon_entropy(out)
@@ -46,10 +64,23 @@ def generate_random_bytes(n: int) -> bytes:
             _LOGGER.warning(
                 "Entropy check low (%.2f bits/byte) on %d-byte sample; continuing", h, n
             )
+
+    _LOGGER.debug(
+        "Generated %d random bytes (entropy: %.2f bits/byte)", n, _shannon_entropy(out)
+    )
     return out
 
 
 def _rct_apt_checks(data: bytes) -> None:
+    """
+    Repetition Count Test (RCT) and Adaptive Proportion Test (APT) sanity checks.
+
+    Args:
+        data: random bytes to check.
+
+    Raises:
+        ValueError: if data fails basic entropy sanity checks.
+    """
     if not data:
         raise ValueError("Empty data for entropy checks")
     if all(b == data[0] for b in data):
@@ -62,6 +93,15 @@ def _rct_apt_checks(data: bytes) -> None:
 
 
 def _shannon_entropy(data: bytes) -> float:
+    """
+    Calculate Shannon entropy in bits per byte.
+
+    Args:
+        data: bytes to analyze.
+
+    Returns:
+        Entropy value (0.0 to 8.0 bits/byte).
+    """
     if not data:
         return 0.0
     freq: Counter[int] = Counter(data)
@@ -74,44 +114,134 @@ def _shannon_entropy(data: bytes) -> float:
 
 
 def generate_salt(length: int) -> bytes:
+    """
+    Generate cryptographic salt.
+
+    Args:
+        length: salt length in bytes (8..64).
+
+    Returns:
+        Random salt bytes.
+
+    Raises:
+        ValueError: if length out of valid range.
+    """
     if not isinstance(length, int) or length < _MIN_SALT or length > _MAX_SALT:
         raise ValueError("Salt length must be between 8 and 64 bytes")
     return generate_random_bytes(length)
 
 
 def zero_memory(buf: Optional[bytearray]) -> None:
+    """
+    Best-effort zeroization of mutable buffer.
+
+    Args:
+        buf: bytearray to wipe (None is silently ignored).
+
+    Notes:
+        - Only works on bytearray (mutable); bytes cannot be wiped.
+        - Provides no guarantees against compiler optimizations or swap.
+        - Use hardware security modules (HSM) for high-security key material.
+    """
     if buf is None:
         return
     try:
         for i in range(len(buf)):
             buf[i] = 0
-    except Exception:
-        pass
+    except (TypeError, AttributeError) as e:
+        # Expected for immutable types
+        _LOGGER.debug("zero_memory skip (immutable): %s", e.__class__.__name__)
+    except Exception as e:
+        # Unexpected errors should be logged (not secrets, just error type)
+        _LOGGER.warning("zero_memory failed: %s", e.__class__.__name__)
 
 
 def secure_compare(a: Union[bytes, bytearray], b: Union[bytes, bytearray]) -> bool:
+    """
+    Constant-time bytes comparison.
+
+    Args:
+        a: first bytes sequence.
+        b: second bytes sequence.
+
+    Returns:
+        True if sequences are equal, False otherwise.
+    """
     return hmac.compare_digest(bytes(a), bytes(b))
 
 
 def b64_encode(data: bytes) -> str:
+    """
+    Encode bytes to base64 ASCII string.
+
+    Args:
+        data: bytes to encode.
+
+    Returns:
+        Base64 string (no newlines).
+    """
     return base64.b64encode(data).decode("ascii")
 
 
 def b64_decode(text: str) -> bytes:
+    """
+    Decode base64 ASCII string to bytes.
+
+    Args:
+        text: base64 string.
+
+    Returns:
+        Decoded bytes.
+
+    Raises:
+        ValueError: on invalid base64.
+    """
     return base64.b64decode(text.encode("ascii"), validate=True)
 
 
 def hex_encode(data: bytes) -> str:
+    """
+    Encode bytes to hexadecimal string.
+
+    Args:
+        data: bytes to encode.
+
+    Returns:
+        Lowercase hex string.
+    """
     return data.hex()
 
 
 def hex_decode(text: str) -> bytes:
+    """
+    Decode hexadecimal string to bytes.
+
+    Args:
+        text: hex string (case-insensitive).
+
+    Returns:
+        Decoded bytes.
+
+    Raises:
+        ValueError: on invalid hex.
+    """
     return bytes.fromhex(text)
 
 
 def validate_key_length(
     key: Union[bytes, bytearray], expected_length: int, name: str = "key"
 ) -> None:
+    """
+    Validate key length.
+
+    Args:
+        key: key material to validate.
+        expected_length: expected length in bytes.
+        name: key name for error messages.
+
+    Raises:
+        ValueError: if length mismatch.
+    """
     if len(key) != expected_length:
         raise ValueError(
             f"Invalid {name} length: {len(key)} bytes, expected {expected_length}"
@@ -119,6 +249,16 @@ def validate_key_length(
 
 
 def validate_nonce_length(nonce: Union[bytes, bytearray], expected_length: int) -> None:
+    """
+    Validate nonce length.
+
+    Args:
+        nonce: nonce to validate.
+        expected_length: expected length in bytes.
+
+    Raises:
+        ValueError: if length mismatch.
+    """
     if len(nonce) != expected_length:
         raise ValueError(
             f"Invalid nonce length: {len(nonce)} bytes, expected {expected_length}"
@@ -126,11 +266,32 @@ def validate_nonce_length(nonce: Union[bytes, bytearray], expected_length: int) 
 
 
 def validate_non_empty(data: Union[bytes, bytearray], name: str = "data") -> None:
+    """
+    Validate data is non-empty.
+
+    Args:
+        data: bytes to validate.
+        name: data name for error messages.
+
+    Raises:
+        ValueError: if data is empty.
+    """
     if not data:
         raise ValueError(f"{name} cannot be empty")
 
 
 def set_secure_file_permissions(filepath: str) -> None:
+    """
+    Set strict file permissions (0600 on POSIX, equivalent on Windows).
+
+    Args:
+        filepath: path to file.
+
+    Notes:
+        - POSIX: chmod 0600 (owner read/write only)
+        - Windows: best-effort via os.chmod (limited effect)
+        - Logs warning on failure (non-fatal)
+    """
     try:
         import stat
 

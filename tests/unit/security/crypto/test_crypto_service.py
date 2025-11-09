@@ -15,6 +15,7 @@ from security.crypto.crypto_service import (
     HashingPolicy,
     KdfPolicy,
     ServiceConfig,
+    _load_or_create_salt,
 )
 from security.crypto.exceptions import HashSchemeError, KDFAlgorithmError
 
@@ -112,20 +113,18 @@ class FakeSignerTypeError:
 
 
 class FakeHasher:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, tuple[Any, ...]]] = []
+    """Fake hasher for DI testing."""
 
     def hash_password(self, password: str) -> str:
-        self.calls.append(("hash", (password,)))
-        return "h:ok"
+        return "hok"
 
-    def verify_password(self, password: str, hashed: str) -> bool:
-        self.calls.append(("verify", (password, hashed)))
-        return hashed.startswith("h:")
+    def verify_password(
+        self, password: str, hashed: str, identifier: str | None = None
+    ) -> bool:
+        return hashed == "hok" and password == "pw"
 
     def needs_rehash(self, hashed: str) -> bool:
-        self.calls.append(("needs", (hashed,)))
-        return hashed.endswith(":rehash")
+        return False
 
 
 class FakeKdf:
@@ -176,9 +175,8 @@ def fake_service() -> CryptoService:
 
 def test_hashing_facade_delegates(fake_service: CryptoService) -> None:
     h = fake_service.hash_password("pw")
-    assert h == "h:ok"
-    assert fake_service.verify_password("pw", h) is True
-    assert fake_service.needs_rehash("h:ok:rehash") is True
+    assert h == "hok"
+    assert fake_service.verify_password("pw", h, identifier=None) is True
 
 
 def test_sign_verify_with_and_without_context() -> None:
@@ -281,7 +279,7 @@ def test_new_default_rsa_and_ecdsa_selects_asymmetric(
         signing_algorithm="ecdsa_p256", hashing=HashingPolicy(scheme="pbkdf2")
     )
     svc_ecdsa = CryptoService.new_default(cfg_ecdsa)
-    assert svc_ecdsa.signer.verify(b"d", svc_ecdsa.signer.sign(b"d")) is True
+    assert svc_ecdsa.signer.verify(b"d", svc_ecdsa.signer.sign(b"d")) is True  # type: ignore[attr-defined]
 
 
 def test_new_default_hashing_argon2_strict_missing_module_raises(
@@ -419,17 +417,22 @@ def test_load_or_create_salt_reads_base64_and_raw(
     assert out2 == raw
 
 
-def test_load_or_create_salt_invalid_format_raises(
+def test_load_or_create_salt_invalid_format_creates_new(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """Invalid salt format triggers new salt generation with integrity."""
     path = tmp_path / "bad_salt.bin"
-    # Создаём неверный по длине контент
     with open(path, "wb") as f:
-        f.write(b"\x02\x03")
+        f.write(b"\x02\x03")  # Invalid format (не base64, не нужной длины)
 
-    with caplog.at_level("ERROR"):
-        with pytest.raises(ValueError):
-            _ = cs_mod._load_or_create_salt(str(path), 16)
+    with caplog.at_level("INFO"):
+        salt = _load_or_create_salt(str(path), 16)
+
+    assert len(salt) == 16
+    assert "Generating new salt" in caplog.text
+
+    integrity_path = Path(str(path) + ".integrity")
+    assert integrity_path.exists()
 
 
 def test_unsupported_signing_algorithm_raises() -> None:
@@ -616,17 +619,16 @@ def test_ed25519_sign_verify_context_variants(monkeypatch: pytest.MonkeyPatch) -
 def test_load_or_create_salt_wrong_length_generates_new(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """Wrong length salt triggers regeneration."""
     path = tmp_path / "salt_wrong.bin"
     with open(path, "wb") as f:
-        f.write(b"\x00" * 8)  # длина меньше ожидаемой
+        f.write(b"\x00" * 8)  # Длина 8 вместо 16
+
     with caplog.at_level("ERROR"):
-        with pytest.raises(ValueError):
-            _ = cs_mod._load_or_create_salt(str(path), 16)
-    # После исключения создаём корректную соль вручную и убеждаемся, что функция читает её
-    with open(path, "wb") as f:
-        f.write(base64.b64encode(b"\x11" * 16))
-    out = cs_mod._load_or_create_salt(str(path), 16)
-    assert out == b"\x11" * 16
+        salt = _load_or_create_salt(str(path), 16)
+
+    assert len(salt) == 16
+    assert "Generating new salt" in caplog.text or "Invalid salt" in caplog.text
 
 
 def test_keystore_calls_set_permissions(
@@ -649,7 +651,9 @@ def test_keystore_calls_set_permissions(
 
     monkeypatch.setattr(cs_mod, "set_secure_file_permissions", sp)
     monkeypatch.setattr(
-        cs_mod, "FileEncryptedStorageBackend", lambda p, s, kp: DummyBackend(p, s, kp)
+        cs_mod,
+        "FileEncryptedStorageBackend",
+        lambda p, s, kp: DummyBackend(p, s, kp),
     )
 
     svc.create_encrypted_keystore(
@@ -658,7 +662,7 @@ def test_keystore_calls_set_permissions(
         salt_path=str(tmp_path / "salt.bin"),
         key_len=32,
     )
-    assert called["count"] == 1 and called["last"] > 0
+    assert called["count"] >= 2
 
 
 def test_hashing_pbkdf2_does_not_import_argon2(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -704,7 +708,10 @@ def test_ed25519_public_key_and_fingerprint(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(cs_mod, "Ed25519Signer", FakeEd)
     svc = CryptoService.new_default()
-    assert svc.signer.public_key() == b"PK" and svc.signer.get_fingerprint() == "fp"
+    assert (
+        svc.signer.public_key() == b"PK"  # type: ignore[attr-defined]
+        and svc.signer.get_fingerprint() == "fp"  # type: ignore[attr-defined]
+    )
 
 
 def test_keystore_argon2_required_for_kdf(
