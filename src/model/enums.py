@@ -313,17 +313,27 @@ class BarcodeType(str, Enum):
 
 
 class Matrix2DCodeType(str, Enum):
+    """Поддерживаемые 2D штрихкоды."""
+
     QR = "qr"
     DATAMATRIX = "datamatrix"
     PDF417 = "pdf417"
-    # MICRO_QR = "micro_qr"  # Добавить, если появится поддержка/пакет
+    AZTEC = "aztec"
+    MAXICODE = "maxicode"
+    DOTCODE = "dotcode"
+    MICROQR = "microqr"
+    RMQR = "rmqr"
 
     def localized_name(self, lang: str = "ru") -> str:
         names = {
             "qr": {"ru": "QR код", "en": "QR code"},
             "datamatrix": {"ru": "DataMatrix", "en": "DataMatrix"},
             "pdf417": {"ru": "PDF417", "en": "PDF417"},
-            # "micro_qr": {"ru": "Микро-QR", "en": "Micro QR"},
+            "aztec": {"ru": "Aztec код", "en": "Aztec code"},
+            "maxicode": {"ru": "MaxiCode", "en": "MaxiCode"},
+            "dotcode": {"ru": "DotCode", "en": "DotCode"},
+            "microqr": {"ru": "Micro QR", "en": "Micro QR"},
+            "rmqr": {"ru": "Прямоугольный Micro QR", "en": "Rectangular Micro QR"},
         }
         return names[self.value][lang] if lang in names[self.value] else self.value
 
@@ -492,6 +502,7 @@ class ImagePosition(str, Enum):
     def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
         return self.value
 
+
 class FileExtension(str, Enum):
     """
     Расширения файлов FX Super.
@@ -501,31 +512,31 @@ class FileExtension(str, Enum):
     """
 
     # Документы
-    DOCUMENT = ".fxsd"              # FX Super Document (незашифрованный)
-    DOCUMENT_ENC = ".fxsd.enc"      # FX Super Document Encrypted
+    DOCUMENT = ".fxsd"  # FX Super Document (незашифрованный)
+    DOCUMENT_ENC = ".fxsd.enc"  # FX Super Document Encrypted
 
     # Шаблоны
-    TEMPLATE = ".fxstpl"            # FX Super Template
+    TEMPLATE = ".fxstpl"  # FX Super Template
 
     # Защищённые бланки
-    BLANK = ".fxsblank"             # FX Super Blank (всегда зашифрован)
+    BLANK = ".fxsblank"  # FX Super Blank (всегда зашифрован)
 
     # Безопасность
-    KEYSTORE = ".fxskeystore.enc"   # FX Super Keystore
-    SIGNATURE = ".fxssig"           # FX Super Signature
+    KEYSTORE = ".fxskeystore.enc"  # FX Super Keystore
+    SIGNATURE = ".fxssig"  # FX Super Signature
 
     # Конфигурация
-    CONFIG = ".fxsconfig"           # FX Super Config
+    CONFIG = ".fxsconfig"  # FX Super Config
 
     # Бэкапы
-    BACKUP = ".fxsbackup"           # FX Super Backup
+    BACKUP = ".fxsbackup"  # FX Super Backup
 
     # Экспорт
     EXPORT_BUNDLE = ".fxsbundle.enc"  # FX Super Bundle (зашифрованный)
 
     # ESC/P
-    ESCP_RAW = ".escp"              # ESC/P Raw Commands
-    ESCP_SCRIPT = ".escps"          # ESC/P Script
+    ESCP_RAW = ".escp"  # ESC/P Raw Commands
+    ESCP_SCRIPT = ".escps"  # ESC/P Script
 
 
 class FileType(str, Enum):

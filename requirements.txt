@@ -24,7 +24,7 @@ lxml>=4.9.0
 # Barcode/QR
 qrcode>=7.4.2
 python-barcode>=0.15.1
-pylibdmtx>=0.1.8
+treepoem>=3.0.0
 
 # Database (optional)
 # SQLAlchemy>=2.0.0

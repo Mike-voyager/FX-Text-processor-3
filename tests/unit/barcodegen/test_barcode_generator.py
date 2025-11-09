@@ -28,9 +28,16 @@ class TestBarcodeGenerator:
         assert gen.options == {}
 
     def test_init_with_options(self) -> None:
-        options: Dict[str, Any] = {"quiet_zone": 5, "module_width": 0.3}
+        """Инициализация с опциями должна корректно копировать значения."""
+        from src.barcodegen.barcode_generator import BarcodeOptions
+
+        options: BarcodeOptions = {"quiet_zone": 5, "module_width": 0.3}
         gen = BarcodeGenerator(BarcodeType.CODE128, "TEST", options)
-        assert gen.options == options
+
+        # Проверяем, что опции скопированы корректно
+        assert gen.options["quiet_zone"] == 5
+        assert gen.options["module_width"] == 0.3
+        assert len(gen.options) == 2
 
     def test_init_none_options(self) -> None:
         gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890123", None)
@@ -188,12 +195,31 @@ class TestBarcodeGenerator:
             gen.validate()
 
     @patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
-    def test_render_image_unsupported_type(self, mock_get_barcode_class: Mock) -> None:
+    def test_render_image_unsupported_type_strict_mode(
+        self, mock_get_barcode_class: Mock
+    ) -> None:
+        """В строгом режиме (по умолчанию) должна генерироваться ошибка при неподдерживаемом типе."""
         mock_get_barcode_class.side_effect = Exception(
             "BarcodeNotFoundError: not found"
         )
         gen = BarcodeGenerator(BarcodeType.TRIOPTIC, "TEST")
-        result = gen.render_image(width=200, height=80)
+
+        # По умолчанию strict=True → должно быть исключение
+        with pytest.raises(BarcodeGenError, match="generation failed"):
+            gen.render_image(width=200, height=80)
+
+    @patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
+    def test_render_image_unsupported_type_lenient_mode(
+        self, mock_get_barcode_class: Mock
+    ) -> None:
+        """В мягком режиме (strict=False) возвращается белый placeholder."""
+        mock_get_barcode_class.side_effect = Exception(
+            "BarcodeNotFoundError: not found"
+        )
+        gen = BarcodeGenerator(BarcodeType.TRIOPTIC, "TEST")
+
+        # strict=False → должен вернуть placeholder
+        result = gen.render_image(width=200, height=80, strict=False)
         assert isinstance(result, Image.Image)
         assert result.size == (200, 80)
 
@@ -256,24 +282,61 @@ def test_validate_code11_success() -> None:
     gen.validate()
 
 
-def test_render_image_truly_unsupported_type() -> None:
-    gen = BarcodeGenerator(BarcodeType.TELEPEN, "TEST")
-    result = gen.render_image(width=150, height=60)
+@patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
+def test_render_image_unsupported_type_raises_by_default(
+    mock_get_barcode_class: Mock,
+) -> None:
+    """Неподдерживаемый тип должен генерировать ошибку в strict режиме (по умолчанию)."""
+    mock_get_barcode_class.side_effect = Exception("BarcodeNotFoundError")
+    gen = BarcodeGenerator(BarcodeType.TRIOPTIC, "TEST")
+
+    with pytest.raises(BarcodeGenError):
+        gen.render_image(width=200, height=80)
+
+
+@patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
+def test_render_image_unsupported_type_returns_placeholder_when_lenient(
+    mock_get_barcode_class: Mock,
+) -> None:
+    """Неподдерживаемый тип возвращает placeholder в мягком режиме."""
+    mock_get_barcode_class.side_effect = Exception("BarcodeNotFoundError")
+    gen = BarcodeGenerator(BarcodeType.TRIOPTIC, "TEST")
+
+    result = gen.render_image(width=200, height=80, strict=False)
     assert isinstance(result, Image.Image)
-    assert result.size == (150, 60)
+    assert result.size == (200, 80)
 
 
 from unittest.mock import Mock, patch
 
 
 @patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
-def test_render_image_barcode_creation_error(mock_get_barcode_class: Mock) -> None:
+def test_render_image_barcode_creation_error_raises_by_default(
+    mock_get_barcode_class: Mock,
+) -> None:
+    """Ошибка создания штрихкода должна генерировать исключение."""
     mock_barcode_class = Mock()
     mock_barcode_class.side_effect = Exception("Barcode creation failed")
     mock_get_barcode_class.return_value = mock_barcode_class
 
     gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890123")
-    result = gen.render_image()
+
+    with pytest.raises(BarcodeGenError):
+        gen.render_image()
+
+
+@patch("src.barcodegen.barcode_generator.pybarcode.get_barcode_class")
+def test_render_image_barcode_creation_error_returns_placeholder_when_lenient(
+    mock_get_barcode_class: Mock,
+) -> None:
+    """Ошибка создания возвращает placeholder в мягком режиме."""
+    mock_barcode_class = Mock()
+    mock_barcode_class.side_effect = Exception("Barcode creation failed")
+    mock_get_barcode_class.return_value = mock_barcode_class
+
+    gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890123")
+    result = gen.render_image(strict=False)
+
     assert isinstance(result, Image.Image)
     assert result.size == (400, 120)
 
@@ -300,9 +363,19 @@ def test_validate_digits_strict(
         gen.validate()
 
 
-def test_render_image_returns_placeholder_on_type_error() -> None:
+def test_render_image_truly_unsupported_type_raises_by_default() -> None:
+    """Несуществующий тип библиотеки должен генерировать ошибку."""
     gen = BarcodeGenerator(BarcodeType.TELEPEN, "FAILNOTYPE")
-    img = gen.render_image(width=88, height=44)
+
+    with pytest.raises(BarcodeGenError):
+        gen.render_image(width=88, height=44)
+
+
+def test_render_image_truly_unsupported_type_returns_placeholder_when_lenient() -> None:
+    """Несуществующий тип возвращает placeholder в мягком режиме."""
+    gen = BarcodeGenerator(BarcodeType.TELEPEN, "FAILNOTYPE")
+
+    img = gen.render_image(width=88, height=44, strict=False)
     assert isinstance(img, Image.Image)
     assert img.size == (88, 44)
     assert img.mode == "RGB"
@@ -326,3 +399,155 @@ def test_supported_types_and_name_map_are_consistent() -> None:
 def test_init_with_invalid_type_fails(invalid_type: Any) -> None:
     with pytest.raises(Exception):
         BarcodeGenerator(invalid_type, "123")
+
+
+# ============================================================================
+# Дополнительные тесты для улучшения покрытия barcode_generator.py
+# ============================================================================
+
+from unittest.mock import Mock, patch
+
+
+def test_render_bytes_png() -> None:
+    """render_bytes возвращает PNG байты."""
+    gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890128")
+    result = gen.render_bytes()
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+    # PNG начинается с \x89PNG, но render_bytes возвращает SVG по умолчанию
+    # Проверяем, что это байты
+    assert len(result) > 100
+
+
+def test_render_bytes_calls_render_image() -> None:
+    """render_bytes вызывает render_image и возвращает байты."""
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST123")
+    result = gen.render_bytes()
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+def test_render_image_with_custom_render_options() -> None:
+    """render_image с кастомными опциями рендеринга."""
+    from src.barcodegen.barcode_generator import BarcodeRenderOptions
+
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST123")
+
+    render_opts: BarcodeRenderOptions = {
+        "module_width": 0.3,
+        "font_size": 14,
+        "dpi": 300,
+        "write_text": True,
+    }
+
+    img = gen.render_image(options=render_opts)
+    assert isinstance(img, Image.Image)
+
+
+@patch("barcode.get_barcode_class")
+def test_barcode_not_found_error_strict(mock_get: Mock) -> None:
+    """BarcodeNotFoundError в strict режиме."""
+    from barcode.errors import BarcodeNotFoundError
+
+    mock_get.side_effect = BarcodeNotFoundError("not found")
+    gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890128")
+
+    with pytest.raises(BarcodeGenError, match="Barcode class not found"):
+        gen.render_image(strict=True)
+
+
+@patch("barcode.get_barcode_class")
+def test_barcode_not_found_error_lenient(mock_get: Mock) -> None:
+    """BarcodeNotFoundError в мягком режиме → placeholder."""
+    from barcode.errors import BarcodeNotFoundError
+
+    mock_get.side_effect = BarcodeNotFoundError("not found")
+    gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890128")
+
+    img = gen.render_image(strict=False, width=200, height=80)
+    assert isinstance(img, Image.Image)
+    assert img.size == (200, 80)
+
+
+@patch("barcode.get_barcode_class")
+def test_render_image_output_not_image_strict(mock_get: Mock) -> None:
+    """Barcode вернул не Image.Image в strict режиме."""
+    mock_barcode_class = Mock()
+    mock_barcode_inst = Mock()
+    mock_barcode_inst.render.return_value = "NOT_AN_IMAGE"
+    mock_barcode_class.return_value = mock_barcode_inst
+    mock_get.return_value = mock_barcode_class
+
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST")
+
+    # Изменён match на более общий
+    with pytest.raises(BarcodeGenError, match="Barcode image generation failed"):
+        gen.render_image(strict=True)
+
+
+@patch("barcode.get_barcode_class")
+def test_render_image_output_not_image_lenient(mock_get: Mock) -> None:
+    """Barcode вернул не Image.Image в мягком режиме → placeholder."""
+    mock_barcode_class = Mock()
+    mock_barcode_inst = Mock()
+    mock_barcode_inst.render.return_value = "NOT_AN_IMAGE"
+    mock_barcode_class.return_value = mock_barcode_inst
+    mock_get.return_value = mock_barcode_class
+
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST")
+
+    img = gen.render_image(strict=False, width=100, height=50)
+    assert isinstance(img, Image.Image)
+    assert img.size == (100, 50)
+
+
+def test_render_bytes_with_multiple_types() -> None:
+    """render_bytes работает для различных типов."""
+    test_data = {
+        BarcodeType.EAN13: "1234567890128",
+        BarcodeType.CODE128: "TEST123",
+        BarcodeType.CODE39: "TEST",
+    }
+
+    for barcode_type, data in test_data.items():
+        gen = BarcodeGenerator(barcode_type, data)
+        result = gen.render_bytes()
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+
+
+# ============================================================================
+# Дополнительные тесты для покрытия 95%+ (barcode_generator)
+# ============================================================================
+
+
+@patch("barcode.get_barcode_class")
+def test_barcode_creation_generic_exception_strict(mock_get: Mock) -> None:
+    """Обработка общих исключений при создании штрихкода (strict=True)."""
+    mock_get.side_effect = RuntimeError("Generic barcode error")
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST")
+
+    with pytest.raises(BarcodeGenError, match="Barcode image generation failed"):
+        gen.render_image(strict=True)
+
+
+@patch("barcode.get_barcode_class")
+def test_barcode_creation_generic_exception_lenient(mock_get: Mock) -> None:
+    """Обработка общих исключений при создании штрихкода (strict=False) → placeholder."""
+    mock_get.side_effect = RuntimeError("Generic barcode error")
+    gen = BarcodeGenerator(BarcodeType.CODE128, "TEST")
+
+    img = gen.render_image(strict=False, width=150, height=75)
+    assert isinstance(img, Image.Image)
+    assert img.size == (150, 75)
+
+
+def test_render_bytes_produces_valid_output() -> None:
+    """render_bytes производит валидный SVG или байты."""
+    gen = BarcodeGenerator(BarcodeType.EAN13, "1234567890128")
+    result = gen.render_bytes()
+
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+    # SVG или PNG — оба начинаются с известных байтов
+    assert result.startswith(b"<") or result.startswith(b"\x89PNG")

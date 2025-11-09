@@ -1,47 +1,57 @@
 """
-RU: Генерация 2D-штрихкодов (QR, DataMatrix, PDF417) с поддержкой GS1, логотипа
-EN: 2D barcode (QR, DataMatrix, PDF417) generator with GS1, logo and caption support
+RU: Генерация 2D-штрихкодов (QR, DataMatrix, PDF417, Aztec, MaxiCode, DotCode, MicroQR, rMQR) с поддержкой GS1, логотипа
+EN: 2D barcode generator (QR, DataMatrix, PDF417, Aztec, MaxiCode, DotCode, MicroQR, rMQR) with GS1, logo and caption support
 
 Provides:
+- QR, DataMatrix, PDF417, Aztec, MaxiCode, DotCode, MicroQR, rMQR image generation
+- GS1 payload processing
+- Logo overlays, captions
+- Batch and async generation
+- Typed public API
 
-QR, DataMatrix, PDF417 image generation
-
-GS1 payload processing
-
-Logo overlays, captions
-
-Batch and async generation
-
-Typed public API
-
-Requirements: Pillow, qrcode, pdf417gen, pylibdmtx (for DataMatrix)
+Requirements: Pillow, qrcode, pdf417gen, treepoem (для DataMatrix, Aztec, MaxiCode, DotCode, MicroQR, rMQR + Ghostscript)
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Awaitable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Final, List, Optional, Set, Tuple, Union
 
-import numpy as np
 import pdf417gen
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
+from PIL.ImageFont import FreeTypeFont
+from PIL.ImageFont import ImageFont as PILImageFont
 from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
 
 from src.model.enums import Matrix2DCodeType
 
 # Pillow compatibility layer (L -> new Resampling)
 try:
-    from PIL.Image import Resampling  # type: ignore
+    from PIL.Image import Resampling
 
     RESAMPLE_LANCZOS = Resampling.LANCZOS
     RESAMPLE_BOX = Resampling.BOX
 except ImportError:
-    RESAMPLE_LANCZOS = Image.LANCZOS  # type: ignore
-    RESAMPLE_BOX = Image.BOX  # type: ignore
+    RESAMPLE_LANCZOS = Image.LANCZOS  # type: ignore[assignment]
+    RESAMPLE_BOX = Image.BOX  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "Matrix2DCodeGenerator",
+    "Matrix2DCodeGenError",
+]
+
+# Максимальные размеры для предотвращения исчерпания памяти
+# ~100MB для RGB изображения при максимальных размерах
+MAX_IMAGE_WIDTH: Final[int] = 10000
+MAX_IMAGE_HEIGHT: Final[int] = 10000
+
+# Константы разметки подписи
+CAPTION_VERTICAL_SPACING: Final[int] = 8  # Полный вертикальный интервал для подписи
+CAPTION_TOP_MARGIN: Final[int] = 4  # Расстояние между штрихкодом и текстом подписи
 
 
 class Matrix2DCodeGenError(Exception):
@@ -49,11 +59,10 @@ class Matrix2DCodeGenError(Exception):
 
 
 class Matrix2DCodeGenerator:
-    """2D-code generator for QR/DataMatrix/PDF417 with rich rendering options.
+    """2D-code generator for QR/DataMatrix/PDF417/Aztec/MaxiCode/DotCode/MicroQR/rMQR with rich rendering options.
 
-    text
     Args:
-        barcode_type: Barcode type (QR, DataMatrix, PDF417).
+        barcode_type: Barcode type (QR, DataMatrix, PDF417, Aztec, MaxiCode, DotCode, MicroQR, rMQR).
         data: Source data to encode.
         options: Rendering options (interpreted per barcode type).
         gs1_mode: Enable GS1 prefix preprocessing.
@@ -61,11 +70,18 @@ class Matrix2DCodeGenerator:
     Examples:
         >>> gen = Matrix2DCodeGenerator(Matrix2DCodeType.QR, "test123")
         >>> img = gen.render_image(width=200, height=200, caption="Demo")
+        >>> aztec = Matrix2DCodeGenerator(Matrix2DCodeType.AZTEC, "https://example.com/ticket")
+        >>> microqr = Matrix2DCodeGenerator(Matrix2DCodeType.MICROQR, "123")
     """
 
     _qr_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.QR}
     _datamatrix_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.DATAMATRIX}
     _pdf417_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.PDF417}
+    _aztec_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.AZTEC}
+    _maxicode_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.MAXICODE}
+    _dotcode_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.DOTCODE}
+    _microqr_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.MICROQR}
+    _rmqr_types: Set[Matrix2DCodeType] = {Matrix2DCodeType.RMQR}
 
     def __init__(
         self,
@@ -156,11 +172,30 @@ class Matrix2DCodeGenerator:
         """
         import qrcode.image.pil
 
+        # Валидация размеров перед рендерингом
+        if width is not None:
+            if width <= 0:
+                raise Matrix2DCodeGenError(f"Width must be positive, got {width}")
+            if width > MAX_IMAGE_WIDTH:
+                raise Matrix2DCodeGenError(
+                    f"Width {width} exceeds maximum {MAX_IMAGE_WIDTH}px"
+                )
+        if height is not None:
+            if height <= 0:
+                raise Matrix2DCodeGenError(f"Height must be positive, got {height}")
+            if height > MAX_IMAGE_HEIGHT:
+                raise Matrix2DCodeGenError(
+                    f"Height {height} exceeds maximum {MAX_IMAGE_HEIGHT}px"
+                )
+
         self.validate()
         opts = dict(self.options)
         if options:
             opts.update(options)
         payload = self.get_payload()
+
+        # Объявляем img с типом для mypy
+        img: Image.Image
 
         # --- QR
         if self.barcode_type in self._qr_types:
@@ -228,48 +263,37 @@ class Matrix2DCodeGenerator:
         # --- DataMatrix
         elif self.barcode_type in self._datamatrix_types:
             try:
-                from pylibdmtx.pylibdmtx import encode
+                import treepoem
             except ImportError:
-                logger.error("pylibdmtx not installed for DataMatrix")
+                logger.error("treepoem not installed for DataMatrix")
                 raise Matrix2DCodeGenError(
-                    "pylibdmtx not installed (install with: pip install pylibdmtx)"
+                    "treepoem not installed (install with: pip install treepoem)"
                 )
-            encoded = encode(payload.encode("utf8"))
-            import io
 
-            import numpy as np  # import вне блока, если используешь часто
+            try:
+                dm_opts = {}
+                if "columns" in opts:
+                    dm_opts["columns"] = opts["columns"]
 
-            dm_img: Optional[Image.Image] = None
-            pilimage = getattr(encoded, "pilimage", None)
-            if pilimage is not None and isinstance(pilimage, Image.Image):
-                dm_img = pilimage
-            else:
-                png_data = getattr(encoded, "png", None)
-                if png_data is not None:
-                    try:
-                        candidate = Image.open(io.BytesIO(png_data))
-                        if isinstance(candidate, Image.Image):
-                            dm_img = candidate
-                    except Exception as exc:
-                        logger.error("Failed to load DM PNG: %r", exc)
-                        dm_img = None
-                # Fallback: raw bitmap
-                if dm_img is None and hasattr(encoded, "pixels"):
-                    try:
-                        arr = np.frombuffer(encoded.pixels, dtype=np.uint8)
-                        arr = np.unpackbits(arr)[: encoded.width * encoded.height]
-                        arr = arr.reshape((encoded.height, encoded.width))
-                        dm_img = Image.fromarray(arr * 255).convert("L")
-                    except Exception as exc:
-                        logger.error("Failed to convert DM bitmap: %r", exc)
-                        dm_img = None
-
-            if dm_img is None or not isinstance(dm_img, Image.Image):
-                logger.error("Unable to extract DataMatrix image")
-                raise Matrix2DCodeGenError(
-                    "Unable to extract image from pylibdmtx result"
+                dm_img = treepoem.generate_barcode(
+                    barcode_type="datamatrix",
+                    data=payload,
+                    options=dm_opts,
                 )
-            img = dm_img.convert("RGBA" if background_transparent else "RGB")
+
+                if dm_img is None or not isinstance(dm_img, Image.Image):
+                    logger.error("treepoem did not produce a valid DataMatrix image")
+                    raise Matrix2DCodeGenError(
+                        "DataMatrix generation failed via treepoem"
+                    )
+
+                img = dm_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("DataMatrix generation error: %r", e)
+                raise Matrix2DCodeGenError(f"DataMatrix generation failed: {e}") from e
 
         # --- PDF417
         elif self.barcode_type in self._pdf417_types:
@@ -282,6 +306,165 @@ class Matrix2DCodeGenerator:
                 "RGBA" if background_transparent else "RGB"
             )
             img = pdf_img
+
+        # --- Aztec
+        elif self.barcode_type in self._aztec_types:
+            try:
+                import treepoem
+            except ImportError:
+                raise Matrix2DCodeGenError(
+                    "treepoem not installed (pip install treepoem)"
+                )
+
+            try:
+                aztec_opts = {}
+                if "eclevel" in opts:
+                    aztec_opts["eclevel"] = opts["eclevel"]
+                if "layers" in opts:
+                    aztec_opts["layers"] = opts["layers"]
+
+                aztec_img = treepoem.generate_barcode(
+                    barcode_type="azteccode",
+                    data=payload,
+                    options=aztec_opts,
+                )
+
+                if not isinstance(aztec_img, Image.Image):
+                    raise Matrix2DCodeGenError("Aztec generation failed")
+
+                img = aztec_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("Aztec generation error: %r", e)
+                raise Matrix2DCodeGenError(f"Aztec generation failed: {e}") from e
+
+        # --- MaxiCode
+        elif self.barcode_type in self._maxicode_types:
+            try:
+                import treepoem
+            except ImportError:
+                raise Matrix2DCodeGenError(
+                    "treepoem not installed (pip install treepoem)"
+                )
+
+            try:
+                maxicode_opts = {}
+                if "mode" in opts:
+                    maxicode_opts["mode"] = opts["mode"]
+
+                maxicode_img = treepoem.generate_barcode(
+                    barcode_type="maxicode",
+                    data=payload,
+                    options=maxicode_opts,
+                )
+
+                if not isinstance(maxicode_img, Image.Image):
+                    raise Matrix2DCodeGenError("MaxiCode generation failed")
+
+                img = maxicode_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("MaxiCode generation error: %r", e)
+                raise Matrix2DCodeGenError(f"MaxiCode generation failed: {e}") from e
+
+        # --- DotCode
+        elif self.barcode_type in self._dotcode_types:
+            try:
+                import treepoem
+            except ImportError:
+                raise Matrix2DCodeGenError(
+                    "treepoem not installed (pip install treepoem)"
+                )
+
+            try:
+                dotcode_opts = {}
+                if "columns" in opts:
+                    dotcode_opts["columns"] = opts["columns"]
+                if "rows" in opts:
+                    dotcode_opts["rows"] = opts["rows"]
+
+                dotcode_img = treepoem.generate_barcode(
+                    barcode_type="dotcode",
+                    data=payload,
+                    options=dotcode_opts,
+                )
+
+                if not isinstance(dotcode_img, Image.Image):
+                    raise Matrix2DCodeGenError("DotCode generation failed")
+
+                img = dotcode_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("DotCode generation error: %r", e)
+                raise Matrix2DCodeGenError(f"DotCode generation failed: {e}") from e
+
+        # --- Micro QR
+        elif self.barcode_type in self._microqr_types:
+            try:
+                import treepoem
+            except ImportError:
+                raise Matrix2DCodeGenError(
+                    "treepoem not installed (pip install treepoem)"
+                )
+
+            try:
+                microqr_opts = {}
+                if "eclevel" in opts:
+                    microqr_opts["eclevel"] = opts["eclevel"]
+
+                microqr_img = treepoem.generate_barcode(
+                    barcode_type="microqrcode",
+                    data=payload,
+                    options=microqr_opts,
+                )
+
+                if not isinstance(microqr_img, Image.Image):
+                    raise Matrix2DCodeGenError("Micro QR generation failed")
+
+                img = microqr_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("Micro QR generation error: %r", e)
+                raise Matrix2DCodeGenError(f"Micro QR generation failed: {e}") from e
+
+        # --- Rectangular Micro QR (rMQR)
+        elif self.barcode_type in self._rmqr_types:
+            try:
+                import treepoem
+            except ImportError:
+                raise Matrix2DCodeGenError(
+                    "treepoem not installed (pip install treepoem)"
+                )
+
+            try:
+                rmqr_opts = {}
+                if "version" in opts:
+                    rmqr_opts["version"] = opts["version"]
+
+                rmqr_img = treepoem.generate_barcode(
+                    barcode_type="rectangularmicroqrcode",
+                    data=payload,
+                    options=rmqr_opts,
+                )
+
+                if not isinstance(rmqr_img, Image.Image):
+                    raise Matrix2DCodeGenError("rMQR generation failed")
+
+                img = rmqr_img.convert("RGBA" if background_transparent else "RGB")
+
+            except Matrix2DCodeGenError:
+                raise
+            except Exception as e:
+                logger.error("rMQR generation error: %r", e)
+                raise Matrix2DCodeGenError(f"rMQR generation failed: {e}") from e
 
         else:
             logger.error("Unsupported 2D barcode type %r", self.barcode_type)
@@ -339,7 +522,7 @@ class Matrix2DCodeGenerator:
         Example:
             >>> Matrix2DCodeGenerator._add_caption(img, "test")
         """
-        font = ImageFont.load_default()
+        font: Union[FreeTypeFont, PILImageFont] = ImageFont.load_default()
         try:
             if font_path:
                 font = ImageFont.truetype(font_path, font_size)
@@ -349,7 +532,7 @@ class Matrix2DCodeGenerator:
         txt_bbox = font.getbbox(caption)
         txt_width = txt_bbox[2] - txt_bbox[0]
         txt_height = txt_bbox[3] - txt_bbox[1]
-        new_h = img.height + txt_height + 8
+        new_h = img.height + txt_height + CAPTION_VERTICAL_SPACING
         result = Image.new(
             "RGBA" if transparent else "RGB",
             (int(img.width), int(new_h)),
@@ -357,7 +540,7 @@ class Matrix2DCodeGenerator:
         )
         result.paste(img, (0, 0))
         draw = ImageDraw.Draw(result)
-        pos = ((img.width - txt_width) // 2, img.height + 4)
+        pos = ((img.width - txt_width) // 2, img.height + CAPTION_TOP_MARGIN)
         color = (0, 0, 0, 255) if transparent else (0, 0, 0)
         draw.text(pos, caption, font=font, fill=color)
         if not transparent:
@@ -398,7 +581,16 @@ class Matrix2DCodeGenerator:
     @classmethod
     def all_supported_types(cls) -> Set[Matrix2DCodeType]:
         """Get all supported 2D barcode types."""
-        return cls._qr_types | cls._datamatrix_types | cls._pdf417_types
+        return (
+            cls._qr_types
+            | cls._datamatrix_types
+            | cls._pdf417_types
+            | cls._aztec_types
+            | cls._maxicode_types
+            | cls._dotcode_types
+            | cls._microqr_types
+            | cls._rmqr_types
+        )
 
     @classmethod
     def batch_generate(
@@ -452,7 +644,6 @@ class Matrix2DCodeGenerator:
         import asyncio
 
         loop = asyncio.get_running_loop()
-        # Prefer off-main-thread to avoid Tk-interference
         return await loop.run_in_executor(
             None, lambda: self.render_bytes(*args, **kwargs)
         )

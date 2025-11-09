@@ -44,6 +44,7 @@ dependencies = [
     "python-barcode>=0.15.1",
     "Markdown>=3.5.0",
     "openpyxl>=3.1.2",
+    "treepoem>=3.0.0",
 ]
 
 

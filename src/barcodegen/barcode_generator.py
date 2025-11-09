@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set, TypedDict
 
 from PIL import Image
 
@@ -16,6 +16,55 @@ from barcode.writer import ImageWriter
 from src.model.enums import BarcodeType
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "BarcodeGenerator",
+    "BarcodeGenError",
+    "BarcodeRenderOptions",
+    "BarcodeOptions",
+]
+
+
+class BarcodeRenderOptions(TypedDict, total=False):
+    """Типобезопасные опции рендеринга штрихкода."""
+
+    module_width: float
+    font_size: int
+    dpi: int
+    text_distance: float
+    quiet_zone: int
+    write_text: bool
+
+
+class BarcodeOptions(TypedDict, total=False):
+    """
+    Типобезопасные опции создания штрихкода.
+
+    Эти опции передаются в конструктор python-barcode при создании
+    экземпляра штрихкода. Все поля опциональны (total=False).
+
+    Полный список опций см. в документации python-barcode:
+    https://python-barcode.readthedocs.io/
+
+    Example:
+        >>> options: BarcodeOptions = {
+        ...     "quiet_zone": 10,
+        ...     "module_width": 0.3,
+        ...     "write_text": True
+        ... }
+        >>> gen = BarcodeGenerator(BarcodeType.CODE128, "TEST", options)
+    """
+
+    # Общие опции для всех типов штрихкодов
+    quiet_zone: int  # Ширина пустой зоны вокруг штрихкода (в модулях)
+    module_width: float  # Ширина одного модуля/бара (в мм)
+    module_height: float  # Высота модулей (в мм)
+    font_size: int  # Размер шрифта для HRI (Human Readable Interpretation)
+    text_distance: float  # Расстояние между штрихкодом и текстом (в мм)
+    background: str  # Цвет фона (например, "white")
+    foreground: str  # Цвет штрихкода (например, "black")
+    write_text: bool  # Включить/выключить текст под штрихкодом
+    text: str  # Переопределить текст под штрихкодом
 
 
 class BarcodeGenError(Exception):
@@ -58,7 +107,7 @@ class BarcodeGenerator:
         self,
         barcode_type: BarcodeType,
         data: str,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[BarcodeOptions] = None,
     ) -> None:
         if not isinstance(barcode_type, BarcodeType):
             raise TypeError(
@@ -66,7 +115,8 @@ class BarcodeGenerator:
             )
         self.barcode_type = barcode_type
         self.data = data
-        self.options: Dict[str, Any] = options or {}
+        # Исправление: приводим TypedDict к dict для совместимости
+        self.options: Dict[str, Any] = dict(options) if options else {}
 
     def validate(self) -> None:
         """
@@ -151,8 +201,25 @@ class BarcodeGenerator:
         self,
         width: int = 400,
         height: int = 120,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[BarcodeRenderOptions] = None,
+        strict: bool = True,
     ) -> Image.Image:
+        """
+        Рендеринг изображения штрихкода с опциональным строгим контролем ошибок.
+
+        Args:
+            width: Ширина изображения в пикселях (по умолчанию: 400).
+            height: Высота изображения в пикселях (по умолчанию: 120).
+            options: Опции рендеринга (module_width, dpi и т.д.).
+            strict: Если True, генерировать BarcodeGenError при ошибках рендеринга.
+                   Если False (по умолчанию), возвращать белое placeholder изображение и логировать предупреждение.
+
+        Returns:
+            PIL Image объект (RGB режим).
+
+        Raises:
+            BarcodeGenError: Если strict=True и генерация завершилась с ошибкой.
+        """
         self.validate()
         logger.debug(
             "Rendering image for barcode [%s] data=%s",
@@ -162,10 +229,10 @@ class BarcodeGenerator:
 
         barcode_name = self._pybarcode_support.get(self.barcode_type)
         if not barcode_name:
-            logger.warning(
-                "Barcode type %s not supported by python-barcode, returning placeholder.",
-                self.barcode_type,
-            )
+            msg = f"Barcode type {self.barcode_type} not supported by python-barcode"
+            if strict:
+                raise BarcodeGenError(msg)
+            logger.warning(f"{msg}; returning placeholder")
             return Image.new("RGB", (width, height), color="white")
 
         try:
@@ -191,26 +258,25 @@ class BarcodeGenerator:
             if isinstance(img, Image.Image):
                 return img
             else:
-                logger.error(
-                    "Barcode output is not an Image.Image object; returning placeholder."
-                )
-                return Image.new("RGB", (width, height), color="white")
+                msg = "Barcode output is not an Image.Image object"
+                if strict:
+                    raise BarcodeGenError(msg)
+                logger.warning(f"{msg}; returning placeholder")
+                return Image.new("RGB", (width, height), "white")
         except BarcodeNotFoundError as e:
-            logger.error(
-                "Barcode class not found for type: %s; %s",
-                self.barcode_type,
-                e,
-            )
-            return Image.new("RGB", (width, height), color="white")
+            msg = f"Barcode class not found for type: {self.barcode_type}"
+            if strict:
+                raise BarcodeGenError(msg) from e
+            logger.warning(f"{msg}; returning placeholder")
+            return Image.new("RGB", (width, height), "white")
         except Exception as e:
-            logger.error(
-                "Barcode image generation failed: %s; %s",
-                self.barcode_type,
-                e,
-            )
-            return Image.new("RGB", (width, height), color="white")
+            msg = f"Barcode image generation failed: {self.barcode_type}"
+            if strict:
+                raise BarcodeGenError(msg) from e
+            logger.warning(f"{msg}; returning placeholder")
+            return Image.new("RGB", (width, height), "white")
 
-    def render_bytes(self, options: Optional[Dict[str, Any]] = None) -> bytes:
+    def render_bytes(self, options: Optional[BarcodeRenderOptions] = None) -> bytes:
         img = self.render_image(options=options)
         buf = BytesIO()
         img.save(buf, format="PNG")
