@@ -140,8 +140,12 @@ def zero_memory(buf: Optional[bytearray]) -> None:
 
     Notes:
         - Only works on bytearray (mutable); bytes cannot be wiped.
-        - Provides no guarantees against compiler optimizations or swap.
-        - Use hardware security modules (HSM) for high-security key material.
+        - Ограничения Python: сборщик мусора, string interning, swap-файлы
+        и оптимизации компилятора означают, что истинное криптографическое стирание
+        недостижимо на чистом Python.
+        - Для высокозащищённого ключевого материала используйте: HSM, TPM, secure enclave (SGX),
+        или предоставляемые ОС API безопасной памяти через C-расширения (например, libsodium).
+        - Эта функция обеспечивает эшелонированную защиту от случайных дампов памяти.
     """
     if buf is None:
         return

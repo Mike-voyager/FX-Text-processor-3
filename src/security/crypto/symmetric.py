@@ -66,6 +66,11 @@ class SymmetricCipher:
         - NIST SP 800-38D compliant
         - No state management or persistence required
 
+        ⚠️ КРИТИЧЕСКИ ВАЖНО: Никогда не используйте повторно пару (ключ, nonce) для шифрования.
+        Повторное использование nonce с тем же ключом полностью ломает безопасность GCM, позволяя
+        атакующим подделывать сообщения и восстанавливать открытый текст. Ротируйте ключи после
+        2^32 шифрований
+
     Examples:
         >>> cipher = SymmetricCipher()
         >>> nonce, combined = cipher.encrypt(key=b"0"*32, plaintext=b"hello")

@@ -128,6 +128,7 @@ class AsymmetricKeyPair:
     @staticmethod
     def from_public_bytes(data: bytes, algorithm: str) -> "AsymmetricKeyPair":
         if algorithm not in SUPPORTED_ALGORITHMS:
+            _secure_log("Loading public-only key: %s (no private key)", algorithm)
             logger.error("Unsupported algorithm: %s", algorithm)
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
         try:
@@ -216,7 +217,8 @@ class AsymmetricKeyPair:
         if self.public_key is None:
             raise NotImplementedError("No public key present.")
         if isinstance(self.public_key, rsa.RSAPublicKey):
-            overhead = _rsa_oaep_overhead()
+            # Расчёт overhead ОБЯЗАН совпадать с алгоритмом хеширования в padding ниже (SHA-256)
+            overhead = _rsa_oaep_overhead(hashes.SHA256())
             limit = self.public_key.key_size // 8 - overhead
             if len(data) > limit:
                 raise ValueError(f"RSA plain length must be <= {limit} bytes for key")
