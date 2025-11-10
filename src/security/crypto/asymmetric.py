@@ -127,8 +127,8 @@ class AsymmetricKeyPair:
 
     @staticmethod
     def from_public_bytes(data: bytes, algorithm: str) -> "AsymmetricKeyPair":
+        _secure_log("Loading public-only key: %s (no private key)", algorithm)
         if algorithm not in SUPPORTED_ALGORITHMS:
-            _secure_log("Loading public-only key: %s (no private key)", algorithm)
             logger.error("Unsupported algorithm: %s", algorithm)
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
         try:
