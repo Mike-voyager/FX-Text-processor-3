@@ -61,7 +61,7 @@ class KeyFormatError(ValueError):
 
 def _rsa_oaep_overhead(hash_alg: hashes.HashAlgorithm = hashes.SHA256()) -> int:
     h = hash_alg.digest_size
-    return 2 * h + 2
+    return int(h * 2 + 2)
 
 
 @dataclass(frozen=True)
@@ -174,18 +174,20 @@ class AsymmetricKeyPair:
         if self.private_key is None:
             raise NotImplementedError("No private key present.")
         if isinstance(self.private_key, ed25519.Ed25519PrivateKey):
-            return self.private_key.sign(data)
+            return bytes(self.private_key.sign(data))
         if isinstance(self.private_key, rsa.RSAPrivateKey):
-            return self.private_key.sign(
-                data,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH,
-                ),
-                hashes.SHA256(),
+            return bytes(
+                self.private_key.sign(
+                    data,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH,
+                    ),
+                    hashes.SHA256(),
+                )
             )
         if isinstance(self.private_key, ec.EllipticCurvePrivateKey):
-            return self.private_key.sign(data, ec.ECDSA(hashes.SHA256()))
+            return bytes(self.private_key.sign(data, ec.ECDSA(hashes.SHA256())))
         raise UnsupportedAlgorithmError(f"Unsupported algorithm: {self.algorithm}")
 
     def verify(self, data: bytes, signature: bytes) -> bool:
@@ -222,13 +224,15 @@ class AsymmetricKeyPair:
             limit = self.public_key.key_size // 8 - overhead
             if len(data) > limit:
                 raise ValueError(f"RSA plain length must be <= {limit} bytes for key")
-            return self.public_key.encrypt(
-                data,
-                padding.OAEP(
-                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                    algorithm=hashes.SHA256(),
-                    label=None,
-                ),
+            return bytes(
+                self.public_key.encrypt(
+                    data,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None,
+                    ),
+                )
             )
         raise NotImplementedError(f"{self.algorithm} does not support encryption.")
 
@@ -236,13 +240,15 @@ class AsymmetricKeyPair:
         if self.private_key is None:
             raise NotImplementedError("No private key present.")
         if isinstance(self.private_key, rsa.RSAPrivateKey):
-            return self.private_key.decrypt(
-                data,
-                padding.OAEP(
-                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                    algorithm=hashes.SHA256(),
-                    label=None,
-                ),
+            return bytes(
+                self.private_key.decrypt(
+                    data,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None,
+                    ),
+                )
             )
         raise NotImplementedError(f"{self.algorithm} does not support decryption.")
 

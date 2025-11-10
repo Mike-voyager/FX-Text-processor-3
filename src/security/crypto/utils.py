@@ -54,7 +54,7 @@ def generate_random_bytes(n: int) -> bytes:
     hkdf = HKDF(
         algorithm=hashes.SHA256(), length=n, salt=salt, info=b"FXTP3-UTILS-RNG-v1"
     )
-    out = hkdf.derive(ikm)
+    out = bytes(hkdf.derive(ikm))
 
     # Entropy quality checks
     _rct_apt_checks(out)

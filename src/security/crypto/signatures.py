@@ -195,7 +195,7 @@ class Ed25519Signer:
             raise SignatureGenerationError("No private key available")
         try:
             message = _prehash_with_context(data, context)
-            return self._priv.sign(message)
+            return bytes(self._priv.sign(message))
         except Exception as exc:
             _LOGGER.error("Ed25519 sign failed: %s", exc.__class__.__name__)
             raise SignatureGenerationError("Signing failed") from exc
@@ -248,7 +248,7 @@ class Ed25519Signer:
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo,
             )
-            return pem.decode("ascii")
+            return str(pem.decode("ascii"))
         raise ValueError("Unsupported public key format")
 
     def get_fingerprint(self) -> str:

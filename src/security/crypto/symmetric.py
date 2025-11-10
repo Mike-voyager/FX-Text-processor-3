@@ -219,7 +219,7 @@ class SymmetricCipher:
             if aad:
                 decryptor.authenticate_additional_data(aad)
             plaintext = decryptor.update(ct) + decryptor.finalize()
-            return plaintext
+            return bytes(plaintext)
         except InvalidTag as exc:
             _LOGGER.warning("AES-GCM tag verification failed")
             raise DecryptionError("Invalid authentication tag") from exc
@@ -259,4 +259,6 @@ def decrypt_aes_gcm(
         >>> decrypt_aes_gcm(b"0"*32, nonce, combined)
         b'hello'
     """
-    return SymmetricCipher().decrypt(key, nonce, combined, aad, has_combined=True)
+    return bytes(
+        SymmetricCipher().decrypt(key, nonce, combined, aad, has_combined=True)
+    )
