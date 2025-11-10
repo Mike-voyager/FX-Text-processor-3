@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
- RU: Провайдер KDF с PBKDF2-HMAC-SHA256 (обязателен) и опциональным Argon2id, с едиными правилами
+RU: Провайдер KDF с PBKDF2-HMAC-SHA256 (обязателен) и опциональным Argon2id, с едиными правилами
+
 EN: KDF provider with Argon2id (mandatory for production) and PBKDF2 (legacy/dev-only), using unified salt
- generation (utils), strict parameter validation, and best-effort wiping of bytearray secrets.
+generation (utils), strict parameter validation, and best-effort wiping of bytearray secrets.
 
 ⚠️ SECURITY POLICY: Argon2id is REQUIRED for production deployments.
 PBKDF2 is available ONLY for:
-  - Legacy system compatibility
-  - Development/testing without argon2-cffi
-  - Explicitly documented exception cases
+    - for experimenting with this protocol
+    - perhaps for formal compliance with some specifications
 """
 from __future__ import annotations
 

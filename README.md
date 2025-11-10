@@ -222,7 +222,7 @@ FX-Text-processor-3/
 │   │   ├── __init__.py             # ✅ DONE
 │   │   ├── symmetric.py            # ✅ DONE
 │   │   ├── asymmetric.py           # ✅ DONE
-│   │   ├── kdf.py                  # 🚧 DONE/TODO tests
+│   │   ├── kdf.py                  # ✅ DONE
 │   │   ├── signatures.py           # ✅ DONE
 │   │   ├── secure_storage.py       # ✅ DONE
 │   │   ├── hashing.py              # ✅ DONE

@@ -18,6 +18,7 @@ Notes:
 - Argon2id uses fixed low-level version 19 (Argon2 v1.3) for deterministic outputs (v=19 is recorded in the hash).
 - No secrets (passwords, peppers, salts, hashes) are logged.
 - Rate limiting prevents brute-force attacks (exponential backoff after max attempts).
+- Argon2id priority protocol, PBKDF2-HMAC-SHA256 for variability and experimentation
 """
 
 from __future__ import annotations
