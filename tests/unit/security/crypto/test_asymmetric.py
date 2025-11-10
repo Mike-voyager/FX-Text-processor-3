@@ -4,10 +4,17 @@ import hashlib
 import re
 from pathlib import Path
 from typing import Any, Callable
+import logging
+from _pytest.logging import LogCaptureFixture
 
 import pytest
 
 import security.crypto.asymmetric as asym
+from src.security.crypto.asymmetric import (
+    AsymmetricKeyPair,
+    _secure_log,
+    _contains_sensitive_data,
+)
 
 
 def test_generate_and_sign_verify_ed25519() -> None:
@@ -22,8 +29,13 @@ def test_generate_rsa_sign_verify_encrypt_decrypt() -> None:
     sig = kp.sign(b"data")
     assert kp.verify(b"data", sig) is True
     # OAEP limit check using internal helper
-    overhead = asym._rsa_oaep_overhead()  # type: ignore[attr-defined]
-    limit = kp.public_key.key_size // 8 - overhead  # type: ignore[union-attr]
+    overhead = asym._rsa_oaep_overhead()
+
+    # Type guard для доступа к key_size (только у RSA)
+    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+    assert isinstance(kp.public_key, RSAPublicKey)
+
+    limit = kp.public_key.key_size // 8 - overhead
     ct = kp.encrypt(b"A" * limit)
     assert isinstance(ct, bytes) and len(ct) > 0
     pt = kp.decrypt(ct)
@@ -109,9 +121,9 @@ def test_secure_log_suppresses_sensitive(monkeypatch: pytest.MonkeyPatch) -> Non
         asym, "logger", type("L", (), {"info": staticmethod(fake_info)})()
     )
     # Contains sensitive word "key" => should not log
-    asym._secure_log("Processing private KEY for user")  # type: ignore[attr-defined]
+    asym._secure_log("Processing private KEY for user")
     # Non-sensitive => should log
-    asym._secure_log("Hello world")  # type: ignore[attr-defined]
+    asym._secure_log("Hello world")
     assert len(calls) == 1 and calls[0][0] == "Hello world"
 
 
@@ -139,8 +151,13 @@ def test_sign_decrypt_require_private_and_encrypt_require_rsa() -> None:
 
 def test_rsa_oaep_overflow_error_message_contains_sizes() -> None:
     kp = asym.AsymmetricKeyPair.generate("rsa4096", key_size=2048)
-    overhead = asym._rsa_oaep_overhead()  # type: ignore[attr-defined]
-    limit = kp.public_key.key_size // 8 - overhead  # type: ignore[union-attr]
+    overhead = asym._rsa_oaep_overhead()
+
+    # Type guard для доступа к key_size (только у RSA)
+    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+    assert isinstance(kp.public_key, RSAPublicKey)
+
+    limit = kp.public_key.key_size // 8 - overhead
     with pytest.raises(ValueError) as ei:
         _ = kp.encrypt(b"x" * (limit + 1))
     msg = str(ei.value).lower()
@@ -207,8 +224,8 @@ def test_secure_log_filters_multiple_sensitive_words(
         asym, "logger", type("L", (), {"info": staticmethod(fake_info)})()
     )
     # Слова в разных регистрах и формах
-    asym._secure_log("user provided Private Key and TOKEN")  # type: ignore[attr-defined]
-    asym._secure_log("completely safe")  # type: ignore[attr-defined]
+    asym._secure_log("user provided Private Key and TOKEN")
+    asym._secure_log("completely safe")
     assert captured == ["completely safe"]
 
 
@@ -270,3 +287,153 @@ def test_rsa_public_only_decrypt_rejected() -> None:
     )
     with pytest.raises(NotImplementedError):
         _ = pub_only.decrypt(b"\x00" * 256)
+
+class TestSensitiveDataDetection:
+    """Тесты обнаружения чувствительных данных."""
+
+    @pytest.mark.parametrize(
+        "text,should_detect",
+        [
+            # Должны обнаружиться
+            ("password", True),
+            ("PASSWORD", True),
+            ("passwd", True),
+            ("pwd", True),
+            ("private_key", True),
+            ("privateKey", True),
+            ("PRIVATE_KEY", True),
+            ("secret_token", True),
+            ("API_KEY", True),
+            ("apiKey", True),
+            ("auth_header", True),
+            ("Loading PEM data", True),
+            ("Generating salt", True),
+            ("Using nonce", True),
+            ("cipher output", True),
+            # Не должны обнаружиться
+            ("algorithm: ed25519", False),
+            ("key_size: 4096", False),
+            ("Generating keypair", False),
+            ("Signature valid", False),
+            ("encryption complete", False),
+        ],
+    )
+    def test_contains_sensitive_data(self, text: str, should_detect: bool) -> None:
+        """Проверка regex-паттернов обнаружения чувствительных данных."""
+        assert _contains_sensitive_data(text) == should_detect
+
+
+class TestSecureLogging:
+    """Тесты функции _secure_log."""
+
+    def test_secure_log_blocks_password_mention(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """_secure_log блокирует сообщения с упоминанием 'password'."""
+        with caplog.at_level(logging.INFO):
+            _secure_log("User password is %s", "secret123")
+
+        assert len(caplog.records) == 0, "Сообщение с 'password' не должно логироваться"
+
+    def test_secure_log_blocks_private_key_camelcase(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """_secure_log блокирует сообщения с 'privateKey' (camelCase)."""
+        with caplog.at_level(logging.INFO):
+            _secure_log("Loaded privateKey for algorithm=%s", "ed25519")
+
+        assert (
+            len(caplog.records) == 0
+        ), "Сообщение с 'privateKey' не должно логироваться"
+
+    def test_secure_log_blocks_api_key_uppercase(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """_secure_log блокирует сообщения с 'API_KEY' (uppercase)."""
+        with caplog.at_level(logging.INFO):
+            _secure_log("Setting API_KEY=%s", "sk_live_xxx")
+
+        assert len(caplog.records) == 0, "Сообщение с 'API_KEY' не должно логироваться"
+
+    def test_secure_log_allows_safe_messages(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """_secure_log пропускает безопасные сообщения."""
+        with caplog.at_level(logging.INFO):
+            _secure_log("Generating keypair: algorithm=%s", "ed25519")
+
+        assert len(caplog.records) == 1
+        assert "ed25519" in caplog.text
+
+    def test_secure_log_blocks_abbreviations(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """_secure_log блокирует сокращения (priv, sec, pass)."""
+        with caplog.at_level(logging.INFO):
+            _secure_log("Using priv for %s", "operation")
+
+        assert len(caplog.records) == 0
+
+
+class TestAsymmetricKeyPairLogging:
+    """Интеграционные тесты логирования AsymmetricKeyPair."""
+
+    def test_generate_logs_safely(self, caplog: LogCaptureFixture) -> None:
+        """generate() логирует алгоритм без чувствительных данных."""
+        with caplog.at_level(logging.INFO):
+            kp = AsymmetricKeyPair.generate("ed25519")
+
+        assert any("algorithm=ed25519" in rec.message for rec in caplog.records)
+        assert kp.private_key is not None
+
+    def test_from_private_bytes_masked_password(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """from_private_bytes() маскирует информацию о пароле."""
+        kp = AsymmetricKeyPair.generate("ed25519")
+        pem = kp.export_private_bytes(password="Secret123!")
+
+        with caplog.at_level(logging.INFO):
+            AsymmetricKeyPair.from_private_bytes(pem, "ed25519", password="Secret123!")
+
+        # Должно быть: "Loading key: algorithm=ed25519 [protected=yes]"
+        assert any("protected=yes" in rec.message for rec in caplog.records)
+        assert "Secret123!" not in caplog.text
+        assert "password" not in caplog.text.lower()
+
+    def test_from_public_bytes_logs_safely(self, caplog: LogCaptureFixture) -> None:
+        """from_public_bytes() логирует алгоритм безопасно."""
+        kp = AsymmetricKeyPair.generate("ed25519")
+        pub_pem = kp.export_public_bytes()
+
+        with caplog.at_level(logging.INFO):
+            AsymmetricKeyPair.from_public_bytes(pub_pem, "ed25519")
+
+        assert any("public-only" in rec.message for rec in caplog.records)
+        assert any("ed25519" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.security
+class TestSecurityCompliance:
+    """Тесты соответствия требованиям безопасности."""
+
+    def test_no_secrets_in_logs_comprehensive(self, caplog: LogCaptureFixture) -> None:
+        """Комплексная проверка: никакие секреты не попадают в логи."""
+        caplog.set_level(logging.DEBUG)
+
+        # Генерируем ключ с паролем
+        kp = AsymmetricKeyPair.generate("ed25519")
+        password = "SuperSecret123!@#"
+        pem = kp.export_private_bytes(password=password)
+
+        # Загружаем с паролем
+        AsymmetricKeyPair.from_private_bytes(pem, "ed25519", password=password)
+
+        # Проверяем, что пароль нигде не появился
+        full_log = caplog.text.lower()
+        assert password.lower() not in full_log
+        assert "supersecret" not in full_log
+        assert "123!@#" not in full_log
+
+        # Но алгоритм должен быть
+        assert "ed25519" in full_log

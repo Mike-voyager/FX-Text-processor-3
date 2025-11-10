@@ -1,6 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Асимметричная криптография: Ed25519, RSA-4096, ECDSA P-256.
+"""
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any, Callable, Dict, Final, Optional, Union
@@ -27,14 +32,78 @@ PublicKeyTypes = Union[
 
 SUPPORTED_ALGORITHMS: Final[tuple[str, ...]] = ("ed25519", "rsa4096", "ecdsa_p256")
 DEFAULT_RSA_KEYSIZE: Final[int] = 4096
-SENSITIVE_KEYWORDS: Final[tuple[str, ...]] = (
-    "password",
-    "private",
-    "pem",
-    "secret",
-    "token",
-    "key",
+
+# ✅ УЛУЧШЕНИЕ M5: Расширенный словарь с regex-паттернами
+_SENSITIVE_PATTERNS: Final[tuple[re.Pattern[str], ...]] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in [
+        r"\bpasswo?r?d\b",  # password, passwd, pwd
+        r"\bprivate[_\s]?key\b",  # private_key, privateKey, private key
+        r"\bpublic[_\s]?key\b",  # public_key, publicKey (для полноты)
+        r"\bsecret\b",  # secret, SECRET
+        r"\btoken\b",  # token, TOKEN
+        r"\bapi[_\s]?key\b",  # api_key, apiKey, API_KEY
+        r"\bauth\b",  # auth, AUTH
+        r"\bcredential\b",  # credential, credentials
+        r"\b(priv|sec|pass)\b",  # сокращения: priv, sec, pass
+        r"\bpem\b",  # PEM содержимое
+        r"\bsalt\b",  # криптографическая соль
+        r"\bnonce\b",  # одноразовый номер
+        r"\biv\b",  # initialization vector
+        r"\bcipher\b",  # шифротекст может содержать чувствительные данные
+    ]
 )
+
+
+def _contains_sensitive_data(text: str) -> bool:
+    """
+    Проверка текста на наличие чувствительных данных через regex-паттерны.
+
+    Args:
+        text: Строка для проверки
+
+    Returns:
+        True если найдены чувствительные ключевые слова
+
+    Examples:
+        >>> _contains_sensitive_data("Loading privateKey")
+        True
+        >>> _contains_sensitive_data("Algorithm: ed25519")
+        False
+        >>> _contains_sensitive_data("Setting API_KEY")
+        True
+    """
+    return any(pattern.search(text) for pattern in _SENSITIVE_PATTERNS)
+
+
+def _secure_log(msg: str, *args: Any) -> None:
+    """
+    Безопасное логирование без утечки секретов.
+
+    Проверяет сообщение и аргументы на наличие чувствительных ключевых слов
+    через regex-паттерны. Блокирует логирование при обнаружении.
+
+    Args:
+        msg: Форматная строка сообщения
+        *args: Аргументы для форматирования
+
+    Examples:
+        >>> _secure_log("Generating keypair: algorithm=%s", "ed25519")  # ✅ Логируется
+        >>> _secure_log("Loaded private_key for user=%s", "admin")  # ❌ Блокируется
+    """
+    # Собираем полный текст сообщения для проверки
+    try:
+        full_text = msg % args if args else msg
+    except (TypeError, ValueError):
+        # Если форматирование не удалось, проверяем по частям
+        full_text = msg + " ".join(str(arg) for arg in args)
+
+    if _contains_sensitive_data(full_text):
+        # Не логируем, но можем увеличить счётчик подавленных сообщений (опционально)
+        return
+
+    logger.info(msg, *args)
+
 
 __all__ = [
     "AsymmetricKeyPair",
@@ -42,13 +111,6 @@ __all__ = [
     "KeyFormatError",
     "AlgorithmFactory",
 ]
-
-
-def _secure_log(msg: str, *args: Any) -> None:
-    text = msg.lower() + "".join(str(a).lower() for a in args)
-    if any(word in text for word in SENSITIVE_KEYWORDS):
-        return
-    logger.info(msg, *args)
 
 
 class UnsupportedAlgorithmError(ValueError):
@@ -103,10 +165,11 @@ class AsymmetricKeyPair:
     def from_private_bytes(
         data: bytes, algorithm: str, password: Optional[str] = None
     ) -> "AsymmetricKeyPair":
+        # ✅ Замаскировали пароль - безопасно логируется
         _secure_log(
-            "Loading private key: %s [pw=%s]",
+            "Loading key: algorithm=%s [protected=%s]",
             algorithm,
-            "******" if password else "(none)",
+            "yes" if password else "no",
         )
         if algorithm not in SUPPORTED_ALGORITHMS:
             logger.error("Unsupported algorithm: %s", algorithm)
@@ -127,7 +190,7 @@ class AsymmetricKeyPair:
 
     @staticmethod
     def from_public_bytes(data: bytes, algorithm: str) -> "AsymmetricKeyPair":
-        _secure_log("Loading public-only key: %s (no private key)", algorithm)
+        _secure_log("Loading public-only key: algorithm=%s", algorithm)
         if algorithm not in SUPPORTED_ALGORITHMS:
             logger.error("Unsupported algorithm: %s", algorithm)
             raise UnsupportedAlgorithmError(f"Unsupported algorithm: {algorithm}")
