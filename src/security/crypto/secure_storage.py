@@ -476,3 +476,6 @@ class FileEncryptedStorageBackend:
                 except Exception:
                     pass
             raise
+
+# Исправление совместимости имен
+SecureStorage = FileEncryptedStorageBackend

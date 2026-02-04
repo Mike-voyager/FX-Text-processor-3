@@ -45,6 +45,9 @@ dependencies = [
     "Markdown>=3.5.0",
     "openpyxl>=3.1.2",
     "treepoem>=3.0.0",
+    "pdf417gen>=0.7.0",
+    "pyotp>=2.9.0",
+    "argon2-cffi>=23.1.0",
 ]
 
 

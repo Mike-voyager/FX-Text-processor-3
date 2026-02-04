@@ -5,7 +5,8 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 
-Professional WYSIWYG text editor for **Epson FX-890** dot matrix printer with full ESC/P command support.
+Professional **cross-platform** WYSIWYG text editor for **Epson FX-890** dot matrix printer with full ESC/P command support.
+
 
 ## 🎯 Project Goals
 
@@ -20,19 +21,20 @@ Professional WYSIWYG text editor for **Epson FX-890** dot matrix printer with fu
 ### Core Functionality
 - ✅ **Full ESC/P command support** for FX-890
 - ✅ **WYSIWYG Canvas rendering** with accurate preview
+- ✅ **Cross-platform**: Windows 11 and Linux (Ubuntu/Fedora) support
+- ✅ **Direct printing**: WritePrinter API (Windows) / CUPS (Linux)
 - ✅ **Rich text formatting**: Bold, Italic, Underline, Double-width/height
 - ✅ **PC866 Cyrillic encoding** with dynamic charset switching
 - ✅ **Image processing**: Dithering (Floyd-Steinberg, Burkes), grayscale conversion
 - ✅ **Barcode/QR generation**: Native ESC/P rendering
 - ✅ **Form builder**: Template system with variable substitution
 - ✅ **Table editor**: Excel import/export, cell merging, auto-alignment
-- ✅ **Direct printing**: WritePrinter API (bypass Windows driver)
 
 ### Advanced Features
 - ⏳ Markdown compatibility (import/export)
 - ⏳ RTF parser/exporter
 - ⏳ Multi-language GUI
-- ⏳ Network printer support
+- ⏳ Network printer support (maybe)
 - ⏳ Envelope printing with graphical preview
 
 ## 🔒 Enterprise Security
@@ -198,9 +200,12 @@ FX-Text-processor-3/
 │   │   ├── barcode_generator.py    # ✅ DONE
 │   │   └── matrix2d_generator.py   # ✅ DONE
 │   │
-│   ├── printer/
-│   │   ├── init.py
-│   │   └── win_adapter.py # Pure primitives for pywin32 Windows API
+│   ├── printer/                  # Cross-platform printer abstraction
+│   │   ├── __init__.py
+│   │   ├── base_adapter.py       # 🚧 TODO - Abstract base for all adapters
+│   │   ├── cups_adapter.py       # 🚧 TODO - Linux CUPS implementation
+│   │   ├── win_adapter.py        # 🚧 TODO - Windows API implementation
+│   │   └── factory.py            # 🚧 TODO - Platform detection & adapter factory
 │   ├── io/ # File I/O (JSON, RTF, Markdown) # 🔐 # 🚧 TODO
 │   └── utils/ # Utilities # 🚧 TODO
 │
@@ -280,23 +285,50 @@ FX-Text-processor-3/
 
 ### Prerequisites
 - Python 3.11+
-- Windows 11 (for pywin32 printer access)
+- **Operating Systems:**
+  - Windows 11 (tested with pywin32)
+  - Linux (developed on Fedora 43, tested on Ubuntu 22.04+)
 - Git
+
+### System Dependencies
+
+**Linux (Fedora/RHEL):**
+```bash
+
+sudo dnf install cups-devel python3-tkinter
+
+```
+
+Windows:
+
+    No additional system dependencies required
 
 ### Installation
 
-Clone repository
+#### Clone repository
 git clone https://github.com/Mike-voyager/FX-Text-processor-3.git
 cd FX-Text-processor-3
 
-Create virtual environment
+#### Create virtual environment
 python -m venv .venv
+
+#### Activate (Windows)
 .venv\Scripts\activate
 
-Install dependencies
+#### Activate (Linux)
+source .venv/bin/activate
+
+#### Install dependencies
 pip install -e ".[dev]"
 
-text
+#### Install platform-specific dependencies
+#### Windows:
+pip install pywin32>=306
+
+#### Linux:
+pip install pycups>=2.0.0
+
+
 
 ### Running Tests
 
@@ -313,11 +345,25 @@ Code formatting
 black src/ tests/
 isort src/ tests/
 
-text
+## 🖥️ Platform Support
+
+| Feature | Windows 11 | Linux (Fedora/Ubuntu) |
+|---------|------------|----------------------|
+| GUI (Tkinter) | ✅ Full support | ✅ Full support |
+| ESC/P Commands | ✅ Full support | ✅ Full support |
+| Direct Printing | ✅ WritePrinter API | ✅ CUPS |
+| Network Printing | ⏳ Planned | ✅ CUPS native |
+| PC866 Encoding | ✅ Supported | ✅ Supported |
+| Floppy Disk | ✅ Native | ✅ Via mount |
+
+**Linux Notes:**
+- CUPS must be installed and running
+- User must be in `lp` group for printer access: `sudo usermod -aG lp $USER`
+- Raw queue recommended for ESC/P commands
 
 ## 📊 Development Status
 
-**Last Updated:** November 8, 2025 | **Version:** 0.1.0-alpha
+**Last Updated:** February 2026 | **Version:** 0.1.0-alpha
 
 ### Overall Progress: ~48% Complete
 
@@ -423,7 +469,6 @@ This project is optimized for AI-assisted development. See [PROMPT_TEMPLATES.md]
 Project: https://github.com/Mike-voyager/FX-Text-processor-3
 Analyze architecture and suggest next module to implement.
 
-text
 
 2. **Generate module:**
 Project: https://github.com/Mike-voyager/FX-Text-processor-3
@@ -452,7 +497,8 @@ text
 
 **Dependencies:**
 - Pillow 10.0+ (image processing)
-- pywin32 306+ (printer access)
+- **Windows:** pywin32 306+ (printer access via Windows API)
+- **Linux:** pycups 2.0+ (printer access via CUPS)
 - qrcode 7.4+ (QR generation)
 - python-barcode 0.15+ (barcode generation)
 - Markdown 3.5+ (Markdown support)
@@ -496,6 +542,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - GitHub Issues: [Report bug or request feature](https://github.com/Mike-voyager/FX-Text-processor-3/issues)
 - Discussions: [Ask questions](https://github.com/Mike-voyager/FX-Text-processor-3/discussions)
 
----
+## 📋 Platform-Specific Notes
 
-**Status:** 🚧 Active Development | **Version:** 0.1.0 | **Last Updated:** November 2025
+### Windows
+- Uses native WritePrinter API for direct ESC/P access
+- Requires pywin32 package
+- Full support for local and USB printers
+
+### Linux
+- Uses CUPS (Common Unix Printing System)
+- Requires libcups2-dev system package
+- Supports both local and network printers
+- Raw queue recommended for matrix printers
+- Add user to `lp` group for permissions
+
+**Status:** 🚧 Active Development | **Version:** 0.1.0 | **Last Updated:** February 2026

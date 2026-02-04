@@ -14,8 +14,6 @@ mistune>=3.0.0
 openpyxl>=3.1.0
 pandas>=2.1.0
 
-# Windows printer access
-pywin32>=306
 
 # HTML parsing (for clipboard)
 beautifulsoup4>=4.12.0
