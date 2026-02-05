@@ -120,9 +120,11 @@ py-modules = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["src", "src.*"]
 namespaces = false
 
+[tool.setuptools.package-dir]
+"" = "."
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -180,7 +182,7 @@ ignore_missing_imports = true
 
 [tool.black]
 line-length = 88
-target-version = ['py314']
+target-version = ['py311', 'py312', 'py313']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

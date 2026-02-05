@@ -21,7 +21,7 @@ PrivateKeyTypes = Union[
     ed25519.Ed25519PrivateKey,
     rsa.RSAPrivateKey,
     ec.EllipticCurvePrivateKey,
-    None,  # ✅ Может быть None при загрузке только public key
+    None,
 ]
 
 PublicKeyTypes = Union[
@@ -33,17 +33,20 @@ PublicKeyTypes = Union[
 SUPPORTED_ALGORITHMS: Final[tuple[str, ...]] = ("ed25519", "rsa4096", "ecdsa_p256")
 DEFAULT_RSA_KEYSIZE: Final[int] = 4096
 
-# ✅ УЛУЧШЕНИЕ M5: Расширенный словарь с regex-паттернами
+
 _SENSITIVE_PATTERNS: Final[tuple[re.Pattern[str], ...]] = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in [
-        r"\bpasswo?r?d\b",  # password, passwd, pwd
+        r"\bpasswo?r?d\b",  # password, passwd
+        r"\bpwd\b",  # pwd отдельно - не покрывается passwo?r?d
         r"\bprivate[_\s]?key\b",  # private_key, privateKey, private key
         r"\bpublic[_\s]?key\b",  # public_key, publicKey (для полноты)
         r"\bsecret\b",  # secret, SECRET
+        r"\bsecret[_\s]",  # secret_token, secret_key (после secret может быть _ или пробел)
         r"\btoken\b",  # token, TOKEN
         r"\bapi[_\s]?key\b",  # api_key, apiKey, API_KEY
         r"\bauth\b",  # auth, AUTH
+        r"\bauth[_\s]",  # auth_header, auth_token (после auth может быть _ или пробел)
         r"\bcredential\b",  # credential, credentials
         r"\b(priv|sec|pass)\b",  # сокращения: priv, sec, pass
         r"\bpem\b",  # PEM содержимое
@@ -105,14 +108,6 @@ def _secure_log(msg: str, *args: Any) -> None:
     logger.info(msg, *args)
 
 
-__all__ = [
-    "AsymmetricKeyPair",
-    "UnsupportedAlgorithmError",
-    "KeyFormatError",
-    "AlgorithmFactory",
-]
-
-
 class UnsupportedAlgorithmError(ValueError):
     """Unsupported asymmetric algorithm."""
 
@@ -165,7 +160,6 @@ class AsymmetricKeyPair:
     def from_private_bytes(
         data: bytes, algorithm: str, password: Optional[str] = None
     ) -> "AsymmetricKeyPair":
-        # ✅ Замаскировали пароль - безопасно логируется
         _secure_log(
             "Loading key: algorithm=%s [protected=%s]",
             algorithm,
@@ -185,8 +179,13 @@ class AsymmetricKeyPair:
                 return AsymmetricKeyPair(pk, pk.public_key(), algorithm)
             raise KeyFormatError("PEM does not match declared algorithm")
         except (ValueError, TypeError, UnsupportedAlgorithm) as e:
-            logger.error("Key import failed: %s (%s)", type(e).__name__, str(e))
-            raise KeyFormatError(f"Failed to import private key: {e}") from e
+            logger.error(
+                "Key import failed: %s [details suppressed for security]",
+                type(e).__name__,
+            )
+            raise KeyFormatError(
+                "Failed to import private key [details suppressed]"
+            ) from e
 
     @staticmethod
     def from_public_bytes(data: bytes, algorithm: str) -> "AsymmetricKeyPair":
@@ -204,8 +203,12 @@ class AsymmetricKeyPair:
                 return AsymmetricKeyPair(None, pk, algorithm)
             raise KeyFormatError("PEM public key does not match declared algorithm")
         except (ValueError, TypeError, UnsupportedAlgorithm) as e:
-            logger.error("Public key import failed: %s (%s)", type(e).__name__, str(e))
-            raise KeyFormatError(f"Failed to import public key: {e}") from e
+            logger.error(
+                "Public key import failed: %s [details suppressed]", type(e).__name__
+            )
+            raise KeyFormatError(
+                "Failed to import public key [details suppressed]"
+            ) from e
 
     def export_private_bytes(self, password: Optional[str] = None) -> bytes:
         if self.private_key is None:
@@ -333,3 +336,11 @@ AlgorithmFactory: Dict[str, Callable[..., AsymmetricKeyPair]] = {
     ),
     "ecdsa_p256": lambda **_: AsymmetricKeyPair.generate("ecdsa_p256"),
 }
+
+
+__all__ = [
+    "AsymmetricKeyPair",
+    "UnsupportedAlgorithmError",
+    "KeyFormatError",
+    "AlgorithmFactory",
+]

@@ -6,12 +6,12 @@ from typing import Any, Callable, Dict, Union
 
 import pytest
 
-from security.crypto.exceptions import (
+from src.security.crypto.exceptions import (
     SignatureError,
     SignatureGenerationError,
     SignatureVerificationError,
 )
-from security.crypto.signatures import (  # импортируй протокол из production!
+from src.security.crypto.signatures import (  # импортируй протокол из production!
     Ed25519Signer,
     SignatureError,
     SignatureGenerationError,
@@ -131,7 +131,7 @@ def test_parallel_sign_and_verify() -> None:
 
 def test_zeroization_on_bytearray_seed(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: Dict[str, int] = {"zero": 0}
-    from security.crypto.utils import zero_memory
+    from src.security.crypto.utils import zero_memory
 
     real_zero = zero_memory
 
@@ -139,7 +139,7 @@ def test_zeroization_on_bytearray_seed(monkeypatch: pytest.MonkeyPatch) -> None:
         calls["zero"] += 1
         real_zero(buf)
 
-    monkeypatch.setattr("security.crypto.signatures.zero_memory", fake_zero)
+    monkeypatch.setattr("src.security.crypto.signatures.zero_memory", fake_zero)
     seed = bytearray(os.urandom(32))
     _ = Ed25519Signer(seed)
     assert calls["zero"] == 1
@@ -264,7 +264,7 @@ def test_private_zeroization_called(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_zero(buf: bytearray) -> None:
         calls["zero"] = 1
 
-    monkeypatch.setattr("security.crypto.signatures.zero_memory", fake_zero)
+    monkeypatch.setattr("src.security.crypto.signatures.zero_memory", fake_zero)
     Ed25519Signer(bytearray(os.urandom(32)))
     assert calls.get("zero") == 1
 
@@ -321,7 +321,7 @@ def test_verify_with_invalid_pub(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_sign_fails_on_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     signer = Ed25519Signer.generate()
     monkeypatch.setattr(
-        "security.crypto.signatures._prehash_with_context", lambda *_: 123
+        "src.security.crypto.signatures._prehash_with_context", lambda *_: 123
     )  # не bytes
     with pytest.raises(SignatureGenerationError):
         signer.sign(b"x")
@@ -337,7 +337,7 @@ def test_public_key_pem_encoding_error(monkeypatch: pytest.MonkeyPatch) -> None:
     signer._pub = BadPubView()  # type: ignore
     # monkeypatch "from_public_bytes" чтобы подложить ошибку во время pem сериализации
     monkeypatch.setattr(
-        "security.crypto.signatures.Ed25519PublicKey.from_public_bytes",
+        "src.security.crypto.signatures.Ed25519PublicKey.from_public_bytes",
         lambda *_: (_ for _ in ()).throw(ValueError("pem dead")),
     )
     with pytest.raises(Exception):
@@ -351,7 +351,7 @@ def test_ctor_zeroization_finally(monkeypatch: pytest.MonkeyPatch) -> None:
         calls["call"] = True
         raise Exception("fail")
 
-    monkeypatch.setattr("security.crypto.signatures.zero_memory", fail_zero_memory)
+    monkeypatch.setattr("src.security.crypto.signatures.zero_memory", fail_zero_memory)
     with pytest.raises(SignatureError):
         Ed25519Signer(bytearray(b"x" * 31))
     assert calls.get("call") is True

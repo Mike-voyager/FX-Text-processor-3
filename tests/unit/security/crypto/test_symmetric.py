@@ -6,9 +6,9 @@ from typing import Callable, Dict, Tuple, cast  # NEW
 
 import pytest
 
-from security.crypto import utils as utils_mod
-from security.crypto.exceptions import DecryptionError, EncryptionError
-from security.crypto.symmetric import (
+from src.security.crypto import utils as utils_mod
+from src.security.crypto.exceptions import DecryptionError, EncryptionError
+from src.security.crypto.symmetric import (
     KEY_LEN,
     NONCE_LEN,
     TAG_LEN,
@@ -52,7 +52,7 @@ def test_encrypt_uses_utils_rng_for_full_nonce(monkeypatch: pytest.MonkeyPatch) 
         return b"\x00" * 12
 
     monkeypatch.setattr(
-        "security.crypto.symmetric.generate_random_bytes", fake_rng, raising=True
+        "src.security.crypto.symmetric.generate_random_bytes", fake_rng, raising=True
     )
 
     key = b"\x02" * KEY_LEN
@@ -111,7 +111,7 @@ def test_encrypt_internal_failure_is_wrapped(monkeypatch: pytest.MonkeyPatch) ->
 
     # Патчим конструктор Cipher, чтобы он падал
     monkeypatch.setattr(
-        "security.crypto.symmetric.Cipher",
+        "src.security.crypto.symmetric.Cipher",
         lambda *a, **k: (_ for _ in ()).throw(Boom()),
     )
     with pytest.raises(EncryptionError):

@@ -9,7 +9,7 @@ from _pytest.logging import LogCaptureFixture
 
 import pytest
 
-import security.crypto.asymmetric as asym
+import src.security.crypto.asymmetric as asym
 from src.security.crypto.asymmetric import (
     AsymmetricKeyPair,
     _secure_log,

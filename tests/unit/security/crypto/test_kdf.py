@@ -7,13 +7,13 @@ from typing import Any, Sequence, cast  # Import generic types from the typing m
 
 import pytest
 
-from security.crypto.kdf import (
+from src.security.crypto.kdf import (
     DefaultKdfProvider,
     KDFAlgorithmError,
     KDFParameterError,
     generate_salt,
 )
-from security.crypto.protocols import Argon2idParams, PBKDF2Params
+from src.security.crypto.protocols import Argon2idParams, PBKDF2Params
 
 # --- generate_salt ---
 
@@ -292,7 +292,7 @@ def test_invalid_salt_type_raises() -> None:
 
 def test_generate_salt_maps_valueerror(monkeypatch: pytest.MonkeyPatch) -> None:
     # Подменяем utils.generate_salt, чтобы он бросил ValueError
-    from security.crypto import kdf as kdf_mod
+    from src.security.crypto import kdf as kdf_mod
 
     def boom(length: int) -> bytes:
         raise ValueError("rng failure")

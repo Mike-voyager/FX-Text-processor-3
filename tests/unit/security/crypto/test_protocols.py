@@ -4,7 +4,7 @@ from typing import Callable, Literal, Optional, Tuple, Union
 
 import pytest
 
-from security.crypto.protocols import (
+from src.security.crypto.protocols import (
     Argon2idParams,
     BytesLike,
     CryptoServiceProtocol,
@@ -346,7 +346,7 @@ def test_hashing_protocol_rejects_incompatible_shape() -> None:
 
 
 def test_all_exports_present() -> None:
-    import security.crypto.protocols as pr
+    import src.security.crypto.protocols as pr
 
     names = {
         "BytesLike",

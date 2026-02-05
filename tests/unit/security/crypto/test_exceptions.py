@@ -5,7 +5,7 @@ from typing import Type
 
 import pytest
 
-from security.crypto import exceptions as exc
+from src.security.crypto import exceptions as exc
 
 
 def test_hierarchy_relationships() -> None:
@@ -60,7 +60,7 @@ def test_raise_from_sets_cause_preserved() -> None:
 
 
 def test_all_exports_present_and_are_classes() -> None:
-    mod = importlib.import_module("security.crypto.exceptions")
+    mod = importlib.import_module("src.security.crypto.exceptions")
     exported = getattr(mod, "__all__", None)
     assert isinstance(exported, list) and exported, "__all__ must be a non-empty list"
 

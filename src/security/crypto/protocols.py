@@ -26,6 +26,7 @@ References:
 from __future__ import annotations
 
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Literal,
     Optional,
@@ -33,8 +34,12 @@ from typing import (
     Tuple,
     TypedDict,
     Union,
+    overload,
     runtime_checkable,
 )
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 BytesLike = Union[bytes, bytearray]
 
@@ -68,24 +73,22 @@ class SymmetricCipherProtocol(Protocol):
     def encrypt(
         self,
         key: bytes,
-        plaintext: BytesLike,
+        plaintext: Union[bytes, bytearray],
         aad: Optional[bytes] = None,
         *,
         return_combined: bool = True,
     ) -> Union[Tuple[bytes, bytes], Tuple[bytes, bytes, bytes]]:
         """
-        Encrypt data.
-
+        Encrypt plaintext with AES-256-GCM.
 
         Args:
-            key: 32-byte key for AES-256-GCM.
-            plaintext: message to encrypt; may be bytes or bytearray.
-            aad: additional authenticated data.
-            return_combined: if True, returns (nonce, ciphertext||tag), otherwise (nonce, ciphertext, tag).
-
+            key: 32-byte encryption key.
+            plaintext: data to encrypt.
+            aad: additional authenticated data (optional).
+            return_combined: if True, return (nonce, ciphertext||tag); else (nonce, ct, tag).
 
         Returns:
-            Either (nonce, combined) or (nonce, ciphertext, tag).
+            (nonce, combined) or (nonce, ciphertext, tag) depending on return_combined.
         """
         ...
 
@@ -100,17 +103,15 @@ class SymmetricCipherProtocol(Protocol):
         tag: Optional[bytes] = None,
     ) -> bytes:
         """
-        Decrypt data.
-
+        Decrypt ciphertext with AES-256-GCM.
 
         Args:
-            key: 32-byte key for AES-256-GCM.
-            nonce: 12-byte GCM nonce.
+            key: 32-byte decryption key.
+            nonce: 12-byte nonce.
             data: ciphertext||tag if has_combined=True, else ciphertext.
-            aad: additional authenticated data.
-            has_combined: indicates whether `data` includes tag.
-            tag: optional 16-byte tag when not using combined mode.
-
+            aad: additional authenticated data (must match encryption).
+            has_combined: whether data includes tag.
+            tag: explicit tag if has_combined=False.
 
         Returns:
             Decrypted plaintext bytes.

@@ -37,13 +37,17 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, Final, Optional
 
-from security.crypto.exceptions import (
+from .exceptions import (
     StorageError,
     StorageReadError,
     StorageWriteError,
 )
-from security.crypto.protocols import SymmetricCipherProtocol
-from security.crypto.utils import set_secure_file_permissions, zero_memory
+from .protocols import SymmetricCipherProtocol
+from .utils import (
+    secure_compare,
+    set_secure_file_permissions,
+    zero_memory,
+)
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -198,6 +202,7 @@ class FileEncryptedStorageBackend:
 
         with self._lock:
             db = self._read_db_checked()
+
             if name not in db:
                 raise KeyError(name)
 
@@ -214,9 +219,8 @@ class FileEncryptedStorageBackend:
 
                 if key_ver > _CURRENT_KEY_VERSION:
                     _LOGGER.error(
-                        "Unsupported key version %d for item '%s' (current: %d)",
+                        "Unsupported key version %d for item (current: %d)",
                         key_ver,
-                        name,
                         _CURRENT_KEY_VERSION,
                     )
                     raise StorageReadError(f"Unsupported key version: {key_ver}")
@@ -241,14 +245,10 @@ class FileEncryptedStorageBackend:
                 return plaintext
 
             except KeyError as exc:
-                _LOGGER.warning(
-                    "Malformed keystore record for '%s': missing %s", name, exc
-                )
+                _LOGGER.warning("Malformed keystore record: missing %s", exc)
                 raise StorageReadError("Malformed keystore record") from exc
             except Exception as exc:
-                _LOGGER.error(
-                    "Keystore load failed for '%s': %s", name, exc.__class__.__name__
-                )
+                _LOGGER.error("Keystore load failed: %s", exc.__class__.__name__)
                 raise StorageReadError("Load operation failed") from exc
 
     def delete(self, name: str) -> None:
@@ -476,6 +476,7 @@ class FileEncryptedStorageBackend:
                 except Exception:
                     pass
             raise
+
 
 # Исправление совместимости имен
 SecureStorage = FileEncryptedStorageBackend

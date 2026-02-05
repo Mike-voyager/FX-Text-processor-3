@@ -50,12 +50,12 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-from security.crypto.exceptions import (
+from .exceptions import (
     SignatureError,
     SignatureGenerationError,
     SignatureVerificationError,
 )
-from security.crypto.utils import (
+from .utils import (
     generate_random_bytes,
     zero_memory,
 )

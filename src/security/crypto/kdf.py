@@ -16,15 +16,15 @@ import hashlib
 import logging
 from typing import Final, Optional, Union, cast
 
-from security.crypto.exceptions import KDFAlgorithmError, KDFParameterError
-from security.crypto.protocols import (
+from .exceptions import KDFAlgorithmError, KDFParameterError
+from .protocols import (
     Argon2idParams,
     KdfParams,
     KdfProtocol,
     PBKDF2Params,
 )
-from security.crypto.utils import generate_salt as _utils_generate_salt
-from security.crypto.utils import zero_memory
+from .utils import generate_salt as _utils_generate_salt
+from .utils import zero_memory
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -220,18 +220,6 @@ class DefaultKdfProvider:
             raise KDFAlgorithmError("Argon2id failed") from exc
 
 
-# --- Public API surface ---
-
-__all__ = [
-    "DefaultKdfProvider",
-    "generate_salt",
-    "derive_key",
-    "derive_key_argon2id",
-    "make_pbkdf2_params",
-    "make_argon2id_params",
-]
-
-
 def make_pbkdf2_params(
     *,
     iterations: int = 100_000,
@@ -348,3 +336,85 @@ def derive_key_argon2id(
     return derive_key(
         password=password, salt=salt, length=length, params=params, provider=provider
     )
+
+
+def derive_key_with_context(
+    master_key: bytes,
+    context: str,
+    length: int = 32,
+    *,
+    salt: Optional[bytes] = None,
+) -> bytes:
+    """
+    Derive sub-key from master key with domain separation via HKDF-SHA256.
+
+    This ensures that different contexts (document encryption, authentication tokens,
+    etc.) derive cryptographically independent keys from the same master key.
+
+    Args:
+        master_key: Master key material (>= 16 bytes recommended).
+        context: Application-specific context string (e.g., "document-encryption",
+                "session-tokens", "backup-codes"). Must be unique per use case.
+        length: Desired output key length in bytes (default 32).
+        salt: Optional salt (default: zero-filled salt of output length).
+
+    Returns:
+        Derived sub-key bytes.
+
+    Raises:
+        ValueError: on invalid parameters.
+
+    Security Notes:
+        - Context separation prevents key reuse attacks across different subsystems.
+        - HKDF provides cryptographic domain separation via the 'info' parameter.
+        - Salt can be public but should be fixed per context (or omitted for default).
+
+    Examples:
+        >>> master = generate_random_bytes(32)
+        >>> doc_key = derive_key_with_context(master, "document-encryption")
+        >>> token_key = derive_key_with_context(master, "session-tokens")
+        >>> # doc_key and token_key are cryptographically independent
+    """
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+    if not isinstance(master_key, (bytes, bytearray)) or len(master_key) < 16:
+        raise ValueError("master_key must be >= 16 bytes")
+    if not isinstance(context, str) or not context:
+        raise ValueError("context must be non-empty string")
+    if length < 16 or length > 64:
+        raise ValueError("output length must be between 16 and 64 bytes")
+
+    # Use zero-filled salt if not provided (acceptable for HKDF with unique info)
+    if salt is None:
+        salt = b"\x00" * length
+
+    # Construct context-specific info string with version prefix
+    info = f"FX-Text-Processor-v1:{context}".encode("utf-8")
+
+    try:
+        hkdf = HKDF(
+            algorithm=hashes.SHA256(),
+            length=length,
+            salt=salt,
+            info=info,
+        )
+        derived = hkdf.derive(bytes(master_key))
+        _LOGGER.debug("Derived %d-byte key for context: %s", length, context)
+        return bytes(derived)
+    except Exception as exc:
+        _LOGGER.error("HKDF derivation failed: %s", exc.__class__.__name__)
+        raise ValueError(f"Key derivation failed: {exc}") from exc
+
+
+# --- Public API surface ---
+
+__all__ = [
+    "DefaultKdfProvider",
+    "generate_salt",
+    "derive_key",
+    "derive_key_argon2id",
+    "derive_key_with_context",
+    "make_pbkdf2_params",
+    "make_argon2id_params",
+]

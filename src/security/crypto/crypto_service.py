@@ -19,20 +19,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Final, Optional, Union, cast
 
-from security.crypto.exceptions import HashSchemeError, KDFAlgorithmError
-from security.crypto.hashing import PasswordHasher
-from security.crypto.kdf import DefaultKdfProvider
-from security.crypto.protocols import (
+from .exceptions import HashSchemeError, KDFAlgorithmError
+from .hashing import PasswordHasher
+from .kdf import DefaultKdfProvider
+from .protocols import (
     Argon2idParams,
     KdfParams,
     KdfProtocol,
     PBKDF2Params,
     SymmetricCipherProtocol,
 )
-from security.crypto.secure_storage import FileEncryptedStorageBackend
-from security.crypto.signatures import Ed25519Signer
-from security.crypto.symmetric import SymmetricCipher
-from security.crypto.utils import generate_salt, set_secure_file_permissions
+from .secure_storage import FileEncryptedStorageBackend
+from .signatures import Ed25519Signer
+from .symmetric import SymmetricCipher
+from .utils import generate_salt, set_secure_file_permissions
 
 LOGGER: Final = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class CryptoService:
         if cfg.signing_algorithm == "ed25519":
             signer: object = Ed25519Signer.generate()
         elif cfg.signing_algorithm in ("rsa4096", "ecdsa_p256"):
-            from security.crypto.asymmetric import AsymmetricKeyPair
+            from .asymmetric import AsymmetricKeyPair
 
             akp = AsymmetricKeyPair.generate(
                 cfg.signing_algorithm, key_size=cfg.rsa_key_size
@@ -254,10 +254,9 @@ class CryptoService:
         aad: Optional[bytes] = None,
         return_combined: bool = True,
     ) -> Union[tuple[bytes, bytes], tuple[bytes, bytes, bytes]]:
-        res = self.symmetric.encrypt(
+        return self.symmetric.encrypt(
             key, plaintext, aad=aad, return_combined=return_combined
         )
-        return cast(Union[tuple[bytes, bytes], tuple[bytes, bytes, bytes]], res)
 
     def decrypt(
         self,
@@ -269,10 +268,9 @@ class CryptoService:
         has_combined: bool = True,
         tag: Optional[bytes] = None,
     ) -> bytes:
-        res = self.symmetric.decrypt(
+        return self.symmetric.decrypt(
             key, nonce, data, aad=aad, has_combined=has_combined, tag=tag
         )
-        return cast(bytes, res)
 
     # ---- Encrypted keystore factory ----
 

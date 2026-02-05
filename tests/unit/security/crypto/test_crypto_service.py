@@ -9,15 +9,15 @@ from typing import Any, Callable, Optional, Tuple, Union, cast
 
 import pytest
 
-import security.crypto.crypto_service as cs_mod
-from security.crypto.crypto_service import (
+import src.security.crypto.crypto_service as cs_mod
+from src.security.crypto.crypto_service import (
     CryptoService,
     HashingPolicy,
     KdfPolicy,
     ServiceConfig,
     _load_or_create_salt,
 )
-from security.crypto.exceptions import HashSchemeError, KDFAlgorithmError
+from src.security.crypto.exceptions import HashSchemeError, KDFAlgorithmError
 
 # --- Fakes implementing protocol-compliant surfaces ---
 
@@ -266,7 +266,7 @@ def test_new_default_rsa_and_ecdsa_selects_asymmetric(
             return _Obj()
 
     fake_asym = types.SimpleNamespace(AsymmetricKeyPair=FakeAKP)
-    monkeypatch.setitem(sys.modules, "security.crypto.asymmetric", fake_asym)
+    monkeypatch.setitem(sys.modules, "src.security.crypto.asymmetric", fake_asym)
 
     cfg_rsa = ServiceConfig(
         signing_algorithm="rsa4096", hashing=HashingPolicy(scheme="pbkdf2")
@@ -467,7 +467,7 @@ def test_asymmetric_adapter_ignores_context(monkeypatch: pytest.MonkeyPatch) -> 
             return _Obj()
 
     fake_asym = types.SimpleNamespace(AsymmetricKeyPair=FakeAKP)
-    monkeypatch.setitem(sys.modules, "security.crypto.asymmetric", fake_asym)
+    monkeypatch.setitem(sys.modules, "src.security.crypto.asymmetric", fake_asym)
 
     cfg = ServiceConfig(
         signing_algorithm="rsa4096", hashing=HashingPolicy(scheme="pbkdf2")

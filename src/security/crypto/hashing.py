@@ -31,8 +31,8 @@ import threading
 import time
 from typing import Any, Callable, Dict, Final, List, Optional, Tuple
 
-from security.crypto.exceptions import HashSchemeError
-from security.crypto.utils import generate_salt, secure_compare
+from .exceptions import HashSchemeError
+from .utils import generate_salt, secure_compare
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -122,6 +122,120 @@ def _clear_failed_attempts(identifier: str) -> None:
     """Clear failed attempts on successful verification."""
     with _attempts_lock:
         _failed_attempts.pop(identifier, None)
+
+
+# После импортов, перед классом PasswordHasher добавьте:
+
+
+def compute_hash(
+    data: bytes,
+    *,
+    algorithm: str = "sha3-256",
+) -> str:
+    """
+    Compute cryptographic hash of data.
+
+    Args:
+        data: bytes to hash.
+        algorithm: hash algorithm name (sha256, sha3-256, blake2b).
+
+    Returns:
+        Hexadecimal hash string.
+
+    Raises:
+        HashSchemeError: on unsupported algorithm.
+
+    Examples:
+        >>> compute_hash(b"hello", algorithm="sha3-256")
+        '3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392'
+    """
+    if algorithm == "sha256":
+        return compute_hash_sha256(data)
+    elif algorithm == "sha3-256":
+        return compute_hash_sha3_256(data)
+    elif algorithm == "blake2b":
+        return compute_hash_blake2b(data)
+    else:
+        raise HashSchemeError(f"Unsupported hash algorithm: {algorithm}")
+
+
+def compute_hash_sha256(data: bytes) -> str:
+    """
+    Compute SHA-256 hash (legacy/compatibility).
+
+    Args:
+        data: bytes to hash.
+
+    Returns:
+        64-character hex string.
+    """
+    return hashlib.sha256(data).hexdigest()
+
+
+def compute_hash_sha3_256(data: bytes) -> str:
+    """
+    Compute SHA3-256 hash (NIST standard).
+
+    Args:
+        data: bytes to hash.
+
+    Returns:
+        64-character hex string.
+    """
+    return hashlib.sha3_256(data).hexdigest()
+
+
+def compute_hash_blake2b(data: bytes, digest_size: int = 64) -> str:
+    """
+    Compute BLAKE2b hash (high-performance alternative).
+
+    Args:
+        data: bytes to hash.
+        digest_size: output size in bytes (1-64, default 64).
+
+    Returns:
+        Hexadecimal hash string (length = digest_size * 2).
+    """
+    return hashlib.blake2b(data, digest_size=digest_size).hexdigest()
+
+
+def hash_password(
+    password: str,
+    *,
+    salt: Optional[bytes] = None,
+) -> Tuple[str, bytes]:
+    """
+    Hash password using Argon2id.
+
+    Args:
+        password: plaintext password.
+        salt: optional salt (generated if None).
+
+    Returns:
+        Tuple of (hash_string, salt).
+    """
+    if salt is None:
+        salt = generate_salt(16)
+
+    hasher = PasswordHasher()
+    hash_str = hasher.hash_password(password)
+
+    return hash_str, salt
+
+
+def verify_password(password: str, hash_str: str, salt: bytes) -> bool:
+    """
+    Verify password against hash.
+
+    Args:
+        password: plaintext password to verify.
+        hash_str: stored Argon2 hash string (includes salt).
+
+    Returns:
+        True if password matches, False otherwise.
+    """
+    hasher = PasswordHasher()
+    return hasher.verify_password(password, hash_str)
 
 
 class PasswordHasher:
@@ -517,4 +631,12 @@ class PasswordHasher:
             return True
 
 
-__all__ = ["PasswordHasher"]
+__all__ = [
+    "compute_hash",
+    "compute_hash_blake2b",
+    "compute_hash_sha256",
+    "compute_hash_sha3_256",
+    "hash_password",
+    "verify_password",
+    "PasswordHasher",
+]

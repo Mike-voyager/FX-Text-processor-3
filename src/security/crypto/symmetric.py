@@ -40,8 +40,11 @@ from typing import Final, Literal, Optional, Tuple, Union, overload
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from security.crypto.exceptions import DecryptionError, EncryptionError
-from security.crypto.utils import generate_random_bytes, zero_memory
+from .exceptions import DecryptionError, EncryptionError
+from .utils import generate_random_bytes, zero_memory
+
+# Crypto format version for migration support
+_CRYPTO_FORMAT_VERSION: Final[int] = 1
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -90,7 +93,6 @@ class SymmetricCipher:
         if not isinstance(nonce, (bytes, bytearray)) or len(nonce) != NONCE_LEN:
             raise DecryptionError("GCM nonce must be 12 bytes")
 
-    # Overloads for precise return typing
     @overload
     def encrypt(
         self,
@@ -136,7 +138,6 @@ class SymmetricCipher:
         """
         self._validate_key(key)
 
-        # Validate AAD if provided
         if aad is not None:
             if not isinstance(aad, (bytes, bytearray)) or len(aad) == 0:
                 raise EncryptionError("AAD must be non-empty bytes when provided")
@@ -158,7 +159,6 @@ class SymmetricCipher:
             raise EncryptionError("AES-GCM encryption failed") from exc
         finally:
             if pt_is_mutable:
-                # best-effort wipe for bytearray inputs
                 if isinstance(plaintext, bytearray):
                     zero_memory(plaintext)
 

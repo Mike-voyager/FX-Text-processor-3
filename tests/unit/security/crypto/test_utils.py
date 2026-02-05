@@ -7,7 +7,7 @@ from typing import Optional
 
 import pytest
 
-from security.crypto import utils as U
+from src.security.crypto import utils as U
 
 
 def test_generate_random_bytes_basic_and_bounds() -> None:

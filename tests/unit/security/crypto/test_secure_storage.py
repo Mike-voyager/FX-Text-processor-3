@@ -20,12 +20,12 @@ from typing import (
 
 import pytest
 
-from security.crypto.exceptions import (
+from src.security.crypto.exceptions import (
     StorageError,
     StorageReadError,
     StorageWriteError,
 )
-from security.crypto.secure_storage import FileEncryptedStorageBackend
+from src.security.crypto.secure_storage import FileEncryptedStorageBackend
 
 # --- Minimal symmetric cipher stub matching the backend's expectations ---
 
@@ -113,7 +113,7 @@ def test_save_load_roundtrip_bytes(
         perm_calls["n"] += 1
 
     monkeypatch.setattr(
-        "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
+        "src.security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
 
     store_path = tmp_path / "ks.json"
@@ -140,7 +140,7 @@ def test_save_zeroizes_bytearray_and_overwrite(
         for i in range(len(b)):
             b[i] = 0
 
-    monkeypatch.setattr("security.crypto.secure_storage.zero_memory", fake_zero)
+    monkeypatch.setattr("src.security.crypto.secure_storage.zero_memory", fake_zero)
 
     store_path = tmp_path / "ks.json"
     ks = FileEncryptedStorageBackend(
@@ -268,7 +268,7 @@ def test_atomic_write_os_replace_failure(
     monkeypatch.setattr(Path, "replace", bad_replace)
     monkeypatch.setattr(Path, "unlink", fake_remove)
     monkeypatch.setattr(
-        "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
+        "src.security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
 
     ks = FileEncryptedStorageBackend(
@@ -371,7 +371,7 @@ def test_atomic_write_success_calls_permissions(
 
     monkeypatch.setattr("os.replace", wrap_replace)
     monkeypatch.setattr(
-        "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
+        "src.security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
 
     ks = FileEncryptedStorageBackend(
@@ -479,7 +479,7 @@ def test_permissions_applied_on_each_save(
         calls["perms"] += 1
 
     monkeypatch.setattr(
-        "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
+        "src.security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
     ks = FileEncryptedStorageBackend(
         str(tmp_path / "ks.json"), ProtoCompatibleCipher(), lambda: b"K" * 32
@@ -587,7 +587,7 @@ def test_permissions_applied_multiple_items(
         calls["perms"] += 1
 
     monkeypatch.setattr(
-        "security.crypto.secure_storage.set_secure_file_permissions", fake_perms
+        "src.security.crypto.secure_storage.set_secure_file_permissions", fake_perms
     )
     ks = FileEncryptedStorageBackend(
         str(tmp_path / "ks.json"), ProtoCompatibleCipher(), lambda: b"K" * 32

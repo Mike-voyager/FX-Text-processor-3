@@ -9,7 +9,7 @@ from typing import Any, Sequence
 
 import pytest
 
-from security.crypto.hashing import (  # type: ignore[attr-defined]
+from src.security.crypto.hashing import (  # type: ignore[attr-defined]
     HashSchemeError,
     PasswordHasher,
     _try_import_argon2,
