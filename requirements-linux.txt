@@ -1,3 +1,5 @@
 # requirements-linux
 pycups>=2.0.0
 python-escpos>=3.0 # для ESC/P на Linux
+# Memory protection
+pycryptodome>=3.19.0
