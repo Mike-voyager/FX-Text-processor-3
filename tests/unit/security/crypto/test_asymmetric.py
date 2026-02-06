@@ -12,6 +12,8 @@ import pytest
 import src.security.crypto.asymmetric as asym
 from src.security.crypto.asymmetric import (
     AsymmetricKeyPair,
+    KeyFormatError,
+    UnsupportedAlgorithmError,
     _secure_log,
     _contains_sensitive_data,
 )
@@ -33,6 +35,7 @@ def test_generate_rsa_sign_verify_encrypt_decrypt() -> None:
 
     # Type guard для доступа к key_size (только у RSA)
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
     assert isinstance(kp.public_key, RSAPublicKey)
 
     limit = kp.public_key.key_size // 8 - overhead
@@ -155,6 +158,7 @@ def test_rsa_oaep_overflow_error_message_contains_sizes() -> None:
 
     # Type guard для доступа к key_size (только у RSA)
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
     assert isinstance(kp.public_key, RSAPublicKey)
 
     limit = kp.public_key.key_size // 8 - overhead
@@ -288,6 +292,7 @@ def test_rsa_public_only_decrypt_rejected() -> None:
     with pytest.raises(NotImplementedError):
         _ = pub_only.decrypt(b"\x00" * 256)
 
+
 class TestSensitiveDataDetection:
     """Тесты обнаружения чувствительных данных."""
 
@@ -355,9 +360,7 @@ class TestSecureLogging:
 
         assert len(caplog.records) == 0, "Сообщение с 'API_KEY' не должно логироваться"
 
-    def test_secure_log_allows_safe_messages(
-        self, caplog: LogCaptureFixture
-    ) -> None:
+    def test_secure_log_allows_safe_messages(self, caplog: LogCaptureFixture) -> None:
         """_secure_log пропускает безопасные сообщения."""
         with caplog.at_level(logging.INFO):
             _secure_log("Generating keypair: algorithm=%s", "ed25519")
@@ -365,9 +368,7 @@ class TestSecureLogging:
         assert len(caplog.records) == 1
         assert "ed25519" in caplog.text
 
-    def test_secure_log_blocks_abbreviations(
-        self, caplog: LogCaptureFixture
-    ) -> None:
+    def test_secure_log_blocks_abbreviations(self, caplog: LogCaptureFixture) -> None:
         """_secure_log блокирует сокращения (priv, sec, pass)."""
         with caplog.at_level(logging.INFO):
             _secure_log("Using priv for %s", "operation")
@@ -437,3 +438,28 @@ class TestSecurityCompliance:
 
         # Но алгоритм должен быть
         assert "ed25519" in full_log
+
+
+def test_generate_unsupported_algorithm() -> None:
+    """Test generation with invalid algorithm."""
+    with pytest.raises(
+        UnsupportedAlgorithmError, match="Unsupported algorithm: invalid"
+    ):
+        AsymmetricKeyPair.generate("invalid")
+
+
+def test_secure_log_format_error() -> None:
+    """Test _secure_log handles format errors gracefully."""
+    from src.security.crypto.asymmetric import _secure_log
+
+    # Не должно крашнуться при неправильном форматировании
+    _secure_log("Test %s %s", "only_one_arg")  # TypeError
+    # Просто не логируется, но не падает
+
+
+def test_from_private_bytes_invalid_pem() -> None:
+    """Test loading completely invalid PEM data."""
+    invalid_pem = b"-----BEGIN PRIVATE KEY-----\nGARBAGE\n-----END PRIVATE KEY-----"
+
+    with pytest.raises(KeyFormatError, match="Failed to import private key"):
+        AsymmetricKeyPair.from_private_bytes(invalid_pem, "ed25519")

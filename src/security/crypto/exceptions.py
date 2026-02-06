@@ -109,25 +109,96 @@ class StorageWriteError(StorageError):
     """Raised when persisting changes to the storage backend fails."""
 
 
+# Platform security (NEW)
+class PlatformSecurityError(CryptoError):
+    """Base class for platform security operation failures."""
+
+
+class MemoryLockError(PlatformSecurityError):
+    """Raised when memory locking/unlocking fails (mlock/munlock)."""
+
+
+class SecureDeleteError(PlatformSecurityError):
+    """Raised when secure file deletion fails."""
+
+
+# Health monitoring (NEW)
+class HealthCheckError(CryptoError):
+    """Raised when crypto health check detects critical failures."""
+
+
+# Standards (NEW)
+class StandardsError(CryptoError):
+    """Base class for cryptographic standards (PIV, OpenPGP) errors."""
+
+
+class PIVError(StandardsError):
+    """Raised on PIV smart card operation failures."""
+
+
+class OpenPGPError(StandardsError):
+    """Raised on OpenPGP operation failures."""
+
+
+# Post-quantum cryptography (NEW)
+class PQCError(CryptoError):
+    """Base class for post-quantum cryptography errors."""
+
+
+class KyberError(PQCError):
+    """Raised on Kyber KEM (Key Encapsulation Mechanism) failures."""
+
+
+class DilithiumError(PQCError):
+    """Raised on Dilithium digital signature operation failures."""
+
+
+# BLAKE3 (NEW - subclass of HashingError)
+class Blake3Error(HashingError):
+    """Raised on BLAKE3 cryptographic hashing failures."""
+
+
 __all__ = [
+    # Base
     "CryptoError",
+    # Symmetric/Asymmetric
     "EncryptionError",
     "DecryptionError",
+    # Signatures
     "SignatureError",
     "SignatureGenerationError",
     "SignatureVerificationError",
     "InvalidSignatureError",
+    # Keys
     "CryptoKeyError",
     "KeyNotFoundError",
     "KeyGenerationError",
     "InvalidKeyError",
     "KeyRotationError",
+    # KDF
     "KdfError",
     "KDFParameterError",
     "KDFAlgorithmError",
+    # Hashing
     "HashingError",
     "HashSchemeError",
+    "Blake3Error",  # NEW
+    # Storage
     "StorageError",
     "StorageReadError",
     "StorageWriteError",
+    # Platform security (NEW)
+    "PlatformSecurityError",
+    "MemoryLockError",
+    "SecureDeleteError",
+    # Health monitoring (NEW)
+    "HealthCheckError",
+    # Standards (NEW)
+    "StandardsError",
+    "PIVError",
+    "OpenPGPError",
+    # Post-quantum (NEW)
+    "PQCError",
+    "KyberError",
+    "DilithiumError",
 ]

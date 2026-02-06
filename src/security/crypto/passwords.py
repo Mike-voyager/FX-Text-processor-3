@@ -267,27 +267,303 @@ class PasswordHasher:
         hashed: str,
         identifier: Optional[str] = None
     ) -> bool:
-        """Verify with timing attack protection."""
+        """
+        Verify password with timing attack protection.
+        
+        Args:
+            password: user-provided password to verify.
+            hashed: stored hash string.
+            identifier: optional identifier for rate limiting (e.g., username, user_id).
+        
+        Returns:
+            True if password matches, False otherwise.
+        
+        Security features:
+            - Constant-time dummy operations (prevents timing leaks)
+            - Global rate limiting (prevents distributed attacks)
+            - Per-identifier rate limiting (prevents brute force)
+            - Pepper version MAC verification (prevents downgrade attacks)
+        
+        Examples:
+            >>> hasher = PasswordHasher()
+            >>> hashed = hasher.hash_password("user_password")
+            >>> hasher.verify_password("user_password", hashed, identifier="user123")
+            True
+            >>> hasher.verify_password("wrong_password", hashed, identifier="user123")
+            False
+        """
+        if not isinstance(password, str) or not isinstance(hashed, str):
+            return False
+        
         if not password or not hashed:
             return False
         
-        # Check rate limits
+        # Check global rate limit first
         if self._rate_limit_enabled:
             try:
                 _check_global_rate_limit()
-                if identifier:
-                    _check_rate_limit(identifier)
             except HashSchemeError:
                 return False
         
-        # Dummy hash for timing consistency
-        def _dummy_hash():
-            hashlib.pbkdf2_hmac('sha256', b'dummy', b'dummy'*3, 1000, dklen=32)
+        # Check per-identifier rate limit
+        if self._rate_limit_enabled and identifier:
+            try:
+                _check_rate_limit(identifier)
+            except HashSchemeError:
+                return False
         
-        # Остальная логика verification идентична улучшенной версии...
-        # (полный код опущен для краткости, но включает pepper MAC verification)
+        # Dummy hash for timing consistency (if hash parsing fails)
+        def _dummy_hash() -> None:
+            """Constant-time dummy operation."""
+            dummy_salt = b"dummy_salt_16byt"
+            hashlib.pbkdf2_hmac('sha256', b'dummy_password', dummy_salt, 10000, dklen=32)
         
-        return False  # placeholder
+        try:
+            parts = hashed.split(":")
+            
+            if len(parts) < 4:
+                _dummy_hash()
+                if identifier:
+                    _record_failed_attempt(identifier)
+                return False
+            
+            scheme = parts[0]
+            
+            # ========================================
+            # PBKDF2 Verification
+            # ========================================
+            if scheme == "pbkdf2":
+                # Parse PBKDF2 hash format:
+                # pbkdf2:sha256:iterations[:pv=version][:vmac=base64][salt_b64]:[hash_b64]
+                
+                if parts[1] != "sha256":
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                try:
+                    iterations = int(parts[2])
+                except ValueError:
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                # Check for pepper version
+                pepper_version = None
+                version_mac_expected = None
+                offset = 3
+                
+                if offset < len(parts) and parts[offset].startswith("pv="):
+                    pepper_version = parts[offset][3:]
+                    offset += 1
+                    
+                    # Check version MAC
+                    if offset < len(parts) and parts[offset].startswith("vmac="):
+                        try:
+                            version_mac_expected = base64.b64decode(parts[offset][5:])
+                        except Exception:
+                            _dummy_hash()
+                            if identifier:
+                                _record_failed_attempt(identifier)
+                            return False
+                        offset += 1
+                
+                # Extract salt and hash
+                if offset + 1 >= len(parts):
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                salt_b64 = parts[offset]
+                dk_b64 = parts[offset + 1]
+                
+                try:
+                    salt = base64.b64decode(salt_b64)
+                    dk_stored = base64.b64decode(dk_b64)
+                except Exception:
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                # Verify pepper version MAC (if present)
+                if pepper_version is not None and self._pepper_provider is not None:
+                    pepper = self._pepper_provider()
+                    version_mac_actual = _compute_pepper_version_mac(pepper, pepper_version)
+                    
+                    if version_mac_expected is None:
+                        _LOGGER.warning("Pepper version present but MAC missing")
+                        if identifier:
+                            _record_failed_attempt(identifier)
+                        return False
+                    
+                    if not secure_compare(version_mac_actual, version_mac_expected):
+                        _LOGGER.warning("Pepper version MAC mismatch - possible downgrade attack")
+                        if identifier:
+                            _record_failed_attempt(identifier)
+                        return False
+                
+                # Compute hash with provided password
+                pw_bytes = self._peppered(password)
+                dk_candidate = hashlib.pbkdf2_hmac(
+                    "sha256",
+                    pw_bytes,
+                    salt,
+                    iterations,
+                    dklen=len(dk_stored)
+                )
+                
+                # Constant-time comparison
+                result = secure_compare(dk_candidate, dk_stored)
+                
+                if result:
+                    if identifier:
+                        _clear_failed_attempts(identifier)
+                    _LOGGER.debug("PBKDF2 password verification successful")
+                else:
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    _LOGGER.debug("PBKDF2 password verification failed")
+                
+                return result
+            
+            # ========================================
+            # Argon2id Verification
+            # ========================================
+            elif scheme == "argon2id":
+                # Parse Argon2id hash format:
+                # argon2id:t:m:p[:pv=version][:vmac=base64][:v=version]:[salt_b64]:[hash_b64]
+                
+                if len(parts) < 7:
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                try:
+                    t = int(parts[1])
+                    m = int(parts[2])
+                    p = int(parts[3])
+                except ValueError:
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                # Check for pepper version
+                pepper_version = None
+                version_mac_expected = None
+                offset = 4
+                
+                if offset < len(parts) and parts[offset].startswith("pv="):
+                    pepper_version = parts[offset][3:]
+                    offset += 1
+                    
+                    if offset < len(parts) and parts[offset].startswith("vmac="):
+                        try:
+                            version_mac_expected = base64.b64decode(parts[offset][5:])
+                        except Exception:
+                            _dummy_hash()
+                            if identifier:
+                                _record_failed_attempt(identifier)
+                            return False
+                        offset += 1
+                
+                # Skip version field (v=19)
+                if offset < len(parts) and parts[offset].startswith("v="):
+                    offset += 1
+                
+                # Extract salt and hash
+                if offset + 1 >= len(parts):
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                salt_b64 = parts[offset]
+                hash_b64 = parts[offset + 1]
+                
+                try:
+                    salt = base64.b64decode(salt_b64)
+                    hash_stored = base64.b64decode(hash_b64)
+                except Exception:
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                # Verify pepper version MAC
+                if pepper_version is not None and self._pepper_provider is not None:
+                    pepper = self._pepper_provider()
+                    version_mac_actual = _compute_pepper_version_mac(pepper, pepper_version)
+                    
+                    if version_mac_expected is None:
+                        _LOGGER.warning("Pepper version present but MAC missing")
+                        if identifier:
+                            _record_failed_attempt(identifier)
+                        return False
+                    
+                    if not secure_compare(version_mac_actual, version_mac_expected):
+                        _LOGGER.warning("Pepper version MAC mismatch - possible downgrade attack")
+                        if identifier:
+                            _record_failed_attempt(identifier)
+                        return False
+                
+                # Compute hash with Argon2id
+                try:
+                    hash_secret_raw, Type, _ = _try_import_argon2()
+                except ImportError:
+                    _LOGGER.error("Argon2 not available")
+                    _dummy_hash()
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    return False
+                
+                pw_bytes = self._peppered(password)
+                
+                hash_candidate = hash_secret_raw(
+                    pw_bytes,
+                    salt,
+                    time_cost=t,
+                    memory_cost=m,
+                    parallelism=p,
+                    hash_len=len(hash_stored),
+                    type=Type.ID,
+                    version=_ARGON2_VERSION,
+                )
+                
+                # Constant-time comparison
+                result = secure_compare(hash_candidate, hash_stored)
+                
+                if result:
+                    if identifier:
+                        _clear_failed_attempts(identifier)
+                    _LOGGER.debug("Argon2id password verification successful")
+                else:
+                    if identifier:
+                        _record_failed_attempt(identifier)
+                    _LOGGER.debug("Argon2id password verification failed")
+                
+                return result
+            
+            # Unknown scheme
+            else:
+                _LOGGER.warning("Unknown password hash scheme: %s", scheme)
+                _dummy_hash()
+                if identifier:
+                    _record_failed_attempt(identifier)
+                return False
+        
+        except Exception as exc:
+            _LOGGER.debug("Password verification exception: %s", exc.__class__.__name__)
+            _dummy_hash()
+            if identifier:
+                _record_failed_attempt(identifier)
+            return False
+
 
     def needs_rehash(self, hashed: str) -> bool:
         """Check if hash needs parameter upgrade."""

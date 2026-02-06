@@ -16,8 +16,8 @@ class Argon2Profile(str, Enum):
     # Desktop/laptop systems (default)
     DESKTOP = "desktop"
 
-    # High-performance servers
-    SERVER = "server"
+    # High-performance desktops
+    SAFE_DESKTOP = "safe_desktop"
 
     # Custom tuning (use with explicit parameters)
     CUSTOM = "custom"
@@ -87,8 +87,8 @@ _PROFILE_PARAMS: Final[dict[Argon2Profile, Argon2Config]] = {
         memory_cost=65536,  # 64 MiB
         parallelism=4,
     ),
-    # Server: maximum security for high-value targets
-    Argon2Profile.SERVER: Argon2Config(
+    # High-performance desktops: maximum security for high-value targets
+    Argon2Profile.SAFE_DESKTOP: Argon2Config(
         time_cost=5,
         memory_cost=131072,  # 128 MiB
         parallelism=8,

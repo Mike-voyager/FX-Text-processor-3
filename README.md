@@ -46,7 +46,7 @@ FX Text processor 3 implements **Zero Trust Architecture** with military-grade c
 - **🔐 Multi-Factor Authentication**: FIDO2/WebAuthn hardware keys (YubiKey, Windows Hello)
 - **🛡️ AES-256-GCM Encryption**: Authenticated encryption with full 96-bit random nonces
 - **✍️ Ed25519 Digital Signatures**: 270× faster than RSA-4096, tamper-proof protected blanks
-- **🔑 Argon2id Password Hashing**: Memory-hard with configurable profiles (Mobile/Desktop/Server)
+- **🔑 Argon2id Password Hashing**: Memory-hard with configurable profiles (Mobile/Desktop/SAFE_DESKTOP)
 - **✅ Health Check System**: 6 cryptographic subsystems monitored (100% operational)
 - **🔒 RNG Health Checks**: NIST SP 800-90B compliant (RCT + APT)
 
@@ -228,7 +228,7 @@ FX-Text-processor-3/
 │   ├── __init__.py # ✅ DONE
 │   ├── crypto/                     # 🚧 todo tests
 │   │   ├── __init__.py             # ✅ DONE - Public API exports
-│   │   ├── config.py               # ✅ DONE - Argon2id profiles (Desktop/Server)
+│   │   ├── config.py               # ✅ DONE - Argon2id profiles (Desktop/SAFE_DESKTOP)
 │   │   ├── health.py               # ✅ DONE - Health check system (6 subsystems)
 │   │   ├── test_performance.py     # ✅ DONE - Performance benchmarks
 │   │   ├── symmetric.py            # ✅ DONE - AES-256-GCM encryption

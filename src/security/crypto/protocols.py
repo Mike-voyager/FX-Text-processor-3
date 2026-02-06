@@ -3,25 +3,21 @@
 RU: Протоколы (DI-контракты) для криптоподсистем: симметричное шифрование, подписи, KDF,
 хранилище ключей и хэширование; согласованы c текущими реализациями и строгой типизацией.
 
-
 EN: Dependency-injection Protocols for crypto subsystems: symmetric cipher, signatures,
 KDF, keystore, and hashing; aligned with current implementations and strict typing.
-
 
 Design notes:
 - Protocols are @runtime_checkable to allow isinstance checks in tests.
 - No Any and no global state; minimal method sets to reduce coupling.
-- SymmetricCipherProtocol mirrors the combined/separate tag interface used by AES-GCM class.
-
+- SymmetricCipherProtocol simplified to always return combined ciphertext+tag.
 
 References:
-- Symmetric AES-GCM class and helpers for combined ciphertext+tag interface.  # see module symmetric
-- Ed25519 signatures provider with sign/verify/public_key/fingerprint.        # see module signatures
-- KDF API with Argon2id/PBKDF2 parameter sets and derive_key entry point.     # see module kdf
-- Keystore backend contract used by secure storage.                            # see module secure_storage
-- Hashing provider for password hashing/verification and rehash policy.        # see module hashing
+- Symmetric AES-GCM class with combined ciphertext+tag interface.  # see module symmetric
+- Ed25519 signatures provider with sign/verify/public_key/fingerprint.  # see module signatures
+- KDF API with Argon2id/PBKDF2 parameter sets and derive_key entry point.  # see module kdf
+- Keystore backend contract used by secure storage.  # see module secure_storage
+- Hashing provider for password hashing/verification and rehash policy.  # see module hashing
 """
-
 
 from __future__ import annotations
 
@@ -34,7 +30,6 @@ from typing import (
     Tuple,
     TypedDict,
     Union,
-    overload,
     runtime_checkable,
 )
 
@@ -68,16 +63,14 @@ KdfParams = Union[Argon2idParams, PBKDF2Params]
 
 @runtime_checkable
 class SymmetricCipherProtocol(Protocol):
-    """AES-GCM like interface with combined and split tag handling."""
+    """AES-GCM like interface (simplified: always returns combined ciphertext+tag)."""
 
     def encrypt(
         self,
         key: bytes,
         plaintext: Union[bytes, bytearray],
         aad: Optional[bytes] = None,
-        *,
-        return_combined: bool = True,
-    ) -> Union[Tuple[bytes, bytes], Tuple[bytes, bytes, bytes]]:
+    ) -> Tuple[bytes, bytes]:
         """
         Encrypt plaintext with AES-256-GCM.
 
@@ -85,10 +78,9 @@ class SymmetricCipherProtocol(Protocol):
             key: 32-byte encryption key.
             plaintext: data to encrypt.
             aad: additional authenticated data (optional).
-            return_combined: if True, return (nonce, ciphertext||tag); else (nonce, ct, tag).
 
         Returns:
-            (nonce, combined) or (nonce, ciphertext, tag) depending on return_combined.
+            (nonce, combined_ciphertext_and_tag)
         """
         ...
 
@@ -96,11 +88,8 @@ class SymmetricCipherProtocol(Protocol):
         self,
         key: bytes,
         nonce: bytes,
-        data: bytes,
+        combined: bytes,
         aad: Optional[bytes] = None,
-        *,
-        has_combined: bool = True,
-        tag: Optional[bytes] = None,
     ) -> bytes:
         """
         Decrypt ciphertext with AES-256-GCM.
@@ -108,10 +97,8 @@ class SymmetricCipherProtocol(Protocol):
         Args:
             key: 32-byte decryption key.
             nonce: 12-byte nonce.
-            data: ciphertext||tag if has_combined=True, else ciphertext.
+            combined: ciphertext||tag (combined).
             aad: additional authenticated data (must match encryption).
-            has_combined: whether data includes tag.
-            tag: explicit tag if has_combined=False.
 
         Returns:
             Decrypted plaintext bytes.
@@ -127,11 +114,9 @@ class SigningProtocol(Protocol):
         """
         Produce a signature for the given data.
 
-
         Args:
             data: message to sign.
             context: optional domain separation/context bytes.
-
 
         Returns:
             Signature bytes.
@@ -144,12 +129,10 @@ class SigningProtocol(Protocol):
         """
         Verify a signature.
 
-
         Args:
             data: original message.
             signature: signature to verify.
             context: optional domain separation/context bytes.
-
 
         Returns:
             True if signature is valid, False otherwise.
@@ -162,10 +145,8 @@ class SigningProtocol(Protocol):
         """
         Export public key.
 
-
         Args:
             fmt: output format, one of "raw", "hex", "pem".
-
 
         Returns:
             Public key in selected format.
@@ -175,7 +156,6 @@ class SigningProtocol(Protocol):
     def get_fingerprint(self) -> str:
         """
         Return a stable public key fingerprint (e.g., hex-encoded SHA-256).
-
 
         Returns:
             Hex string fingerprint.
@@ -198,13 +178,11 @@ class KdfProtocol(Protocol):
         """
         Derive a symmetric key from a password and salt.
 
-
         Args:
             password: user password or secret.
             salt: cryptographically secure random salt.
             length: desired key length in bytes.
             params: algorithm-specific parameters.
-
 
         Returns:
             Derived key bytes of requested length.
@@ -214,6 +192,8 @@ class KdfProtocol(Protocol):
 
 @runtime_checkable
 class CryptoServiceProtocol(Protocol):
+    """Crypto service factory protocol."""
+
     def create_encrypted_keystore(
         self,
         filepath: str,
@@ -221,7 +201,9 @@ class CryptoServiceProtocol(Protocol):
         password_provider: Callable[[], Union[str, bytes, bytearray]],
         salt_path: str,
         key_len: int = 32,
-    ) -> KeyStoreProtocol: ...
+    ) -> KeyStoreProtocol:
+        """Create encrypted keystore instance."""
+        ...
 
 
 @runtime_checkable
@@ -231,7 +213,6 @@ class KeyStoreProtocol(Protocol):
     def save(self, name: str, data: bytes) -> None:
         """
         Persist an item by name.
-
 
         Args:
             name: item identifier.
@@ -243,10 +224,8 @@ class KeyStoreProtocol(Protocol):
         """
         Load an item by name.
 
-
         Args:
             name: item identifier.
-
 
         Returns:
             Raw bytes previously stored.
@@ -256,7 +235,6 @@ class KeyStoreProtocol(Protocol):
     def delete(self, name: str) -> None:
         """
         Delete an item by name.
-
 
         Args:
             name: item identifier.
@@ -272,10 +250,8 @@ class HashingProtocol(Protocol):
         """
         Hash a password for storage.
 
-
         Args:
             password: plaintext password.
-
 
         Returns:
             Encoded hash string containing algorithm parameters.
@@ -286,11 +262,9 @@ class HashingProtocol(Protocol):
         """
         Verify a password against a stored hash.
 
-
         Args:
             password: plaintext password.
             hashed: encoded hash string.
-
 
         Returns:
             True if the password matches, False otherwise.
@@ -301,10 +275,8 @@ class HashingProtocol(Protocol):
         """
         Check whether the hash needs an upgrade (parameters changed).
 
-
         Args:
             hashed: encoded hash string.
-
 
         Returns:
             True if rehashing is recommended, False otherwise.

@@ -619,16 +619,26 @@ def test_ed25519_sign_verify_context_variants(monkeypatch: pytest.MonkeyPatch) -
 def test_load_or_create_salt_wrong_length_generates_new(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Wrong length salt triggers regeneration."""
-    path = tmp_path / "salt_wrong.bin"
-    with open(path, "wb") as f:
-        f.write(b"\x00" * 8)  # Длина 8 вместо 16
+    """Test that wrong-length salt triggers regeneration."""
+    p = tmp_path / "test.salt"
+    p_int = tmp_path / "test.salt.integrity"
 
-    with caplog.at_level("ERROR"):
-        salt = _load_or_create_salt(str(path), 16)
+    # Create salt with wrong length (15 instead of 16)
+    wrong_salt = b"A" * 15
+    tag = cs_mod._compute_salt_integrity(wrong_salt)
+    p.write_bytes(base64.b64encode(wrong_salt))
+    p_int.write_bytes(tag)
 
-    assert len(salt) == 16
-    assert "Generating new salt" in caplog.text or "Invalid salt" in caplog.text
+    # Load should regenerate due to wrong length
+    result = cs_mod._load_or_create_salt(str(p), 16)
+
+    # Verify new salt has correct length
+    assert len(result) == 16
+    assert result != wrong_salt
+
+    # Verify file was updated (salt changed)
+    new_encoded = p.read_bytes()
+    assert new_encoded != base64.b64encode(wrong_salt)
 
 
 def test_keystore_calls_set_permissions(
