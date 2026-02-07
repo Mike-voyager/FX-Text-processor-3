@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from pathlib import Path
 from typing import Any, Callable
-import logging
-from _pytest.logging import LogCaptureFixture
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 import src.security.crypto.asymmetric as asym
 from src.security.crypto.asymmetric import (
     AsymmetricKeyPair,
     KeyFormatError,
     UnsupportedAlgorithmError,
-    _secure_log,
     _contains_sensitive_data,
+    _secure_log,
 )
 
 

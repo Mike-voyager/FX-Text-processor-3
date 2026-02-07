@@ -1,0 +1,36 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "basic",
+  "extraPaths": [
+    "src"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "src",
+      "pythonVersion": "3.14",
+      "typeCheckingMode": "strict"
+    },
+    {
+      "root": "scripts",
+      "pythonVersion": "3.14",
+      "extraPaths": [
+        "../src"
+      ],
+      "typeCheckingMode": "basic",
+      "reportMissingImports": false,
+      "reportPossiblyUnboundVariable": false
+    },
+    {
+      "root": "tests",
+      "pythonVersion": "3.14",
+      "extraPaths": [
+        "../src"
+      ],
+      "typeCheckingMode": "basic"
+    }
+  ],
+  "reportMissingImports": "warning",
+  "reportPossiblyUnboundVariable": "none"
+}

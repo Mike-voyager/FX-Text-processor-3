@@ -15,8 +15,8 @@ from src.security.crypto.hashing import (
     BLAKE3_AVAILABLE,
     compute_hash,
     compute_hash_blake2b,
-    compute_hash_sha256,
     compute_hash_sha3_256,
+    compute_hash_sha256,
     hash_file,
     verify_file,
 )

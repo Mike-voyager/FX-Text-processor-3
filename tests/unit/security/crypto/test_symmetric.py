@@ -166,9 +166,9 @@ def test_operation_counter_reset() -> None:
 def test_chacha20_roundtrip_basic() -> None:
     """Test ChaCha20 basic encryption/decryption."""
     from src.security.crypto.symmetric import (
-        ChaCha20Cipher,
         CHACHA_KEY_LEN,
         CHACHA_NONCE_LEN,
+        ChaCha20Cipher,
     )
 
     key = os.urandom(CHACHA_KEY_LEN)
@@ -185,9 +185,9 @@ def test_chacha20_roundtrip_basic() -> None:
 def test_chacha20_roundtrip_with_separate_tag() -> None:
     """Test ChaCha20 with separate ciphertext and tag."""
     from src.security.crypto.symmetric import (
-        ChaCha20Cipher,
         CHACHA_KEY_LEN,
         CHACHA_TAG_LEN,
+        ChaCha20Cipher,
     )
 
     key = os.urandom(CHACHA_KEY_LEN)
@@ -203,9 +203,9 @@ def test_chacha20_roundtrip_with_separate_tag() -> None:
 def test_chacha20_convenience_functions() -> None:
     """Test ChaCha20 convenience functions."""
     from src.security.crypto.symmetric import (
-        encrypt_chacha20,
-        decrypt_chacha20,
         CHACHA_KEY_LEN,
+        decrypt_chacha20,
+        encrypt_chacha20,
     )
 
     key = os.urandom(CHACHA_KEY_LEN)
@@ -217,9 +217,9 @@ def test_chacha20_convenience_functions() -> None:
 def test_chacha20_invalid_tag_raises() -> None:
     """Test ChaCha20 rejects tampered ciphertext."""
     from src.security.crypto.symmetric import (
-        encrypt_chacha20,
-        decrypt_chacha20,
         CHACHA_KEY_LEN,
+        decrypt_chacha20,
+        encrypt_chacha20,
     )
 
     key = os.urandom(CHACHA_KEY_LEN)
@@ -234,7 +234,7 @@ def test_chacha20_invalid_tag_raises() -> None:
 
 def test_chacha20_operation_counter() -> None:
     """Test ChaCha20 operation counter warnings."""
-    from src.security.crypto.symmetric import ChaCha20Cipher, CHACHA_KEY_LEN
+    from src.security.crypto.symmetric import CHACHA_KEY_LEN, ChaCha20Cipher
 
     key = os.urandom(CHACHA_KEY_LEN)
     cipher = ChaCha20Cipher(max_operations=5)
@@ -321,7 +321,7 @@ def test_encrypt_with_bytearray_zeros_memory() -> None:
 
 def test_chacha20_encrypt_with_bytearray_zeros_memory() -> None:
     """Test ChaCha20 zeros bytearray after encryption."""
-    from src.security.crypto.symmetric import ChaCha20Cipher, CHACHA_KEY_LEN
+    from src.security.crypto.symmetric import CHACHA_KEY_LEN, ChaCha20Cipher
 
     key = os.urandom(CHACHA_KEY_LEN)
     cipher = ChaCha20Cipher()

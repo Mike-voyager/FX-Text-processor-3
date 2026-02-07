@@ -21,10 +21,14 @@ import hashlib
 import logging
 from typing import Final, Literal, Optional, Union
 
-from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
-from .exceptions import SignatureError, SignatureGenerationError, SignatureVerificationError
+from .exceptions import (
+    SignatureError,
+    SignatureGenerationError,
+    SignatureVerificationError,
+)
 from .utils import generate_random_bytes, validate_non_empty
 
 _LOGGER: Final = logging.getLogger(__name__)
@@ -38,12 +42,12 @@ _MAX_CONTEXT_LEN: Final[int] = 65536
 def _prehash_with_context(data: bytes, context: Optional[bytes]) -> bytes:
     """
     Pre-hash with context (FIXED: constant-time).
-    
+
     Always performs the same operations regardless of context presence.
     This prevents side-channel timing leaks.
     """
     ctx = context if context is not None else b""
-    
+
     h = hashlib.sha512()
     h.update(b"CTX:")
     h.update(ctx)
@@ -64,10 +68,12 @@ class Ed25519Signer:
     ):
         if private_key is None and public_key is None:
             raise SignatureError("Either private or public key required")
-        
+
         self._private_key = private_key
-        self._public_key = public_key if public_key is not None else (
-            private_key.public_key() if private_key else None
+        self._public_key = (
+            public_key
+            if public_key is not None
+            else (private_key.public_key() if private_key else None)
         )
 
     @classmethod
@@ -82,10 +88,10 @@ class Ed25519Signer:
     def from_private_bytes(cls, seed32: bytes) -> Ed25519Signer:
         """Import from 32-byte seed."""
         validate_non_empty(seed32, "Ed25519 seed")
-        
+
         if len(seed32) != _SEED_LEN:
             raise SignatureError(f"Seed must be {_SEED_LEN} bytes")
-        
+
         try:
             private_key = ed25519.Ed25519PrivateKey.from_private_bytes(seed32)
             _LOGGER.info("Imported Ed25519 private key")
@@ -98,10 +104,10 @@ class Ed25519Signer:
     def from_public_bytes(cls, pub32: bytes) -> Ed25519Signer:
         """Import public key only (verification-only instance)."""
         validate_non_empty(pub32, "Ed25519 public key")
-        
+
         if len(pub32) != _PUBLIC_KEY_LEN:
             raise SignatureError(f"Public key must be {_PUBLIC_KEY_LEN} bytes")
-        
+
         try:
             public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub32)
             _LOGGER.info("Imported Ed25519 public key")
@@ -113,22 +119,22 @@ class Ed25519Signer:
     def sign(self, data: bytes, *, context: Optional[bytes] = None) -> bytes:
         """
         Sign data with Ed25519.
-        
+
         Args:
             data: message to sign.
             context: optional domain separation context.
-        
+
         Returns:
             64-byte signature.
         """
         if self._private_key is None:
             raise SignatureGenerationError("No private key available")
-        
+
         validate_non_empty(data, "data")
-        
+
         if context is not None and len(context) > _MAX_CONTEXT_LEN:
             raise SignatureError(f"Context too large (max {_MAX_CONTEXT_LEN} bytes)")
-        
+
         try:
             message_to_sign = _prehash_with_context(data, context)
             signature = self._private_key.sign(message_to_sign)
@@ -139,36 +145,32 @@ class Ed25519Signer:
             raise SignatureGenerationError("Ed25519 signing failed") from e
 
     def verify(
-        self,
-        data: bytes,
-        signature: bytes,
-        *,
-        context: Optional[bytes] = None
+        self, data: bytes, signature: bytes, *, context: Optional[bytes] = None
     ) -> bool:
         """
         Verify Ed25519 signature.
-        
+
         Args:
             data: original message.
             signature: 64-byte signature.
             context: optional context (must match signing context).
-        
+
         Returns:
             True if valid, False if invalid.
         """
         if self._public_key is None:
             raise SignatureVerificationError("No public key available")
-        
+
         validate_non_empty(data, "data")
         validate_non_empty(signature, "signature")
-        
+
         if len(signature) != _SIGNATURE_LEN:
             _LOGGER.warning("Invalid signature length: %d", len(signature))
             return False
-        
+
         if context is not None and len(context) > _MAX_CONTEXT_LEN:
             raise SignatureError("Context too large")
-        
+
         try:
             message_to_verify = _prehash_with_context(data, context)
             self._public_key.verify(signature, message_to_verify)
@@ -179,18 +181,16 @@ class Ed25519Signer:
             return False
 
     def public_key(
-        self,
-        fmt: Literal["raw", "hex", "pem"] = "raw"
+        self, fmt: Literal["raw", "hex", "pem"] = "raw"
     ) -> Union[bytes, str]:
         """Export public key in specified format."""
         if self._public_key is None:
             raise SignatureError("No public key available")
-        
+
         raw_bytes = self._public_key.public_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PublicFormat.Raw
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
-        
+
         if fmt == "raw":
             return bytes(raw_bytes)
         elif fmt == "hex":
@@ -198,7 +198,7 @@ class Ed25519Signer:
         elif fmt == "pem":
             pem_bytes = self._public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
             )
             return pem_bytes.decode("ascii")
         else:
@@ -208,7 +208,7 @@ class Ed25519Signer:
         """Compute SHA-256 fingerprint of public key."""
         if self._public_key is None:
             raise SignatureError("No public key available")
-        
+
         pk_bytes = self.public_key(fmt="raw")
         return hashlib.sha256(pk_bytes).hexdigest()
 

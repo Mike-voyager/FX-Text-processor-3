@@ -456,8 +456,8 @@ def _test_legacy_3des() -> bool:
         except ImportError:
             from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 
-        from cryptography.hazmat.primitives.ciphers import Cipher, modes
         from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives.ciphers import Cipher, modes
 
         # Triple-DES требует 24-byte ключ (3 * 8 bytes)
         key = b"\x01\x23\x45\x67\x89\xab\xcd\xef" * 3  # 24 bytes
@@ -483,9 +483,9 @@ def _test_legacy_3des() -> bool:
 def _test_legacy_dsa() -> bool:
     """Test DSA signatures (DEPRECATED - для обратной совместимости)."""
     try:
-        from cryptography.hazmat.primitives.asymmetric import dsa
-        from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import dsa
 
         # Generate DSA keypair (быстрый 1024-bit для теста)
         private_key = dsa.generate_private_key(key_size=1024, backend=default_backend())

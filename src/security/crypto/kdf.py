@@ -410,11 +410,17 @@ def derive_key_with_context(
 # --- Public API surface ---
 
 __all__ = [
+    # Classes
     "DefaultKdfProvider",
+    # Functions
     "generate_salt",
     "derive_key",
     "derive_key_argon2id",
     "derive_key_with_context",
+    # Params builders
     "make_pbkdf2_params",
     "make_argon2id_params",
+    # Exceptions  ← ДОБАВИТЬ!
+    "KDFAlgorithmError",
+    "KDFParameterError",
 ]

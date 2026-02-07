@@ -16,7 +16,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Final, Optional
+from typing import Any, Dict, Final, Optional
 
 from .exceptions import KeyNotFoundError, KeyRotationError
 
@@ -75,7 +75,7 @@ class KeyMetadata:
         """Increment encryption counter."""
         self.encryptions_count += count
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
             "key_id": self.key_id,
@@ -87,7 +87,7 @@ class KeyMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> KeyMetadata:
+    def from_dict(cls, data: dict[str, Any]) -> KeyMetadata:
         """Deserialize from dictionary."""
         return cls(
             key_id=data["key_id"],

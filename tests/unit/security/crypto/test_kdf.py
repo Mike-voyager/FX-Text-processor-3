@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins  # Import built-in functions and objects
+import os
 import sys  # Import system-specific modules and function
 import types  # Import type for Python's type object
 from typing import Any, Sequence, cast  # Import generic types from the typing module
@@ -11,7 +12,10 @@ from src.security.crypto.kdf import (
     DefaultKdfProvider,
     KDFAlgorithmError,
     KDFParameterError,
+    derive_key,
     generate_salt,
+    make_argon2id_params,
+    make_pbkdf2_params,
 )
 from src.security.crypto.protocols import Argon2idParams, PBKDF2Params
 
@@ -342,3 +346,62 @@ def test_argon2id_internal_failure_maps_to_algorithm_error(
     }
     with pytest.raises(KDFAlgorithmError):
         _ = kdf.derive_key("pw", b"SALT0123", 32, params=ap)
+
+
+def test_derive_key_with_context_success() -> None:
+    """Test HKDF-based key derivation with context separation."""
+    from src.security.crypto.kdf import derive_key_with_context
+
+    master_key = os.urandom(32)
+
+    # Derive keys for different contexts
+    doc_key = derive_key_with_context(master_key, "document-encryption")
+    token_key = derive_key_with_context(master_key, "session-tokens")
+
+    # Keys should be different
+    assert doc_key != token_key
+    assert len(doc_key) == 32
+    assert len(token_key) == 32
+
+    # Same context produces same key (deterministic)
+    doc_key2 = derive_key_with_context(master_key, "document-encryption")
+    assert doc_key == doc_key2
+
+
+def test_derive_key_with_context_custom_length() -> None:
+    """Test custom output length."""
+    from src.security.crypto.kdf import derive_key_with_context
+
+    master_key = os.urandom(32)
+    key = derive_key_with_context(master_key, "test", length=16)
+    assert len(key) == 16
+
+
+def test_derive_key_with_context_with_salt() -> None:
+    """Test explicit salt parameter."""
+    from src.security.crypto.kdf import derive_key_with_context
+
+    master_key = os.urandom(32)
+    salt = b"fixed_salt_12345"
+
+    key1 = derive_key_with_context(master_key, "test", salt=salt)
+    key2 = derive_key_with_context(master_key, "test", salt=salt)
+
+    assert key1 == key2  # Same salt produces same key
+
+
+def test_derive_key_with_context_invalid_params() -> None:
+    """Test parameter validation."""
+    from src.security.crypto.kdf import derive_key_with_context
+
+    # Invalid master key
+    with pytest.raises(ValueError, match="master_key must be"):
+        derive_key_with_context(b"short", "context")
+
+    # Empty context
+    with pytest.raises(ValueError, match="context must be non-empty"):
+        derive_key_with_context(os.urandom(32), "")
+
+    # Invalid length
+    with pytest.raises(ValueError, match="output length"):
+        derive_key_with_context(os.urandom(32), "test", length=10)
