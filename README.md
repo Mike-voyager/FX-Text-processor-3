@@ -228,19 +228,50 @@ FX-Text-processor-3/
 │   ├── __init__.py # ✅ DONE
 │   ├── crypto/                     # 🚧 todo tests
 │   │   ├── __init__.py             # ✅ DONE - Public API exports
-│   │   ├── config.py               # ✅ DONE - Argon2id profiles (Desktop/SAFE_DESKTOP)
-│   │   ├── health.py               # ✅ DONE - Health check system (6 subsystems)
-│   │   ├── test_performance.py     # ✅ DONE - Performance benchmarks
-│   │   ├── symmetric.py            # ✅ DONE - AES-256-GCM encryption
-│   │   ├── asymmetric.py           # ✅ DONE - RSA/ECDSA/Ed25519 operations
-│   │   ├── signatures.py           # ✅ DONE - Ed25519 digital signatures
-│   │   ├── kdf.py                  # ✅ DONE - Argon2id/PBKDF2/HKDF key derivation
-│   │   ├── hashing.py              # ✅ DONE - SHA3/BLAKE2b/SHA-256 + password hashing
-│   │   ├── secure_storage.py       # ✅ DONE - Encrypted keystore with timing-safe ops
-│   │   ├── crypto_service.py       # ✅ DONE - Unified crypto facade
-│   │   ├── protocols.py            # ✅ DONE - Type protocols
-│   │   ├── exceptions.py           # ✅ DONE - Exception hierarchy with sanitization
-│   │   └── utils.py                # ✅ DONE - RNG health checks, zeroization, codecs
+│   │   ├── core/                          # ✅ DONE
+│   │   │   ├── __init__.py
+│   │   │   ├── protocols.py               # ✅ DONE   
+│   │   │   ├── metadata.py                # ✅ DONE
+│   │   │   ├── registry.py                # ✅ DONE
+│   │   │   ├── exceptions.py              # ✅ DONE
+│   │   │   └── adapters.py [maybe? for backward compartability] 
+│   │
+│   ├── algorithms/
+│   │   │   ├── __init__.py
+│   │   │   ├── symmetric.py
+│   │   │   ├── signing.py
+│   │   │   ├── asymmetric.py
+│   │   │   ├── key_exchange.py
+│   │   │   ├── hashing.py
+│   │   │   └── kdf.py
+│   │   │
+│   │   ├── advanced/
+│   │   │   ├── hybrid_encryption.py
+│   │   │   ├── group_encryption.py
+│   │   │   ├── key_escrow.py
+│   │   │   └── session_keys.py
+│   │   │
+│   │   ├── service/
+│   │   │   ├── crypto_service.py         # + integration with src.audit
+│   │   │   ├── ui_helpers.py
+│   │   │   └── profiles.py
+│   │   │
+│   │   ├── utilities
+│   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
+│   │   │   ├── config.py                 # + floppy_mode (disabled/basic/aggressive)
+│   │   │   ├── passwords.py
+│   │   │   ├── secure_storage.py         # + compression support
+│   │   │   ├── key_rotation.py
+│   │   │   ├── serialization.py
+│   │   │   ├── key_management.py         # NEW: Import/Export/Wrap
+│   │   │   └── migration.py              # NEW: Crypto agility
+│   │   │
+│   │   ├── hardware/← only CRYPTO operations!
+│   │   │   └── hardware_crypto.py        # Smartcards, YubiKey (sign/encrypt/decrypt)
+│   │   │
+│   │   └── 🏥 monitoring 
+│   │       ├── health.py
+│   │       └── benchmarks.py [OPT]
 │   ├── auth/               # 🚧 TODO
 │   │   ├── __init__.py                 # ✅ DONE
 │   │   ├── password.py                 # 🚧 DONE/TODO tests

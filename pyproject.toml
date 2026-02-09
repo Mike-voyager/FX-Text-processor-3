@@ -150,7 +150,6 @@ timeout = 300  # 5 minutes max per test (for Argon2id tests)
 
 
 [tool.mypy]
-mypy_path = "."
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -161,7 +160,10 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
+explicit_package_bases = true
 python_version = "3.11"
+# Правильный путь для mypy - относительно корня проекта
+namespace_packages = false
 
 
 [[tool.mypy.overrides]]
@@ -178,6 +180,51 @@ module = [
     "win32ui.*",
 ]
 ignore_missing_imports = true
+
+# ========== PYRIGHT / PYLANCE (новая секция) ==========
+[tool.pyright]
+# Указываем корневую директорию для импортов
+include = ["src", "tests"]
+exclude = [
+    "**/__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+# Пути для поиска модулей (аналог extraPaths)
+extraPaths = ["."]
+
+# Использовать библиотечный код для типов
+useLibraryCodeForTypes = true
+
+# Строгость проверки типов
+typeCheckingMode = "strict"  # "off" | "basic" | "strict"
+
+# Python версия
+pythonVersion = "3.11"
+pythonPlatform = "All"
+
+# Диагностика
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = "warning"
+reportUnusedClass = "warning"
+reportUnusedFunction = "warning"
+reportUnusedVariable = "warning"
+reportDuplicateImport = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalCall = "warning"
+reportOptionalIterable = "warning"
+reportOptionalContextManager = "warning"
+reportOptionalOperand = "warning"
+reportTypedDictNotRequiredAccess = false
+
+# Stub пакеты
+stubPath = "typings"
 
 
 [tool.black]
