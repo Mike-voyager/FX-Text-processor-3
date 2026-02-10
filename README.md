@@ -242,8 +242,8 @@ FX-Text-processor-3/
 │   │   │   ├── signing.py                 # ✅ DONE
 │   │   │   ├── asymmetric.py              # ✅ DONE
 │   │   │   ├── key_exchange.py            # ✅ DONE
-│   │   │   ├── hashing.py
-│   │   │   └── kdf.py
+│   │   │   ├── hashing.py                 # ✅ DONE
+│   │   │   └── kdf.py                     # ✅ DONE
 │   │   │
 │   │   ├── advanced/
 │   │   │   ├── hybrid_encryption.py
