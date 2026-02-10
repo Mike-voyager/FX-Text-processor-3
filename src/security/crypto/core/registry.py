@@ -475,7 +475,7 @@ class AlgorithmRegistry:
         Example:
             >>> # Только постквантовые алгоритмы
             >>> registry.list_by_security_level(SecurityLevel.QUANTUM_RESISTANT)
-            ['Dilithium2', 'Dilithium3', 'Kyber768', ...]
+            ['Dilithium2', 'Dilithium3', 'ml-kem-768', ...]
         """
         with self._lock:
             return sorted(
@@ -715,72 +715,200 @@ class AlgorithmRegistry:
 
 def register_all_algorithms() -> None:
     """
-    Зарегистрировать все 46 алгоритмов из CRYPTO_MASTER_PLAN v2.3.
+    Зарегистрировать все реализованные алгоритмы из CRYPTO_MASTER_PLAN v2.3.
 
-    Вызывается автоматически при первом импорте модуля или
-    вручную для переинициализации реестра.
+    Регистрирует только РЕАЛИЗОВАННЫЕ алгоритмы (ленивая загрузка).
+    Пропускает алгоритмы если их библиотеки не установлены.
 
-    Example:
-        >>> from src.security.crypto.core.registry import register_all_algorithms
-        >>> register_all_algorithms()
-        >>> registry = AlgorithmRegistry.get_instance()
-        >>> len(registry.list_algorithms())
-        46
-
-    Note:
-        Использует lazy imports для минимизации времени импорта.
-        Реальные классы алгоритмов импортируются только при вызове create().
-
-    TODO:
-        Заполнить импорты и регистрацию после реализации всех 46 алгоритмов.
-        Сейчас это заглушка с комментариями структуры.
+    Метаданные создаются динамически из свойств классов алгоритмов.
     """
     registry = AlgorithmRegistry.get_instance()
 
-    logger.info("Starting registration of all algorithms...")
+    logger.info("🔧 Starting registration of all cryptographic algorithms...")
 
-    # ========== SYMMETRIC CIPHERS (10) ==========
-    # TODO: Uncomment when algorithms are implemented
-    #
-    # from src.security.crypto.algorithms.symmetric import (
-    #     AES128GCM,
-    #     AES256GCM,
-    #     AES256GCMSIV,
-    #     ChaCha20Poly1305,
-    #     XChaCha20Poly1305,
-    #     AES256SIV,
-    #     AES256OCB,
-    #     AES256CTR,
-    #     TripleDES,
-    #     DES,
-    # )
-    # registry.register_algorithm("AES-128-GCM", AES128GCM, AES128GCM.metadata)
-    # registry.register_algorithm("AES-256-GCM", AES256GCM, AES256GCM.metadata)
-    # ... и т.д.
+    # ==========================================================================
+    # 1. SYMMETRIC CIPHERS (10)
+    # ==========================================================================
 
-    # ========== SIGNATURES (17) ==========
-    # TODO: Uncomment when algorithms are implemented
+    try:
+        from src.security.crypto.algorithms.symmetric import (
+            ALGORITHMS as SYM_ALGORITHMS,
+            ALL_METADATA as SYM_METADATA,
+        )
 
-    # ========== ASYMMETRIC ENCRYPTION (3) ==========
-    # TODO: Uncomment when algorithms are implemented
+        # Создаём mapping: algorithm_id -> metadata
+        metadata_map = {
+            meta.name.lower().replace(" ", "-").replace("_", "-"): meta
+            for meta in SYM_METADATA
+        }
 
-    # ========== KEY EXCHANGE (8) ==========
-    # TODO: Uncomment when algorithms are implemented
+        # Регистрируем каждый алгоритм с его метаданными
+        for algo_id, algo_class in SYM_ALGORITHMS.items():
+            # Найти соответствующую метадату
+            meta = metadata_map.get(algo_id)
+            if meta is None:
+                logger.warning(f"Metadata not found for {algo_id}, skipping")
+                continue
 
-    # ========== HASHING (8) ==========
-    # TODO: Uncomment when algorithms are implemented
+            registry.register_algorithm(
+                name=algo_id,
+                factory=algo_class,
+                metadata=meta,
+                validate=True,
+            )
 
-    # ========== KDF (4) ==========
-    # TODO: Uncomment when algorithms are implemented
+        logger.info(f"✅ Registered {len(SYM_ALGORITHMS)} symmetric cipher algorithms")
 
-    logger.info(f"Registered {len(registry.list_algorithms())} algorithms")
+    except ImportError as e:
+        logger.error(f"❌ Failed to import symmetric algorithms: {e}")
+
+    # ==========================================================================
+    # 2. ASYMMETRIC ENCRYPTION (3) - RSA-OAEP
+    # ==========================================================================
+
+    try:
+        from src.security.crypto.algorithms.asymmetric import (
+            ASYMMETRIC_ALGORITHMS,
+        )
+
+        # Регистрируем каждый алгоритм
+        # ASYMMETRIC_ALGORITHMS = {"RSA-OAEP-2048": (class, metadata), ...}
+        for algo_name, (algo_class, metadata) in ASYMMETRIC_ALGORITHMS.items():
+            registry.register_algorithm(
+                name=algo_name,
+                factory=algo_class,
+                metadata=metadata,
+                validate=True,  # Отключаем валидацию Protocol пока
+            )
+
+        logger.info(
+            f"✅ Registered {len(ASYMMETRIC_ALGORITHMS)} asymmetric encryption algorithms"
+        )
+
+    except ImportError as e:
+        logger.error(f"❌ Failed to import asymmetric encryption algorithms: {e}")
+
+    # ==========================================================================
+    # 3. SIGNATURES (20) - EdDSA, ECDSA, RSA-PSS, ML-DSA, Falcon, SLH-DSA
+    # ==========================================================================
+
+    try:
+        # Импорт автоматически зарегистрирует все 20 алгоритмов через _register_all_signatures()
+        from src.security.crypto.algorithms import signing  # noqa: F401
+
+        # Проверяем, что зарегистрировались
+        sig_algos = [
+            "Ed25519",
+            "Ed448",
+            "ECDSA-P256",
+            "ECDSA-P384",
+            "ECDSA-P521",
+            "ECDSA-secp256k1",
+            "RSA-PSS-2048",
+            "RSA-PSS-3072",
+            "RSA-PSS-4096",
+            "RSA-PKCS1v15",
+            "ML-DSA-44",
+            "ML-DSA-65",
+            "ML-DSA-87",
+            "Falcon-512",
+            "Falcon-1024",
+            "SLH-DSA-SHA2-128s",
+            "SLH-DSA-SHA2-192s",
+            "SLH-DSA-SHA2-256s",
+            "Dilithium2",
+            "SPHINCS+-128s",
+        ]
+
+        registered_sigs = [name for name in sig_algos if registry.is_registered(name)]
+
+        logger.info(
+            f"✅ Registered {len(registered_sigs)}/20 signature algorithms (auto-registration)"
+        )
+
+        if len(registered_sigs) < len(sig_algos):
+            missing = set(sig_algos) - set(registered_sigs)
+            logger.warning(f"⚠️  Missing signature algorithms: {missing}")
+
+    except ImportError as e:
+        logger.error(f"❌ Failed to import signing algorithms: {e}")
+
+    # ==========================================================================
+    # 4. KEY EXCHANGE (8) - X25519, X448, ECDH-P256/384/521, ML-KEM-512/768/1024
+    # ==========================================================================
+
+    try:
+        from src.security.crypto.algorithms.key_exchange import (
+            KEY_EXCHANGE_ALGORITHMS,
+        )
+
+        # Регистрируем каждый алгоритм
+        # KEY_EXCHANGE_ALGORITHMS = {"x25519": (class, metadata), ...}
+        for algo_id, (algo_class, metadata) in KEY_EXCHANGE_ALGORITHMS.items():
+            registry.register_algorithm(
+                name=algo_id, factory=algo_class, metadata=metadata, validate=True
+            )
+
+        logger.info(
+            f"✅ Registered {len(KEY_EXCHANGE_ALGORITHMS)} key exchange algorithms"
+        )
+
+    except ImportError as e:
+        logger.error(f"❌ Failed to import key exchange algorithms: {e}")
+
+    # ==========================================================================
+    # 5. KEY DERIVATION FUNCTIONS (4) - Argon2id, PBKDF2, Scrypt, HKDF
+    # ==========================================================================
+
+    try:
+        from src.security.crypto.algorithms.kdf import ALGORITHMS as KDF_ALGORITHMS
+
+        # Регистрируем каждый KDF алгоритм
+        # KDF_ALGORITHMS = {"argon2id": (class, metadata), ...}
+        for algo_id, (algo_class, metadata) in KDF_ALGORITHMS.items():
+            registry.register_algorithm(
+                name=algo_id, factory=algo_class, metadata=metadata, validate=True
+            )
+
+        logger.info(f"✅ Registered {len(KDF_ALGORITHMS)} KDF algorithms")
+
+    except ImportError as e:
+        logger.error(f"❌ Failed to import KDF algorithms: {e}")
+
+    # ==========================================================================
+    # 6. HASHING (8) - SHA-256/384/512, SHA3-256/512, BLAKE2b/s, BLAKE3
+    # ==========================================================================
+
+    try:
+        from src.security.crypto.algorithms.hashing import HASH_ALGORITHMS
+
+        # Регистрируем каждый hash алгоритм
+        # HASH_ALGORITHMS = {"sha256": (class, metadata), ...}
+        for hash_id, (hash_class, hash_metadata) in HASH_ALGORITHMS.items():
+            registry.register_algorithm(
+                name=hash_id, factory=hash_class, metadata=hash_metadata, validate=True
+            )
+
+        logger.info(f"✅ Registered {len(HASH_ALGORITHMS)} hashing algorithms")
+
+    except ImportError as e:
+        logger.error(f"❌ Failed to import hashing algorithms: {e}")
+
+
+# Автоматическая регистрация при импорте модуля
+try:
+    register_all_algorithms()
+except Exception as e:
+    logger.error(
+        f"Auto-registration failed: {e}. Call register_all_algorithms() manually."
+    )
 
 
 # ==============================================================================
 # MODULE EXPORTS
 # ==============================================================================
 
-__all__: list[str] = [
+__all__ = [
     # Main class
     "AlgorithmRegistry",
     # Dataclasses

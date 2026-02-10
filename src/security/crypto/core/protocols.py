@@ -145,7 +145,7 @@ class SymmetricCipherProtocol(Protocol):
         self,
         key: bytes,
         ciphertext: bytes,
-        nonce_or_tag: bytes,
+        nonce: bytes,
         *,
         associated_data: Optional[bytes] = None,
     ) -> bytes:

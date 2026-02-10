@@ -226,18 +226,18 @@ FX-Text-processor-3/
 │
 ├── security/
 │   ├── __init__.py # ✅ DONE
-│   ├── crypto/                     # 🚧 todo tests
+│   ├── crypto/     
 │   │   ├── __init__.py             # ✅ DONE - Public API exports
-│   │   ├── core/                          # ✅ DONE
-│   │   │   ├── __init__.py
+│   │   ├── core/  # ✅ DONE
+│   │   │   ├── __init__.py                # ✅ DONE
 │   │   │   ├── protocols.py               # ✅ DONE   
 │   │   │   ├── metadata.py                # ✅ DONE
 │   │   │   ├── registry.py                # ✅ DONE
 │   │   │   ├── exceptions.py              # ✅ DONE
 │   │   │   └── adapters.py [maybe? for backward compartability] 
 │   │
-│   ├── algorithms/
-│   │   │   ├── __init__.py
+│   ├── algorithms/ # ✅ DONE
+│   │   │   ├── __init__.py                # ✅ DONE
 │   │   │   ├── symmetric.py               # ✅ DONE
 │   │   │   ├── signing.py                 # ✅ DONE
 │   │   │   ├── asymmetric.py              # ✅ DONE
@@ -246,17 +246,20 @@ FX-Text-processor-3/
 │   │   │   └── kdf.py                     # ✅ DONE
 │   │   │
 │   │   ├── advanced/
+│   │   │   ├── __init__.py
 │   │   │   ├── hybrid_encryption.py
 │   │   │   ├── group_encryption.py
 │   │   │   ├── key_escrow.py
 │   │   │   └── session_keys.py
 │   │   │
 │   │   ├── service/
+│   │   │   ├── __init__.py
 │   │   │   ├── crypto_service.py         # + integration with src.audit
 │   │   │   ├── ui_helpers.py
 │   │   │   └── profiles.py
 │   │   │
 │   │   ├── utilities
+│   │   │   ├── __init__.py
 │   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
 │   │   │   ├── config.py                 # + floppy_mode (disabled/basic/aggressive)
 │   │   │   ├── passwords.py
@@ -267,9 +270,11 @@ FX-Text-processor-3/
 │   │   │   └── migration.py              # NEW: Crypto agility
 │   │   │
 │   │   ├── hardware/← only CRYPTO operations!
+│   │   │   ├── __init__.py
 │   │   │   └── hardware_crypto.py        # Smartcards, YubiKey (sign/encrypt/decrypt)
 │   │   │
 │   │   └── 🏥 monitoring 
+│   │   │   ├── __init__.py
 │   │       ├── health.py
 │   │       └── benchmarks.py [OPT]
 │   ├── auth/               # 🚧 TODO
