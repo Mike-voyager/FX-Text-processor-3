@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Type, Union
 
-from model.enums import (
+from src.model.enums import (
     Alignment,
     BarcodeType,
     CharactersPerInch,

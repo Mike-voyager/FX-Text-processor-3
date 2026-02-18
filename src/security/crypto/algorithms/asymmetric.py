@@ -219,6 +219,9 @@ class RSAOAEP2048:
 
     def __init__(self) -> None:
         """Инициализировать RSA-OAEP-2048 cipher."""
+        self.algorithm_name: str = self.ALGORITHM_NAME
+        self.key_size: int = self.KEY_SIZE
+        self.max_plaintext_size: int = self.MAX_PLAINTEXT_SIZE
         self._logger = logger.getChild("rsa-oaep-2048")
         self._padding = padding.OAEP(
             mgf=padding.MGF1(algorithm=self.HASH_ALGORITHM),
@@ -460,6 +463,9 @@ class RSAOAEP3072:
 
     def __init__(self) -> None:
         """Инициализировать RSA-OAEP-3072 cipher."""
+        self.algorithm_name: str = self.ALGORITHM_NAME
+        self.key_size: int = self.KEY_SIZE
+        self.max_plaintext_size: int = self.MAX_PLAINTEXT_SIZE
         self._logger = logger.getChild("rsa-oaep-3072")
         self._padding = padding.OAEP(
             mgf=padding.MGF1(algorithm=self.HASH_ALGORITHM),
@@ -658,6 +664,9 @@ class RSAOAEP4096:
 
     def __init__(self) -> None:
         """Инициализировать RSA-OAEP-4096 cipher."""
+        self.algorithm_name: str = self.ALGORITHM_NAME
+        self.key_size: int = self.KEY_SIZE
+        self.max_plaintext_size: int = self.MAX_PLAINTEXT_SIZE
         self._logger = logger.getChild("rsa-oaep-4096")
         self._padding = padding.OAEP(
             mgf=padding.MGF1(algorithm=self.HASH_ALGORITHM),

@@ -557,11 +557,11 @@ class TestModuleExports:
         assert hasattr(protocols, "SecureMemoryProtocol")
 
     def test_module_has_all_attribute(self) -> None:
-        """Модуль имеет __all__ с 8 протоколами."""
+        """Модуль имеет __all__ с 9 протоколами."""
         from src.security.crypto.core import protocols
 
         assert hasattr(protocols, "__all__")
-        assert len(protocols.__all__) == 8
+        assert len(protocols.__all__) == 9
         assert "SymmetricCipherProtocol" in protocols.__all__
         assert "SignatureProtocol" in protocols.__all__
         assert "AsymmetricEncryptionProtocol" in protocols.__all__

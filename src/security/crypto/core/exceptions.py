@@ -47,6 +47,7 @@ __all__: list[str] = [
     "AlgorithmError",
     "AlgorithmNotFoundError",
     "AlgorithmNotSupportedError",
+    "AlgorithmNotAvailableError",
     "AlgorithmInitializationError",
     # Key errors
     "CryptoKeyError",
@@ -57,6 +58,7 @@ __all__: list[str] = [
     # Encryption errors
     "EncryptionError",
     "EncryptionFailedError",
+    "DecryptionError",
     "DecryptionFailedError",
     "InvalidNonceError",
     "InvalidTagError",
@@ -285,6 +287,12 @@ class AlgorithmNotSupportedError(AlgorithmError):
         self.required_library = required_library
 
 
+class AlgorithmNotAvailableError(AlgorithmNotSupportedError):
+    """Алгоритм недоступен (отсутствует библиотека или аппаратная поддержка)."""
+
+    pass
+
+
 class AlgorithmInitializationError(AlgorithmError):
     """
     Ошибка инициализации алгоритма.
@@ -467,6 +475,12 @@ class EncryptionFailedError(EncryptionError):
         >>> ciphertext = cipher.encrypt(key, plaintext)
         EncryptionFailedError: Encryption failed for AES-256-GCM
     """
+
+    pass
+
+
+class DecryptionError(EncryptionError):
+    """Базовый класс ошибок расшифровки."""
 
     pass
 

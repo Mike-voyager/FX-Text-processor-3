@@ -239,7 +239,7 @@ def _validate_key_size(
 # ==============================================================================
 
 
-class _DHKeyExchangeBase(ABC):
+class _DHKeyExchangeBase(KeyExchangeProtocol):
     """
     Базовый класс для Diffie-Hellman based key exchange.
 
@@ -265,7 +265,7 @@ class _DHKeyExchangeBase(ABC):
         ...
 
 
-class _KEMBase(ABC):
+class _KEMBase(KeyExchangeProtocol):
     """
     Базовый класс для Key Encapsulation Mechanisms (KEM).
 

@@ -25,7 +25,7 @@ from typing import (
     runtime_checkable,
 )
 
-from src.security.crypto.protocols import KeyStoreProtocol  # type: ignore
+from src.security.crypto.core.protocols import KeyStoreProtocol  # type: ignore
 
 from .second_method.code import BackupCodeFactor
 from .second_method.fido2 import Fido2Factor

@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterator, List, cast
 
 import pytest
 
-import security.auth.code_service as codes
+import src.security.auth.code_service as codes
 
 
 class DummyManager:

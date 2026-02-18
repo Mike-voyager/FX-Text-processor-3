@@ -245,14 +245,14 @@ FX-Text-processor-3/
 │   │   │   ├── hashing.py                 # ✅ DONE
 │   │   │   └── kdf.py                     # ✅ DONE
 │   │   │
-│   │   ├── advanced/
+│   │   ├── advanced/   # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
 │   │   │   ├── hybrid_encryption.py
-│   │   │   ├── group_encryption.py
+│   │   │   ├── group_encryption.py       # ✅ DONE
 │   │   │   ├── key_escrow.py
 │   │   │   └── session_keys.py
 │   │   │
-│   │   ├── service/
+│   │   ├── service/  # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
 │   │   │   ├── crypto_service.py         # + integration with src.audit
 │   │   │   ├── ui_helpers.py

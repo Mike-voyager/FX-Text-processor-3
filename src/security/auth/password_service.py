@@ -17,7 +17,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Protocol
 
-from security.auth.password import (
+from src.security.auth.password import (
     MAX_FAILED_ATTEMPTS,
     InternalError,
     InvalidHashFormat,

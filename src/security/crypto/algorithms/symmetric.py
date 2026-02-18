@@ -167,6 +167,25 @@ class AES256GCM:
     KEY_SIZE = 32
     NONCE_SIZE = 12
     TAG_SIZE = 16
+    # Protocol-required attributes (SymmetricCipherProtocol)
+    algorithm_name = "AES-256-GCM"
+    key_size = 32
+    nonce_size = 12
+    is_aead = True
+
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -282,6 +301,24 @@ class AES128GCM:
     KEY_SIZE = 16
     NONCE_SIZE = 12
     TAG_SIZE = 16
+    algorithm_name = "AES-128-GCM"
+    key_size = 16
+    nonce_size = 12
+    is_aead = True
+
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -389,6 +426,23 @@ class ChaCha20Poly1305:
     KEY_SIZE = 32
     NONCE_SIZE = 12
     TAG_SIZE = 16
+    algorithm_name = "ChaCha20-Poly1305"
+    key_size = 32
+    nonce_size = 12
+    is_aead = True
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -496,6 +550,24 @@ class XChaCha20Poly1305:
     KEY_SIZE = 32
     NONCE_SIZE = 24  # 192 bits (extended)
     TAG_SIZE = 16
+
+    algorithm_name = "XChaCha20-Poly1305"
+    key_size = 32
+    nonce_size = 24
+    is_aead = True
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -624,6 +696,24 @@ class AES256SIV:
     NONCE_SIZE = 16
     TAG_SIZE = 16
 
+    algorithm_name = "AES-256-SIV"
+    key_size = 64
+    nonce_size = 16
+    is_aead = True
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
+
     def encrypt(
         self,
         key: bytes,
@@ -732,6 +822,23 @@ class AES256OCB:
     KEY_SIZE = 32
     NONCE_SIZE = 12
     TAG_SIZE = 16
+    algorithm_name = "AES-256-OCB"
+    key_size = 32
+    nonce_size = 12
+    is_aead = True
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -842,6 +949,23 @@ class AES256GCMSIV:
     KEY_SIZE = 32
     NONCE_SIZE = 12
     TAG_SIZE = 16
+    algorithm_name = "AES-256-GCM-SIV"
+    key_size = 32
+    nonce_size = 12
+    is_aead = True
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -962,6 +1086,24 @@ class TripleDES:
     def __init__(self) -> None:
         logger.warning("TripleDES is DEPRECATED. Migrate to AES-256-GCM ASAP!")
 
+    algorithm_name = "3DES-EDE3"
+    key_size = 24
+    nonce_size = 8
+    is_aead = False
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
+
     def encrypt(
         self,
         key: bytes,
@@ -1081,6 +1223,24 @@ class DES:
             "DES cipher initialized! This algorithm is BROKEN. "
             "Use AES-256-GCM instead!"
         )
+
+    algorithm_name = "DES"
+    key_size = 8
+    nonce_size = 8
+    is_aead = False
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,
@@ -1209,6 +1369,24 @@ class AES256CTR:
 
     def __init__(self) -> None:
         logger.warning("AES-256-CTR is NOT AEAD. Use separate HMAC for authentication!")
+
+    algorithm_name = "AES-256-CTR"
+    key_size = 32
+    nonce_size = 16
+    is_aead = False
+    def generate_key(self) -> bytes:
+        """
+        Генерировать криптографически стойкий ключ нужного размера.
+
+        Returns:
+            Случайные байты ключа (длина == KEY_SIZE)
+
+        Example:
+            >>> key = cipher.generate_key()
+            >>> len(key) == cipher.KEY_SIZE
+            True
+        """
+        return os.urandom(self.KEY_SIZE)
 
     def encrypt(
         self,

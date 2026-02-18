@@ -86,9 +86,10 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from typing import Any, Protocol, runtime_checkable
+from typing import Optional, Any, Protocol, runtime_checkable
 
 import logging
+from src.security.crypto.core.protocols import KDFProtocol
 from src.security.crypto.core.exceptions import (
     AlgorithmNotSupportedError,
     KeyDerivationError,
@@ -130,51 +131,6 @@ SCRYPT_DEFAULT_SALT_LENGTH = 32
 MIN_SALT_LENGTH = 16  # bytes
 MAX_KEY_LENGTH = 128  # bytes
 MIN_KEY_LENGTH = 16  # bytes
-
-
-# ============================================================================
-# PROTOCOL
-# ============================================================================
-
-
-@runtime_checkable
-class KDFProtocol(Protocol):
-    """
-    Протокол для Key Derivation Functions.
-
-    Все KDF алгоритмы должны реализовывать метод derive_key() для
-    преобразования пароля/входных данных в криптографический ключ.
-    """
-
-    def derive_key(
-        self,
-        password: bytes,
-        salt: bytes,
-        *,
-        key_length: int = 32,
-        **kwargs: Any,
-    ) -> bytes:
-        """
-        Вывести ключ из пароля/входных данных.
-
-        Args:
-            password: Пароль пользователя (bytes) или входной материал ключа
-            salt: Случайная соль (минимум 16 байт, рекомендуется 32)
-            key_length: Желаемая длина ключа в байтах (по умолчанию: 32)
-            **kwargs: Алгоритм-специфичные параметры:
-                - iterations (PBKDF2, Scrypt)
-                - memory_cost (Argon2id, Scrypt)
-                - parallelism (Argon2id)
-                - info (HKDF)
-
-        Returns:
-            Выведенный ключ (key_length bytes)
-
-        Raises:
-            ValueError: Некорректные параметры
-            AlgorithmNotSupportedError: Ошибка при выводе ключа
-        """
-        ...
 
 
 # ============================================================================
@@ -251,7 +207,7 @@ def generate_salt(length: int = 32) -> bytes:
 # ============================================================================
 
 
-class Argon2idKDF:
+class Argon2idKDF(KDFProtocol):
     """
     Argon2id — современная password-based KDF (PHC winner 2015).
 
@@ -395,7 +351,7 @@ class Argon2idKDF:
             raise KeyDerivationError(f"Argon2id derivation failed: {exc}") from exc
 
 
-class PBKDF2SHA256KDF:
+class PBKDF2SHA256KDF(KDFProtocol):
     """
     PBKDF2-SHA256 — password-based KDF (NIST standard).
 
@@ -448,9 +404,10 @@ class PBKDF2SHA256KDF:
         self,
         password: bytes,
         salt: bytes,
+        length: int = 32,  # ← было: length: int,
+        key_length: int = 32,  # ← новая строка
         *,
-        key_length: int = 32,
-        iterations: int = DEFAULT_ITERATIONS,
+        iterations: Optional[int] = None,
         **kwargs: Any,
     ) -> bytes:
         """
@@ -459,7 +416,7 @@ class PBKDF2SHA256KDF:
         Args:
             password: Пароль пользователя (bytes)
             salt: Случайная соль (минимум 16 байт)
-            key_length: Длина выходного ключа (по умолчанию: 32 байта)
+                key_length: Длина выходного ключа (по умолчанию: 32 байта)
             iterations: Количество итераций (по умолчанию: 600,000)
 
         Returns:
@@ -485,6 +442,7 @@ class PBKDF2SHA256KDF:
         _validate_salt(salt, min_length=MIN_SALT_LENGTH)
         _validate_key_length(key_length)
 
+        iterations = iterations if iterations is not None else self.DEFAULT_ITERATIONS
         if iterations < self.MIN_ITERATIONS:
             raise ValueError(
                 f"iterations={iterations} is INSECURE. "
@@ -515,7 +473,7 @@ class PBKDF2SHA256KDF:
             raise KeyDerivationError(f"PBKDF2-SHA256 derivation failed: {exc}") from exc
 
 
-class ScryptKDF:
+class ScryptKDF(KDFProtocol):
     """
     Scrypt — memory-hard password-based KDF.
 
@@ -647,7 +605,7 @@ class ScryptKDF:
             raise KeyDerivationError(f"Scrypt derivation failed: {exc}") from exc
 
 
-class HKDFSHA256:
+class HKDFSHA256(KDFProtocol):
     """
     HKDF-SHA256 — HMAC-based Key Derivation Function.
 

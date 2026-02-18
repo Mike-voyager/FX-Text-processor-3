@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterator, List, cast
 
 import pytest
 
-import security.auth.fido2_service as f2s
+import src.security.auth.fido2_service as f2s
 
 
 class DummyManager:

@@ -127,6 +127,18 @@ class MockSignature:
     def signature_size(self) -> int:
         return 64
 
+    @property
+    def public_key_size(self) -> int:
+        return 32
+
+    @property
+    def private_key_size(self) -> int:
+        return 32
+
+    @property
+    def is_post_quantum(self) -> bool:
+        return False
+
     def generate_keypair(self) -> Tuple[bytes, bytes]:
         return b"private" * 4, b"public" * 4
 
@@ -163,6 +175,9 @@ class MockHash:
         return b"0" * 32
 
 
+    def hash_stream(self, stream) -> bytes:
+        return b"0" * 32
+
 class MockPostQuantumSignature:
     """Mock постквантовой подписи для тестов."""
 
@@ -184,6 +199,18 @@ class MockPostQuantumSignature:
     @property
     def signature_size(self) -> int:
         return 3293
+
+    @property
+    def public_key_size(self) -> int:
+        return 1952
+
+    @property
+    def private_key_size(self) -> int:
+        return 4016
+
+    @property
+    def is_post_quantum(self) -> bool:
+        return True
 
     def generate_keypair(self) -> Tuple[bytes, bytes]:
         return b"x" * 4016, b"y" * 1952
@@ -826,7 +853,7 @@ class TestRegisterAllAlgorithms:
         registry = AlgorithmRegistry.get_instance()
 
         # Пока 0, когда реализуем алгоритмы - будет 46
-        assert len(registry.list_algorithms()) == 0
+        assert len(registry.list_algorithms()) > 0
 
 
 # ==============================================================================

@@ -10,9 +10,7 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
-from security.crypto.kdf import (  # ensure it's exported in kdf.__all__
-    derive_key_argon2id,
-)
+from src.security.crypto.algorithms.kdf import Argon2idKDF
 from src.app_context import get_app_context
 
 _logger = logging.getLogger("security.auth.fido2_service")
@@ -107,8 +105,9 @@ def get_fido2_secret_for_storage(user_id: str, response: Dict[str, Any]) -> byte
 
         personal_salt = f"fido2/user/{user_id}/dev/{credential_id}".encode("utf-8")
 
-        return derive_key_argon2id(
-            password=(user_id + "|" + credential_id + "|" + str(pubkey)),
+        kdf = Argon2idKDF()
+        return kdf.derive_key(
+            password=(user_id + "|" + credential_id + "|" + str(pubkey)).encode("utf-8"),
             salt=personal_salt,
-            length=32,
+            key_length=32,
         )

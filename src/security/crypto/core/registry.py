@@ -743,6 +743,7 @@ def register_all_algorithms() -> None:
         }
 
         # Регистрируем каждый алгоритм с его метаданными
+        registered_count = 0
         for algo_id, algo_class in SYM_ALGORITHMS.items():
             # Найти соответствующую метадату
             meta = metadata_map.get(algo_id)
@@ -750,16 +751,20 @@ def register_all_algorithms() -> None:
                 logger.warning(f"Metadata not found for {algo_id}, skipping")
                 continue
 
-            registry.register_algorithm(
-                name=algo_id,
-                factory=algo_class,
-                metadata=meta,
-                validate=True,
-            )
+            try:
+                registry.register_algorithm(
+                    name=algo_id,
+                    factory=algo_class,
+                    metadata=meta,
+                    validate=True,
+                )
+                registered_count += 1
+            except Exception as e:
+                logger.warning(f"⚠️  Skipping symmetric algorithm {algo_id}: {e}")
 
-        logger.info(f"✅ Registered {len(SYM_ALGORITHMS)} symmetric cipher algorithms")
+        logger.info(f"✅ Registered {registered_count}/{len(SYM_ALGORITHMS)} symmetric cipher algorithms")
 
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"❌ Failed to import symmetric algorithms: {e}")
 
     # ==========================================================================
@@ -773,19 +778,24 @@ def register_all_algorithms() -> None:
 
         # Регистрируем каждый алгоритм
         # ASYMMETRIC_ALGORITHMS = {"RSA-OAEP-2048": (class, metadata), ...}
+        registered_count = 0
         for algo_name, (algo_class, metadata) in ASYMMETRIC_ALGORITHMS.items():
-            registry.register_algorithm(
-                name=algo_name,
-                factory=algo_class,
-                metadata=metadata,
-                validate=True,  # Отключаем валидацию Protocol пока
-            )
+            try:
+                registry.register_algorithm(
+                    name=algo_name,
+                    factory=algo_class,
+                    metadata=metadata,
+                    validate=True,
+                )
+                registered_count += 1
+            except Exception as e:
+                logger.warning(f"⚠️  Skipping asymmetric algorithm {algo_name}: {e}")
 
         logger.info(
-            f"✅ Registered {len(ASYMMETRIC_ALGORITHMS)} asymmetric encryption algorithms"
+            f"✅ Registered {registered_count}/{len(ASYMMETRIC_ALGORITHMS)} asymmetric encryption algorithms"
         )
 
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"❌ Failed to import asymmetric encryption algorithms: {e}")
 
     # ==========================================================================
@@ -844,16 +854,21 @@ def register_all_algorithms() -> None:
 
         # Регистрируем каждый алгоритм
         # KEY_EXCHANGE_ALGORITHMS = {"x25519": (class, metadata), ...}
+        registered_count = 0
         for algo_id, (algo_class, metadata) in KEY_EXCHANGE_ALGORITHMS.items():
-            registry.register_algorithm(
-                name=algo_id, factory=algo_class, metadata=metadata, validate=True
-            )
+            try:
+                registry.register_algorithm(
+                    name=algo_id, factory=algo_class, metadata=metadata, validate=True
+                )
+                registered_count += 1
+            except Exception as e:
+                logger.warning(f"⚠️  Skipping key exchange algorithm {algo_id}: {e}")
 
         logger.info(
-            f"✅ Registered {len(KEY_EXCHANGE_ALGORITHMS)} key exchange algorithms"
+            f"✅ Registered {registered_count}/{len(KEY_EXCHANGE_ALGORITHMS)} key exchange algorithms"
         )
 
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"❌ Failed to import key exchange algorithms: {e}")
 
     # ==========================================================================
@@ -865,14 +880,19 @@ def register_all_algorithms() -> None:
 
         # Регистрируем каждый KDF алгоритм
         # KDF_ALGORITHMS = {"argon2id": (class, metadata), ...}
+        registered_count = 0
         for algo_id, (algo_class, metadata) in KDF_ALGORITHMS.items():
-            registry.register_algorithm(
-                name=algo_id, factory=algo_class, metadata=metadata, validate=True
-            )
+            try:
+                registry.register_algorithm(
+                    name=algo_id, factory=algo_class, metadata=metadata, validate=True
+                )
+                registered_count += 1
+            except Exception as e:
+                logger.warning(f"⚠️  Skipping KDF algorithm {algo_id}: {e}")
 
-        logger.info(f"✅ Registered {len(KDF_ALGORITHMS)} KDF algorithms")
+        logger.info(f"✅ Registered {registered_count}/{len(KDF_ALGORITHMS)} KDF algorithms")
 
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"❌ Failed to import KDF algorithms: {e}")
 
     # ==========================================================================
@@ -884,14 +904,19 @@ def register_all_algorithms() -> None:
 
         # Регистрируем каждый hash алгоритм
         # HASH_ALGORITHMS = {"sha256": (class, metadata), ...}
+        registered_count = 0
         for hash_id, (hash_class, hash_metadata) in HASH_ALGORITHMS.items():
-            registry.register_algorithm(
-                name=hash_id, factory=hash_class, metadata=hash_metadata, validate=True
-            )
+            try:
+                registry.register_algorithm(
+                    name=hash_id, factory=hash_class, metadata=hash_metadata, validate=True
+                )
+                registered_count += 1
+            except Exception as e:
+                logger.warning(f"⚠️  Skipping hash algorithm {hash_id}: {e}")
 
-        logger.info(f"✅ Registered {len(HASH_ALGORITHMS)} hashing algorithms")
+        logger.info(f"✅ Registered {registered_count}/{len(HASH_ALGORITHMS)} hashing algorithms")
 
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"❌ Failed to import hashing algorithms: {e}")
 
 

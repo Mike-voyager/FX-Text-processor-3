@@ -60,7 +60,7 @@ Date: February 10, 2026
 from __future__ import annotations
 
 import hashlib
-from typing import BinaryIO, Final
+from typing import Iterable, BinaryIO, Final
 
 import logging
 from src.security.crypto.core.exceptions import (
@@ -101,7 +101,7 @@ BLAKE3_OUTPUT_SIZE: Final[int] = 32
 # ==============================================================================
 
 
-class _StdlibHashBase:
+class _StdlibHashBase(HashProtocol):
     """
     Базовый класс для хеш-функций из стандартной библиотеки hashlib.
 
@@ -159,7 +159,7 @@ class _StdlibHashBase:
                 f"{self.ALGORITHM_ID.upper()} hashing failed"
             ) from exc
 
-    def hash_stream(self, stream: BinaryIO) -> bytes:
+    def hash_stream(self, stream: Iterable[bytes]) -> bytes:
         """
         Хешировать поток данных (для больших файлов).
 
@@ -167,13 +167,13 @@ class _StdlibHashBase:
         производительности и минимального использования памяти.
 
         Args:
-            stream: Бинарный поток (открытый файл, BytesIO)
+            stream: Бинарный поток (открытый файл, BytesIO) или Iterable[bytes]
 
         Returns:
             Хеш фиксированного размера (OUTPUT_SIZE байт)
 
         Raises:
-            TypeError: Если stream не является BinaryIO
+            TypeError: Если stream не является BinaryIO или Iterable[bytes]
             InvalidInputError: Если поток пустой
             HashingFailedError: Если хеширование не удалось
 
@@ -184,14 +184,16 @@ class _StdlibHashBase:
             >>> len(hash_value) == 32
             True
         """
-        if not hasattr(stream, "read"):
-            raise TypeError("stream must be a binary readable object")
 
         hasher = hashlib.new(self._HASHLIB_NAME)
         bytes_processed = 0
 
+        if isinstance(stream, (str, bytes, int, float)):
+            raise TypeError(
+                f"stream must be Iterable[bytes], got {type(stream).__name__}"
+            )
         try:
-            while chunk := stream.read(CHUNK_SIZE):
+            for chunk in stream:
                 hasher.update(chunk)
                 bytes_processed += len(chunk)
 
@@ -497,7 +499,7 @@ class BLAKE2sHash(_StdlibHashBase):
 # ==============================================================================
 
 
-class BLAKE3Hash:
+class BLAKE3Hash(HashProtocol):
     """
     BLAKE3 — fastest cryptographic hash function (2020).
 
@@ -582,7 +584,7 @@ class BLAKE3Hash:
             logger.error(f"BLAKE3 hashing failed for {len(data)} bytes: {exc}")
             raise HashingFailedError("BLAKE3 hashing failed") from exc
 
-    def hash_stream(self, stream: BinaryIO) -> bytes:
+    def hash_stream(self, stream: Iterable[bytes]) -> bytes:
         """
         Хешировать поток с BLAKE3 (с автоматической параллелизацией).
 
@@ -590,13 +592,13 @@ class BLAKE3Hash:
         достигая скорости 5+ GB/s на multi-core systems.
 
         Args:
-            stream: Бинарный поток (открытый файл, BytesIO)
+            stream: Бинарный поток (открытый файл, BytesIO) или Iterable[bytes]
 
         Returns:
             BLAKE3 хеш (32 байта по умолчанию)
 
         Raises:
-            TypeError: Если stream не является BinaryIO
+            TypeError: Если stream не является BinaryIO или Iterable[bytes]
             InvalidInputError: Если поток пустой
             AlgorithmNotSupportedError: Если blake3 library не установлена
             HashingFailedError: Если хеширование не удалось
@@ -608,8 +610,6 @@ class BLAKE3Hash:
             >>> len(hash_value) == 32
             True
         """
-        if not hasattr(stream, "read"):
-            raise TypeError("stream must be a binary readable object")
 
         try:
             import blake3
@@ -617,7 +617,11 @@ class BLAKE3Hash:
             hasher = blake3.blake3()
             bytes_processed = 0
 
-            while chunk := stream.read(CHUNK_SIZE):
+            if isinstance(stream, (str, bytes, int, float)):
+                raise TypeError(
+                    f"stream must be Iterable[bytes], got {type(stream).__name__}"
+                )
+            for chunk in stream:
                 hasher.update(chunk)
                 bytes_processed += len(chunk)
 
@@ -639,6 +643,9 @@ class BLAKE3Hash:
                 reason="blake3 library not installed",
                 required_library="blake3",
             ) from exc
+
+        except TypeError:
+            raise
 
         except InvalidInputError:
             raise

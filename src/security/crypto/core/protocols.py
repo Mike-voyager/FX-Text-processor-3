@@ -27,6 +27,7 @@ Priority: 🔴 CRITICAL (Phase 1, Day 1-2)
 """
 
 from __future__ import annotations
+from typing import Any
 
 from typing import (
     Iterable,
@@ -102,7 +103,7 @@ class SymmetricCipherProtocol(Protocol):
         plaintext: bytes,
         *,
         nonce: Optional[bytes] = None,
-        associated_data: Optional[bytes] = None,
+        aad: Optional[bytes] = None,
     ) -> Tuple[bytes, bytes]:
         """
         Зашифровать данные.
@@ -147,7 +148,7 @@ class SymmetricCipherProtocol(Protocol):
         ciphertext: bytes,
         nonce: bytes,
         *,
-        associated_data: Optional[bytes] = None,
+        aad: Optional[bytes] = None,
     ) -> bytes:
         """
         Расшифровать данные.
@@ -770,11 +771,12 @@ class KDFProtocol(Protocol):
         self,
         password: bytes,
         salt: bytes,
-        length: int,
         *,
+        key_length: int = 32,
         iterations: Optional[int] = None,
         memory_cost: Optional[int] = None,
         parallelism: Optional[int] = None,
+        **kwargs: Any,
     ) -> bytes:
         """
         Вывести ключ из пароля.
@@ -1012,6 +1014,22 @@ class SecureMemoryProtocol(Protocol):
         ...
 
 
+class KeyStoreProtocol(Protocol):
+    """Key/value secure storage backend for MFA factor persistence."""
+
+    def save(self, name: str, data: bytes) -> None:
+        """Persist an item by name."""
+        ...
+
+    def load(self, name: str) -> bytes:
+        """Load an item by name."""
+        ...
+
+    def delete(self, name: str) -> None:
+        """Delete an item by name."""
+        ...
+
+
 # ==============================================================================
 # MODULE METADATA
 # ==============================================================================
@@ -1025,6 +1043,7 @@ __all__: list[str] = [
     "KDFProtocol",
     "NonceManagerProtocol",
     "SecureMemoryProtocol",
+    "KeyStoreProtocol",
 ]
 
 __version__ = "1.0.0"
