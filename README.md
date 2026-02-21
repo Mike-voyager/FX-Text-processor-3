@@ -269,7 +269,7 @@ FX-Text-processor-3/
 │   │   │   ├── key_management.py         # NEW: Import/Export/Wrap
 │   │   │   └── migration.py              # NEW: Crypto agility
 │   │   │
-│   │   ├── hardware/← only CRYPTO operations!
+│   │   ├── hardware/← only CRYPTO operations! # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
 │   │   │   └── hardware_crypto.py        # Smartcards, YubiKey (sign/encrypt/decrypt)
 │   │   │
