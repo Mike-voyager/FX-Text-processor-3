@@ -85,6 +85,12 @@ __all__: list[str] = [
     "InvalidParameterError",
     "InvalidInputError",
     "InvalidOutputError",
+    # Hardware device errors
+    "HardwareDeviceError",
+    "DeviceNotFoundError",
+    "DeviceCommunicationError",
+    "PINError",
+    "SlotError",
 ]
 
 
@@ -1003,6 +1009,204 @@ class InvalidOutputError(ValidationError):
     """
 
     pass
+
+
+# ==============================================================================
+# HARDWARE DEVICE ERRORS
+# ==============================================================================
+
+
+class HardwareDeviceError(CryptoError):
+    """
+    Базовая ошибка аппаратного криптографического устройства.
+
+    Raises когда:
+    - Ошибка взаимодействия со смарткартой или YubiKey
+    - Устройство вернуло неожиданный ответ
+    - Общие ошибки аппаратных операций
+
+    Attributes:
+        device_id: Идентификатор устройства (опционально)
+
+    Example:
+        >>> manager.sign_with_device("card_001", 0x9C, message, pin)
+        HardwareDeviceError: Hardware device error on card_001
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        device_id: Optional[str] = None,
+        algorithm: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Инициализация ошибки аппаратного устройства.
+
+        Args:
+            message: Описание ошибки
+            device_id: Идентификатор устройства
+            algorithm: Имя алгоритма (опционально)
+            context: Дополнительный контекст (без секретов!)
+        """
+        ctx = context or {}
+        if device_id:
+            ctx["device_id"] = device_id
+
+        super().__init__(message, algorithm=algorithm, context=ctx)
+        self.device_id = device_id
+
+
+class DeviceNotFoundError(HardwareDeviceError):
+    """
+    Устройство не найдено.
+
+    Raises когда:
+    - Смарткарта не подключена
+    - YubiKey не вставлен
+    - Устройство с указанным ID не обнаружено
+
+    Example:
+        >>> manager.get_device_info("nonexistent_card")
+        DeviceNotFoundError: Device 'nonexistent_card' not found
+    """
+
+    def __init__(
+        self,
+        device_id: str,
+    ) -> None:
+        """
+        Инициализация ошибки.
+
+        Args:
+            device_id: Идентификатор запрошенного устройства
+        """
+        message = f"Device '{device_id}' not found. Check connection and try again."
+        super().__init__(message, device_id=device_id)
+
+
+class DeviceCommunicationError(HardwareDeviceError):
+    """
+    Ошибка связи с устройством.
+
+    Raises когда:
+    - Потеряно соединение с устройством
+    - Устройство извлечено во время операции
+    - Ошибка APDU-обмена со смарткартой
+    - Таймаут связи
+
+    Example:
+        >>> manager.sign_with_device("card_001", 0x9C, message, pin)
+        DeviceCommunicationError: Communication error with device 'card_001'
+    """
+
+    def __init__(
+        self,
+        device_id: str,
+        reason: str,
+    ) -> None:
+        """
+        Инициализация ошибки связи.
+
+        Args:
+            device_id: Идентификатор устройства
+            reason: Причина ошибки связи
+        """
+        message = f"Communication error with device '{device_id}': {reason}"
+        super().__init__(
+            message,
+            device_id=device_id,
+            context={"reason": reason},
+        )
+        self.reason = reason
+
+
+class PINError(HardwareDeviceError):
+    """
+    Ошибка аутентификации PIN.
+
+    Raises когда:
+    - Неверный PIN
+    - PIN заблокирован (превышено количество попыток)
+    - PIN не установлен
+
+    Attributes:
+        retries_remaining: Оставшееся количество попыток (если известно)
+
+    Security Note:
+        Сообщение НЕ должно содержать значение PIN.
+
+    Example:
+        >>> manager.sign_with_device("card_001", 0x9C, message, wrong_pin)
+        PINError: PIN verification failed for device 'card_001' (2 retries remaining)
+    """
+
+    def __init__(
+        self,
+        device_id: str,
+        reason: str,
+        *,
+        retries_remaining: Optional[int] = None,
+    ) -> None:
+        """
+        Инициализация ошибки PIN.
+
+        Args:
+            device_id: Идентификатор устройства
+            reason: Причина ошибки (без значения PIN!)
+            retries_remaining: Оставшееся количество попыток
+        """
+        message = f"PIN error for device '{device_id}': {reason}"
+        if retries_remaining is not None:
+            message += f" ({retries_remaining} retries remaining)"
+
+        ctx: Dict[str, Any] = {"reason": reason}
+        if retries_remaining is not None:
+            ctx["retries_remaining"] = retries_remaining
+
+        super().__init__(message, device_id=device_id, context=ctx)
+        self.retries_remaining = retries_remaining
+
+
+class SlotError(HardwareDeviceError):
+    """
+    Ошибка слота устройства.
+
+    Raises когда:
+    - Слот не содержит ключ
+    - Слот не поддерживает запрошенную операцию
+    - Недопустимый номер слота для данного устройства
+
+    Attributes:
+        slot: Номер слота
+
+    Example:
+        >>> manager.get_public_key("card_001", 0xFF)
+        SlotError: Slot 0xff not available on device 'card_001'
+    """
+
+    def __init__(
+        self,
+        device_id: str,
+        slot: int,
+        reason: str,
+    ) -> None:
+        """
+        Инициализация ошибки слота.
+
+        Args:
+            device_id: Идентификатор устройства
+            slot: Номер слота
+            reason: Причина ошибки
+        """
+        message = f"Slot 0x{slot:02x} error on device '{device_id}': {reason}"
+        super().__init__(
+            message,
+            device_id=device_id,
+            context={"slot": f"0x{slot:02x}", "reason": reason},
+        )
+        self.slot = slot
 
 
 __version__ = "1.0.0"

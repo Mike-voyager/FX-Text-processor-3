@@ -1014,6 +1014,131 @@ class SecureMemoryProtocol(Protocol):
         ...
 
 
+@runtime_checkable
+class HardwareSigningProtocol(Protocol):
+    """
+    Протокол для криптографических операций на аппаратных устройствах.
+
+    Определяет контракт для работы со смарткартами (PIV, OpenPGP) и
+    YubiKey. Все операции выполняются НА УСТРОЙСТВЕ — приватный ключ
+    никогда не покидает аппаратный модуль.
+
+    Поддерживаемые устройства:
+        - PIV-совместимые смарткарты (NIST SP 800-73)
+        - OpenPGP-совместимые смарткарты
+        - YubiKey (PIV-режим)
+
+    Операции:
+        - sign_with_device: подпись на карте
+        - decrypt_with_device: расшифровка на карте
+        - get_public_key: получение публичного ключа со слота
+
+    Security Note:
+        PIN передаётся как параметр и НИКОГДА не сохраняется.
+        Приватный ключ не покидает устройство.
+
+    Example:
+        >>> manager = HardwareCryptoManager()
+        >>> signature = manager.sign_with_device(
+        ...     card_id="card_001",
+        ...     slot=0x9C,
+        ...     message=b"Document to sign",
+        ...     pin="123456",
+        ... )
+    """
+
+    def sign_with_device(
+        self,
+        card_id: str,
+        slot: int,
+        message: bytes,
+        pin: str,
+    ) -> bytes:
+        """
+        Подписать данные на аппаратном устройстве.
+
+        Подпись выполняется приватным ключом, хранящимся на карте.
+        Приватный ключ не покидает устройство.
+
+        Args:
+            card_id: Идентификатор устройства
+            slot: Номер слота с приватным ключом
+                  (PIV: 0x9A, 0x9C, 0x9D, 0x9E)
+            message: Данные для подписи
+            pin: PIN-код для аутентификации (НЕ сохраняется)
+
+        Returns:
+            Цифровая подпись в DER формате
+
+        Raises:
+            DeviceNotFoundError: Устройство не найдено
+            PINError: Неверный PIN
+            SlotError: Слот не содержит ключ
+
+        Example:
+            >>> sig = manager.sign_with_device("card_001", 0x9C, b"data", "123456")
+        """
+        ...
+
+    def decrypt_with_device(
+        self,
+        card_id: str,
+        slot: int,
+        ciphertext: bytes,
+        pin: str,
+    ) -> bytes:
+        """
+        Расшифровать данные на аппаратном устройстве.
+
+        Расшифровка выполняется приватным ключом на карте.
+
+        Args:
+            card_id: Идентификатор устройства
+            slot: Номер слота с приватным ключом
+            ciphertext: Зашифрованные данные
+            pin: PIN-код для аутентификации (НЕ сохраняется)
+
+        Returns:
+            Расшифрованные данные
+
+        Raises:
+            DeviceNotFoundError: Устройство не найдено
+            PINError: Неверный PIN
+            SlotError: Слот не содержит ключ
+            DecryptionError: Ошибка расшифровки
+
+        Example:
+            >>> plaintext = manager.decrypt_with_device(
+            ...     "card_001", 0x9D, ciphertext, "123456"
+            ... )
+        """
+        ...
+
+    def get_public_key(
+        self,
+        card_id: str,
+        slot: int,
+    ) -> bytes:
+        """
+        Получить публичный ключ со слота устройства.
+
+        Args:
+            card_id: Идентификатор устройства
+            slot: Номер слота
+
+        Returns:
+            Публичный ключ в DER формате
+
+        Raises:
+            DeviceNotFoundError: Устройство не найдено
+            SlotError: Слот пуст или не содержит ключ
+
+        Example:
+            >>> pub_key = manager.get_public_key("card_001", 0x9C)
+        """
+        ...
+
+
 class KeyStoreProtocol(Protocol):
     """Key/value secure storage backend for MFA factor persistence."""
 
@@ -1043,6 +1168,7 @@ __all__: list[str] = [
     "KDFProtocol",
     "NonceManagerProtocol",
     "SecureMemoryProtocol",
+    "HardwareSigningProtocol",
     "KeyStoreProtocol",
 ]
 
