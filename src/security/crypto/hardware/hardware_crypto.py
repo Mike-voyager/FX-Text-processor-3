@@ -189,8 +189,8 @@ try:
     HAS_PYSCARD = True
     logger.info("pyscard detected, smartcard operations available")
 except ImportError:
-    sc_readers = None  # type: ignore[assignment]
-    _CardConnection = None  # type: ignore[assignment,misc]
+    sc_readers = None
+    _CardConnection = None
     HAS_PYSCARD = False
     logger.debug(
         "pyscard not installed, smartcard operations unavailable. "
@@ -708,6 +708,21 @@ class HardwareCryptoManager:
             )
 
             key_obj = load_der_private_key(private_key, password=None)
+
+            # Валидация: put_key принимает RSA/ECC/Ed25519/X25519
+            if not isinstance(
+                key_obj,
+                (
+                    rsa.RSAPrivateKey,
+                    ec.EllipticCurvePrivateKey,
+                ),
+            ):
+                raise InvalidKeyError(
+                    f"Unsupported key type for PIV import: {type(key_obj).__name__}. "
+                    "Supported: RSA, ECC (P-256, P-384)",
+                    algorithm="PIV",
+                )
+
             piv_session = PivSession(yk_device)
             piv_session.verify_pin(pin)
 

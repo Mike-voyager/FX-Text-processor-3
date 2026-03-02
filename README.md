@@ -245,11 +245,11 @@ FX-Text-processor-3/
 │   │   │   ├── hashing.py                 # ✅ DONE
 │   │   │   └── kdf.py                     # ✅ DONE
 │   │   │
-│   │   ├── advanced/   # 🚧 DONE/TODO tests
+│   │   ├── advanced/   # 🚧 DONE/TODO testsl
 │   │   │   ├── __init__.py
-│   │   │   ├── hybrid_encryption.py
+│   │   │   ├── hybrid_encryption.py      # ✅ DONE
 │   │   │   ├── group_encryption.py       # ✅ DONE
-│   │   │   ├── key_escrow.py
+│   │   │   ├── key_escrow.py             # ✅ DONE
 │   │   │   └── session_keys.py
 │   │   │
 │   │   ├── service/  # 🚧 DONE/TODO tests
@@ -258,7 +258,7 @@ FX-Text-processor-3/
 │   │   │   ├── ui_helpers.py
 │   │   │   └── profiles.py
 │   │   │
-│   │   ├── utilities
+│   │   ├── utilities   # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
 │   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
 │   │   │   ├── config.py                 # + floppy_mode (disabled/basic/aggressive)

@@ -34,14 +34,24 @@ DualKeyEscrow использует два независимых пути рас
 - Data key одноразовый (per-message)
 - User и escrow пути полностью независимы
 - Компрометация одного ключа не раскрывает другой
-- HKDF-SHA256 деривация ключей
-- Secure memory erase после использования
+- HKDF деривация ключей (hash-алгоритм конфигурируемый, по умолчанию SHA256)
+- Secure memory erase после использования (zeroing оригинального bytearray)
 - Perfect Forward Secrecy через ephemeral keys
+
+Выбор HKDF vs Argon2id:
+========================
+
+HKDF здесь — правильный инструмент. Входной материал (X25519 shared secret)
+уже имеет высокую энтропию (~128 бит), поэтому memory-hard функция Argon2id
+не нужна и была бы контрпродуктивна. Argon2id применяется в этом проекте
+на уровне keystore для укрепления паролей пользователя — задача принципиально
+иная. Архитектура близка к HPKE (RFC 9180): KEM + KDF + AEAD.
 
 Пример:
 =======
 
 >>> from src.security.crypto.advanced.key_escrow import DualKeyEscrow
+>>> from cryptography.hazmat.primitives import hashes
 >>>
 >>> escrow = DualKeyEscrow()
 >>>
@@ -61,10 +71,23 @@ DualKeyEscrow использует два независимых пути рас
 >>>
 >>> # Расшифровка escrow-агентом
 >>> data = escrow.decrypt_as_escrow(escrow_priv, encrypted)
+>>>
+>>> # Параноидальный режим: SHA-512 для деривации ключей
+>>> escrow_512 = DualKeyEscrow(hkdf_hash=hashes.SHA512)
 
-Author: FX Text Processor 3 Team
-Version: 2.3.2
-Date: February 18, 2026
+Author: Mike Voyager
+Version: 2.3.3
+Date: March 2, 2026
+
+Changelog:
+    2.3.3 - CRITICAL FIX: TypeError в decrypt_as_user/decrypt_as_escrow
+            (aad= → associated_data= в вызовах _decrypt_path).
+            MAJOR FIX: bytearray для чувствительных ключей — secure erase
+            теперь зачищает оригинальный буфер, а не временную копию.
+            NEW: конфигурируемый hkdf_hash (SHA256/SHA384/SHA512).
+            MINOR: убран лишний Any-импорт, Dict/Tuple → dict/tuple,
+            удалён дублирующий self._logger.
+    2.3.2 - Initial release
 """
 
 from __future__ import annotations
@@ -72,9 +95,10 @@ from __future__ import annotations
 import logging
 import secrets
 from dataclasses import dataclass
-from typing import Any, Dict, Final, Optional, Tuple
+from typing import Final, Optional
 
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from src.security.crypto.core.exceptions import (
@@ -92,6 +116,7 @@ from src.security.crypto.core.registry import AlgorithmRegistry
 # ==============================================================================
 # CONSTANTS
 # ==============================================================================
+
 
 DATA_KEY_SIZE: Final[int] = 32
 HKDF_SALT_SIZE: Final[int] = 32
@@ -122,8 +147,8 @@ class EscrowEncryptedData:
 
     ciphertext: bytes
     nonce: bytes
-    user_wrapped_key: Dict[str, bytes]
-    escrow_wrapped_key: Dict[str, bytes]
+    user_wrapped_key: dict[str, bytes]
+    escrow_wrapped_key: dict[str, bytes]
 
 
 # ==============================================================================
@@ -142,9 +167,14 @@ class DualKeyEscrow:
     Features:
         - Два независимых пути расшифровки
         - Одноразовый data key (per-message)
-        - Perfect Forward Secrecy
-        - HKDF-SHA256 деривация
-        - Secure memory erase
+        - Perfect Forward Secrecy через ephemeral keys
+        - HKDF деривация с конфигурируемым hash (SHA256/SHA384/SHA512)
+        - Secure memory erase оригинального буфера через bytearray
+
+    Note:
+        HKDF здесь — правильный выбор. Входной материал (X25519 shared secret)
+        имеет высокую энтропию, поэтому Argon2id не нужен и неприменим.
+        Argon2id используется отдельно — на уровне keystore для паролей.
 
     Example:
         >>> escrow = DualKeyEscrow()
@@ -152,12 +182,14 @@ class DualKeyEscrow:
         >>> agent_priv, agent_pub = escrow.generate_keypair()
         >>> encrypted = escrow.encrypt(b"data", user_pub, agent_pub)
         >>> plaintext = escrow.decrypt_as_user(user_priv, encrypted)
+        >>> assert plaintext == b"data"
     """
 
     def __init__(
         self,
         kex_algorithm: str = "x25519",
         symmetric_algorithm: str = "aes-256-gcm",
+        hkdf_hash: type[HashAlgorithm] = hashes.SHA256,
     ) -> None:
         """
         Инициализировать DualKeyEscrow.
@@ -165,18 +197,24 @@ class DualKeyEscrow:
         Args:
             kex_algorithm: Алгоритм обмена ключами (по умолчанию X25519)
             symmetric_algorithm: Алгоритм шифрования (по умолчанию AES-256-GCM)
+            hkdf_hash: Hash-алгоритм для HKDF деривации ключей.
+                По умолчанию SHA256 (128-бит security level, достаточно для X25519).
+                SHA384 или SHA512 для повышенного запаса прочности.
+                Изменение этого параметра ломает совместимость с ранее
+                зашифрованными данными — используйте одно значение на весь
+                жизненный цикл данных.
 
         Raises:
-            CryptoError: Алгоритм недоступен
-        """
-        self._logger = logging.getLogger(__name__)
+            CryptoError: Алгоритм недоступен в реестре
 
+        Example:
+            >>> escrow = DualKeyEscrow()                          # SHA256, дефолт
+            >>> escrow = DualKeyEscrow(hkdf_hash=hashes.SHA512)  # SHA512, параноидальный
+        """
         registry = AlgorithmRegistry.get_instance()
         try:
             self._kex: KeyExchangeProtocol = registry.create(kex_algorithm)
-            self._cipher: SymmetricCipherProtocol = registry.create(
-                symmetric_algorithm
-            )
+            self._cipher: SymmetricCipherProtocol = registry.create(symmetric_algorithm)
         except (KeyError, RuntimeError) as exc:
             raise CryptoError(
                 f"Failed to initialize DualKeyEscrow: {exc}",
@@ -185,13 +223,16 @@ class DualKeyEscrow:
 
         self._kex_algo = kex_algorithm
         self._sym_algo = symmetric_algorithm
+        self._hkdf_hash = hkdf_hash
 
-        self._logger.debug(
-            f"DualKeyEscrow initialized: KEX={kex_algorithm}, "
-            f"Symmetric={symmetric_algorithm}"
+        logger.debug(
+            "DualKeyEscrow initialized: KEX=%s, Symmetric=%s, HKDF=%s",
+            kex_algorithm,
+            symmetric_algorithm,
+            hkdf_hash.__name__,
         )
 
-    def generate_keypair(self) -> Tuple[bytes, bytes]:
+    def generate_keypair(self) -> tuple[bytes, bytes]:
         """
         Сгенерировать keypair (для user или escrow agent).
 
@@ -204,9 +245,7 @@ class DualKeyEscrow:
         try:
             return self._kex.generate_keypair()
         except Exception as exc:
-            raise CryptoError(
-                f"Keypair generation failed: {exc}"
-            ) from exc
+            raise CryptoError(f"Keypair generation failed: {exc}") from exc
 
     def encrypt(
         self,
@@ -220,10 +259,11 @@ class DualKeyEscrow:
         Зашифровать данные с депонированием ключа.
 
         Process:
-            1. Сгенерировать одноразовый data key
+            1. Сгенерировать одноразовый data key (bytearray для безопасного стирания)
             2. Зашифровать plaintext data key
             3. Обернуть data key для пользователя (гибридное шифрование)
             4. Обернуть data key для escrow-агента (гибридное шифрование)
+            5. Стереть data key из памяти (zeroing оригинального буфера)
 
         Args:
             plaintext: Данные для шифрования
@@ -245,31 +285,30 @@ class DualKeyEscrow:
         if not escrow_public_key:
             raise ValueError("Escrow public key cannot be empty")
 
-        data_key = b""
+        # bytearray — чтобы _secure_erase зачищал оригинальный буфер, не копию
+        data_key: bytearray = bytearray(b"")
         try:
             # 1. Generate one-time data key
-            data_key = secrets.token_bytes(DATA_KEY_SIZE)
+            data_key = bytearray(secrets.token_bytes(DATA_KEY_SIZE))
 
             # 2. Encrypt plaintext with data key
             ciphertext, nonce = self._cipher.encrypt(
-                key=data_key,
+                key=bytes(data_key),
                 plaintext=plaintext,
                 aad=associated_data,
             )
 
             # 3. Wrap data key for user
             user_wrapped = self._wrap_key(
-                data_key, user_public_key, HKDF_INFO_USER
+                bytes(data_key), user_public_key, HKDF_INFO_USER
             )
 
             # 4. Wrap data key for escrow agent
             escrow_wrapped = self._wrap_key(
-                data_key, escrow_public_key, HKDF_INFO_ESCROW
+                bytes(data_key), escrow_public_key, HKDF_INFO_ESCROW
             )
 
-            self._logger.debug(
-                f"Encrypted with escrow: plaintext_size={len(plaintext)}"
-            )
+            logger.debug("Encrypted with escrow: plaintext_size=%d", len(plaintext))
 
             return EscrowEncryptedData(
                 ciphertext=ciphertext,
@@ -281,11 +320,10 @@ class DualKeyEscrow:
         except (ValueError, EncryptionError):
             raise
         except Exception as exc:
-            raise EncryptionError(
-                f"Escrow encryption failed: {exc}"
-            ) from exc
+            raise EncryptionError(f"Escrow encryption failed: {exc}") from exc
         finally:
-            self._secure_erase(bytearray(data_key))
+            # 5. Zero the original buffer (not a temporary copy)
+            self._secure_erase(data_key)
 
     def decrypt_as_user(
         self,
@@ -317,7 +355,7 @@ class DualKeyEscrow:
             nonce=encrypted_data.nonce,
             hkdf_info=HKDF_INFO_USER,
             path_name="user",
-            aad=associated_data,
+            associated_data=associated_data,  # FIX: было aad=associated_data (TypeError)
         )
 
     def decrypt_as_escrow(
@@ -350,7 +388,7 @@ class DualKeyEscrow:
             nonce=encrypted_data.nonce,
             hkdf_info=HKDF_INFO_ESCROW,
             path_name="escrow",
-            aad=associated_data,
+            associated_data=associated_data,  # FIX: было aad=associated_data (TypeError)
         )
 
     # ==========================================================================
@@ -360,7 +398,7 @@ class DualKeyEscrow:
     def _decrypt_path(
         self,
         private_key: bytes,
-        wrapped_key: Dict[str, bytes],
+        wrapped_key: dict[str, bytes],
         ciphertext: bytes,
         nonce: bytes,
         hkdf_info: bytes,
@@ -382,22 +420,24 @@ class DualKeyEscrow:
         if not private_key:
             raise ValueError(f"{path_name.capitalize()} private key cannot be empty")
 
-        data_key = b""
+        # bytearray — чтобы _secure_erase зачищал оригинальный буфер
+        data_key: bytearray = bytearray(b"")
         try:
-            # 1. Unwrap data key
-            data_key = self._unwrap_key(private_key, wrapped_key, hkdf_info)
+            # 1. Unwrap data key (конвертируем в bytearray немедленно)
+            data_key = bytearray(self._unwrap_key(private_key, wrapped_key, hkdf_info))
 
             # 2. Decrypt ciphertext
             plaintext = self._cipher.decrypt(
-                key=data_key,
+                key=bytes(data_key),
                 ciphertext=ciphertext,
                 nonce=nonce,
                 aad=associated_data,
             )
 
-            self._logger.debug(
-                f"Decrypted via {path_name} path: "
-                f"plaintext_size={len(plaintext)}"
+            logger.debug(
+                "Decrypted via %s path: plaintext_size=%d",
+                path_name,
+                len(plaintext),
             )
 
             return plaintext
@@ -409,11 +449,11 @@ class DualKeyEscrow:
                 f"Escrow decryption failed ({path_name} path): {exc}"
             ) from exc
         finally:
-            self._secure_erase(bytearray(data_key))
+            self._secure_erase(data_key)
 
     def _wrap_key(
         self, data_key: bytes, recipient_public_key: bytes, hkdf_info: bytes
-    ) -> Dict[str, bytes]:
+    ) -> dict[str, bytes]:
         """
         Обернуть data key для получателя через гибридное шифрование.
 
@@ -425,23 +465,29 @@ class DualKeyEscrow:
         Returns:
             {ephemeral_public_key, nonce, ciphertext, hkdf_salt}
         """
-        ephemeral_private = b""
-        shared_secret = b""
-        wrapping_key = b""
+        # bytearray-буферы для корректного secure erase оригиналов
+        ephemeral_private: bytearray = bytearray(b"")
+        shared_secret: bytearray = bytearray(b"")
+        wrapping_key: bytearray = bytearray(b"")
 
         try:
-            ephemeral_private, ephemeral_public = self._kex.generate_keypair()
+            eph_priv_bytes, ephemeral_public = self._kex.generate_keypair()
+            ephemeral_private = bytearray(eph_priv_bytes)
 
-            shared_secret = self._kex.derive_shared_secret(
-                private_key=ephemeral_private,
-                peer_public_key=recipient_public_key,
+            shared_secret = bytearray(
+                self._kex.derive_shared_secret(
+                    private_key=bytes(ephemeral_private),
+                    peer_public_key=recipient_public_key,
+                )
             )
 
             hkdf_salt = secrets.token_bytes(HKDF_SALT_SIZE)
-            wrapping_key = self._derive_key(shared_secret, hkdf_salt, hkdf_info)
+            wrapping_key = bytearray(
+                self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info)
+            )
 
             ciphertext, nonce = self._cipher.encrypt(
-                key=wrapping_key,
+                key=bytes(wrapping_key),
                 plaintext=data_key,
             )
 
@@ -453,14 +499,14 @@ class DualKeyEscrow:
             }
 
         finally:
-            self._secure_erase(bytearray(ephemeral_private))
-            self._secure_erase(bytearray(shared_secret))
-            self._secure_erase(bytearray(wrapping_key))
+            self._secure_erase(ephemeral_private)
+            self._secure_erase(shared_secret)
+            self._secure_erase(wrapping_key)
 
     def _unwrap_key(
         self,
         private_key: bytes,
-        wrapped: Dict[str, bytes],
+        wrapped: dict[str, bytes],
         hkdf_info: bytes,
     ) -> bytes:
         """
@@ -472,22 +518,27 @@ class DualKeyEscrow:
             hkdf_info: HKDF info строка
 
         Returns:
-            Развёрнутый data key
+            Развёрнутый data key (bytes; вызывающий код конвертирует в bytearray
+            для последующего secure erase)
         """
-        shared_secret = b""
-        wrapping_key = b""
+        shared_secret: bytearray = bytearray(b"")
+        wrapping_key: bytearray = bytearray(b"")
 
         try:
-            shared_secret = self._kex.derive_shared_secret(
-                private_key=private_key,
-                peer_public_key=wrapped["ephemeral_public_key"],
+            shared_secret = bytearray(
+                self._kex.derive_shared_secret(
+                    private_key=private_key,
+                    peer_public_key=wrapped["ephemeral_public_key"],
+                )
             )
 
             hkdf_salt = wrapped.get("hkdf_salt", b"")
-            wrapping_key = self._derive_key(shared_secret, hkdf_salt, hkdf_info)
+            wrapping_key = bytearray(
+                self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info)
+            )
 
             data_key = self._cipher.decrypt(
-                key=wrapping_key,
+                key=bytes(wrapping_key),
                 ciphertext=wrapped["ciphertext"],
                 nonce=wrapped["nonce"],
             )
@@ -495,15 +546,29 @@ class DualKeyEscrow:
             return data_key
 
         finally:
-            self._secure_erase(bytearray(shared_secret))
-            self._secure_erase(bytearray(wrapping_key))
+            self._secure_erase(shared_secret)
+            self._secure_erase(wrapping_key)
 
-    def _derive_key(
-        self, shared_secret: bytes, salt: bytes, info: bytes
-    ) -> bytes:
-        """Вывести wrapping key через HKDF-SHA256."""
+    def _derive_key(self, shared_secret: bytes, salt: bytes, info: bytes) -> bytes:
+        """
+        Вывести wrapping key через HKDF с конфигурируемым hash-алгоритмом.
+
+        Используется HKDF, а не Argon2id, потому что входной материал
+        (X25519 shared secret) уже имеет высокую энтропию (~128 бит).
+        Argon2id предназначен для укрепления паролей с низкой энтропией
+        и здесь неприменим.
+
+        Args:
+            shared_secret: Высокоэнтропийный входной материал (X25519 output)
+            salt: Случайная соль (HKDF_SALT_SIZE байт); b"" → None (HKDF default)
+            info: Контекстная строка для domain separation (HKDF_INFO_USER /
+                HKDF_INFO_ESCROW)
+
+        Returns:
+            Derived key длиной DATA_KEY_SIZE байт
+        """
         hkdf = HKDF(
-            algorithm=hashes.SHA256(),
+            algorithm=self._hkdf_hash(),
             length=DATA_KEY_SIZE,
             salt=salt if salt else None,
             info=info,
@@ -512,7 +577,17 @@ class DualKeyEscrow:
 
     @staticmethod
     def _secure_erase(data: bytearray) -> None:
-        """Безопасно стереть чувствительные данные из памяти."""
+        """
+        Безопасно стереть чувствительные данные из памяти.
+
+        Выполняет два прохода: сначала случайные байты, затем нули.
+        Метод принимает bytearray (не bytes) и зачищает его in-place,
+        поэтому вызывающий код обязан передавать именно bytearray, а не
+        bytearray(some_bytes_obj) — последнее создаёт временную копию.
+
+        Args:
+            data: Буфер для обнуления (изменяется in-place)
+        """
         if not data:
             return
         for i in range(len(data)):
@@ -524,6 +599,7 @@ class DualKeyEscrow:
 # ==============================================================================
 # EXPORTS
 # ==============================================================================
+
 
 __all__ = [
     "DualKeyEscrow",
