@@ -20,7 +20,7 @@ Priority: Phase 8 — Utilities
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, Literal
 
 __all__: list[str] = [

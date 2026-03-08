@@ -16,7 +16,6 @@ from enum import Enum
 from typing import Any, Final
 
 from src.model.paragraph import Paragraph
-from src.model.run import Run
 
 logger: Final = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Union
+from typing import Any, Callable, DefaultDict, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

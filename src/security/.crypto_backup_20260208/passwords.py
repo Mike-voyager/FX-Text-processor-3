@@ -56,10 +56,10 @@ except ImportError:
     hmac_blake3 = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    from argon2.low_level import Type as Argon2Type
-
     # Callable with keyword-only args after positional
     from typing import Protocol
+
+    from argon2.low_level import Type as Argon2Type
 
     class HashSecretRaw(Protocol):
         def __call__(

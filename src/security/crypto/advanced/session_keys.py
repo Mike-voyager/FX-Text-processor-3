@@ -665,10 +665,10 @@ class PFSSession:
             # 2. Ratchet chain key (symmetric ratchet)
             new_ck = self._ratchet_chain_key(bytes(state.send_chain_key))
             self._secure_erase(state.send_chain_key)
-            state.send_chain_key = bytearray(new_ck)
+            state.send_chain_key[:] = new_ck
 
             # 3. Encrypt plaintext
-            ciphertext, nonce = self._cipher.encrypt(
+            nonce, ciphertext = self._cipher.encrypt(
                 key=bytes(message_key),
                 plaintext=plaintext,
                 aad=associated_data,
@@ -765,7 +765,6 @@ class PFSSession:
                         f"Max allowed: {MAX_SKIP_MESSAGES}"
                     )
 
-                # Cache keys for skipped messages
                 for i in range(skip_count):
                     skipped_idx = expected_count + i
                     skipped_key_bytes = self._derive_message_key(
@@ -774,14 +773,11 @@ class PFSSession:
                     state.skipped_message_keys[skipped_idx] = bytearray(
                         skipped_key_bytes
                     )
-
-                    # Ratchet chain key
                     new_ck = self._ratchet_chain_key(bytes(state.recv_chain_key))
                     self._secure_erase(state.recv_chain_key)
                     state.recv_chain_key = bytearray(new_ck)
 
-                # Cleanup skipped cache if too large
-                self._cleanup_skipped_cache(state)
+            self._cleanup_skipped_cache(state)
 
             # 4. Get message key
             if encrypted.send_ratchet_count in state.skipped_message_keys:
@@ -999,6 +995,7 @@ class PFSSession:
             state.send_chain_key = bytearray(new_recv_ck)  # Inverted
             state.recv_chain_key = bytearray(new_send_ck)  # Inverted
             state.remote_ephemeral_public = new_remote_public
+            state.dh_send_count = 0
             state.dh_recv_count = 0
             state.last_dh_ratchet_at = time.time()
 

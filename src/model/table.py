@@ -24,8 +24,6 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    TypeVar,
-    Union,
 )
 
 logger: Final = logging.getLogger(__name__)

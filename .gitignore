@@ -145,3 +145,6 @@ backup-*.tar.gz.gpg
 tmp/
 temp/
 *.tmp
+
+# Crypto backups
+.crypto_backup_*/

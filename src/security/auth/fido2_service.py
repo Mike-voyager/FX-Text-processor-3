@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import Any, Dict, List, cast
 
-from src.security.crypto.algorithms.kdf import Argon2idKDF
 from src.app_context import get_app_context
+from src.security.crypto.algorithms.kdf import Argon2idKDF
 
 _logger = logging.getLogger("security.auth.fido2_service")
 _lock = threading.Lock()

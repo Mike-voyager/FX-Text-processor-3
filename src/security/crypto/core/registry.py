@@ -26,12 +26,11 @@ Priority: 🔴 CRITICAL (Phase 1, Day 2-3)
 
 from __future__ import annotations
 
+import logging
 import threading
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
-
-import logging
 
 from src.security.crypto.core.metadata import (
     AlgorithmCategory,
@@ -733,6 +732,8 @@ def register_all_algorithms() -> None:
     try:
         from src.security.crypto.algorithms.symmetric import (
             ALGORITHMS as SYM_ALGORITHMS,
+        )
+        from src.security.crypto.algorithms.symmetric import (
             ALL_METADATA as SYM_METADATA,
         )
 

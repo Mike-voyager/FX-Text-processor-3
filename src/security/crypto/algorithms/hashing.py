@@ -60,9 +60,9 @@ Date: February 10, 2026
 from __future__ import annotations
 
 import hashlib
-from typing import Iterable, BinaryIO, Final
-
 import logging
+from typing import Final, Iterable
+
 from src.security.crypto.core.exceptions import (
     AlgorithmNotSupportedError,
     HashingFailedError,

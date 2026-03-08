@@ -5,7 +5,7 @@ Unit-тесты для GroupKeyManager — менеджера групповых
 Покрывают: создание групп, управление участниками, шифрование/расшифровку,
 key-wrapping, безопасное стирание, thread-safety и граничные случаи.
 
-Author: FX Text Processor 3 Team
+Author: Mike Voyager
 Version: 2.3.3
 Date: February 18, 2026
 """

@@ -2,29 +2,20 @@
 
 import json
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 
 from src.model.enums import (
     Alignment,
     BarcodeType,
     CharactersPerInch,
-    CodePage,
     Color,
     DitheringAlgorithm,
     FontFamily,
     GraphicsMode,
     ImagePosition,
     LineSpacing,
-    ListType,
     MarginUnits,
-    Matrix2DCodeType,
-    Orientation,
-    PageSize,
-    PaperSource,
-    PaperType,
-    PrintDirection,
     PrintQuality,
-    TabAlignment,
     TableStyle,
     TextStyle,
     validate_barcode,

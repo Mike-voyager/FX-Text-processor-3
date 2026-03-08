@@ -10,6 +10,8 @@ from __future__ import annotations
 import secrets
 import time
 from typing import Final
+from pytest_mock import MockerFixture
+
 
 import pytest
 
@@ -93,6 +95,12 @@ def established_session(
     alice_session.complete_handshake(alice_state, response)
 
     return alice_state, bob_state
+
+
+@pytest.fixture
+def session() -> PFSSession:
+    """Один PFSSession для тестов без полного handshake."""
+    return PFSSession()
 
 
 # ==============================================================================
@@ -1159,3 +1167,257 @@ class TestIntegration:
 
         assert dec1 == b"To Bob"
         assert dec2 == b"To Charlie"
+
+
+# ==============================================================================
+# GROUP 1: Dataclass __post_init__ validation
+# Lines: 166, 194, 261, 263, 267, 269
+# ==============================================================================
+
+
+class TestDataclassValidationCoverage:
+    """Покрывает непокрытые ветки __post_init__ в датаклассах."""
+
+    # --- SessionHandshake (line 166) ---
+
+    def test_session_handshake_empty_ephemeral_public_raises(self) -> None:
+        """Строка 166: пустой initiator_ephemeral_public → ValueError."""
+        with pytest.raises(
+            ValueError, match="initiator_ephemeral_public cannot be empty"
+        ):
+            SessionHandshake(
+                session_id="test",
+                initiator_identity_public=b"key",
+                initiator_ephemeral_public=b"",  # ← line 166
+                hkdf_salt=secrets.token_bytes(HKDF_SALT_SIZE),
+            )
+
+    # --- SessionHandshakeResponse (line 194) ---
+
+    def test_session_handshake_response_empty_ephemeral_raises(self) -> None:
+        """Строка 194: пустой responder_ephemeral_public → ValueError."""
+        with pytest.raises(
+            ValueError, match="responder_ephemeral_public cannot be empty"
+        ):
+            SessionHandshakeResponse(
+                session_id="test",
+                responder_ephemeral_public=b"",  # ← line 194
+            )
+
+    # --- EncryptedSessionMessage (lines 261, 263, 267, 269) ---
+
+    def test_encrypted_message_empty_ciphertext_raises(self) -> None:
+        """Строка 261: пустой ciphertext → ValueError."""
+        with pytest.raises(ValueError, match="ciphertext cannot be empty"):
+            EncryptedSessionMessage(
+                ciphertext=b"",  # ← line 261
+                nonce=b"nonce",
+                send_ratchet_count=1,
+                dh_send_count=1,
+                sender_ephemeral_public=b"key",
+            )
+
+    def test_encrypted_message_empty_nonce_raises(self) -> None:
+        """Строка 263: пустой nonce → ValueError."""
+        with pytest.raises(ValueError, match="nonce cannot be empty"):
+            EncryptedSessionMessage(
+                ciphertext=b"data",
+                nonce=b"",  # ← line 263
+                send_ratchet_count=1,
+                dh_send_count=1,
+                sender_ephemeral_public=b"key",
+            )
+
+    def test_encrypted_message_negative_dh_send_count_raises(self) -> None:
+        """Строка 267: отрицательный dh_send_count → ValueError."""
+        with pytest.raises(ValueError, match="dh_send_count cannot be negative"):
+            EncryptedSessionMessage(
+                ciphertext=b"data",
+                nonce=b"nonce",
+                send_ratchet_count=1,
+                dh_send_count=-1,  # ← line 267
+                sender_ephemeral_public=b"key",
+            )
+
+    def test_encrypted_message_empty_sender_ephemeral_raises(self) -> None:
+        """Строка 269: пустой sender_ephemeral_public → ValueError."""
+        with pytest.raises(ValueError, match="sender_ephemeral_public cannot be empty"):
+            EncryptedSessionMessage(
+                ciphertext=b"data",
+                nonce=b"nonce",
+                send_ratchet_count=1,
+                dh_send_count=1,
+                sender_ephemeral_public=b"",  # ← line 269
+            )
+
+
+# ==============================================================================
+# GROUP 2: generate_identity_keypair exception path — Lines: 397-398
+# ==============================================================================
+
+
+class TestGenerateKeypairExceptionPath:
+
+    def test_keypair_generation_failure_raises_crypto_error(
+        self, session: PFSSession, mocker: MockerFixture
+    ) -> None:
+        """Строки 397-398: сбой _kex.generate_keypair → CryptoError."""
+        mocker.patch.object(
+            session._kex,
+            "generate_keypair",
+            side_effect=RuntimeError("hardware failure"),
+        )
+        with pytest.raises(CryptoError, match="Identity keypair generation failed"):
+            session.generate_identity_keypair()
+
+
+# ==============================================================================
+# GROUP 3: initiate_session input validation — Lines: 432, 434
+# ==============================================================================
+
+
+class TestInitiateSessionValidation:
+
+    def test_initiate_empty_local_public_key_raises(self, session: PFSSession) -> None:
+        """Строка 432: пустой local_public_key → ValueError."""
+        priv, _ = session.generate_identity_keypair()
+        _, remote_pub = session.generate_identity_keypair()
+
+        with pytest.raises(ValueError, match="Local public key cannot be empty"):
+            session.initiate_session(
+                local_private_key=priv,
+                local_public_key=b"",  # ← line 432
+                remote_public_key=remote_pub,
+            )
+
+    def test_initiate_empty_remote_public_key_raises(self, session: PFSSession) -> None:
+        """Строка 434: пустой remote_public_key → ValueError."""
+        priv, pub = session.generate_identity_keypair()
+
+        with pytest.raises(ValueError, match="Remote public key cannot be empty"):
+            session.initiate_session(
+                local_private_key=priv,
+                local_public_key=pub,
+                remote_public_key=b"",  # ← line 434
+            )
+
+
+# ==============================================================================
+# GROUP 4: initiate_session generic exception — Lines: 480-483
+# ==============================================================================
+
+
+class TestInitiateSessionExceptionPath:
+
+    def test_initiate_session_kex_failure_raises_crypto_error(
+        self, session: PFSSession, mocker: MockerFixture
+    ) -> None:
+        """Строки 480-483: сбой derive_shared_secret → CryptoError."""
+        priv, pub = session.generate_identity_keypair()
+        _, remote_pub = session.generate_identity_keypair()
+
+        mocker.patch.object(
+            session._kex,
+            "derive_shared_secret",
+            side_effect=RuntimeError("kex internal error"),
+        )
+
+        with pytest.raises(CryptoError, match="Session initiation failed"):
+            session.initiate_session(
+                local_private_key=priv,
+                local_public_key=pub,
+                remote_public_key=remote_pub,
+            )
+
+
+# ==============================================================================
+# GROUP 5: accept_session input validation — Lines: 517, 521
+# ==============================================================================
+
+
+class TestAcceptSessionValidation:
+
+    def test_accept_empty_local_public_key_raises(self, session: PFSSession) -> None:
+        """Строка 517: пустой local_public_key → ValueError."""
+        initiator = PFSSession()
+        a_priv, a_pub = initiator.generate_identity_keypair()
+        b_priv, b_pub = session.generate_identity_keypair()
+        _, handshake = initiator.initiate_session(a_priv, a_pub, b_pub)
+
+        with pytest.raises(ValueError, match="Local public key cannot be empty"):
+            session.accept_session(
+                local_private_key=b_priv,
+                local_public_key=b"",  # ← line 517
+                handshake=handshake,
+            )
+
+    def test_accept_none_handshake_raises(self, session: PFSSession) -> None:
+        """Строка 521: handshake=None → ValueError."""
+        priv, pub = session.generate_identity_keypair()
+
+        with pytest.raises(ValueError, match="Handshake cannot be None"):
+            session.accept_session(
+                local_private_key=priv,
+                local_public_key=pub,
+                handshake=None,  # type: ignore[arg-type]
+                # ← line 521
+            )
+
+
+# ==============================================================================
+# GROUP 6: accept_session generic exception — Lines: 564-567
+# ==============================================================================
+
+
+class TestAcceptSessionExceptionPath:
+
+    def test_accept_session_kex_failure_raises_crypto_error(
+        self, session: PFSSession, mocker: MockerFixture
+    ) -> None:
+        """Строки 564-567: сбой derive_shared_secret → CryptoError."""
+        initiator = PFSSession()
+        a_priv, a_pub = initiator.generate_identity_keypair()
+        b_priv, b_pub = session.generate_identity_keypair()
+        _, handshake = initiator.initiate_session(a_priv, a_pub, b_pub)
+
+        mocker.patch.object(
+            session._kex,
+            "derive_shared_secret",
+            side_effect=RuntimeError("kex accept error"),
+        )
+
+        with pytest.raises(CryptoError, match="Session acceptance failed"):
+            session.accept_session(
+                local_private_key=b_priv,
+                local_public_key=b_pub,
+                handshake=handshake,
+            )
+
+
+# ==============================================================================
+# GROUP 7: send_message generic exception — Lines: 696-699
+# ==============================================================================
+
+
+class TestSendMessageExceptionPath:
+
+    def test_send_message_cipher_failure_raises_encryption_error(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Строки 696-699: сбой _cipher.encrypt → EncryptionError."""
+        alice_session = PFSSession()
+        bob_session = PFSSession()
+        a_priv, a_pub = alice_session.generate_identity_keypair()
+        b_priv, b_pub = bob_session.generate_identity_keypair()
+        alice_state, handshake = alice_session.initiate_session(a_priv, a_pub, b_pub)
+        bob_state, response = bob_session.accept_session(b_priv, b_pub, handshake)
+        alice_session.complete_handshake(alice_state, response)
+
+        mocker.patch.object(
+            alice_session._cipher,
+            "encrypt",
+            side_effect=RuntimeError("cipher hardware fault"),
+        )
+
+        with pytest.raises(EncryptionError, match="Session send failed"):
+            alice_session.send_message(alice_state, b"test message")

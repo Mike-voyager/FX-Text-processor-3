@@ -78,28 +78,29 @@ from __future__ import annotations
 import logging
 from typing import Tuple, Type
 
-# Cryptography library
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+
+# Cryptography library
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+
+from src.security.crypto.core.exceptions import (
+    DecryptionFailedError,
+    EncryptionFailedError,
+    InvalidKeyError,
+    KeyGenerationError,
+    PlaintextTooLargeError,
+)
+from src.security.crypto.core.metadata import (
+    AlgorithmCategory,
+    AlgorithmMetadata,
+    FloppyFriendly,
+    ImplementationStatus,
+    SecurityLevel,
+)
 
 # Project imports
 from src.security.crypto.core.protocols import AsymmetricEncryptionProtocol
-from src.security.crypto.core.metadata import (
-    AlgorithmMetadata,
-    AlgorithmCategory,
-    SecurityLevel,
-    FloppyFriendly,
-    ImplementationStatus,
-)
-from src.security.crypto.core.exceptions import (
-    EncryptionError,
-    EncryptionFailedError,
-    DecryptionFailedError,
-    KeyGenerationError,
-    InvalidKeyError,
-    PlaintextTooLargeError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +403,7 @@ class RSAOAEP2048:
 
             return plaintext
 
-        except (InvalidKeyError,):
+        except InvalidKeyError:
             raise
         except Exception as exc:
             # НЕ раскрываем детали ошибки (security: padding oracle protection)
@@ -597,7 +598,7 @@ class RSAOAEP3072:
 
             return plaintext
 
-        except (InvalidKeyError,):
+        except InvalidKeyError:
             raise
         except Exception as exc:
             self._logger.warning(
@@ -801,7 +802,7 @@ class RSAOAEP4096:
 
             return plaintext
 
-        except (InvalidKeyError,):
+        except InvalidKeyError:
             raise
         except Exception as exc:
             self._logger.warning(

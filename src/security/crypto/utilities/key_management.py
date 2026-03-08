@@ -24,11 +24,8 @@ import os
 from typing import TYPE_CHECKING
 
 from src.security.crypto.core.exceptions import (
-    CryptoError,
-    CryptoKeyError,
     DecryptionFailedError,
     EncryptionFailedError,
-    InvalidParameterError,
 )
 from src.security.crypto.utilities.serialization import (
     KeyFormat,

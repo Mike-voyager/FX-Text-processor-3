@@ -19,7 +19,6 @@ import os
 from typing import Any, Dict, Final, List, Optional, Set, Tuple, Union
 
 import pdf417gen
-import qrcode
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
 from PIL.ImageFont import ImageFont as PILImageFont

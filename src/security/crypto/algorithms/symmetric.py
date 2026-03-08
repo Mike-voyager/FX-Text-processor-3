@@ -60,6 +60,8 @@ from cryptography.hazmat.primitives.ciphers.aead import (
     AESGCM,
     AESOCB3,
     AESSIV,
+)
+from cryptography.hazmat.primitives.ciphers.aead import (
     ChaCha20Poly1305 as ChaCha20Poly1305Impl,
 )
 
@@ -77,8 +79,8 @@ except ImportError:
 
 # Pycryptodome (XChaCha20, DES)
 try:
-    from Crypto.Cipher import ChaCha20_Poly1305 as XChaCha20Impl
     from Crypto.Cipher import DES as DESImpl
+    from Crypto.Cipher import ChaCha20_Poly1305 as XChaCha20Impl
 
     HAS_PYCRYPTODOME = True
 except ImportError:
@@ -92,9 +94,7 @@ from src.security.crypto.core.exceptions import (
     InvalidNonceError,
 )
 from src.security.crypto.core.metadata import (
-    AlgorithmCategory,
     AlgorithmMetadata,
-    FloppyFriendly,
     ImplementationStatus,
     SecurityLevel,
 )
@@ -230,7 +230,7 @@ class AES256GCM:
             logger.debug(f"AES-256-GCM: Encrypted {len(plaintext)} bytes")
             return nonce, ciphertext
         except Exception as e:
-            raise EncryptionFailedError(f"AES-256-GCM encryption failed") from e
+            raise EncryptionFailedError("AES-256-GCM encryption failed") from e
 
     def decrypt(
         self,
@@ -272,7 +272,7 @@ class AES256GCM:
             return plaintext
         except Exception as e:
             raise DecryptionFailedError(
-                f"AES-256-GCM decryption failed: invalid tag or key"
+                "AES-256-GCM decryption failed: invalid tag or key"
             ) from e
 
 
@@ -356,7 +356,7 @@ class AES128GCM:
             ciphertext = cipher.encrypt(nonce, plaintext, aad)
             return nonce, ciphertext
         except Exception as e:
-            raise EncryptionFailedError(f"AES-128-GCM encryption failed") from e
+            raise EncryptionFailedError("AES-128-GCM encryption failed") from e
 
     def decrypt(
         self,
@@ -508,10 +508,10 @@ class ChaCha20Poly1305:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.NONCE_SIZE:
-            raise InvalidNonceError(f"Invalid nonce size")
+            raise InvalidNonceError("Invalid nonce size")
 
         try:
             cipher = ChaCha20Poly1305Impl(key)
@@ -644,10 +644,10 @@ class XChaCha20Poly1305:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.NONCE_SIZE:
-            raise InvalidNonceError(f"Invalid nonce size")
+            raise InvalidNonceError("Invalid nonce size")
 
         try:
             # Split ciphertext and tag
@@ -780,10 +780,10 @@ class AES256SIV:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.NONCE_SIZE:
-            raise InvalidNonceError(f"Invalid nonce size")
+            raise InvalidNonceError("Invalid nonce size")
 
         try:
             cipher = AESSIV(key)
@@ -904,10 +904,10 @@ class AES256OCB:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) not in range(12, 16):
-            raise InvalidNonceError(f"Invalid nonce size")
+            raise InvalidNonceError("Invalid nonce size")
 
         try:
             cipher = AESOCB3(key)
@@ -1041,10 +1041,10 @@ class AES256GCMSIV:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.NONCE_SIZE:
-            raise InvalidNonceError(f"Invalid nonce size")
+            raise InvalidNonceError("Invalid nonce size")
 
         try:
             cipher = AESGCMSIV(key)
@@ -1170,10 +1170,10 @@ class TripleDES:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.IV_SIZE:
-            raise InvalidNonceError(f"Invalid IV size")
+            raise InvalidNonceError("Invalid IV size")
 
         try:
             cipher = Cipher(algorithms.TripleDES(key), modes.CBC(nonce))
@@ -1312,10 +1312,10 @@ class DES:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.IV_SIZE:
-            raise InvalidNonceError(f"Invalid IV size")
+            raise InvalidNonceError("Invalid IV size")
 
         try:
             cipher = DESImpl.new(key, DESImpl.MODE_CBC, iv=nonce)
@@ -1447,10 +1447,10 @@ class AES256CTR:
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(f"Invalid key size")
+            raise InvalidKeyError("Invalid key size")
 
         if len(nonce) != self.IV_SIZE:
-            raise InvalidNonceError(f"Invalid IV size")
+            raise InvalidNonceError("Invalid IV size")
 
         try:
             cipher = Cipher(algorithms.AES(key), modes.CTR(nonce))

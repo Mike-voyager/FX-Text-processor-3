@@ -5,12 +5,11 @@ auto-unregister, приоритетов, строгой валидации type/
 
 from __future__ import annotations
 
-import copy
 import logging
 import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 

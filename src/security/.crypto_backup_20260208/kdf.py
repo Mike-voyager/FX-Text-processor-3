@@ -20,7 +20,6 @@ from .exceptions import KDFAlgorithmError, KDFParameterError
 from .protocols import (
     Argon2idParams,
     KdfParams,
-    KdfProtocol,
     PBKDF2Params,
 )
 from .utils import generate_salt as _utils_generate_salt

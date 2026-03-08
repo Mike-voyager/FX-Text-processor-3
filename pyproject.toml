@@ -4,12 +4,10 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "escp-editor"
+name = "FX-Text-processor-3"
 version = "0.1.0"
 description = "Professional WYSIWYG text editor for Epson FX-890 dot matrix printer with enterprise security"
-authors = [
-    {name = "ESC/P Text Editor Development Team"}
-]
+authors = [{name = "Mike Voyager"}]
 requires-python = ">=3.11"
 license = {text = "MIT"}
 readme = "README.md"
@@ -182,7 +180,7 @@ module = [
 ignore_missing_imports = true
 
 # ========== PYRIGHT / PYLANCE (новая секция) ==========
-[tool.pyright]
+[tool.basedpyright]
 # Указываем корневую директорию для импортов
 include = ["src", "tests"]
 exclude = [
@@ -223,8 +221,6 @@ reportOptionalContextManager = "warning"
 reportOptionalOperand = "warning"
 reportTypedDictNotRequiredAccess = false
 
-# Stub пакеты
-stubPath = "typings"
 
 
 [tool.black]
@@ -319,3 +315,15 @@ ignore = []
 # extend-ignore = E203, E266, E501, W503
 # exclude = .git,__pycache__,build,dist,.venv
 # max-complexity = 10
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "S", "B"]
+ignore = ["S101"]  # assert в тестах
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]

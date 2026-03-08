@@ -12,7 +12,7 @@ Features:
 from __future__ import annotations
 
 import logging
-from typing import Final, Optional
+from typing import Final
 
 _LOGGER: Final = logging.getLogger(__name__)
 

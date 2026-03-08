@@ -26,9 +26,8 @@ Security Notes:
 """
 from __future__ import annotations
 
-import hashlib
 import logging
-from typing import Final, Literal, Optional, Tuple
+from typing import Final, Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -36,7 +35,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import CryptoKeyError, DecryptionError, EncryptionError, SignatureError
-from .utils import generate_random_bytes, validate_key_length
+from .utils import generate_random_bytes
 
 _LOGGER: Final = logging.getLogger(__name__)
 

@@ -9,11 +9,9 @@ import hashlib
 import html
 import logging
 import re
-import time
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterator,
     List,
@@ -21,7 +19,6 @@ from typing import (
     Protocol,
     Set,
     Tuple,
-    TypedDict,
     Union,
 )
 

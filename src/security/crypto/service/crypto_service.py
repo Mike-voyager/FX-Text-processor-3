@@ -56,11 +56,10 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 from src.security.crypto.core.exceptions import (
-    AlgorithmNotFoundError,
     CryptoError,
     DecryptionError,
     EncryptionError,
@@ -685,7 +684,6 @@ class CryptoService:
             raise ValueError("Публичный ключ получателя не может быть пустым")
 
         from src.security.crypto.advanced.hybrid_encryption import (
-            HybridEncryption,
             create_hybrid_cipher,
         )
 

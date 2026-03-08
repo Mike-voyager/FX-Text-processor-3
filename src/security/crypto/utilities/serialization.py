@@ -23,10 +23,8 @@ import base64
 import json
 import struct
 from enum import Enum
-from typing import Optional
 
 from src.security.crypto.core.exceptions import (
-    CryptoError,
     InvalidParameterError,
 )
 

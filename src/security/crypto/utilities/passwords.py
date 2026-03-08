@@ -32,7 +32,6 @@ from typing import Any, List, Optional
 from src.security.crypto.core.exceptions import (
     CryptoError,
     InvalidParameterError,
-    ValidationError,
 )
 
 __all__: list[str] = [
@@ -53,7 +52,11 @@ try:
     from argon2 import PasswordHasher as _Argon2Hasher
     from argon2.exceptions import (
         HashingError as _Argon2HashingError,
+    )
+    from argon2.exceptions import (
         VerificationError as _Argon2VerificationError,
+    )
+    from argon2.exceptions import (
         VerifyMismatchError as _Argon2MismatchError,
     )
     HAS_ARGON2 = True
@@ -70,7 +73,7 @@ _COMMON_PASSWORDS: frozenset[str] = frozenset({
     "monkey", "1234567", "letmein", "trustno1", "dragon",
     "baseball", "iloveyou", "master", "sunshine", "ashley",
     "michael", "shadow", "123123", "654321", "superman",
-    "qazwsx", "michael", "football", "password1", "password123",
+    "qazwsx", "football", "password1", "password123",
     "batman", "login", "admin", "princess", "starwars",
     "hello", "charlie", "donald", "welcome", "passw0rd",
     "111111", "000000", "test", "pass", "access",

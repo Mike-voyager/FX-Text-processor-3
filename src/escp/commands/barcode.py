@@ -15,7 +15,6 @@ IMPORTANT: Barcode support is a standard feature on all FX-890 models.
 """
 
 from enum import Enum
-from typing import Final
 
 __all__ = [
     "BarcodeType",

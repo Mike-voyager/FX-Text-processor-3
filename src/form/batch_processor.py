@@ -17,7 +17,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ class BatchProcessor:
                 if retries > self.max_retries:
                     break
                 else:
-                    task.add_log(f"Retrying (delay 0.1s)...", "INFO")
+                    task.add_log("Retrying (delay 0.1s)...", "INFO")
                     time.sleep(0.1)
             finally:
                 task.finished = time.monotonic()

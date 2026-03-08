@@ -245,12 +245,12 @@ FX-Text-processor-3/
 │   │   │   ├── hashing.py                 # ✅ DONE
 │   │   │   └── kdf.py                     # ✅ DONE
 │   │   │
-│   │   ├── advanced/   # 🚧 DONE/TODO testsl
+│   │   ├── advanced/   # ✅ DONE
 │   │   │   ├── __init__.py
 │   │   │   ├── hybrid_encryption.py      # ✅ DONE
 │   │   │   ├── group_encryption.py       # ✅ DONE
 │   │   │   ├── key_escrow.py             # ✅ DONE
-│   │   │   └── session_keys.py
+│   │   │   └── session_keys.py           # ✅ DONE
 │   │   │
 │   │   ├── service/  # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
@@ -271,6 +271,9 @@ FX-Text-processor-3/
 │   │   │
 │   │   ├── hardware/← only CRYPTO operations! # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
+│   │   │   ├── apdu_transport.py
+│   │   │   ├── backends.py             # ✅ DONE
+│   │   │   ├── openpgp_backend.py      # ✅ DONE
 │   │   │   └── hardware_crypto.py        # Smartcards, YubiKey (sign/encrypt/decrypt)
 │   │   │
 │   │   └── 🏥 monitoring 

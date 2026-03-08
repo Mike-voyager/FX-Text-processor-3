@@ -1075,14 +1075,20 @@ class DeviceNotFoundError(HardwareDeviceError):
     def __init__(
         self,
         device_id: str,
+        reason: str = "",
     ) -> None:
         """
         Инициализация ошибки.
 
         Args:
             device_id: Идентификатор запрошенного устройства
+            reason: Дополнительная причина (опционально)
         """
-        message = f"Device '{device_id}' not found. Check connection and try again."
+        message = f"Device '{device_id}' not found."
+        if reason:
+            message += f" {reason}"
+        else:
+            message += " Check connection and try again."
         super().__init__(message, device_id=device_id)
 
 

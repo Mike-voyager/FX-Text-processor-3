@@ -33,7 +33,6 @@ from src.security.crypto.core.exceptions import (
     CryptoError,
     CryptoKeyError,
     DecryptionFailedError,
-    EncryptionFailedError,
     InvalidParameterError,
 )
 

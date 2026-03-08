@@ -61,40 +61,40 @@ Priority: 🔴 CRITICAL (Phase 2 + Phase 4 PQC)
 from __future__ import annotations
 
 import logging
-from typing import Tuple, Type, cast, Protocol as TypingProtocol
+from typing import Tuple, Type, cast
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import (
-    ed25519,
-    ed448,
-    rsa,
     ec,
+    ed448,
+    ed25519,
+    rsa,
+)
+from cryptography.hazmat.primitives.asymmetric import (
     padding as rsa_padding,
 )
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
+    NoEncryption,
     PrivateFormat,
     PublicFormat,
-    NoEncryption,
     load_der_private_key,
     load_der_public_key,
 )
 
-from src.security.crypto.core.protocols import SignatureProtocol
-from src.security.crypto.core.metadata import (
-    create_signature_metadata,
-    SecurityLevel,
-    ImplementationStatus,
-    FloppyFriendly,
-)
-from src.security.crypto.core.registry import AlgorithmRegistry
 from src.security.crypto.core.exceptions import (
-    SigningFailedError,
-    VerificationFailedError,
-    KeyGenerationError,
-    InvalidKeyError,
     AlgorithmNotSupportedError,
+    InvalidKeyError,
+    KeyGenerationError,
+    SigningFailedError,
 )
+from src.security.crypto.core.metadata import (
+    ImplementationStatus,
+    SecurityLevel,
+    create_signature_metadata,
+)
+from src.security.crypto.core.protocols import SignatureProtocol
+from src.security.crypto.core.registry import AlgorithmRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -1599,8 +1599,8 @@ def _register_all_signatures() -> None:
                 is_post_quantum=True,
                 security_level=SecurityLevel.QUANTUM_RESISTANT,
                 status=ImplementationStatus.STABLE,
-                description_ru=f"Falcon постквантовая подпись (NIST finalist, NTRU-based)",
-                description_en=f"Falcon post-quantum signature (NIST finalist, NTRU-based)",
+                description_ru="Falcon постквантовая подпись (NIST finalist, NTRU-based)",
+                description_en="Falcon post-quantum signature (NIST finalist, NTRU-based)",
                 test_vectors_source="https://falcon-sign.info/",
                 use_cases=["Compact PQC signatures", "Bandwidth-constrained"],
             ),
@@ -1630,8 +1630,8 @@ def _register_all_signatures() -> None:
                 is_post_quantum=True,
                 security_level=SecurityLevel.QUANTUM_RESISTANT,
                 status=ImplementationStatus.STABLE,
-                description_ru=f"SLH-DSA stateless hash-based подпись (NIST FIPS 205)",
-                description_en=f"SLH-DSA stateless hash-based signature (NIST FIPS 205)",
+                description_ru="SLH-DSA stateless hash-based подпись (NIST FIPS 205)",
+                description_en="SLH-DSA stateless hash-based signature (NIST FIPS 205)",
                 test_vectors_source="NIST FIPS 205",
                 use_cases=[
                     "Ultra-long-term security",

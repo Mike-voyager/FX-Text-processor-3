@@ -12,7 +12,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from src.model.enums import Alignment, LineSpacing, TabAlignment
+from src.model.enums import Alignment
 from src.model.run import Run
 
 

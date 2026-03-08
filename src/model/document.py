@@ -39,9 +39,7 @@ from src.model.enums import (
 
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
-    from src.model.paragraph import Paragraph
-    from src.model.section import Section
-    from src.model.table import Table
+    pass
 
 
 logger = logging.getLogger(__name__)

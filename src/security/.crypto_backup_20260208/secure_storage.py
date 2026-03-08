@@ -44,7 +44,6 @@ from .exceptions import (
 )
 from .protocols import SymmetricCipherProtocol
 from .utils import (
-    secure_compare,
     set_secure_file_permissions,
     zero_memory,
 )

@@ -141,18 +141,18 @@ class AsymmetricSignerAdapter:
         self._akp = akp
 
     def sign(self, data: bytes, *, context: Optional[bytes] = None) -> bytes:
-        return cast(bytes, getattr(self._akp, "sign")(data))
+        return cast(bytes, self._akp.sign(data))
 
     def verify(
         self, data: bytes, signature: bytes, *, context: Optional[bytes] = None
     ) -> bool:
-        return bool(getattr(self._akp, "verify")(data, signature))
+        return bool(self._akp.verify(data, signature))
 
     def public_key(self, fmt: str = "raw") -> Union[bytes, str]:
-        return cast(Union[bytes, str], getattr(self._akp, "public_key")(fmt=fmt))
+        return cast(Union[bytes, str], self._akp.public_key(fmt=fmt))
 
     def get_fingerprint(self) -> str:
-        return cast(str, getattr(self._akp, "get_fingerprint")())
+        return cast(str, self._akp.get_fingerprint())
 
 
 @dataclass(slots=True)
@@ -364,7 +364,7 @@ class CryptoService:
 
     def hash_password(self, password: str) -> str:
         """Hash password with configured algorithm."""
-        return cast(str, getattr(self.hasher, "hash_password")(password))
+        return cast(str, self.hasher.hash_password(password))
 
     def verify_password(
         self,
@@ -374,21 +374,21 @@ class CryptoService:
     ) -> bool:
         """Verify password against hash (timing-safe)."""
         return bool(
-            getattr(self.hasher, "verify_password")(password, hashed, identifier)
+            self.hasher.verify_password(password, hashed, identifier)
         )
 
     def needs_rehash(self, hashed: str) -> bool:
         """Check if hash needs rehashing (params changed)."""
-        return bool(getattr(self.hasher, "needs_rehash")(hashed))
+        return bool(self.hasher.needs_rehash(hashed))
 
     # ---- Signing façade ----
 
     def sign(self, data: bytes, *, context: Optional[bytes] = None) -> bytes:
         """Sign data with configured algorithm."""
         try:
-            return cast(bytes, getattr(self.signer, "sign")(data, context=context))
+            return cast(bytes, self.signer.sign(data, context=context))
         except TypeError:
-            return cast(bytes, getattr(self.signer, "sign")(data))
+            return cast(bytes, self.signer.sign(data))
 
     def verify(
         self, data: bytes, signature: bytes, *, context: Optional[bytes] = None
@@ -396,10 +396,10 @@ class CryptoService:
         """Verify signature (timing-safe)."""
         try:
             return bool(
-                getattr(self.signer, "verify")(data, signature, context=context)
+                self.signer.verify(data, signature, context=context)
             )
         except TypeError:
-            return bool(getattr(self.signer, "verify")(data, signature))
+            return bool(self.signer.verify(data, signature))
 
     # ---- Symmetric façade ----
 
