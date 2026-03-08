@@ -183,17 +183,17 @@ class SecurityLevel(str, Enum):
 
     def emoji(self) -> str:
         """
-        Эмоджи-индикатор для визуализации.
+        Текстовый индикатор для визуализации.
 
         Returns:
-            Эмоджи: ⛔/⚠️/✅/🏆/🛡️
+            Статус: [X]/[!]/[OK]/[★]/[QP]
         """
         emojis = {
-            SecurityLevel.BROKEN: "⛔",
-            SecurityLevel.LEGACY: "⚠️",
-            SecurityLevel.STANDARD: "✅",
-            SecurityLevel.HIGH: "🏆",
-            SecurityLevel.QUANTUM_RESISTANT: "🛡️",
+            SecurityLevel.BROKEN: "[X]",
+            SecurityLevel.LEGACY: "[!]",
+            SecurityLevel.STANDARD: "[OK]",
+            SecurityLevel.HIGH: "[★]",
+            SecurityLevel.QUANTUM_RESISTANT: "[QP]",
         }
         return emojis[self]
 
@@ -442,16 +442,13 @@ class AlgorithmMetadata:
         }
         if self.library not in allowed_libraries:
             raise ValueError(
-                f"Неизвестная библиотека: {self.library}. "
-                f"Допустимые: {allowed_libraries}"
+                f"Неизвестная библиотека: {self.library}. Допустимые: {allowed_libraries}"
             )
 
         # Валидация категория-специфичных полей
         if self.category == AlgorithmCategory.SYMMETRIC_CIPHER:
             if self.key_size is None or self.nonce_size is None:
-                raise ValueError(
-                    f"Симметричный шифр {self.name} требует key_size и nonce_size"
-                )
+                raise ValueError(f"Симметричный шифр {self.name} требует key_size и nonce_size")
 
         if self.category == AlgorithmCategory.SIGNATURE:
             if self.signature_size is None:
@@ -475,13 +472,9 @@ class AlgorithmMetadata:
                 raise ValueError(f"{size_attr} должен быть > 0, получено {size_value}")
 
         # Валидация постквантовых алгоритмов
-        if (
-            self.is_post_quantum
-            and self.security_level != SecurityLevel.QUANTUM_RESISTANT
-        ):
+        if self.is_post_quantum and self.security_level != SecurityLevel.QUANTUM_RESISTANT:
             raise ValueError(
-                f"Постквантовый алгоритм {self.name} должен иметь "
-                f"security_level=QUANTUM_RESISTANT"
+                f"Постквантовый алгоритм {self.name} должен иметь security_level=QUANTUM_RESISTANT"
             )
 
     def is_safe_for_production(self) -> bool:

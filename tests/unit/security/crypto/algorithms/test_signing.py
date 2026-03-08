@@ -74,7 +74,7 @@ from src.security.crypto.algorithms.signing import (
     # Legacy PQC
     Dilithium2Signer,
     SPHINCSPlus128sSigner,
-    HAS_LIBOQS,
+    has_liboqs,
 )
 
 from src.security.crypto.core.protocols import SignatureProtocol
@@ -387,7 +387,7 @@ class TestClassicalSignatures:
 # ==============================================================================
 
 
-@pytest.mark.skipif(not HAS_LIBOQS, reason="liboqs-python not installed")
+@pytest.mark.skipif(not has_liboqs, reason="liboqs-python not installed")
 class TestPostQuantumSignatures:
     """Тесты постквантовых алгоритмов подписи."""
 
@@ -539,7 +539,7 @@ class TestRegistryIntegration:
         assert isinstance(ed25519, Ed25519Signer)
 
         # PQC (if available)
-        if HAS_LIBOQS:
+        if has_liboqs:
             mldsa = registry.create("ML-DSA-65")
             assert isinstance(mldsa, MLDSA65Signer)
 
@@ -582,7 +582,7 @@ class TestRegistryIntegration:
             assert not metadata.is_post_quantum, f"{name} should not be post-quantum"
 
         # PQC should be post-quantum
-        if HAS_LIBOQS:
+        if has_liboqs:
             pqc_algos = PQC_ALL_WITHOUT_LEGACY + PQC_LEGACY_CLASSES
             for _, name in pqc_algos:
                 metadata = registry.get_metadata(name)
@@ -607,7 +607,7 @@ class TestRegistryIntegration:
         assert pkcs_meta.security_level == SecurityLevel.LEGACY
 
         # PQC - QUANTUM_RESISTANT
-        if HAS_LIBOQS:
+        if has_liboqs:
             mldsa_meta = registry.get_metadata("ML-DSA-65")
             assert mldsa_meta is not None
             assert mldsa_meta.security_level == SecurityLevel.QUANTUM_RESISTANT
@@ -675,10 +675,10 @@ class TestEdgeCases:
         with pytest.raises(InvalidKeyError):
             ed25519.verify(ed448_pub, message, sig)
 
-    @pytest.mark.skipif(not HAS_LIBOQS, reason="liboqs-python not installed")
+    @pytest.mark.skipif(not has_liboqs, reason="liboqs-python not installed")
     def test_pqc_without_liboqs_raises(self) -> None:
         """Тест: PQC алгоритмы без liboqs выдают AlgorithmNotSupportedError."""
-        # This test is tricky - we need to mock HAS_LIBOQS=False
+        # This test is tricky - we need to mock has_liboqs=False
         # For now, just verify that with liboqs installed, it works
         signer = MLDSA44Signer()
         private_key, public_key = signer.generate_keypair()
@@ -738,7 +738,7 @@ class TestPerformance:
 
         benchmark(signer.verify, public_key, message, signature)
 
-    @pytest.mark.skipif(not HAS_LIBOQS, reason="liboqs-python not installed")
+    @pytest.mark.skipif(not has_liboqs, reason="liboqs-python not installed")
     @pytest.mark.slow
     @pytest.mark.parametrize("signer_class,name", [(MLDSA65Signer, "ML-DSA-65")])
     def test_pqc_performance_vs_classical(
@@ -799,7 +799,7 @@ class TestCompliance:
         # NIST standard names
         nist_names = ["ML-DSA-44", "ML-DSA-65", "ML-DSA-87"]
         for name in nist_names:
-            if HAS_LIBOQS:
+            if has_liboqs:
                 assert registry.is_registered(name), f"{name} not registered"
 
         # RFC names
@@ -848,12 +848,12 @@ def test_module_exports() -> None:
 
 def test_liboqs_detection() -> None:
     """Тест определения наличия liboqs-python."""
-    from src.security.crypto.algorithms.signing import HAS_LIBOQS
+    from src.security.crypto.algorithms.signing import has_liboqs
 
     # Just check it's a boolean
-    assert isinstance(HAS_LIBOQS, bool)
+    assert isinstance(has_liboqs, bool)
 
-    if HAS_LIBOQS:
+    if has_liboqs:
         # If available, PQC classes should work
         signer = MLDSA44Signer()
         assert signer.is_post_quantum

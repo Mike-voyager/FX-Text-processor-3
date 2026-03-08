@@ -151,13 +151,8 @@ class _StdlibHashBase(HashProtocol):
             return hasher.digest()
 
         except Exception as exc:
-            logger.error(
-                f"{self.ALGORITHM_ID.upper()} hashing failed for "
-                f"{len(data)} bytes: {exc}"
-            )
-            raise HashingFailedError(
-                f"{self.ALGORITHM_ID.upper()} hashing failed"
-            ) from exc
+            logger.error(f"{self.ALGORITHM_ID.upper()} hashing failed for {len(data)} bytes: {exc}")
+            raise HashingFailedError(f"{self.ALGORITHM_ID.upper()} hashing failed") from exc
 
     def hash_stream(self, stream: Iterable[bytes]) -> bytes:
         """
@@ -189,9 +184,7 @@ class _StdlibHashBase(HashProtocol):
         bytes_processed = 0
 
         if isinstance(stream, (str, bytes, int, float)):
-            raise TypeError(
-                f"stream must be Iterable[bytes], got {type(stream).__name__}"
-            )
+            raise TypeError(f"stream must be Iterable[bytes], got {type(stream).__name__}")
         try:
             for chunk in stream:
                 hasher.update(chunk)
@@ -202,10 +195,7 @@ class _StdlibHashBase(HashProtocol):
 
             digest = hasher.digest()
 
-            logger.debug(
-                f"{self.ALGORITHM_ID.upper()} hashed {bytes_processed} bytes "
-                f"from stream"
-            )
+            logger.debug(f"{self.ALGORITHM_ID.upper()} hashed {bytes_processed} bytes from stream")
 
             return digest
 
@@ -216,9 +206,7 @@ class _StdlibHashBase(HashProtocol):
                 f"{self.ALGORITHM_ID.upper()} stream hashing failed after "
                 f"{bytes_processed} bytes: {exc}"
             )
-            raise HashingFailedError(
-                f"{self.ALGORITHM_ID.upper()} stream hashing failed"
-            ) from exc
+            raise HashingFailedError(f"{self.ALGORITHM_ID.upper()} stream hashing failed") from exc
 
 
 # ==============================================================================
@@ -571,7 +559,8 @@ class BLAKE3Hash(HashProtocol):
         try:
             import blake3
 
-            return blake3.blake3(data).digest()
+            result: bytes = blake3.blake3(data).digest()
+            return result
 
         except ImportError as exc:
             raise AlgorithmNotSupportedError(
@@ -611,16 +600,14 @@ class BLAKE3Hash(HashProtocol):
             True
         """
 
+        bytes_processed = 0
         try:
             import blake3
 
             hasher = blake3.blake3()
-            bytes_processed = 0
 
             if isinstance(stream, (str, bytes, int, float)):
-                raise TypeError(
-                    f"stream must be Iterable[bytes], got {type(stream).__name__}"
-                )
+                raise TypeError(f"stream must be Iterable[bytes], got {type(stream).__name__}")
             for chunk in stream:
                 hasher.update(chunk)
                 bytes_processed += len(chunk)
@@ -628,11 +615,10 @@ class BLAKE3Hash(HashProtocol):
             if bytes_processed == 0:
                 raise InvalidInputError("Cannot hash empty stream")
 
-            digest = hasher.digest()
+            digest: bytes = hasher.digest()
 
             logger.debug(
-                f"BLAKE3 hashed {bytes_processed} bytes from stream "
-                f"(parallelization: automatic)"
+                f"BLAKE3 hashed {bytes_processed} bytes from stream (parallelization: automatic)"
             )
 
             return digest
@@ -651,9 +637,7 @@ class BLAKE3Hash(HashProtocol):
             raise
 
         except Exception as exc:
-            logger.error(
-                f"BLAKE3 stream hashing failed after {bytes_processed} bytes: {exc}"
-            )
+            logger.error(f"BLAKE3 stream hashing failed after {bytes_processed} bytes: {exc}")
             raise HashingFailedError("BLAKE3 stream hashing failed") from exc
 
 
@@ -957,11 +941,9 @@ def get_hash_algorithm(algorithm_id: str) -> HashProtocol:
     """
     if algorithm_id not in HASH_ALGORITHMS:
         available = ", ".join(sorted(HASH_ALGORITHMS.keys()))
-        raise KeyError(
-            f"Hash algorithm '{algorithm_id}' not found. " f"Available: {available}"
-        )
+        raise KeyError(f"Hash algorithm '{algorithm_id}' not found. Available: {available}")
 
-    algorithm_class, metadata = HASH_ALGORITHMS[algorithm_id]
+    algorithm_class, _metadata = HASH_ALGORITHMS[algorithm_id]
 
     logger.debug(f"Creating hash algorithm instance: {algorithm_id}")
 

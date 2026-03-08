@@ -61,7 +61,7 @@ Priority: 🔴 CRITICAL (Phase 2 + Phase 4 PQC)
 from __future__ import annotations
 
 import logging
-from typing import Tuple, Type, cast
+from typing import Tuple, Type
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import (
@@ -104,13 +104,13 @@ logger = logging.getLogger(__name__)
 # ==============================================================================
 
 try:
-    import oqs  # type: ignore[import-untyped]
+    import oqs
 
-    HAS_LIBOQS = True
+    has_liboqs = True
     logger.info("liboqs-python detected, PQC signatures available")
 except ImportError:
-    oqs = None  # type: ignore[assignment]
-    HAS_LIBOQS = False
+    oqs = None
+    has_liboqs = False
     logger.warning(
         "liboqs-python not installed, post-quantum signatures unavailable. "
         "Install: pip install liboqs-python"
@@ -130,10 +130,7 @@ CryptoPrivateKey = (
 )
 
 CryptoPublicKey = (
-    rsa.RSAPublicKey
-    | ec.EllipticCurvePublicKey
-    | ed25519.Ed25519PublicKey
-    | ed448.Ed448PublicKey
+    rsa.RSAPublicKey | ec.EllipticCurvePublicKey | ed25519.Ed25519PublicKey | ed448.Ed448PublicKey
 )
 
 
@@ -196,8 +193,7 @@ def _load_private_key_der(data: bytes) -> object:
         return load_der_private_key(data, password=None)
     except Exception as exc:
         raise InvalidKeyError(
-            "Invalid private key DER format. "
-            "Expected PKCS#8 DER-encoded private key."
+            "Invalid private key DER format. Expected PKCS#8 DER-encoded private key."
         ) from exc
 
 
@@ -218,8 +214,7 @@ def _load_public_key_der(data: bytes) -> object:
         return load_der_public_key(data)
     except Exception as exc:
         raise InvalidKeyError(
-            "Invalid public key DER format. "
-            "Expected SubjectPublicKeyInfo DER-encoded public key."
+            "Invalid public key DER format. Expected SubjectPublicKeyInfo DER-encoded public key."
         ) from exc
 
 
@@ -293,8 +288,7 @@ class Ed25519Signer(SignatureProtocol):
             return _encode_private_key_der(key), _encode_public_key_der(pub)
         except Exception as exc:
             raise KeyGenerationError(
-                "Ed25519 key generation failed. "
-                "This might indicate a system CSPRNG issue."
+                "Ed25519 key generation failed. This might indicate a system CSPRNG issue."
             ) from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -328,16 +322,12 @@ class Ed25519Signer(SignatureProtocol):
 
         key_obj = _load_private_key_der(private_key)
         if not isinstance(key_obj, ed25519.Ed25519PrivateKey):
-            raise InvalidKeyError(
-                "Expected Ed25519 private key, got " f"{type(key_obj).__name__}"
-            )
+            raise InvalidKeyError(f"Expected Ed25519 private key, got {type(key_obj).__name__}")
 
         try:
             return key_obj.sign(message)
         except Exception as exc:
-            raise SigningFailedError(
-                "Ed25519 signing failed", algorithm="Ed25519"
-            ) from exc
+            raise SigningFailedError("Ed25519 signing failed", algorithm="Ed25519") from exc
 
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
         """
@@ -368,9 +358,7 @@ class Ed25519Signer(SignatureProtocol):
 
         key_obj = _load_public_key_der(public_key)
         if not isinstance(key_obj, ed25519.Ed25519PublicKey):
-            raise InvalidKeyError(
-                "Expected Ed25519 public key, got " f"{type(key_obj).__name__}"
-            )
+            raise InvalidKeyError(f"Expected Ed25519 public key, got {type(key_obj).__name__}")
 
         try:
             key_obj.verify(signature, message)
@@ -503,9 +491,7 @@ class _ECDSASignerBase(SignatureProtocol):
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
         except Exception as exc:
-            raise KeyGenerationError(
-                f"{self.algorithm_name} key generation failed"
-            ) from exc
+            raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
         """
@@ -692,15 +678,11 @@ class _RSAPSSSignerBase(SignatureProtocol):
     def generate_keypair(self) -> Tuple[bytes, bytes]:
         """Генерация пары ключей RSA."""
         try:
-            key = rsa.generate_private_key(
-                public_exponent=65537, key_size=self._KEY_SIZE
-            )
+            key = rsa.generate_private_key(public_exponent=65537, key_size=self._KEY_SIZE)
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
         except Exception as exc:
-            raise KeyGenerationError(
-                f"{self.algorithm_name} key generation failed"
-            ) from exc
+            raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
         """
@@ -929,7 +911,7 @@ class _OQSSignerBase(SignatureProtocol):
         Raw bytes (не DER). Прямой формат liboqs.
 
     Example:
-        >>> if HAS_LIBOQS:
+        >>> if has_liboqs:
         ...     signer = MLDSA65Signer()
         ...     priv, pub = signer.generate_keypair()
     """
@@ -955,7 +937,7 @@ class _OQSSignerBase(SignatureProtocol):
         Note:
             Ключи в raw формате (не DER), специфичном для liboqs.
         """
-        if not HAS_LIBOQS or oqs is None:
+        if not has_liboqs or oqs is None:
             raise AlgorithmNotSupportedError(
                 algorithm=self.algorithm_name,
                 reason="liboqs-python not installed",
@@ -963,14 +945,12 @@ class _OQSSignerBase(SignatureProtocol):
             )
 
         try:
-            with oqs.Signature(self._OQS_NAME) as sig:  # type: ignore[call-arg]
-                public_key = cast(bytes, sig.generate_keypair())
-                private_key = cast(bytes, sig.export_secret_key())
+            with oqs.Signature(self._OQS_NAME) as sig:
+                public_key = sig.generate_keypair()
+                private_key = sig.export_secret_key()
             return private_key, public_key
         except Exception as exc:
-            raise KeyGenerationError(
-                f"{self.algorithm_name} key generation failed"
-            ) from exc
+            raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
         """
@@ -991,7 +971,7 @@ class _OQSSignerBase(SignatureProtocol):
         if not isinstance(private_key, bytes) or not isinstance(message, bytes):
             raise TypeError("private_key and message must be bytes")
 
-        if not HAS_LIBOQS or oqs is None:
+        if not has_liboqs or oqs is None:
             raise AlgorithmNotSupportedError(
                 algorithm=self.algorithm_name,
                 reason="liboqs-python not installed",
@@ -1000,9 +980,9 @@ class _OQSSignerBase(SignatureProtocol):
 
         try:
             # Create new signature object with the private key
-            with oqs.Signature(self._OQS_NAME, secret_key=private_key) as sig:  # type: ignore[call-arg]
-                result = sig.sign(message)
-                return cast(bytes, result)
+            with oqs.Signature(self._OQS_NAME, secret_key=private_key) as sig:
+                result: bytes = sig.sign(message)
+                return result
         except Exception as exc:
             raise SigningFailedError(
                 f"{self.algorithm_name} signing failed", algorithm=self.algorithm_name
@@ -1027,7 +1007,7 @@ class _OQSSignerBase(SignatureProtocol):
         if not all(isinstance(x, bytes) for x in (public_key, message, signature)):
             raise TypeError("public_key, message and signature must be bytes")
 
-        if not HAS_LIBOQS or oqs is None:
+        if not has_liboqs or oqs is None:
             raise AlgorithmNotSupportedError(
                 algorithm=self.algorithm_name,
                 reason="liboqs-python not installed",
@@ -1035,7 +1015,7 @@ class _OQSSignerBase(SignatureProtocol):
             )
 
         try:
-            with oqs.Signature(self._OQS_NAME) as sig:  # type: ignore[call-arg]
+            with oqs.Signature(self._OQS_NAME) as sig:
                 ok = sig.verify(message, signature, public_key)
                 return bool(ok)
         except Exception:
@@ -1472,8 +1452,12 @@ def _register_all_signatures() -> None:
                 private_key_size=signer_instance.private_key_size,
                 security_level=SecurityLevel.STANDARD,
                 status=ImplementationStatus.STABLE,
-                description_ru=f"ECDSA подпись на кривой {signer_instance.algorithm_name.split('-')[1]}",
-                description_en=f"ECDSA signature on {signer_instance.algorithm_name.split('-')[1]} curve",
+                description_ru=(
+                    f"ECDSA подпись на кривой {signer_instance.algorithm_name.split('-')[1]}"
+                ),
+                description_en=(
+                    f"ECDSA signature on {signer_instance.algorithm_name.split('-')[1]} curve"
+                ),
                 test_vectors_source="FIPS 186-5",
                 use_cases=(
                     ["TLS", "X.509"]
@@ -1494,10 +1478,8 @@ def _register_all_signatures() -> None:
 
     for rsa_cls in rsa_pss_classes:
         rsa_instance = rsa_cls()
-        key_bits = rsa_instance._KEY_SIZE
-        security_level = (
-            SecurityLevel.STANDARD if key_bits == 2048 else SecurityLevel.HIGH
-        )
+        key_bits = int(rsa_instance.algorithm_name.split("-")[-1])
+        security_level = SecurityLevel.STANDARD if key_bits == 2048 else SecurityLevel.HIGH
 
         registry.register_algorithm(
             name=rsa_instance.algorithm_name,
@@ -1565,8 +1547,14 @@ def _register_all_signatures() -> None:
                 is_post_quantum=True,
                 security_level=SecurityLevel.QUANTUM_RESISTANT,
                 status=ImplementationStatus.STABLE,
-                description_ru=f"ML-DSA постквантовая подпись (NIST FIPS 204, уровень {mldsa_instance.algorithm_name[-2:]})",
-                description_en=f"ML-DSA post-quantum signature (NIST FIPS 204, Level {mldsa_instance.algorithm_name[-2:]})",
+                description_ru=(
+                    f"ML-DSA постквантовая подпись "
+                    f"(NIST FIPS 204, уровень {mldsa_instance.algorithm_name[-2:]})"
+                ),
+                description_en=(
+                    f"ML-DSA post-quantum signature "
+                    f"(NIST FIPS 204, Level {mldsa_instance.algorithm_name[-2:]})"
+                ),
                 test_vectors_source="NIST FIPS 204",
                 use_cases=[
                     "Post-quantum TLS",

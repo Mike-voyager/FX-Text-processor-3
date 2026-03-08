@@ -389,7 +389,8 @@ class InvalidKeySizeError(InvalidKeyError):
 
     Example:
         >>> InvalidKeySizeError("AES-256-GCM", 32, 16)
-        InvalidKeySizeError: Invalid key size for AES-256-GCM: expected 32 bytes, got 16 bytes
+        InvalidKeySizeError: Invalid key size for AES-256-GCM:
+            expected 32 bytes, got 16 bytes
     """
 
     def __init__(
@@ -406,10 +407,7 @@ class InvalidKeySizeError(InvalidKeyError):
             expected: Ожидаемый размер в байтах
             actual: Фактический размер в байтах
         """
-        message = (
-            f"Invalid key size for {algorithm}: "
-            f"expected {expected} bytes, got {actual} bytes"
-        )
+        message = f"Invalid key size for {algorithm}: expected {expected} bytes, got {actual} bytes"
         super().__init__(
             message,
             algorithm=algorithm,
@@ -611,8 +609,7 @@ class PlaintextTooLargeError(EncryptionError):
             actual_size: Фактический размер plaintext
         """
         message = (
-            f"Plaintext too large for {algorithm}: "
-            f"max {max_size} bytes, got {actual_size} bytes"
+            f"Plaintext too large for {algorithm}: max {max_size} bytes, got {actual_size} bytes"
         )
         super().__init__(
             message,

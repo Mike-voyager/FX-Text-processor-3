@@ -220,6 +220,12 @@ reportOptionalIterable = "warning"
 reportOptionalContextManager = "warning"
 reportOptionalOperand = "warning"
 reportTypedDictNotRequiredAccess = false
+# Runtime type guards at API boundaries (Zero Trust validation)
+reportUnnecessaryIsInstance = false
+# Conditionally imported optional dependencies (oqs, blake3, pycryptodome)
+reportPossiblyUnboundVariable = false
+# Partially typed third-party libs (pycryptodome)
+reportUnknownMemberType = false
 
 
 
@@ -317,7 +323,7 @@ ignore = []
 # max-complexity = 10
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
 

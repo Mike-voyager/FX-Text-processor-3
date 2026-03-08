@@ -139,11 +139,11 @@ class TestSecurityLevel:
 
     def test_emoji_method(self) -> None:
         """Метод emoji() возвращает корректные эмоджи."""
-        assert SecurityLevel.BROKEN.emoji() == "⛔"
-        assert SecurityLevel.LEGACY.emoji() == "⚠️"
-        assert SecurityLevel.STANDARD.emoji() == "✅"
-        assert SecurityLevel.HIGH.emoji() == "🏆"
-        assert SecurityLevel.QUANTUM_RESISTANT.emoji() == "🛡️"
+        assert SecurityLevel.BROKEN.emoji() == "[X]"
+        assert SecurityLevel.LEGACY.emoji() == "[!]"
+        assert SecurityLevel.STANDARD.emoji() == "[OK]"
+        assert SecurityLevel.HIGH.emoji() == "[★]"
+        assert SecurityLevel.QUANTUM_RESISTANT.emoji() == "[QP]"
 
 
 # ==============================================================================

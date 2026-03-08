@@ -323,9 +323,7 @@ class RSAOAEP2048:
         # Zero Trust: validate all inputs
         _ensure_bytes(public_key, "public_key")
         _ensure_bytes(plaintext, "plaintext")
-        _validate_plaintext_size(
-            plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME
-        )
+        _validate_plaintext_size(plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME)
 
         try:
             # Deserialize public key from DER
@@ -340,9 +338,7 @@ class RSAOAEP2048:
             # Encrypt with OAEP padding
             ciphertext = public_key_obj.encrypt(plaintext, self._padding)
 
-            self._logger.debug(
-                f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-2048)"
-            )
+            self._logger.debug(f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-2048)")
 
             return ciphertext
 
@@ -397,9 +393,7 @@ class RSAOAEP2048:
             # Decrypt with OAEP padding
             plaintext = private_key_obj.decrypt(ciphertext, self._padding)
 
-            self._logger.debug(
-                f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-2048)"
-            )
+            self._logger.debug(f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-2048)")
 
             return plaintext
 
@@ -407,9 +401,7 @@ class RSAOAEP2048:
             raise
         except Exception as exc:
             # НЕ раскрываем детали ошибки (security: padding oracle protection)
-            self._logger.warning(
-                "RSA-2048 decryption failed (invalid key or ciphertext)"
-            )
+            self._logger.warning("RSA-2048 decryption failed (invalid key or ciphertext)")
             raise DecryptionFailedError(
                 "RSA-2048 decryption failed: invalid key or ciphertext"
             ) from exc
@@ -538,9 +530,7 @@ class RSAOAEP3072:
         """
         _ensure_bytes(public_key, "public_key")
         _ensure_bytes(plaintext, "plaintext")
-        _validate_plaintext_size(
-            plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME
-        )
+        _validate_plaintext_size(plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME)
         try:
             public_key_obj = serialization.load_der_public_key(
                 public_key, backend=default_backend()
@@ -551,9 +541,7 @@ class RSAOAEP3072:
 
             ciphertext = public_key_obj.encrypt(plaintext, self._padding)
 
-            self._logger.debug(
-                f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-3072)"
-            )
+            self._logger.debug(f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-3072)")
 
             return ciphertext
 
@@ -592,18 +580,14 @@ class RSAOAEP3072:
 
             plaintext = private_key_obj.decrypt(ciphertext, self._padding)
 
-            self._logger.debug(
-                f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-3072)"
-            )
+            self._logger.debug(f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-3072)")
 
             return plaintext
 
         except InvalidKeyError:
             raise
         except Exception as exc:
-            self._logger.warning(
-                "RSA-3072 decryption failed (invalid key or ciphertext)"
-            )
+            self._logger.warning("RSA-3072 decryption failed (invalid key or ciphertext)")
             raise DecryptionFailedError(
                 "RSA-3072 decryption failed: invalid key or ciphertext"
             ) from exc
@@ -742,9 +726,7 @@ class RSAOAEP4096:
         """
         _ensure_bytes(public_key, "public_key")
         _ensure_bytes(plaintext, "plaintext")
-        _validate_plaintext_size(
-            plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME
-        )
+        _validate_plaintext_size(plaintext, self.MAX_PLAINTEXT_SIZE, self.ALGORITHM_NAME)
         try:
             public_key_obj = serialization.load_der_public_key(
                 public_key, backend=default_backend()
@@ -755,9 +737,7 @@ class RSAOAEP4096:
 
             ciphertext = public_key_obj.encrypt(plaintext, self._padding)
 
-            self._logger.debug(
-                f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-4096)"
-            )
+            self._logger.debug(f"Encrypted {len(plaintext)}B → {len(ciphertext)}B (RSA-4096)")
 
             return ciphertext
 
@@ -796,18 +776,14 @@ class RSAOAEP4096:
 
             plaintext = private_key_obj.decrypt(ciphertext, self._padding)
 
-            self._logger.debug(
-                f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-4096)"
-            )
+            self._logger.debug(f"Decrypted {len(ciphertext)}B → {len(plaintext)}B (RSA-4096)")
 
             return plaintext
 
         except InvalidKeyError:
             raise
         except Exception as exc:
-            self._logger.warning(
-                "RSA-4096 decryption failed (invalid key or ciphertext)"
-            )
+            self._logger.warning("RSA-4096 decryption failed (invalid key or ciphertext)")
             raise DecryptionFailedError(
                 "RSA-4096 decryption failed: invalid key or ciphertext"
             ) from exc
@@ -965,12 +941,11 @@ def get_asymmetric_algorithm(algorithm_name: str) -> AsymmetricEncryptionProtoco
         ['RSA-OAEP-2048', 'RSA-OAEP-3072', 'RSA-OAEP-4096']
     """
     try:
-        cipher_cls, metadata = ASYMMETRIC_ALGORITHMS[algorithm_name]
+        cipher_cls, _metadata = ASYMMETRIC_ALGORITHMS[algorithm_name]
     except KeyError as exc:
         available = list(ASYMMETRIC_ALGORITHMS.keys())
         raise KeyError(
-            f"Asymmetric algorithm '{algorithm_name}' not found. "
-            f"Available: {available}"
+            f"Asymmetric algorithm '{algorithm_name}' not found. Available: {available}"
         ) from exc
 
     return cipher_cls()  # type: ignore[return-value]

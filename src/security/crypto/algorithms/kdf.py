@@ -150,9 +150,7 @@ def _validate_salt(salt: bytes, min_length: int = MIN_SALT_LENGTH) -> None:
     if not salt:
         raise ValueError("Salt cannot be empty")
     if len(salt) < min_length:
-        raise ValueError(
-            f"Salt too short: {len(salt)} bytes (minimum: {min_length} bytes)"
-        )
+        raise ValueError(f"Salt too short: {len(salt)} bytes (minimum: {min_length} bytes)")
 
 
 def _validate_key_length(length: int) -> None:
@@ -166,13 +164,9 @@ def _validate_key_length(length: int) -> None:
         ValueError: Длина за пределами разумных границ
     """
     if length < MIN_KEY_LENGTH:
-        raise ValueError(
-            f"key_length too short: {length} bytes (minimum: {MIN_KEY_LENGTH})"
-        )
+        raise ValueError(f"key_length too short: {length} bytes (minimum: {MIN_KEY_LENGTH})")
     if length > MAX_KEY_LENGTH:
-        raise ValueError(
-            f"key_length too long: {length} bytes (maximum: {MAX_KEY_LENGTH})"
-        )
+        raise ValueError(f"key_length too long: {length} bytes (maximum: {MAX_KEY_LENGTH})")
 
 
 def generate_salt(length: int = 32) -> bytes:
@@ -267,8 +261,8 @@ class Argon2idKDF(KDFProtocol):
         *,
         key_length: int = 32,
         time_cost: int = DEFAULT_TIME_COST,
-        memory_cost: int = DEFAULT_MEMORY_COST,
-        parallelism: int = DEFAULT_PARALLELISM,
+        memory_cost: Optional[int] = None,
+        parallelism: Optional[int] = None,
         **kwargs: Any,
     ) -> bytes:
         """
@@ -309,6 +303,12 @@ class Argon2idKDF(KDFProtocol):
         # Validation
         _validate_salt(salt, min_length=MIN_SALT_LENGTH)
         _validate_key_length(key_length)
+
+        # Apply defaults for None values
+        if memory_cost is None:
+            memory_cost = self.DEFAULT_MEMORY_COST
+        if parallelism is None:
+            parallelism = self.DEFAULT_PARALLELISM
 
         if time_cost < 1:
             raise ValueError(f"time_cost must be >= 1, got: {time_cost}")
@@ -448,10 +448,7 @@ class PBKDF2SHA256KDF(KDFProtocol):
                 f"(OWASP recommends {self.DEFAULT_ITERATIONS:,})"
             )
 
-        logger.debug(
-            f"PBKDF2-SHA256: deriving {key_length}-byte key "
-            f"(iterations={iterations:,})"
-        )
+        logger.debug(f"PBKDF2-SHA256: deriving {key_length}-byte key (iterations={iterations:,})")
 
         try:
             derived_key = hashlib.pbkdf2_hmac(
@@ -462,9 +459,7 @@ class PBKDF2SHA256KDF(KDFProtocol):
                 dklen=key_length,
             )
 
-            logger.debug(
-                f"PBKDF2-SHA256: key derived successfully ({key_length} bytes)"
-            )
+            logger.debug(f"PBKDF2-SHA256: key derived successfully ({key_length} bytes)")
             return derived_key
 
         except Exception as exc:
@@ -882,7 +877,9 @@ def get_kdf_algorithm(algorithm_id: str) -> KDFProtocol:
     # Check if algorithm requires external library (Argon2id)
     if metadata.library == "argon2-cffi":
         try:
-            import argon2  # noqa: F401
+            import argon2 as _argon2
+
+            _ = _argon2
         except ImportError:
             raise AlgorithmNotSupportedError(
                 algorithm=algorithm_id,

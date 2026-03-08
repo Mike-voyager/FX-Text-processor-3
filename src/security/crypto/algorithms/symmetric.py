@@ -73,18 +73,18 @@ from src.security.crypto.core.metadata import (
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 
-    HAS_GCMSIV = True
+    has_gcmsiv = True
 except ImportError:
-    HAS_GCMSIV = False
+    has_gcmsiv = False
 
 # Pycryptodome (XChaCha20, DES)
 try:
-    from Crypto.Cipher import DES as DESImpl
-    from Crypto.Cipher import ChaCha20_Poly1305 as XChaCha20Impl
+    from Crypto.Cipher import DES as DESImpl  # noqa: S413  # nosec B413
+    from Crypto.Cipher import ChaCha20_Poly1305 as XChaCha20Impl  # noqa: S413  # nosec B413
 
-    HAS_PYCRYPTODOME = True
+    has_pycryptodome = True
 except ImportError:
-    HAS_PYCRYPTODOME = False
+    has_pycryptodome = False
 
 # Project imports
 from src.security.crypto.core.exceptions import (
@@ -213,9 +213,7 @@ class AES256GCM:
 
         # Validate sizes
         if len(key) != self.KEY_SIZE:
-            raise InvalidKeyError(
-                f"AES-256-GCM requires {self.KEY_SIZE}-byte key, got {len(key)}"
-            )
+            raise InvalidKeyError(f"AES-256-GCM requires {self.KEY_SIZE}-byte key, got {len(key)}")
 
         if nonce is None:
             nonce = os.urandom(self.NONCE_SIZE)
@@ -251,9 +249,7 @@ class AES256GCM:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -271,9 +267,7 @@ class AES256GCM:
             logger.debug(f"AES-256-GCM: Decrypted {len(plaintext)} bytes")
             return plaintext
         except Exception as e:
-            raise DecryptionFailedError(
-                "AES-256-GCM decryption failed: invalid tag or key"
-            ) from e
+            raise DecryptionFailedError("AES-256-GCM decryption failed: invalid tag or key") from e
 
 
 class AES128GCM:
@@ -375,9 +369,7 @@ class AES128GCM:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -430,6 +422,7 @@ class ChaCha20Poly1305:
     key_size = 32
     nonce_size = 12
     is_aead = True
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -499,9 +492,7 @@ class ChaCha20Poly1305:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -555,6 +546,7 @@ class XChaCha20Poly1305:
     key_size = 32
     nonce_size = 24
     is_aead = True
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -578,7 +570,7 @@ class XChaCha20Poly1305:
         nonce: Optional[bytes] = None,
     ) -> Tuple[bytes, bytes]:
         """Зашифровать данные с XChaCha20-Poly1305."""
-        if not HAS_PYCRYPTODOME:
+        if not has_pycryptodome:
             raise RuntimeError(
                 "XChaCha20-Poly1305 requires pycryptodome. Install: pip install pycryptodome"
             )
@@ -624,7 +616,7 @@ class XChaCha20Poly1305:
         aad: Optional[bytes] = None,
     ) -> bytes:
         """Расшифровать данные с XChaCha20-Poly1305."""
-        if not HAS_PYCRYPTODOME:
+        if not has_pycryptodome:
             raise RuntimeError("XChaCha20-Poly1305 requires pycryptodome")
 
         # === TYPE VALIDATION ===
@@ -635,9 +627,7 @@ class XChaCha20Poly1305:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -700,6 +690,7 @@ class AES256SIV:
     key_size = 64
     nonce_size = 16
     is_aead = True
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -771,9 +762,7 @@ class AES256SIV:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -826,6 +815,7 @@ class AES256OCB:
     key_size = 32
     nonce_size = 12
     is_aead = True
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -895,9 +885,7 @@ class AES256OCB:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -953,6 +941,7 @@ class AES256GCMSIV:
     key_size = 32
     nonce_size = 12
     is_aead = True
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -976,7 +965,7 @@ class AES256GCMSIV:
         nonce: Optional[bytes] = None,
     ) -> Tuple[bytes, bytes]:
         """Зашифровать данные с AES-256-GCM-SIV."""
-        if not HAS_GCMSIV:
+        if not has_gcmsiv:
             raise RuntimeError(
                 "AES-256-GCM-SIV requires cryptography >= 42.0.0. "
                 "Install: pip install --upgrade cryptography"
@@ -1021,7 +1010,7 @@ class AES256GCMSIV:
         aad: Optional[bytes] = None,
     ) -> bytes:
         """Расшифровать данные с AES-256-GCM-SIV."""
-        if not HAS_GCMSIV:
+        if not has_gcmsiv:
             raise RuntimeError("AES-256-GCM-SIV requires cryptography >= 42.0.0")
 
         # === TYPE VALIDATION ===
@@ -1032,9 +1021,7 @@ class AES256GCMSIV:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         if aad is not None and not isinstance(aad, bytes):
             raise TypeError(f"AAD must be bytes, got {type(aad).__name__}")
@@ -1090,6 +1077,7 @@ class TripleDES:
     key_size = 24
     nonce_size = 8
     is_aead = False
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -1133,7 +1121,7 @@ class TripleDES:
             raise InvalidNonceError(f"3DES requires {self.IV_SIZE}-byte IV")
 
         try:
-            cipher = Cipher(algorithms.TripleDES(key), modes.CBC(nonce))
+            cipher = Cipher(algorithms.TripleDES(key), modes.CBC(nonce))  # noqa: S304  # nosec B304
             encryptor = cipher.encryptor()
 
             # PKCS7 padding
@@ -1164,9 +1152,7 @@ class TripleDES:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
@@ -1176,7 +1162,7 @@ class TripleDES:
             raise InvalidNonceError("Invalid IV size")
 
         try:
-            cipher = Cipher(algorithms.TripleDES(key), modes.CBC(nonce))
+            cipher = Cipher(algorithms.TripleDES(key), modes.CBC(nonce))  # noqa: S304  # nosec B304
             decryptor = cipher.decryptor()
             padded = decryptor.update(ciphertext) + decryptor.finalize()
 
@@ -1220,14 +1206,14 @@ class DES:
 
     def __init__(self) -> None:
         logger.critical(
-            "DES cipher initialized! This algorithm is BROKEN. "
-            "Use AES-256-GCM instead!"
+            "DES cipher initialized! This algorithm is BROKEN. Use AES-256-GCM instead!"
         )
 
     algorithm_name = "DES"
     key_size = 8
     nonce_size = 8
     is_aead = False
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -1251,7 +1237,7 @@ class DES:
         nonce: Optional[bytes] = None,
     ) -> Tuple[bytes, bytes]:
         """Зашифровать данные с DES-CBC (BROKEN!)."""
-        if not HAS_PYCRYPTODOME:
+        if not has_pycryptodome:
             raise RuntimeError("DES requires pycryptodome")
 
         # === TYPE VALIDATION ===
@@ -1274,7 +1260,7 @@ class DES:
             raise InvalidNonceError(f"DES requires {self.IV_SIZE}-byte IV")
 
         try:
-            cipher = DESImpl.new(key, DESImpl.MODE_CBC, iv=nonce)
+            cipher = DESImpl.new(key, DESImpl.MODE_CBC, iv=nonce)  # noqa: S304  # nosec B304
 
             # PKCS7 padding
             pad_len = self.BLOCK_SIZE - (len(plaintext) % self.BLOCK_SIZE)
@@ -1295,7 +1281,7 @@ class DES:
         aad: Optional[bytes] = None,
     ) -> bytes:
         """Расшифровать данные с DES-CBC (BROKEN!)."""
-        if not HAS_PYCRYPTODOME:
+        if not has_pycryptodome:
             raise RuntimeError("DES requires pycryptodome")
 
         # === TYPE VALIDATION ===
@@ -1306,9 +1292,7 @@ class DES:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
@@ -1318,7 +1302,7 @@ class DES:
             raise InvalidNonceError("Invalid IV size")
 
         try:
-            cipher = DESImpl.new(key, DESImpl.MODE_CBC, iv=nonce)
+            cipher = DESImpl.new(key, DESImpl.MODE_CBC, iv=nonce)  # noqa: S304  # nosec B304
             padded = cipher.decrypt(ciphertext)
 
             # Remove PKCS7 padding
@@ -1374,6 +1358,7 @@ class AES256CTR:
     key_size = 32
     nonce_size = 16
     is_aead = False
+
     def generate_key(self) -> bytes:
         """
         Генерировать криптографически стойкий ключ нужного размера.
@@ -1441,9 +1426,7 @@ class AES256CTR:
             raise TypeError(f"Nonce must be bytes, got {type(nonce).__name__}")
 
         if not isinstance(ciphertext, bytes):
-            raise TypeError(
-                f"Ciphertext must be bytes, got {type(ciphertext).__name__}"
-            )
+            raise TypeError(f"Ciphertext must be bytes, got {type(ciphertext).__name__}")
 
         # === SIZE VALIDATION ===
         if len(key) != self.KEY_SIZE:
@@ -1858,8 +1841,7 @@ ALL_METADATA: list[AlgorithmMetadata] = [
 # Validate that all metadata matches expected algorithms
 _EXPECTED_ALGORITHM_COUNT = 10
 assert len(ALL_METADATA) == _EXPECTED_ALGORITHM_COUNT, (
-    f"Expected {_EXPECTED_ALGORITHM_COUNT} metadata objects, "
-    f"got {len(ALL_METADATA)}"
+    f"Expected {_EXPECTED_ALGORITHM_COUNT} metadata objects, got {len(ALL_METADATA)}"
 )
 
 logger.info(
@@ -1906,8 +1888,7 @@ def get_algorithm(algorithm_id: str) -> SymmetricCipherProtocol:
     """
     if algorithm_id not in ALGORITHMS:
         raise KeyError(
-            f"Algorithm '{algorithm_id}' not found. "
-            f"Available: {list(ALGORITHMS.keys())}"
+            f"Algorithm '{algorithm_id}' not found. Available: {list(ALGORITHMS.keys())}"
         )
 
     cipher_class = ALGORITHMS[algorithm_id]
@@ -1919,5 +1900,5 @@ def get_algorithm(algorithm_id: str) -> SymmetricCipherProtocol:
     except RuntimeError as e:
         # Re-raise library dependency errors
         raise RuntimeError(
-            f"Cannot initialize '{algorithm_id}': {e}. " f"Install required library."
+            f"Cannot initialize '{algorithm_id}': {e}. Install required library."
         ) from e

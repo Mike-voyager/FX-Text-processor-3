@@ -131,9 +131,7 @@ class RegistryStatistics:
         """
         return {
             "total": self.total,
-            "by_category": {
-                cat.value: count for cat, count in self.by_category.items()
-            },
+            "by_category": {cat.value: count for cat, count in self.by_category.items()},
             "by_security_level": {
                 level.value: count for level, count in self.by_security_level.items()
             },
@@ -197,8 +195,7 @@ class AlgorithmRegistry:
         """
         if AlgorithmRegistry._instance is not None:
             raise RuntimeError(
-                "AlgorithmRegistry is a singleton. "
-                "Use AlgorithmRegistry.get_instance()"
+                "AlgorithmRegistry is a singleton. Use AlgorithmRegistry.get_instance()"
             )
 
         # Реестр: {algorithm_name -> RegistryEntry}
@@ -293,15 +290,12 @@ class AlgorithmRegistry:
 
             # Валидация factory
             if not callable(factory):
-                raise TypeError(
-                    f"factory должна быть callable, получено {type(factory).__name__}"
-                )
+                raise TypeError(f"factory должна быть callable, получено {type(factory).__name__}")
 
             # Валидация metadata
             if not isinstance(metadata, AlgorithmMetadata):
                 raise TypeError(
-                    f"metadata должна быть AlgorithmMetadata, "
-                    f"получено {type(metadata).__name__}"
+                    f"metadata должна быть AlgorithmMetadata, получено {type(metadata).__name__}"
                 )
 
             # Валидация соответствия Protocol
@@ -349,16 +343,13 @@ class AlgorithmRegistry:
                 )
 
             logger.debug(
-                f"Protocol validation passed: {metadata.name} -> "
-                f"{metadata.protocol_class.__name__}"
+                f"Protocol validation passed: {metadata.name} -> {metadata.protocol_class.__name__}"
             )
 
         except ProtocolError:
             raise
         except Exception as e:
-            raise ProtocolError(
-                f"Не удалось валидировать Protocol для {metadata.name}: {e}"
-            ) from e
+            raise ProtocolError(f"Не удалось валидировать Protocol для {metadata.name}: {e}") from e
 
     def create(self, name: str) -> Any:
         """
@@ -386,8 +377,7 @@ class AlgorithmRegistry:
             if name not in self._registry:
                 available = ", ".join(sorted(self._registry.keys())[:5])
                 raise KeyError(
-                    f"Алгоритм '{name}' не найден в реестре. "
-                    f"Доступные (первые 5): {available}..."
+                    f"Алгоритм '{name}' не найден в реестре. Доступные (первые 5): {available}..."
                 )
 
             entry = self._registry[name]
@@ -573,7 +563,7 @@ class AlgorithmRegistry:
             ['AES-128-GCM', 'AES-256-GCM', 'ChaCha20-Poly1305', ...]
         """
         with self._lock:
-            results = []
+            results: list[str] = []
 
             for name, entry in self._registry.items():
                 meta = entry.metadata
@@ -585,19 +575,13 @@ class AlgorithmRegistry:
                 if security_level is not None and meta.security_level != security_level:
                     continue
 
-                if (
-                    floppy_friendly is not None
-                    and meta.floppy_friendly != floppy_friendly
-                ):
+                if floppy_friendly is not None and meta.floppy_friendly != floppy_friendly:
                     continue
 
                 if status is not None and meta.status != status:
                     continue
 
-                if (
-                    is_post_quantum is not None
-                    and meta.is_post_quantum != is_post_quantum
-                ):
+                if is_post_quantum is not None and meta.is_post_quantum != is_post_quantum:
                     continue
 
                 if is_aead is not None and meta.is_aead != is_aead:
@@ -630,30 +614,22 @@ class AlgorithmRegistry:
         """Внутренний метод для подсчёта статистики."""
         total = len(self._registry)
 
-        categories = Counter(
-            entry.metadata.category for entry in self._registry.values()
-        )
+        categories = Counter(entry.metadata.category for entry in self._registry.values())
 
         security_levels = Counter(
             entry.metadata.security_level for entry in self._registry.values()
         )
 
-        floppy_levels = Counter(
-            entry.metadata.floppy_friendly for entry in self._registry.values()
-        )
+        floppy_levels = Counter(entry.metadata.floppy_friendly for entry in self._registry.values())
 
         post_quantum_count = sum(
             1 for entry in self._registry.values() if entry.metadata.is_post_quantum
         )
 
-        aead_count = sum(
-            1 for entry in self._registry.values() if entry.metadata.is_aead
-        )
+        aead_count = sum(1 for entry in self._registry.values() if entry.metadata.is_aead)
 
         safe_for_production = sum(
-            1
-            for entry in self._registry.values()
-            if entry.metadata.is_safe_for_production()
+            1 for entry in self._registry.values() if entry.metadata.is_safe_for_production()
         )
 
         return RegistryStatistics(
@@ -739,8 +715,7 @@ def register_all_algorithms() -> None:
 
         # Создаём mapping: algorithm_id -> metadata
         metadata_map = {
-            meta.name.lower().replace(" ", "-").replace("_", "-"): meta
-            for meta in SYM_METADATA
+            meta.name.lower().replace(" ", "-").replace("_", "-"): meta for meta in SYM_METADATA
         }
 
         # Регистрируем каждый алгоритм с его метаданными
@@ -763,7 +738,9 @@ def register_all_algorithms() -> None:
             except Exception as e:
                 logger.warning(f"⚠️  Skipping symmetric algorithm {algo_id}: {e}")
 
-        logger.info(f"✅ Registered {registered_count}/{len(SYM_ALGORITHMS)} symmetric cipher algorithms")
+        logger.info(
+            f"✅ Registered {registered_count}/{len(SYM_ALGORITHMS)} symmetric cipher algorithms"
+        )
 
     except Exception as e:
         logger.error(f"❌ Failed to import symmetric algorithms: {e}")
@@ -793,7 +770,8 @@ def register_all_algorithms() -> None:
                 logger.warning(f"⚠️  Skipping asymmetric algorithm {algo_name}: {e}")
 
         logger.info(
-            f"✅ Registered {registered_count}/{len(ASYMMETRIC_ALGORITHMS)} asymmetric encryption algorithms"
+            f"✅ Registered {registered_count}/{len(ASYMMETRIC_ALGORITHMS)}"
+            " asymmetric encryption algorithms"
         )
 
     except Exception as e:
@@ -805,8 +783,9 @@ def register_all_algorithms() -> None:
 
     try:
         # Импорт автоматически зарегистрирует все 20 алгоритмов через _register_all_signatures()
-        from src.security.crypto.algorithms import signing  # noqa: F401
+        from src.security.crypto.algorithms import signing as _signing  # noqa: F401
 
+        _ = _signing  # ensure import is used
         # Проверяем, что зарегистрировались
         sig_algos = [
             "Ed25519",
@@ -866,7 +845,8 @@ def register_all_algorithms() -> None:
                 logger.warning(f"⚠️  Skipping key exchange algorithm {algo_id}: {e}")
 
         logger.info(
-            f"✅ Registered {registered_count}/{len(KEY_EXCHANGE_ALGORITHMS)} key exchange algorithms"
+            f"✅ Registered {registered_count}/{len(KEY_EXCHANGE_ALGORITHMS)}"
+            " key exchange algorithms"
         )
 
     except Exception as e:
@@ -925,9 +905,7 @@ def register_all_algorithms() -> None:
 try:
     register_all_algorithms()
 except Exception as e:
-    logger.error(
-        f"Auto-registration failed: {e}. Call register_all_algorithms() manually."
-    )
+    logger.error(f"Auto-registration failed: {e}. Call register_all_algorithms() manually.")
 
 
 # ==============================================================================

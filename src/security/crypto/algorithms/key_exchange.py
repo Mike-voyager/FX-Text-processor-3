@@ -214,9 +214,7 @@ def _ensure_bytes(value: bytes, name: str) -> None:
         raise TypeError(f"{name} must be bytes, got {type(value).__name__}")
 
 
-def _validate_key_size(
-    key: bytes, expected_size: int, key_name: str, algorithm: str
-) -> None:
+def _validate_key_size(key: bytes, expected_size: int, key_name: str, algorithm: str) -> None:
     """
     Проверить размер ключа.
 
@@ -231,8 +229,7 @@ def _validate_key_size(
     """
     if len(key) != expected_size:
         raise InvalidKeyError(
-            f"{algorithm} {key_name} must be {expected_size} bytes, "
-            f"got {len(key)} bytes"
+            f"{algorithm} {key_name} must be {expected_size} bytes, got {len(key)} bytes"
         )
 
 
@@ -498,16 +495,12 @@ class X25519KeyExchange(_DHKeyExchangeBase):
         try:
             # Deserialize keys
             private_key_obj = x25519.X25519PrivateKey.from_private_bytes(private_key)
-            peer_public_key_obj = x25519.X25519PublicKey.from_public_bytes(
-                peer_public_key
-            )
+            peer_public_key_obj = x25519.X25519PublicKey.from_public_bytes(peer_public_key)
 
             # Perform ECDH
             shared_secret = private_key_obj.exchange(peer_public_key_obj)
 
-            self._logger.debug(
-                f"X25519 ECDH: derived {len(shared_secret)}B shared secret"
-            )
+            self._logger.debug(f"X25519 ECDH: derived {len(shared_secret)}B shared secret")
 
             return shared_secret
 
@@ -600,9 +593,7 @@ class X448KeyExchange(_DHKeyExchangeBase):
 
             shared_secret = private_key_obj.exchange(peer_public_key_obj)
 
-            self._logger.debug(
-                f"X448 ECDH: derived {len(shared_secret)}B shared secret"
-            )
+            self._logger.debug(f"X448 ECDH: derived {len(shared_secret)}B shared secret")
 
             return shared_secret
 
@@ -709,9 +700,7 @@ class ECDHP256KeyExchange(_DHKeyExchangeBase):
             # Perform ECDH
             shared_secret = private_key_obj.exchange(ec.ECDH(), peer_public_key_obj)
 
-            self._logger.debug(
-                f"ECDH-P256: derived {len(shared_secret)}B shared secret"
-            )
+            self._logger.debug(f"ECDH-P256: derived {len(shared_secret)}B shared secret")
 
             return shared_secret
 
@@ -799,9 +788,7 @@ class ECDHP384KeyExchange(_DHKeyExchangeBase):
 
             shared_secret = private_key_obj.exchange(ec.ECDH(), peer_public_key_obj)
 
-            self._logger.debug(
-                f"ECDH-P384: derived {len(shared_secret)}B shared secret"
-            )
+            self._logger.debug(f"ECDH-P384: derived {len(shared_secret)}B shared secret")
 
             return shared_secret
 
@@ -889,9 +876,7 @@ class ECDHP521KeyExchange(_DHKeyExchangeBase):
 
             shared_secret = private_key_obj.exchange(ec.ECDH(), peer_public_key_obj)
 
-            self._logger.debug(
-                f"ECDH-P521: derived {len(shared_secret)}B shared secret"
-            )
+            self._logger.debug(f"ECDH-P521: derived {len(shared_secret)}B shared secret")
 
             return shared_secret
 
@@ -1058,9 +1043,7 @@ class MLKEM512(_KEMBase):
         """
         _ensure_bytes(private_key, "private_key")
         _ensure_bytes(ciphertext, "ciphertext")
-        _validate_key_size(
-            private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-512"
-        )
+        _validate_key_size(private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-512")
         _validate_key_size(ciphertext, self.CIPHERTEXT_SIZE, "ciphertext", "ML-KEM-512")
 
         try:
@@ -1070,9 +1053,7 @@ class MLKEM512(_KEMBase):
             with oqs.KeyEncapsulation(self._OQS_NAME, secret_key=private_key) as kem:
                 shared_secret = kem.decap_secret(ciphertext)
 
-                self._logger.debug(
-                    f"ML-KEM-512 decapsulation: shared={len(shared_secret)}B"
-                )
+                self._logger.debug(f"ML-KEM-512 decapsulation: shared={len(shared_secret)}B")
 
                 return bytes(shared_secret)
 
@@ -1192,9 +1173,7 @@ class MLKEM768(_KEMBase):
         """Decapsulate с ML-KEM-768."""
         _ensure_bytes(private_key, "private_key")
         _ensure_bytes(ciphertext, "ciphertext")
-        _validate_key_size(
-            private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-768"
-        )
+        _validate_key_size(private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-768")
         _validate_key_size(ciphertext, self.CIPHERTEXT_SIZE, "ciphertext", "ML-KEM-768")
 
         try:
@@ -1203,9 +1182,7 @@ class MLKEM768(_KEMBase):
             with oqs.KeyEncapsulation(self._OQS_NAME, secret_key=private_key) as kem:
                 shared_secret = kem.decap_secret(ciphertext)
 
-                self._logger.debug(
-                    f"ML-KEM-768 decapsulation: shared={len(shared_secret)}B"
-                )
+                self._logger.debug(f"ML-KEM-768 decapsulation: shared={len(shared_secret)}B")
 
                 return bytes(shared_secret)
 
@@ -1302,9 +1279,7 @@ class MLKEM1024(_KEMBase):
     def encapsulate(self, public_key: bytes) -> Tuple[bytes, bytes]:
         """Encapsulate с ML-KEM-1024."""
         _ensure_bytes(public_key, "public_key")
-        _validate_key_size(
-            public_key, self.PUBLIC_KEY_SIZE, "public_key", "ML-KEM-1024"
-        )
+        _validate_key_size(public_key, self.PUBLIC_KEY_SIZE, "public_key", "ML-KEM-1024")
 
         try:
             import oqs
@@ -1320,21 +1295,15 @@ class MLKEM1024(_KEMBase):
                 return ciphertext, shared_secret
 
         except Exception as exc:
-            self._logger.error(
-                f"ML-KEM-1024 encapsulation failed: {exc}", exc_info=True
-            )
+            self._logger.error(f"ML-KEM-1024 encapsulation failed: {exc}", exc_info=True)
             raise CryptoError("ML-KEM-1024 encapsulation failed") from exc
 
     def decapsulate(self, private_key: bytes, ciphertext: bytes) -> bytes:
         """Decapsulate с ML-KEM-1024."""
         _ensure_bytes(private_key, "private_key")
         _ensure_bytes(ciphertext, "ciphertext")
-        _validate_key_size(
-            private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-1024"
-        )
-        _validate_key_size(
-            ciphertext, self.CIPHERTEXT_SIZE, "ciphertext", "ML-KEM-1024"
-        )
+        _validate_key_size(private_key, self.PRIVATE_KEY_SIZE, "private_key", "ML-KEM-1024")
+        _validate_key_size(ciphertext, self.CIPHERTEXT_SIZE, "ciphertext", "ML-KEM-1024")
 
         try:
             import oqs
@@ -1342,16 +1311,12 @@ class MLKEM1024(_KEMBase):
             with oqs.KeyEncapsulation(self._OQS_NAME, secret_key=private_key) as kem:
                 shared_secret = kem.decap_secret(ciphertext)
 
-                self._logger.debug(
-                    f"ML-KEM-1024 decapsulation: shared={len(shared_secret)}B"
-                )
+                self._logger.debug(f"ML-KEM-1024 decapsulation: shared={len(shared_secret)}B")
 
                 return bytes(shared_secret)
 
         except Exception as exc:
-            self._logger.error(
-                f"ML-KEM-1024 decapsulation failed: {exc}", exc_info=True
-            )
+            self._logger.error(f"ML-KEM-1024 decapsulation failed: {exc}", exc_info=True)
             raise CryptoError("ML-KEM-1024 decapsulation failed") from exc
 
 
@@ -1673,12 +1638,11 @@ def get_kex_algorithm(algorithm_id: str) -> KeyExchangeProtocol:
         >>> print(list(KEY_EXCHANGE_ALGORITHMS.keys()))
     """
     try:
-        kex_cls, metadata = KEY_EXCHANGE_ALGORITHMS[algorithm_id]
+        kex_cls, _metadata = KEY_EXCHANGE_ALGORITHMS[algorithm_id]
     except KeyError as exc:
         available = list(KEY_EXCHANGE_ALGORITHMS.keys())
         raise KeyError(
-            f"Key exchange algorithm '{algorithm_id}' not found. "
-            f"Available: {available}"
+            f"Key exchange algorithm '{algorithm_id}' not found. Available: {available}"
         ) from exc
 
     return kex_cls()  # type: ignore[return-value]
