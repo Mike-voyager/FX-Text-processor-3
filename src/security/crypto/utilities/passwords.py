@@ -51,9 +51,6 @@ try:
     import argon2
     from argon2 import PasswordHasher as _Argon2Hasher
     from argon2.exceptions import (
-        HashingError as _Argon2HashingError,
-    )
-    from argon2.exceptions import (
         VerificationError as _Argon2VerificationError,
     )
     from argon2.exceptions import (
@@ -417,8 +414,9 @@ class PasswordHasher:
 
     def _hash_argon2(self, password: str) -> str:
         """Хеширование через Argon2id."""
+        if self._argon2_hasher is None:
+            raise CryptoError("Argon2id hasher not initialised (argon2-cffi not available)")
         try:
-            assert self._argon2_hasher is not None
             hashed: str = self._argon2_hasher.hash(password)
             return hashed
         except Exception as e:

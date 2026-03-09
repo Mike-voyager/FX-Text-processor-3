@@ -203,7 +203,7 @@ class CryptoMigrator:
         """
         results: List[MigrationResult] = []
 
-        for i, doc in enumerate(documents):
+        for _i, doc in enumerate(documents):
             _, result = self.migrate_document(
                 doc,
                 old_key,
