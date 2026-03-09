@@ -258,10 +258,10 @@ FX-Text-processor-3/
 │   │   │   ├── ui_helpers.py
 │   │   │   └── profiles.py
 │   │   │
-│   │   ├── utilities   # 🚧 DONE/TODO tests
+│   │   ├── utilities   # ✅ DONE
 │   │   │   ├── __init__.py
 │   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
-│   │   │   ├── config.py                 # ✅ DONE
+│   │   │   ├── config.py                 
 │   │   │   ├── passwords.py
 │   │   │   ├── secure_storage.py         # + compression support
 │   │   │   ├── key_rotation.py
