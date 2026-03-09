@@ -22,8 +22,8 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import List, NotRequired, Optional, TypedDict
 
 from src.security.crypto.core.exceptions import (
     CryptoKeyError,
@@ -44,6 +44,16 @@ logger = logging.getLogger(__name__)
 
 # Prefix для метаданных ротации в хранилище
 _ROTATION_META_PREFIX = "_rotation_meta_"
+
+
+class RotationMeta(TypedDict, total=False):
+    """Typed structure of rotation metadata stored in SecureStorage."""
+
+    key_id: str
+    created_at: str
+    rotated_at: NotRequired[Optional[str]]
+    rotation_count: int
+    next_rotation: NotRequired[Optional[str]]
 
 
 # ==============================================================================
@@ -70,7 +80,7 @@ class KeyRotationStatus:
     rotation_count: int = 0
     next_rotation: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> RotationMeta:
         """Сериализация в словарь."""
         return {
             "key_id": self.key_id,
@@ -81,7 +91,7 @@ class KeyRotationStatus:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> KeyRotationStatus:
+    def from_dict(cls, data: RotationMeta) -> KeyRotationStatus:
         """Десериализация из словаря."""
         return cls(
             key_id=data["key_id"],
@@ -156,10 +166,16 @@ class KeyRotationManager:
         # Генерируем новый ключ если не указан
         if new_key is None:
             new_key = os.urandom(len(old_key))
+        if len(new_key) != len(old_key):
+            raise ValueError(
+                f"Недопустимая длина нового ключа для '{key_name}': "
+                f"{len(new_key)} (ожидается {len(old_key)})"
+            )
 
         # Получаем текущие метаданные ротации
         meta = self._load_rotation_meta(key_name)
-        now = datetime.now(timezone.utc).isoformat()
+        base_dt = datetime.now(timezone.utc)
+        now = base_dt.isoformat()
 
         rotation_count = meta.get("rotation_count", 0) + 1
         created_at = meta.get("created_at", now)
@@ -167,11 +183,7 @@ class KeyRotationManager:
         # Вычисляем следующую ротацию
         next_rotation: Optional[str] = None
         if self._config.auto_rotation_enabled:
-            from datetime import timedelta
-
-            next_dt = datetime.now(timezone.utc) + timedelta(
-                days=self._config.rotation_interval_days
-            )
+            next_dt = base_dt + timedelta(days=self._config.rotation_interval_days)
             next_rotation = next_dt.isoformat()
 
         # Сохраняем новый ключ
@@ -201,14 +213,19 @@ class KeyRotationManager:
         Args:
             key_name: Имя ключа.
             interval_days: Интервал ротации в днях.
+
+        Raises:
+            ValueError: Если interval_days не является положительным числом.
         """
-        from datetime import timedelta
+        if interval_days <= 0:
+            raise ValueError("interval_days должен быть положительным числом")
 
         meta = self._load_rotation_meta(key_name)
-        next_dt = datetime.now(timezone.utc) + timedelta(days=interval_days)
+        base_dt = datetime.now(timezone.utc)
+        next_dt = base_dt + timedelta(days=interval_days)
         meta["next_rotation"] = next_dt.isoformat()
         meta.setdefault("key_id", key_name)
-        meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+        meta.setdefault("created_at", base_dt.isoformat())
         self._save_rotation_meta(key_name, meta)
 
         logger.info("Rotation scheduled for '%s' in %d days", key_name, interval_days)
@@ -285,20 +302,40 @@ class KeyRotationManager:
         """Имя записи метаданных ротации в хранилище."""
         return f"{_ROTATION_META_PREFIX}{key_name}"
 
-    def _load_rotation_meta(self, key_name: str) -> Dict[str, Any]:
+    def _load_rotation_meta(self, key_name: str) -> RotationMeta:
         """Загрузка метаданных ротации."""
         meta_name = self._meta_key(key_name)
         if not self._storage.has_key(meta_name):
-            return {}
+            return RotationMeta()
         try:
             data = self._storage.retrieve_key(meta_name)
-            parsed: Dict[str, Any] = json.loads(data.decode("utf-8"))
-            return parsed
-        except Exception:
-            return {}
+            raw = json.loads(data.decode("utf-8"))
+            if not isinstance(raw, dict):
+                logger.warning("Rotation meta for '%s' has invalid JSON root", key_name)
+                return RotationMeta()
+            meta: RotationMeta = {}
+            if isinstance(raw.get("key_id"), str):
+                meta["key_id"] = raw["key_id"]
+            if isinstance(raw.get("created_at"), str):
+                meta["created_at"] = raw["created_at"]
+            if isinstance(raw.get("rotated_at"), (str, type(None))):
+                meta["rotated_at"] = raw.get("rotated_at")
+            if isinstance(raw.get("rotation_count"), int):
+                meta["rotation_count"] = raw["rotation_count"]
+            if isinstance(raw.get("next_rotation"), (str, type(None))):
+                meta["next_rotation"] = raw.get("next_rotation")
+            return meta
+        except (ValueError, TypeError, UnicodeDecodeError) as e:
+            logger.warning("Failed to parse rotation meta for '%s': %s", key_name, e)
+            return RotationMeta()
 
-    def _save_rotation_meta(self, key_name: str, meta: Dict[str, Any]) -> None:
+    def _save_rotation_meta(self, key_name: str, meta: RotationMeta) -> None:
         """Сохранение метаданных ротации."""
         meta_name = self._meta_key(key_name)
-        data = json.dumps(meta, ensure_ascii=True).encode("utf-8")
+        data = json.dumps(
+            meta,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
         self._storage.store_key(meta_name, data)
