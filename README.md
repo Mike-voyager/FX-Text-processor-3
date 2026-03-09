@@ -214,7 +214,7 @@ FX-Text-processor-3/
 │
 │
 ├── tests/                        # Test suite
-│   ├── unit/      # ✅ 1166 tests, 79.22% coverage, 33 fails
+│   ├── unit/      # ✅ >2900 tests
 │   └── integration/
 │
 ├── docs/                         # Documentation⚠️ TODO
