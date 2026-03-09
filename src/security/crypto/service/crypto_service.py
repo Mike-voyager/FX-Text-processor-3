@@ -57,8 +57,9 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
+from src.security.crypto.advanced.hybrid_encryption import create_hybrid_cipher
 from src.security.crypto.core.exceptions import (
     CryptoError,
     DecryptionError,
@@ -69,6 +70,7 @@ from src.security.crypto.core.metadata import AlgorithmCategory
 from src.security.crypto.core.protocols import (
     HashProtocol,
     KDFProtocol,
+    KeyExchangeProtocol,
     SignatureProtocol,
     SymmetricCipherProtocol,
 )
@@ -122,9 +124,9 @@ class EncryptedDocument:
     nonce: bytes
     ciphertext: bytes
     algorithm_id: str
-    aad: Optional[bytes] = None
+    aad: bytes | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Сериализовать в словарь для сохранения/передачи.
 
@@ -136,7 +138,7 @@ class EncryptedDocument:
             >>> d["algorithm_id"]
             'aes-256-gcm'
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "nonce": self.nonce.hex(),
             "ciphertext": self.ciphertext.hex(),
             "algorithm_id": self.algorithm_id,
@@ -146,7 +148,7 @@ class EncryptedDocument:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> EncryptedDocument:
+    def from_dict(cls, data: dict[str, Any]) -> EncryptedDocument:
         """
         Десериализовать из словаря (обратная операция к to_dict).
 
@@ -197,7 +199,7 @@ class SignedDocument:
     algorithm_id: str
     public_key_hint: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Сериализовать в словарь.
 
@@ -211,7 +213,7 @@ class SignedDocument:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> SignedDocument:
+    def from_dict(cls, data: dict[str, Any]) -> SignedDocument:
         """
         Десериализовать из словаря.
 
@@ -257,11 +259,13 @@ class CryptoService:
         >>> service = CryptoService(profile=CryptoProfile.FLOPPY_BASIC)
     """
 
+    __slots__ = ("profile", "config", "_registry")
+
     def __init__(
         self,
         profile: CryptoProfile = CryptoProfile.STANDARD,
         *,
-        registry: Optional[AlgorithmRegistry] = None,
+        registry: AlgorithmRegistry | None = None,
     ) -> None:
         """
         Инициализировать CryptoService.
@@ -291,7 +295,7 @@ class CryptoService:
     # KEY GENERATION
     # --------------------------------------------------------------------------
 
-    def generate_symmetric_key(self, algorithm_id: Optional[str] = None) -> bytes:
+    def generate_symmetric_key(self, algorithm_id: str | None = None) -> bytes:
         """
         Сгенерировать случайный симметричный ключ для шифрования.
 
@@ -328,7 +332,7 @@ class CryptoService:
         _audit_logger.info("generate_symmetric_key: algorithm=%s key_size=%d", algo_id, key_size)
         return key
 
-    def generate_keypair(self, algorithm_id: Optional[str] = None) -> Tuple[bytes, bytes]:
+    def generate_keypair(self, algorithm_id: str | None = None) -> tuple[bytes, bytes]:
         """
         Сгенерировать асимметричную пару ключей (приватный, публичный).
 
@@ -353,7 +357,7 @@ class CryptoService:
         algo_id = algorithm_id or self.config.signing_algorithm
         algorithm = self._registry.create(algo_id)
 
-        if not hasattr(algorithm, "generate_keypair"):
+        if not isinstance(algorithm, (SignatureProtocol, KeyExchangeProtocol)):
             raise CryptoError(
                 f"Алгоритм '{algo_id}' не поддерживает generate_keypair(). "
                 f"Используйте алгоритм подписи или обмена ключами."
@@ -373,8 +377,8 @@ class CryptoService:
         document: bytes,
         key: bytes,
         *,
-        algorithm_id: Optional[str] = None,
-        aad: Optional[bytes] = None,
+        algorithm_id: str | None = None,
+        aad: bytes | None = None,
     ) -> EncryptedDocument:
         """
         Зашифровать документ симметричным шифром.
@@ -484,8 +488,7 @@ class CryptoService:
                 type(exc).__name__,
             )
             raise DecryptionError(
-                f"Ошибка расшифровки алгоритмом '{algo_id}'. "
-                "Проверьте правильность ключа и целостность данных.",
+                "Ошибка расшифровки: неверный ключ или повреждены данные.",
                 algorithm=algo_id,
             ) from exc
 
@@ -505,7 +508,7 @@ class CryptoService:
         document: bytes,
         private_key: bytes,
         *,
-        algorithm_id: Optional[str] = None,
+        algorithm_id: str | None = None,
     ) -> SignedDocument:
         """
         Создать цифровую подпись документа.
@@ -631,7 +634,7 @@ class CryptoService:
         recipient_public_key: bytes,
         *,
         config_name: str = "classical_standard",
-    ) -> Dict[str, bytes]:
+    ) -> dict[str, bytes | str]:
         """
         Зашифровать документ для получателя используя гибридное шифрование.
 
@@ -673,19 +676,16 @@ class CryptoService:
         if not recipient_public_key:
             raise ValueError("Публичный ключ получателя не может быть пустым")
 
-        from src.security.crypto.advanced.hybrid_encryption import (
-            create_hybrid_cipher,
-        )
-
         cipher = create_hybrid_cipher(config_name)
-        result = cipher.encrypt_for_recipient(recipient_public_key, document)
+        raw_result = cipher.encrypt_for_recipient(recipient_public_key, document)
+        result: dict[str, bytes | str] = {**raw_result}
 
         _audit_logger.info("encrypt_hybrid: config=%s data_size=%d", config_name, len(document))
-        return result  # type: ignore[return-value]
+        return result
 
     def decrypt_hybrid(
         self,
-        encrypted_data: Dict[str, bytes],
+        encrypted_data: dict[str, bytes | str],
         recipient_private_key: bytes,
     ) -> bytes:
         """
@@ -709,11 +709,8 @@ class CryptoService:
         if not recipient_private_key:
             raise ValueError("Приватный ключ не может быть пустым")
 
-        from src.security.crypto.advanced.hybrid_encryption import create_hybrid_cipher
-
-        config_name = str(encrypted_data.get("config", b"classical_standard"))
-        if isinstance(config_name, bytes):
-            config_name = config_name.decode()
+        raw_config = encrypted_data.get("config", b"classical_standard")
+        config_name = raw_config.decode() if isinstance(raw_config, bytes) else str(raw_config)
 
         cipher = create_hybrid_cipher(config_name)
 
@@ -743,7 +740,7 @@ class CryptoService:
         self,
         data: bytes,
         *,
-        algorithm_id: Optional[str] = None,
+        algorithm_id: str | None = None,
     ) -> bytes:
         """
         Вычислить криптографический хеш данных.
@@ -771,7 +768,9 @@ class CryptoService:
 
         algo_id = algorithm_id or self.config.hash_algorithm
         hasher: HashProtocol = self._registry.create(algo_id)
-        return hasher.hash(data)
+        digest = hasher.hash(data)
+        _audit_logger.info("hash_data: algorithm=%s data_size=%d", algo_id, len(data))
+        return digest
 
     # --------------------------------------------------------------------------
     # KEY DERIVATION
@@ -782,7 +781,7 @@ class CryptoService:
         password: bytes,
         salt: bytes,
         *,
-        algorithm_id: Optional[str] = None,
+        algorithm_id: str | None = None,
         key_length: int = 32,
     ) -> bytes:
         """
@@ -811,6 +810,10 @@ class CryptoService:
             raise ValueError("Пароль не может быть пустым")
         if len(salt) < 16:
             raise ValueError(f"Соль слишком короткая: {len(salt)} байт (минимум 16)")
+        if key_length <= 0 or key_length > 64:
+            raise ValueError(
+                f"Некорректная длина ключа: {key_length}. Ожидается значение в [1, 64] байт."
+            )
 
         algo_id = algorithm_id or self.config.kdf_algorithm
         kdf: KDFProtocol = self._registry.create(algo_id)
@@ -820,7 +823,7 @@ class CryptoService:
     # ALGORITHM DISCOVERY
     # --------------------------------------------------------------------------
 
-    def get_default_algorithms(self) -> Dict[str, str]:
+    def get_default_algorithms(self) -> dict[str, str]:
         """
         Получить алгоритмы по умолчанию для текущего профиля.
 
@@ -834,7 +837,7 @@ class CryptoService:
         """
         return self.config.algorithm_ids()
 
-    def get_available_algorithms(self, category: Optional[str] = None) -> Dict[str, Any]:
+    def get_available_algorithms(self, category: str | None = None) -> dict[str, Any]:
         """
         Получить список доступных алгоритмов с метаданными.
 
@@ -860,13 +863,14 @@ class CryptoService:
             "kdf": AlgorithmCategory.KDF,
         }
 
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         target_category = _category_map.get(category) if category else None
 
         for name in self._registry.list_algorithms():
             try:
                 meta = self._registry.get_metadata(name)
             except Exception:
+                logger.warning("Не удалось получить метаданные для '%s'", name)
                 continue
 
             if target_category is not None and meta.category != target_category:
@@ -911,9 +915,9 @@ class CryptoService:
         data_size: int,
         *,
         include_signature: bool = True,
-        algorithm_id: Optional[str] = None,
-        signing_algorithm_id: Optional[str] = None,
-    ) -> Dict[str, int]:
+        algorithm_id: str | None = None,
+        signing_algorithm_id: str | None = None,
+    ) -> dict[str, int]:
         """
         Оценить размер зашифрованных+подписанных данных.
 
