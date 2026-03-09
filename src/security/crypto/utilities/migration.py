@@ -106,9 +106,8 @@ class CryptoMigrator:
         Returns:
             True если миграция возможна.
         """
-        return (
-            self._registry.is_registered(old_algorithm)
-            and self._registry.is_registered(new_algorithm)
+        return self._registry.is_registered(old_algorithm) and self._registry.is_registered(
+            new_algorithm
         )
 
     def migrate_document(
@@ -163,9 +162,7 @@ class CryptoMigrator:
                 success=True,
             )
 
-            logger.info(
-                "Document migrated: %s -> %s", old_algorithm, new_algorithm
-            )
+            logger.info("Document migrated: %s -> %s", old_algorithm, new_algorithm)
             return new_nonce + new_ciphertext, result
 
         except Exception as e:
@@ -177,7 +174,9 @@ class CryptoMigrator:
             )
             logger.error(
                 "Migration failed (%s -> %s): %s",
-                old_algorithm, new_algorithm, e,
+                old_algorithm,
+                new_algorithm,
+                e,
             )
             return encrypted_data, result
 
@@ -206,13 +205,20 @@ class CryptoMigrator:
 
         for i, doc in enumerate(documents):
             _, result = self.migrate_document(
-                doc, old_key, new_key, old_algorithm, new_algorithm,
+                doc,
+                old_key,
+                new_key,
+                old_algorithm,
+                new_algorithm,
             )
             results.append(result)
 
         succeeded = sum(1 for r in results if r.success)
         logger.info(
             "Bulk migration: %d/%d succeeded (%s -> %s)",
-            succeeded, len(documents), old_algorithm, new_algorithm,
+            succeeded,
+            len(documents),
+            old_algorithm,
+            new_algorithm,
         )
         return results

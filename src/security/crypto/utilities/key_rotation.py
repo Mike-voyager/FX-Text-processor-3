@@ -168,6 +168,7 @@ class KeyRotationManager:
         next_rotation: Optional[str] = None
         if self._config.auto_rotation_enabled:
             from datetime import timedelta
+
             next_dt = datetime.now(timezone.utc) + timedelta(
                 days=self._config.rotation_interval_days
             )
@@ -186,9 +187,7 @@ class KeyRotationManager:
         )
         self._save_rotation_meta(key_name, status.to_dict())
 
-        logger.info(
-            "Key rotated: '%s' (rotation #%d)", key_name, rotation_count
-        )
+        logger.info("Key rotated: '%s' (rotation #%d)", key_name, rotation_count)
         return status
 
     def schedule_rotation(
@@ -212,9 +211,7 @@ class KeyRotationManager:
         meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
         self._save_rotation_meta(key_name, meta)
 
-        logger.info(
-            "Rotation scheduled for '%s' in %d days", key_name, interval_days
-        )
+        logger.info("Rotation scheduled for '%s' in %d days", key_name, interval_days)
 
     def get_rotation_status(self, key_name: str) -> KeyRotationStatus:
         """
@@ -300,9 +297,7 @@ class KeyRotationManager:
         except Exception:
             return {}
 
-    def _save_rotation_meta(
-        self, key_name: str, meta: Dict[str, Any]
-    ) -> None:
+    def _save_rotation_meta(self, key_name: str, meta: Dict[str, Any]) -> None:
         """Сохранение метаданных ротации."""
         meta_name = self._meta_key(key_name)
         data = json.dumps(meta, ensure_ascii=True).encode("utf-8")

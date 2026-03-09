@@ -322,19 +322,13 @@ class CryptoService:
 
         key_size = metadata.key_size
         if key_size is None:
-            raise CryptoError(
-                f"Алгоритм '{algo_id}' не предоставляет key_size в метаданных"
-            )
+            raise CryptoError(f"Алгоритм '{algo_id}' не предоставляет key_size в метаданных")
 
         key = os.urandom(key_size)
-        _audit_logger.info(
-            "generate_symmetric_key: algorithm=%s key_size=%d", algo_id, key_size
-        )
+        _audit_logger.info("generate_symmetric_key: algorithm=%s key_size=%d", algo_id, key_size)
         return key
 
-    def generate_keypair(
-        self, algorithm_id: Optional[str] = None
-    ) -> Tuple[bytes, bytes]:
+    def generate_keypair(self, algorithm_id: Optional[str] = None) -> Tuple[bytes, bytes]:
         """
         Сгенерировать асимметричную пару ключей (приватный, публичный).
 
@@ -367,9 +361,7 @@ class CryptoService:
 
         private_key, public_key = algorithm.generate_keypair()
         pub_hint = public_key[:8].hex() if len(public_key) >= 8 else public_key.hex()
-        _audit_logger.info(
-            "generate_keypair: algorithm=%s public_key_hint=%s", algo_id, pub_hint
-        )
+        _audit_logger.info("generate_keypair: algorithm=%s public_key_hint=%s", algo_id, pub_hint)
         return private_key, public_key
 
     # --------------------------------------------------------------------------
@@ -626,9 +618,7 @@ class CryptoService:
             logger.debug("Верификация подписи вызвала исключение: %s", exc)
             return False
 
-        _audit_logger.info(
-            "verify_signature: algorithm=%s result=%s", algorithm_id, result
-        )
+        _audit_logger.info("verify_signature: algorithm=%s result=%s", algorithm_id, result)
         return bool(result)
 
     # --------------------------------------------------------------------------
@@ -690,9 +680,7 @@ class CryptoService:
         cipher = create_hybrid_cipher(config_name)
         result = cipher.encrypt_for_recipient(recipient_public_key, document)
 
-        _audit_logger.info(
-            "encrypt_hybrid: config=%s data_size=%d", config_name, len(document)
-        )
+        _audit_logger.info("encrypt_hybrid: config=%s data_size=%d", config_name, len(document))
         return result  # type: ignore[return-value]
 
     def decrypt_hybrid(
@@ -822,9 +810,7 @@ class CryptoService:
         if not password:
             raise ValueError("Пароль не может быть пустым")
         if len(salt) < 16:
-            raise ValueError(
-                f"Соль слишком короткая: {len(salt)} байт (минимум 16)"
-            )
+            raise ValueError(f"Соль слишком короткая: {len(salt)} байт (минимум 16)")
 
         algo_id = algorithm_id or self.config.kdf_algorithm
         kdf: KDFProtocol = self._registry.create(algo_id)
@@ -848,9 +834,7 @@ class CryptoService:
         """
         return self.config.algorithm_ids()
 
-    def get_available_algorithms(
-        self, category: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_available_algorithms(self, category: Optional[str] = None) -> Dict[str, Any]:
         """
         Получить список доступных алгоритмов с метаданными.
 

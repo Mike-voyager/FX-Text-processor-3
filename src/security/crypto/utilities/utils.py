@@ -277,9 +277,7 @@ class SecureMemory:
             TypeError: Если data не является bytearray.
         """
         if not isinstance(data, bytearray):
-            raise TypeError(
-                f"secure_zero requires bytearray, got {type(data).__name__}"
-            )
+            raise TypeError(f"secure_zero requires bytearray, got {type(data).__name__}")
         length = len(data)
         # Перезапись случайными данными
         for i in range(length):
@@ -366,6 +364,7 @@ class FloppyOptimizer:
         """
         if config is None:
             from src.security.crypto.utilities.config import CryptoConfig
+
             config = CryptoConfig.default()
         self._config = config
 
@@ -395,9 +394,7 @@ class FloppyOptimizer:
             ValidationError: Если директория не существует.
         """
         if not directory.exists():
-            raise ValidationError(
-                f"Директория не существует: {directory}"
-            )
+            raise ValidationError(f"Директория не существует: {directory}")
         total = 0
         for item in directory.rglob("*"):
             if item.is_file():

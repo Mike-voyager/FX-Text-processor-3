@@ -161,6 +161,11 @@ class Group:
     created_order: int = 0
     _member_counter: int = 0
 
+    def next_member_order(self) -> int:
+        """Инкрементировать и вернуть порядковый номер нового участника."""
+        self._member_counter += 1
+        return self._member_counter
+
 
 @dataclass(frozen=True)
 class GroupEncryptedMessage:
@@ -392,20 +397,17 @@ class GroupKeyManager:
 
         with self._lock:
             if member_id in group.members:
-                raise ValueError(
-                    f"Member '{member_id}' already in group '{group.group_id}'"
-                )
+                raise ValueError(f"Member '{member_id}' already in group '{group.group_id}'")
             if len(group.members) >= MAX_GROUP_MEMBERS:
                 raise ValueError(
-                    f"Group '{group.group_id}' reached member limit "
-                    f"({MAX_GROUP_MEMBERS})"
+                    f"Group '{group.group_id}' reached member limit ({MAX_GROUP_MEMBERS})"
                 )
 
-            group._member_counter += 1
+            order = group.next_member_order()
             group.members[member_id] = GroupMember(
                 member_id=member_id,
                 public_key=public_key,
-                added_order=group._member_counter,
+                added_order=order,
             )
 
             self._logger.debug(
@@ -431,9 +433,7 @@ class GroupKeyManager:
         """
         with self._lock:
             if member_id not in group.members:
-                raise KeyError(
-                    f"Member '{member_id}' not found in group '{group.group_id}'"
-                )
+                raise KeyError(f"Member '{member_id}' not found in group '{group.group_id}'")
             del group.members[member_id]
             self._logger.debug(
                 "Removed member '%s' from group '%s'",
@@ -519,13 +519,8 @@ class GroupKeyManager:
                     )
 
                 # Защита: wrapped_keys доступен только для чтения снаружи
-                wrapped_keys: Mapping[str, Mapping[str, bytes]] = (
-                    _types.MappingProxyType(
-                        {
-                            mid: _types.MappingProxyType(wk)
-                            for mid, wk in raw_wrapped.items()
-                        }
-                    )
+                wrapped_keys: Mapping[str, Mapping[str, bytes]] = _types.MappingProxyType(
+                    {mid: _types.MappingProxyType(wk) for mid, wk in raw_wrapped.items()}
                 )
 
                 self._logger.debug(

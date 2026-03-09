@@ -468,10 +468,7 @@ def get_algorithm_warning(metadata: AlgorithmMetadata) -> Optional[str]:
         )
 
     if metadata.status == ImplementationStatus.DEPRECATED:
-        return (
-            f"{metadata.name} помечен как DEPRECATED. "
-            "Переходите на рекомендуемую замену."
-        )
+        return f"{metadata.name} помечен как DEPRECATED. Переходите на рекомендуемую замену."
 
     if metadata.status == ImplementationStatus.EXPERIMENTAL:
         return (

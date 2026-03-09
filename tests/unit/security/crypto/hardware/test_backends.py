@@ -47,7 +47,7 @@ from src.security.crypto.hardware.backends import (
 def mock_ykman_env() -> Generator[dict[str, Any], None, None]:
     """Фикстура для имитации окружения yubikey-manager (PIV)."""
     with (
-        patch("src.security.crypto.hardware.backends.HAS_YKMAN", True),
+        patch("src.security.crypto.hardware.backends.has_ykman", True),
         patch("src.security.crypto.hardware.backends.yk_list_all") as mock_list_all,
         patch("src.security.crypto.hardware.backends.PivSession") as mock_piv_session,
         patch("src.security.crypto.hardware.backends.YK_SLOT") as mock_yk_slot,
@@ -137,7 +137,7 @@ def mock_apdu_env() -> Generator[MagicMock, None, None]:
     mock_transport_inst.send_apdu.return_value = mock_response
 
     with (
-        patch("src.security.crypto.hardware.backends.HAS_PYSCARD", True),
+        patch("src.security.crypto.hardware.backends.has_pyscard", True),
         patch.dict(
             "sys.modules", {"src.security.crypto.hardware.apdu_transport": mock_module}
         ),
@@ -305,7 +305,7 @@ class TestYubiKeyPivBackend:
     """Тесты операций YubiKey PIV Backend."""
 
     def test_init_without_ykman(self) -> None:
-        with patch("src.security.crypto.hardware.backends.HAS_YKMAN", False):
+        with patch("src.security.crypto.hardware.backends.has_ykman", False):
             with pytest.raises(
                 AlgorithmNotAvailableError, match="yubikey-manager is required"
             ):
@@ -552,7 +552,7 @@ class TestJavaCardRawBackend:
     """Тесты бэкенда для кастомных апплетов JavaCard J3R200."""
 
     def test_init_without_pyscard(self) -> None:
-        with patch("src.security.crypto.hardware.backends.HAS_PYSCARD", False):
+        with patch("src.security.crypto.hardware.backends.has_pyscard", False):
             with pytest.raises(AlgorithmNotAvailableError, match="pyscard is required"):
                 JavaCardRawBackend("jc1")
 

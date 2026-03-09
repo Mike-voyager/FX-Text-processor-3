@@ -29,9 +29,7 @@ class AppContext:
         self.storage: SecureStorage = SecureStorage(storage_backend)
 
         # Core service: mfa/second factor manager
-        self.mfa_manager: SecondFactorManager = SecondFactorManager(
-            storage=self.storage
-        )
+        self.mfa_manager: SecondFactorManager = SecondFactorManager(storage=self.storage)
 
         # Optional audit/logger services
         self.audit = audit  # AuditLogger, SIEM, file, etc.

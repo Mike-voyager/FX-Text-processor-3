@@ -59,6 +59,7 @@ try:
     from argon2.exceptions import (
         VerifyMismatchError as _Argon2MismatchError,
     )
+
     HAS_ARGON2 = True
 except ImportError:
     HAS_ARGON2 = False
@@ -68,18 +69,59 @@ except ImportError:
 # COMMON PASSWORDS (top-50 для быстрой проверки)
 # ==============================================================================
 
-_COMMON_PASSWORDS: frozenset[str] = frozenset({
-    "password", "123456", "12345678", "qwerty", "abc123",
-    "monkey", "1234567", "letmein", "trustno1", "dragon",
-    "baseball", "iloveyou", "master", "sunshine", "ashley",
-    "michael", "shadow", "123123", "654321", "superman",
-    "qazwsx", "football", "password1", "password123",
-    "batman", "login", "admin", "princess", "starwars",
-    "hello", "charlie", "donald", "welcome", "passw0rd",
-    "111111", "000000", "test", "pass", "access",
-    "1234", "12345", "123456789", "1234567890", "qwerty123",
-    "aa123456", "password1!", "p@ssword", "p@ssw0rd", "changeme",
-})
+_COMMON_PASSWORDS: frozenset[str] = frozenset(
+    {
+        "password",
+        "123456",
+        "12345678",
+        "qwerty",
+        "abc123",
+        "monkey",
+        "1234567",
+        "letmein",
+        "trustno1",
+        "dragon",
+        "baseball",
+        "iloveyou",
+        "master",
+        "sunshine",
+        "ashley",
+        "michael",
+        "shadow",
+        "123123",
+        "654321",
+        "superman",
+        "qazwsx",
+        "football",
+        "password1",
+        "password123",
+        "batman",
+        "login",
+        "admin",
+        "princess",
+        "starwars",
+        "hello",
+        "charlie",
+        "donald",
+        "welcome",
+        "passw0rd",
+        "111111",
+        "000000",
+        "test",
+        "pass",
+        "access",
+        "1234",
+        "12345",
+        "123456789",
+        "1234567890",
+        "qwerty123",
+        "aa123456",
+        "password1!",
+        "p@ssword",
+        "p@ssw0rd",
+        "changeme",
+    }
+)
 
 
 # ==============================================================================
@@ -186,9 +228,7 @@ class PasswordHasher:
             )
             logger.debug("PasswordHasher: Argon2id backend")
         else:
-            logger.info(
-                "PasswordHasher: argon2-cffi not available, using scrypt fallback"
-            )
+            logger.info("PasswordHasher: argon2-cffi not available, using scrypt fallback")
 
     def hash_password(self, password: str) -> str:
         """
@@ -387,9 +427,7 @@ class PasswordHasher:
     def _verify_argon2(self, password: str, hash_str: str) -> bool:
         """Проверка через Argon2id."""
         if not HAS_ARGON2:
-            raise CryptoError(
-                "argon2-cffi required for Argon2 verification"
-            )
+            raise CryptoError("argon2-cffi required for Argon2 verification")
         try:
             hasher = _Argon2Hasher()
             return hasher.verify(hash_str, password)
@@ -420,8 +458,7 @@ class PasswordHasher:
         salt_b64 = base64.b64encode(salt).decode("ascii")
         hash_b64 = base64.b64encode(derived).decode("ascii")
         return (
-            f"$scrypt$n={self.SCRYPT_N}$r={self.SCRYPT_R}"
-            f"$p={self.SCRYPT_P}${salt_b64}${hash_b64}"
+            f"$scrypt$n={self.SCRYPT_N}$r={self.SCRYPT_R}$p={self.SCRYPT_P}${salt_b64}${hash_b64}"
         )
 
     def _verify_scrypt(self, password: str, hash_str: str) -> bool:

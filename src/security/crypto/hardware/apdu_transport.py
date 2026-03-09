@@ -74,15 +74,15 @@ try:
     )
     from smartcard.System import readers as sc_readers
 
-    HAS_PYSCARD = True
+    has_pyscard = True
     logger.debug("pyscard available for APDU transport")
 except ImportError:
-    _CardConnection = None  # type: ignore[assignment, misc]
-    CardConnectionException = Exception  # type: ignore[assignment, misc]
-    NoCardException = Exception  # type: ignore[assignment, misc]
-    NoReadersException = Exception  # type: ignore[assignment, misc]
-    sc_readers = None  # type: ignore[assignment]
-    HAS_PYSCARD = False
+    _CardConnection = None
+    CardConnectionException = Exception
+    NoCardException = Exception
+    NoReadersException = Exception
+    sc_readers = None
+    has_pyscard = False
     logger.debug("pyscard not installed. Install: pip install pyscard>=2.0.0")
 
 
@@ -265,7 +265,7 @@ class ApduTransport:
         protocol: str = "T1",
         use_extended_apdu: bool = False,
     ) -> None:
-        if not HAS_PYSCARD:
+        if not has_pyscard:
             raise DeviceCommunicationError(
                 device_id=reader_name,
                 reason=(
@@ -293,10 +293,8 @@ class ApduTransport:
 
     def __repr__(self) -> str:
         state = "connected" if self._connected else "disconnected"
-        aid_str = (
-            f", aid={self._selected_aid.hex().upper()}" if self._selected_aid else ""
-        )
-        return f"ApduTransport(reader={self._reader_name!r}, " f"{state}{aid_str})"
+        aid_str = f", aid={self._selected_aid.hex().upper()}" if self._selected_aid else ""
+        return f"ApduTransport(reader={self._reader_name!r}, {state}{aid_str})"
 
     # ------------------------------------------------------------------
     # CONNECT / DISCONNECT
@@ -529,7 +527,7 @@ class ApduTransport:
         | 0x81     | OpenPGP PW1 — User PIN (decrypt, auth)                    |
         | 0x82     | OpenPGP PW1 — User PIN только для подписи (если CFB3=1)   |
         | 0x83     | OpenPGP PW3 — Admin PIN (изменение ключей/метаданных)     |
-        | 0x80     | PIV Global PIN                                             |
+        | 0x80     | PIV Global PIN                                            |
         | 0x81     | PIV Application PIN (чаще всего используемый)             |
         +----------+-----------------------------------------------------------+
 
@@ -558,8 +556,7 @@ class ApduTransport:
 
         if response.sw == SW_AUTH_METHOD_BLOCKED:
             raise HardwareDeviceError(
-                f"PIN blocked (ref=0x{pin_ref:02X}). "
-                f"Use PUK or Admin PIN to unblock.",
+                f"PIN blocked (ref=0x{pin_ref:02X}). Use PUK or Admin PIN to unblock.",
                 device_id=self._reader_name,
                 context={"pin_ref": f"0x{pin_ref:02X}", "sw": response.sw_hex},
             )
@@ -682,7 +679,7 @@ class ApduTransport:
 
         if response.sw == SW_SECURITY_NOT_SATISFIED:
             raise HardwareDeviceError(
-                f"PUT DATA denied: tag=0x{tag:04X}. " f"Verify PIN (Admin/PW3) first.",
+                f"PUT DATA denied: tag=0x{tag:04X}. Verify PIN (Admin/PW3) first.",
                 device_id=self._reader_name,
                 context={"tag": f"0x{tag:04X}", "sw": response.sw_hex},
             )
@@ -792,8 +789,7 @@ class ApduTransport:
             resp = self._transmit(apdu)
             if not resp.ok:
                 raise HardwareDeviceError(
-                    f"Command chaining failed at intermediate block: "
-                    f"SW={resp.sw_hex}",
+                    f"Command chaining failed at intermediate block: SW={resp.sw_hex}",
                     device_id=self._reader_name,
                     context={"sw": resp.sw_hex, "operation": "command_chain"},
                 )
@@ -903,7 +899,7 @@ class ApduTransport:
                 reason="pyscard not available",
             )
         try:
-            available = sc_readers()
+            available: list[Any] = sc_readers()
         except NoReadersException as exc:
             raise DeviceCommunicationError(
                 device_id=self._reader_name,
@@ -922,7 +918,7 @@ class ApduTransport:
         available_names = [str(r) for r in available]
         raise DeviceNotFoundError(
             device_id=self._reader_name,
-            reason=(f"Reader not found. " f"Available: {available_names}"),
+            reason=(f"Reader not found. Available: {available_names}"),
         )
 
     def _resolve_protocol(self) -> int:
@@ -939,7 +935,8 @@ class ApduTransport:
             "T1": _CardConnection.T1_protocol,
             "ANY": _CardConnection.T0_protocol | _CardConnection.T1_protocol,
         }
-        return proto_map.get(self._protocol.upper(), _CardConnection.T1_protocol)
+        result: int = proto_map.get(self._protocol.upper(), _CardConnection.T1_protocol)
+        return result
 
 
 # ==============================================================================
@@ -1023,7 +1020,7 @@ def list_readers() -> list[str]:
         # "HID Global OMNIKEY 3121 0"
         # "Yubico YubiKey OTP+FIDO+CCID 0"
     """
-    if not HAS_PYSCARD or sc_readers is None:
+    if not has_pyscard or sc_readers is None:
         return []
     try:
         return [str(r) for r in sc_readers()]

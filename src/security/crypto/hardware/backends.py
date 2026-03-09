@@ -97,22 +97,22 @@ try:
         PivSession,
     )
 
-    HAS_YKMAN = True
+    has_ykman = True
 except ImportError:
     yk_list_all = None  # type: ignore[assignment]
-    SmartCardConnection = None  # type: ignore[assignment, misc]
-    PivSession = None  # type: ignore[assignment, misc]
-    YK_SLOT = None  # type: ignore[assignment, misc]
-    YK_KEY_TYPE = None  # type: ignore[assignment, misc]
-    HAS_YKMAN = False
+    SmartCardConnection = None  # type: ignore[misc, assignment]
+    PivSession = None  # type: ignore[misc, assignment]
+    YK_SLOT = None  # type: ignore[misc, assignment]
+    YK_KEY_TYPE = None  # type: ignore[misc, assignment]
+    has_ykman = False
 
 try:
-    from smartcard.System import readers as sc_readers
+    from smartcard.System import readers as _sc_readers_check
 
-    HAS_PYSCARD = True
+    _ = _sc_readers_check  # verify pyscard availability
+    has_pyscard = True
 except ImportError:
-    sc_readers = None
-    HAS_PYSCARD = False
+    has_pyscard = False
 
 
 # ==============================================================================
@@ -386,7 +386,7 @@ class YubiKeyPivBackend:
     """
 
     def __init__(self, card_id: str, serial_number: int | None = None) -> None:
-        if not HAS_YKMAN:
+        if not has_ykman:
             raise AlgorithmNotAvailableError(
                 algorithm="YubiKey (PIV)",
                 reason=(
@@ -433,17 +433,14 @@ class YubiKeyPivBackend:
             DeviceNotFoundError: YubiKey не найден.
             DeviceCommunicationError: Ошибка подключения.
         """
-        assert yk_list_all is not None, "HAS_YKMAN guaranteed True in __init__"
+        assert yk_list_all is not None, "has_ykman guaranteed True in __init__"
         assert SmartCardConnection is not None
         assert PivSession is not None
 
         connection = None
         try:
             for device, device_info in yk_list_all():
-                if (
-                    self._serial_number is not None
-                    and device_info.serial != self._serial_number
-                ):
+                if self._serial_number is not None and device_info.serial != self._serial_number:
                     continue
                 connection = device.open_connection(SmartCardConnection)
                 try:
@@ -461,8 +458,8 @@ class YubiKeyPivBackend:
             if connection is not None:
                 try:
                     connection.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.debug("Failed to close connection during error handling: %s", close_err)
             raise DeviceCommunicationError(
                 device_id=self._card_id,
                 reason=f"Ошибка подключения к YubiKey: {exc}",
@@ -487,7 +484,7 @@ class YubiKeyPivBackend:
         Raises:
             SlotError: Неизвестный слот.
         """
-        assert YK_SLOT is not None, "HAS_YKMAN guaranteed True in __init__"
+        assert YK_SLOT is not None, "has_ykman guaranteed True in __init__"
         slot_int = _piv_slot_hex_to_int(slot_hex)
         slot_map: dict[int, Any] = {
             0x9A: YK_SLOT.AUTHENTICATION,
@@ -655,7 +652,8 @@ class YubiKeyPivBackend:
         try:
             cert = piv.get_certificate(yk_slot)
             pub_key = cert.public_key()
-            return cast(bytes, pub_key.public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo))
+            pub_bytes = pub_key.public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+            return cast(bytes, pub_bytes)
         except Exception as exc:
             raise SlotError(
                 device_id=self._card_id,
@@ -810,10 +808,7 @@ class YubiKeyPivBackend:
         return slots
 
     def __repr__(self) -> str:
-        return (
-            f"YubiKeyPivBackend(card_id={self._card_id!r}, "
-            f"serial={self._serial_number})"
-        )
+        return f"YubiKeyPivBackend(card_id={self._card_id!r}, serial={self._serial_number})"
 
 
 # ==============================================================================
@@ -855,9 +850,7 @@ class OpenPGPDeviceBackend:
         )
 
         self._card_id = card_id
-        self._backend = (
-            openpgp_backend if openpgp_backend is not None else _OpenPGPBackend()
-        )
+        self._backend = openpgp_backend if openpgp_backend is not None else _OpenPGPBackend()
         logger.info("OpenPGPDeviceBackend initialized: card_id=%s", card_id)
 
     # ------------------------------------------------------------------
@@ -906,7 +899,7 @@ class OpenPGPDeviceBackend:
             raise SlotError(
                 device_id="(validation)",
                 slot=0,
-                reason=(f"Неизвестный OpenPGP-слот '{slot}'. " f"Допустимые: {valid}."),
+                reason=(f"Неизвестный OpenPGP-слот '{slot}'. Допустимые: {valid}."),
             )
         return resolved
 
@@ -1047,9 +1040,7 @@ class OpenPGPDeviceBackend:
                 ),
                 required_library="N/A",
             )
-        return self._backend.generate_key_onboard(
-            self._card_id, openpgp_slot, openpgp_algo, pin
-        )
+        return self._backend.generate_key_onboard(self._card_id, openpgp_slot, openpgp_algo, pin)
 
     # ------------------------------------------------------------------
     # LIST SLOTS
@@ -1150,7 +1141,7 @@ class JavaCardRawBackend:
         card_id: str,
         applet_aid: bytes = _DEFAULT_JAVACARD_APPLET_AID,
     ) -> None:
-        if not HAS_PYSCARD:
+        if not has_pyscard:
             raise AlgorithmNotAvailableError(
                 algorithm="JavaCard (J3R200)",
                 reason=(
@@ -1254,12 +1245,12 @@ class JavaCardRawBackend:
         """
         try:
             slot_int = int(slot)
-        except ValueError:
+        except ValueError as exc:
             raise SlotError(
                 device_id="(validation)",
                 slot=0,
                 reason=(f"JavaCard slot должен быть числом, получено: '{slot}'."),
-            )
+            ) from exc
         if not 0 <= slot_int <= 255:
             raise SlotError(
                 device_id="(validation)",
@@ -1316,9 +1307,7 @@ class JavaCardRawBackend:
             slot_byte,
             len(ciphertext),
         )
-        return self._send_apdu(
-            _JC_INS_DECRYPT, p1=0x00, p2=slot_byte, data=ciphertext, pin=pin
-        )
+        return self._send_apdu(_JC_INS_DECRYPT, p1=0x00, p2=slot_byte, data=ciphertext, pin=pin)
 
     # ------------------------------------------------------------------
     # GET PUBLIC KEY
@@ -1358,9 +1347,7 @@ class JavaCardRawBackend:
             self._card_id,
             slot_byte,
         )
-        self._send_apdu(
-            _JC_INS_IMPORT_KEY, p1=0x00, p2=slot_byte, data=key_data, pin=pin
-        )
+        self._send_apdu(_JC_INS_IMPORT_KEY, p1=0x00, p2=slot_byte, data=key_data, pin=pin)
 
     # ------------------------------------------------------------------
     # GENERATE KEY
@@ -1459,9 +1446,7 @@ class JavaCardRawBackend:
             self._card_id,
             len(data),
         )
-        return self._send_apdu(
-            _JC_INS_AES_ENCRYPT, p1=0x00, p2=0x00, data=data, pin=pin
-        )
+        return self._send_apdu(_JC_INS_AES_ENCRYPT, p1=0x00, p2=0x00, data=data, pin=pin)
 
     def aes_decrypt(self, ciphertext: bytes, pin: str) -> bytes:
         """
@@ -1479,9 +1464,7 @@ class JavaCardRawBackend:
             self._card_id,
             len(ciphertext),
         )
-        return self._send_apdu(
-            _JC_INS_AES_DECRYPT, p1=0x00, p2=0x00, data=ciphertext, pin=pin
-        )
+        return self._send_apdu(_JC_INS_AES_DECRYPT, p1=0x00, p2=0x00, data=ciphertext, pin=pin)
 
     # ------------------------------------------------------------------
     # J3R200-SPECIFIC: HMAC-SHA256
@@ -1504,8 +1487,7 @@ class JavaCardRawBackend:
         """
         if len(challenge) > 255:
             raise ValueError(
-                f"HMAC challenge не должен превышать 255 байт, "
-                f"получено {len(challenge)}."
+                f"HMAC challenge не должен превышать 255 байт, получено {len(challenge)}."
             )
         logger.info(
             "JavaCard HMAC-SHA256: card=%s, challenge_len=%d",
@@ -1609,8 +1591,7 @@ def _resolve_jc_algorithm(algorithm: str) -> int:
         raise AlgorithmNotAvailableError(
             algorithm=algorithm,
             reason=(
-                f"Алгоритм '{algorithm}' не поддерживается JavaCard-бэкендом. "
-                f"Доступные: {valid}."
+                f"Алгоритм '{algorithm}' не поддерживается JavaCard-бэкендом. Доступные: {valid}."
             ),
             required_library="N/A",
         )
@@ -1753,7 +1734,7 @@ def _resolve_yk_key_type(algorithm: str) -> Any:
     Raises:
         AlgorithmNotAvailableError: Неизвестный алгоритм.
     """
-    assert YK_KEY_TYPE is not None, "HAS_YKMAN guaranteed True by caller"
+    assert YK_KEY_TYPE is not None, "has_ykman guaranteed True by caller"
     algo_map: dict[str, Any] = {
         "RSA-2048": YK_KEY_TYPE.RSA2048,
         "RSA-3072": getattr(YK_KEY_TYPE, "RSA3072", None),
@@ -1766,10 +1747,7 @@ def _resolve_yk_key_type(algorithm: str) -> Any:
         valid = ", ".join(k for k, v in algo_map.items() if v is not None)
         raise AlgorithmNotAvailableError(
             algorithm=algorithm,
-            reason=(
-                f"Алгоритм '{algorithm}' не поддерживается YubiKey PIV. "
-                f"Доступные: {valid}."
-            ),
+            reason=(f"Алгоритм '{algorithm}' не поддерживается YubiKey PIV. Доступные: {valid}."),
             required_library="yubikey-manager>=5.0.0",
         )
     return key_type

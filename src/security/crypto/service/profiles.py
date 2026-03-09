@@ -120,11 +120,11 @@ class CryptoProfile(str, Enum):
                 "Только для обратной совместимости — НЕ рекомендуется для новых систем."
             ),
             CryptoProfile.FLOPPY_BASIC: (
-                "Оптимизирован для дискет 3.5\" (1.44 MB). "
+                'Оптимизирован для дискет 3.5" (1.44 MB). '
                 "ChaCha20-Poly1305 + Ed25519 + BLAKE2s (малый overhead ключей)."
             ),
             CryptoProfile.FLOPPY_AGGRESSIVE: (
-                "Максимальная оптимизация для дискет 3.5\". "
+                'Максимальная оптимизация для дискет 3.5". '
                 "AES-128-GCM + Ed25519 + BLAKE2s (минимальный размер данных)."
             ),
             CryptoProfile.PQC_STANDARD: (

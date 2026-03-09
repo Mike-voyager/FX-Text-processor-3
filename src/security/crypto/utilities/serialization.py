@@ -86,7 +86,7 @@ def to_pem(key: bytes, key_type: str = "SYMMETRIC") -> str:
     """
     b64 = base64.b64encode(key).decode("ascii")
     # Разбиваем на строки по 64 символа
-    lines = [b64[i:i + 64] for i in range(0, len(b64), 64)]
+    lines = [b64[i : i + 64] for i in range(0, len(b64), 64)]
     header = _PEM_HEADER_TEMPLATE.format(key_type=key_type.upper())
     footer = _PEM_FOOTER_TEMPLATE.format(key_type=key_type.upper())
     return header + "\n" + "\n".join(lines) + "\n" + footer
@@ -132,7 +132,7 @@ def from_pem(pem_data: str) -> bytes:
 # ==============================================================================
 
 # Формат: [1 байт длина имени алгоритма][имя][данные ключа]
-_COMPACT_MAGIC = b"\xCF"  # Compact Format magic byte
+_COMPACT_MAGIC = b"\xcf"  # Compact Format magic byte
 
 
 def to_compact(key: bytes) -> bytes:
@@ -276,9 +276,7 @@ def serialize_key(
             header = bytes([0x04, length])
         else:
             # Длинная форма
-            len_bytes = length.to_bytes(
-                (length.bit_length() + 7) // 8, "big"
-            )
+            len_bytes = length.to_bytes((length.bit_length() + 7) // 8, "big")
             header = bytes([0x04, 0x80 | len(len_bytes)]) + len_bytes
         return header + key
 
@@ -343,12 +341,12 @@ def deserialize_key(
                 reason="Некорректный DER: ожидался OCTET STRING (0x04)",
             )
         if data[1] < 128:
-            return data[2:2 + data[1]]
+            return data[2 : 2 + data[1]]
         else:
             num_len_bytes = data[1] & 0x7F
-            length = int.from_bytes(data[2:2 + num_len_bytes], "big")
+            length = int.from_bytes(data[2 : 2 + num_len_bytes], "big")
             offset = 2 + num_len_bytes
-            return data[offset:offset + length]
+            return data[offset : offset + length]
 
     if fmt == KeyFormat.PKCS8:
         return deserialize_key(data, KeyFormat.DER, algorithm)

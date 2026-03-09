@@ -100,7 +100,9 @@ class KeyManager:
         key = deserialize_key(data, fmt, algorithm)
         logger.debug(
             "Key imported: format=%s, algorithm=%s, size=%d",
-            fmt.value, algorithm, len(key),
+            fmt.value,
+            algorithm,
+            len(key),
         )
         return key
 
@@ -124,7 +126,9 @@ class KeyManager:
         data = serialize_key(key, fmt, algorithm)
         logger.debug(
             "Key exported: format=%s, algorithm=%s, size=%d",
-            fmt.value, algorithm, len(data),
+            fmt.value,
+            algorithm,
+            len(data),
         )
         return data
 
@@ -154,9 +158,7 @@ class KeyManager:
             result: bytes = nonce + ciphertext
             return result
         except Exception as e:
-            raise EncryptionFailedError(
-                f"Key wrapping failed with {algorithm}: {e}"
-            ) from e
+            raise EncryptionFailedError(f"Key wrapping failed with {algorithm}: {e}") from e
 
     def unwrap_key(
         self,
@@ -182,9 +184,7 @@ class KeyManager:
             cipher = self._registry.create(algorithm)
             nonce_size = cipher.nonce_size
             if len(wrapped) < nonce_size + 16:
-                raise DecryptionFailedError(
-                    "Wrapped key data too short"
-                )
+                raise DecryptionFailedError("Wrapped key data too short")
             nonce = wrapped[:nonce_size]
             ciphertext = wrapped[nonce_size:]
             result: bytes = cipher.decrypt(wrapping_key, nonce, ciphertext)
@@ -192,9 +192,7 @@ class KeyManager:
         except DecryptionFailedError:
             raise
         except Exception as e:
-            raise DecryptionFailedError(
-                f"Key unwrapping failed with {algorithm}: {e}"
-            ) from e
+            raise DecryptionFailedError(f"Key unwrapping failed with {algorithm}: {e}") from e
 
     def generate_wrapping_key(self) -> bytes:
         """

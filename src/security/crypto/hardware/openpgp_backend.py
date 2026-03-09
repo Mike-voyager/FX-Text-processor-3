@@ -45,7 +45,6 @@ from enum import Enum
 from typing import Final
 
 from src.security.crypto.core.exceptions import (
-    AlgorithmNotAvailableError,
     DeviceCommunicationError,
     HardwareDeviceError,
     InvalidKeyError,
@@ -84,12 +83,12 @@ _CRT_AUTH: Final[bytes] = bytes([0xA4, 0x00])
 # ==============================================================================
 
 _INS_VERIFY: Final[int] = 0x20
-_INS_PSO: Final[int] = 0x2A          # PERFORM SECURITY OPERATION
-_INS_INT_AUTH: Final[int] = 0x88     # INTERNAL AUTHENTICATE
+_INS_PSO: Final[int] = 0x2A  # PERFORM SECURITY OPERATION
+_INS_INT_AUTH: Final[int] = 0x88  # INTERNAL AUTHENTICATE
 _INS_GEN_KEYPAIR: Final[int] = 0x47  # GENERATE ASYMMETRIC KEY PAIR
 _INS_PUT_DATA_EVEN: Final[int] = 0xDA  # PUT DATA (even INS, for DOs ≤ 0xFF)
-_INS_PUT_DATA_ODD: Final[int] = 0xDB   # PUT DATA (odd INS, for private keys / 4D)
-_INS_GET_DATA: Final[int] = 0xCA    # GET DATA
+_INS_PUT_DATA_ODD: Final[int] = 0xDB  # PUT DATA (odd INS, for private keys / 4D)
+_INS_GET_DATA: Final[int] = 0xCA  # GET DATA
 
 # PSO P1/P2 combinations
 _PSO_SIGN_P1: Final[int] = 0x9E
@@ -102,7 +101,7 @@ _PSO_DEC_P2: Final[int] = 0x86
 # ==============================================================================
 
 _SW_SUCCESS: Final[int] = 0x9000
-_SW_PIN_WRONG_MASK: Final[int] = 0x63C0   # 0x63Cx → x retries left
+_SW_PIN_WRONG_MASK: Final[int] = 0x63C0  # 0x63Cx → x retries left
 _SW_PIN_BLOCKED: Final[int] = 0x6983
 _SW_SECURITY_NOT_SATISFIED: Final[int] = 0x6982
 _SW_INCORRECT_DATA: Final[int] = 0x6A80
@@ -111,16 +110,16 @@ _SW_INCORRECT_DATA: Final[int] = 0x6A80
 # PIN REFERENCES
 # ==============================================================================
 
-_PIN_USER_SIGN: Final[int] = 0x81    # PW1 — unlocks Sign slot only
-_PIN_USER_OTHER: Final[int] = 0x82   # PW1 mode 2 — unlocks Enc/Auth slots
-_PIN_ADMIN: Final[int] = 0x83        # PW3 — administrative operations
+_PIN_USER_SIGN: Final[int] = 0x81  # PW1 — unlocks Sign slot only
+_PIN_USER_OTHER: Final[int] = 0x82  # PW1 mode 2 — unlocks Enc/Auth slots
+_PIN_ADMIN: Final[int] = 0x83  # PW3 — administrative operations
 
 # ==============================================================================
 # ALGORITHM IDS (OpenPGP card spec §4.3.3.6)
 # ==============================================================================
 
 _ALGO_RSA: Final[int] = 0x01
-_ALGO_ECDH: Final[int] = 0x12   # X25519 / ECDH
+_ALGO_ECDH: Final[int] = 0x12  # X25519 / ECDH
 _ALGO_ED25519: Final[int] = 0x16
 
 # Algorithm OIDs (DER-encoded OID body as per OpenPGP spec)
@@ -312,7 +311,7 @@ def _parse_tlv(data: bytes) -> dict[int, bytes]:
             length = (data[idx] << 8) | data[idx + 1]
             idx += 2
         # Value
-        result[tag] = data[idx: idx + length]
+        result[tag] = data[idx : idx + length]
         idx += length
     return result
 
@@ -344,8 +343,7 @@ def _build_algo_attr_rsa(key_size: int) -> bytes:
     """
     if key_size not in (2048, 3072, 4096):
         raise InvalidKeyError(
-            f"Неподдерживаемый размер RSA-ключа: {key_size}. "
-            "Допустимые: 2048, 3072, 4096.",
+            f"Неподдерживаемый размер RSA-ключа: {key_size}. Допустимые: 2048, 3072, 4096.",
             algorithm=f"RSA-{key_size}",
         )
     # exponent_bits=17 means 65537 (standard); import_format=0x00 (standard)
@@ -378,9 +376,7 @@ def _algo_name_from_attr(attr_bytes: bytes) -> str:
     return f"AlgoID-0x{algo_id:02X}"
 
 
-def _extract_public_key_from_response(
-    response: bytes, slot: OpenPGPSlot
-) -> bytes:
+def _extract_public_key_from_response(response: bytes, slot: OpenPGPSlot) -> bytes:
     """
     Extract raw public key material from a GENERATE KEY PAIR (0x47) response.
 
@@ -442,8 +438,7 @@ def _check_sw(sw: int, operation: str, card_id: str) -> None:
         retries = sw & 0x0F
         raise PINError(
             card_id,
-            f"Неверный PIN (операция: {operation}). "
-            f"Осталось попыток: {retries}.",
+            f"Неверный PIN (операция: {operation}). Осталось попыток: {retries}.",
             retries_remaining=retries,
         )
     if sw == _SW_SECURITY_NOT_SATISFIED:
@@ -452,8 +447,7 @@ def _check_sw(sw: int, operation: str, card_id: str) -> None:
             f"Для операции '{operation}' необходима верификация PIN.",
         )
     raise HardwareDeviceError(
-        f"Операция '{operation}' на устройстве '{card_id}' "
-        f"завершилась ошибкой: SW=0x{sw:04X}.",
+        f"Операция '{operation}' на устройстве '{card_id}' завершилась ошибкой: SW=0x{sw:04X}.",
         device_id=card_id,
         context={"sw": f"0x{sw:04X}", "operation": operation},
     )
@@ -741,9 +735,7 @@ class OpenPGPBackend:
         aid_val = app_data.get(0x4F, b"")
         manufacturer_id = aid_val[7:9] if len(aid_val) >= 9 else b""
         serial_number = aid_val[9:13] if len(aid_val) >= 13 else b""
-        app_version: tuple[int, int] = (
-            (aid_val[6], aid_val[7]) if len(aid_val) >= 8 else (0, 0)
-        )
+        app_version: tuple[int, int] = (aid_val[6], aid_val[7]) if len(aid_val) >= 8 else (0, 0)
 
         # pw_status[4] = PW1 retries; pw_status[6] = PW3 retries
         pw1_remaining = pw_status[4] if len(pw_status) > 4 else 3
@@ -1056,7 +1048,9 @@ def _read_algo_attr(
     if result.sw != _SW_SUCCESS:
         logger.debug(
             "GET DATA 0x%02X returned SW=0x%04X on '%s', skipping",
-            do_tag, result.sw, card_id,
+            do_tag,
+            result.sw,
+            card_id,
         )
         return "Unknown"
     return _algo_name_from_attr(result.data)
@@ -1092,7 +1086,9 @@ def _read_existing_public_key(
     if result.sw != _SW_SUCCESS:
         logger.debug(
             "Public key read for slot '%s' on '%s': SW=0x%04X (slot may be empty)",
-            slot.value, card_id, result.sw,
+            slot.value,
+            card_id,
+            result.sw,
         )
         return b""
     try:
@@ -1126,12 +1122,6 @@ def _build_algo_attr_for(algorithm: OpenPGPAlgorithm) -> bytes:
             return _build_algo_attr_rsa(3072)
         case OpenPGPAlgorithm.RSA4096:
             return _build_algo_attr_rsa(4096)
-        case _:
-            raise AlgorithmNotAvailableError(
-                algorithm=algorithm.value,
-                reason=f"Алгоритм '{algorithm.value}' не поддерживается OpenPGP-бэкендом.",
-                required_library="N/A",
-            )
 
 
 # ==============================================================================

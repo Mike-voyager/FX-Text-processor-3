@@ -44,7 +44,7 @@ class MockNoReadersException(Exception):
 def mock_reader_env() -> Generator[tuple[MagicMock, MagicMock], None, None]:
     """Создает изолированное окружение с моками для pyscard."""
     with (
-        patch("src.security.crypto.hardware.apdu_transport.HAS_PYSCARD", True),
+        patch("src.security.crypto.hardware.apdu_transport.has_pyscard", True),
         patch("src.security.crypto.hardware.apdu_transport.sc_readers") as mock_readers,
         patch(
             "src.security.crypto.hardware.apdu_transport._CardConnection"
@@ -110,7 +110,7 @@ class TestApduTransportConnection:
 
     def test_pyscard_not_installed(self) -> None:
         """Ошибка инициализации при отсутствии pyscard."""
-        with patch("src.security.crypto.hardware.apdu_transport.HAS_PYSCARD", False):
+        with patch("src.security.crypto.hardware.apdu_transport.has_pyscard", False):
             with pytest.raises(DeviceCommunicationError, match="pyscard is required"):
                 ApduTransport("Test Reader 0")
 
@@ -187,7 +187,8 @@ class TestApduTransportConnection:
         transport = ApduTransport("Test Reader 0")
         transport.connect()
 
-        transport.disconnect()
+        with caplog.at_level("DEBUG", logger="src.security.crypto.hardware.apdu_transport"):
+            transport.disconnect()
         assert not transport._connected
         assert "disconnect error (ignored)" in caplog.text
 
@@ -277,10 +278,10 @@ class TestApduTransportCommands:
             assert resp.data == b"\x01\x02"
             assert conn.transmit.call_count == 2
 
-            call1 = conn.transmit.call_args_list
+            call1 = conn.transmit.call_args_list[0][0][0]
             assert call1[:5] == [0x10, 0xDA, 0x01, 0x02, 255]
 
-            call2 = conn.transmit.call_args_list[1]
+            call2 = conn.transmit.call_args_list[1][0][0]
             assert call2[:5] == [0x00, 0xDA, 0x01, 0x02, 45]
             assert call2[-1] == 16
 
@@ -323,22 +324,22 @@ class TestApduTransportCommands:
         with ApduTransport("Test Reader 0", use_extended_apdu=True) as t:
             # 1. data=True, le=0
             t._send_extended(0x00, 0xDA, 0x00, 0x00, b"\x01" * 300, 0)
-            call1 = conn.transmit.call_args
+            call1 = conn.transmit.call_args[0][0]
             assert call1[-2:] != [0x00, 0x00]  # No Le appended
 
             # 2. data=True, le>0
             t._send_extended(0x00, 0xDA, 0x00, 0x00, b"\x01" * 300, 500)
-            call2 = conn.transmit.call_args
+            call2 = conn.transmit.call_args[0][0]
             assert call2[-2:] == [0x01, 0xF4]  # Le=500
 
             # 3. data=False, le>0
             t._send_extended(0x00, 0xDA, 0x00, 0x00, b"", 300)
-            call3 = conn.transmit.call_args
+            call3 = conn.transmit.call_args[0][0]
             assert call3[-3:] == [0x00, 0x01, 0x2C]
 
             # 4. data=False, le=0
             t._send_extended(0x00, 0xDA, 0x00, 0x00, b"", 0)
-            call4 = conn.transmit.call_args
+            call4 = conn.transmit.call_args[0][0]
             assert call4 == [0x00, 0xDA, 0x00, 0x00]
 
     def test_send_extended_more_data(
@@ -409,7 +410,7 @@ class TestApduTransportHighLevel:
 
         with ApduTransport("Test Reader 0") as t:
             t.verify_pin("123456", 0x81)
-            call_args = conn.transmit.call_args
+            call_args = conn.transmit.call_args[0][0]
             assert call_args == [0x00, 0x20, 0x00, 0x81, 0x06] + list(b"123456")
 
     def test_verify_pin_wrong_retries(
@@ -499,7 +500,7 @@ class TestApduTransportHighLevel:
             assert t.get_pin_retries(0x81) == 3
 
             # пустой VERIFY не имеет Lc=0 или Le=0 в конце списка APDU!
-            call_args = conn.transmit.call_args
+            call_args = conn.transmit.call_args[0][0]
             assert call_args == [0x00, 0x20, 0x00, 0x81]
 
     def test_get_data_success(
@@ -511,7 +512,7 @@ class TestApduTransportHighLevel:
 
         with ApduTransport("Test Reader 0") as t:
             assert t.get_data(0x006E) == b"\xab\xcd"
-            call_args = conn.transmit.call_args
+            call_args = conn.transmit.call_args[0][0]
             assert call_args == [0x00, 0xCA, 0x00, 0x6E, 0x00]
 
     def test_get_data_not_found(
@@ -644,7 +645,7 @@ class TestModuleFunctions:
 
     def test_list_readers_no_pyscard(self) -> None:
         """Безопасный пустой возврат без pyscard."""
-        with patch("src.security.crypto.hardware.apdu_transport.HAS_PYSCARD", False):
+        with patch("src.security.crypto.hardware.apdu_transport.has_pyscard", False):
             assert list_readers() == []
 
     def test_list_readers_exception(self) -> None:
@@ -657,9 +658,15 @@ class TestModuleFunctions:
 
     def test_find_reader_no_readers_exception(self) -> None:
         """Нет доступных ридеров (NoReadersException)."""
-        with patch(
-            "src.security.crypto.hardware.apdu_transport.sc_readers",
-            side_effect=MockNoReadersException("No readers"),
+        with (
+            patch(
+                "src.security.crypto.hardware.apdu_transport.sc_readers",
+                side_effect=MockNoReadersException("No readers"),
+            ),
+            patch(
+                "src.security.crypto.hardware.apdu_transport.NoReadersException",
+                MockNoReadersException,
+            ),
         ):
             transport = ApduTransport("Test Reader 0")
             with pytest.raises(
@@ -685,7 +692,7 @@ class TestModuleFunctions:
 
     def test_open_transport(self) -> None:
         """Фабрика неподключенного транспорта."""
-        with patch("src.security.crypto.hardware.apdu_transport.HAS_PYSCARD", True):
+        with patch("src.security.crypto.hardware.apdu_transport.has_pyscard", True):
             transport = open_transport("Test", protocol="T0", use_extended_apdu=True)
             assert not transport._connected
             assert transport._protocol == "T0"
@@ -708,9 +715,9 @@ class TestModuleFunctions:
             },
         ):
             importlib.reload(apdu_transport)
-            assert apdu_transport.HAS_PYSCARD is False
+            assert apdu_transport.has_pyscard is False
             assert apdu_transport._CardConnection is None
 
         # Восстанавливаем оригинальное состояние
         importlib.reload(apdu_transport)
-        assert apdu_transport.HAS_PYSCARD is True
+        assert apdu_transport.has_pyscard is True

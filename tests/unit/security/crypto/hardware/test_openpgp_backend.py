@@ -17,7 +17,6 @@ from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-
 from src.security.crypto.core.exceptions import (
     AlgorithmNotAvailableError,
     DeviceCommunicationError,
@@ -27,14 +26,8 @@ from src.security.crypto.core.exceptions import (
     PINError,
 )
 from src.security.crypto.hardware.openpgp_backend import (
-    OPENPGP_AID,
-    OpenPGPAlgorithm,
-    OpenPGPBackend,
-    OpenPGPCardInfo,
-    OpenPGPPublicKeys,
-    OpenPGPSlot,
-    _ALGO_ED25519,
     _ALGO_ECDH,
+    _ALGO_ED25519,
     _ALGO_RSA,
     _OID_ED25519,
     _OID_X25519,
@@ -45,6 +38,12 @@ from src.security.crypto.hardware.openpgp_backend import (
     _SW_PIN_WRONG_MASK,
     _SW_SECURITY_NOT_SATISFIED,
     _SW_SUCCESS,
+    OPENPGP_AID,
+    OpenPGPAlgorithm,
+    OpenPGPBackend,
+    OpenPGPCardInfo,
+    OpenPGPPublicKeys,
+    OpenPGPSlot,
     _algo_name_from_attr,
     _build_algo_attr_ed25519,
     _build_algo_attr_for,
@@ -366,9 +365,7 @@ class TestBuildEd25519PrivateKeyTl:
         assert tl[:2] == bytes([0xB6, 0x00])
 
     def test_encrypt_slot_crt_prefix(self) -> None:
-        tl = OpenPGPBackend.build_ed25519_private_key_tl(
-            ED25519_SEED, OpenPGPSlot.ENCRYPT
-        )
+        tl = OpenPGPBackend.build_ed25519_private_key_tl(ED25519_SEED, OpenPGPSlot.ENCRYPT)
         assert tl[:2] == bytes([0xB8, 0x00])
 
     def test_wrong_seed_length_raises(self) -> None:
@@ -490,9 +487,7 @@ class TestOpenPGPBackendDecrypt:
             backend.decrypt(CARD_ID, CIPHERTEXT, USER_PIN)
         # PIN VERIFY is first call; check P2 = 0x82
         first_call = mock_transport.send_apdu.call_args_list[0]
-        p2_value = (
-            first_call.kwargs.get("p2") if first_call.kwargs else first_call.args[3]
-        )
+        p2_value = first_call.kwargs.get("p2") if first_call.kwargs else first_call.args[3]
         assert p2_value == _PIN_USER_OTHER
 
 
@@ -607,9 +602,7 @@ class TestOpenPGPBackendGetCardInfo:
         aid_tlv = _build_tlv(0x4F, aid)
         return _build_tlv(0x6E, aid_tlv)
 
-    def test_returns_card_info(
-        self, backend: OpenPGPBackend, mock_transport: MagicMock
-    ) -> None:
+    def test_returns_card_info(self, backend: OpenPGPBackend, mock_transport: MagicMock) -> None:
         app_data = self._build_app_related_data()
         pw_status = bytes([0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x03])
         mock_transport.send_apdu.side_effect = [
@@ -669,9 +662,7 @@ class TestOpenPGPBackendImportKey:
 
         # Second call is PUT DATA (INS=0xDB)
         second_call = mock_transport.send_apdu.call_args_list[1]
-        ins_value = (
-            second_call.kwargs.get("ins") if second_call.kwargs else second_call.args[1]
-        )
+        ins_value = second_call.kwargs.get("ins") if second_call.kwargs else second_call.args[1]
         assert ins_value == 0xDB
 
     @pytest.mark.security
@@ -768,9 +759,7 @@ class TestOpenPGPBackendGenerateKeyOnboard:
             "src.security.crypto.hardware.openpgp_backend.ApduTransport",
             return_value=mock_transport,
         ):
-            result = backend.generate_key_onboard(
-                CARD_ID, OpenPGPSlot.SIGN, algorithm, ADMIN_PIN
-            )
+            result = backend.generate_key_onboard(CARD_ID, OpenPGPSlot.SIGN, algorithm, ADMIN_PIN)
         assert isinstance(result, bytes)
         assert len(result) > 0
 

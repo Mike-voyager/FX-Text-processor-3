@@ -165,10 +165,7 @@ class SessionHandshake:
         if not self.initiator_ephemeral_public:
             raise ValueError("initiator_ephemeral_public cannot be empty")
         if len(self.hkdf_salt) != HKDF_SALT_SIZE:
-            raise ValueError(
-                f"hkdf_salt must be {HKDF_SALT_SIZE} bytes, "
-                f"got {len(self.hkdf_salt)}"
-            )
+            raise ValueError(f"hkdf_salt must be {HKDF_SALT_SIZE} bytes, got {len(self.hkdf_salt)}")
 
 
 @dataclass
@@ -555,9 +552,7 @@ class PFSSession:
                 handshake_completed=True,  # Bob готов после accept
             )
 
-            self._logger.info(
-                "Accepted session %s as responder (Bob)", handshake.session_id
-            )
+            self._logger.info("Accepted session %s as responder (Bob)", handshake.session_id)
 
             return state, response
 
@@ -589,21 +584,16 @@ class PFSSession:
         """
         if state.session_id != response.session_id:
             raise ValueError(
-                f"Session ID mismatch: expected {state.session_id}, "
-                f"got {response.session_id}"
+                f"Session ID mismatch: expected {state.session_id}, got {response.session_id}"
             )
 
         if state.handshake_completed:
-            raise ProtocolError(
-                f"Handshake already completed for session {state.session_id}"
-            )
+            raise ProtocolError(f"Handshake already completed for session {state.session_id}")
 
         state.remote_ephemeral_public = response.responder_ephemeral_public
         state.handshake_completed = True
 
-        self._logger.info(
-            "Completed handshake for session %s (Alice)", state.session_id
-        )
+        self._logger.info("Completed handshake for session %s (Alice)", state.session_id)
 
     def send_message(
         self,
@@ -647,8 +637,7 @@ class PFSSession:
 
         if state.send_ratchet_count >= MAX_RATCHET_STEPS:
             raise ProtocolError(
-                f"Max ratchet steps exceeded ({MAX_RATCHET_STEPS}). "
-                f"Create a new session."
+                f"Max ratchet steps exceeded ({MAX_RATCHET_STEPS}). Create a new session."
             )
 
         message_key = bytearray()
@@ -731,18 +720,14 @@ class PFSSession:
             ProtocolError: Сообщение слишком далеко впереди или replay
         """
         if not state.handshake_completed:
-            raise ProtocolError(
-                f"Handshake not completed for session {state.session_id}"
-            )
+            raise ProtocolError(f"Handshake not completed for session {state.session_id}")
 
         message_key = bytearray()
         try:
             # 1. Check if DH ratchet needed
             if encrypted.sender_ephemeral_public != state.remote_ephemeral_public:
                 # Новый ephemeral public key от отправителя → DH ratchet
-                self._perform_dh_ratchet_receive(
-                    state, encrypted.sender_ephemeral_public
-                )
+                self._perform_dh_ratchet_receive(state, encrypted.sender_ephemeral_public)
 
             # 2. Replay protection
             expected_count = state.recv_ratchet_count + 1
@@ -767,12 +752,8 @@ class PFSSession:
 
                 for i in range(skip_count):
                     skipped_idx = expected_count + i
-                    skipped_key_bytes = self._derive_message_key(
-                        bytes(state.recv_chain_key)
-                    )
-                    state.skipped_message_keys[skipped_idx] = bytearray(
-                        skipped_key_bytes
-                    )
+                    skipped_key_bytes = self._derive_message_key(bytes(state.recv_chain_key))
+                    state.skipped_message_keys[skipped_idx] = bytearray(skipped_key_bytes)
                     new_ck = self._ratchet_chain_key(bytes(state.recv_chain_key))
                     self._secure_erase(state.recv_chain_key)
                     state.recv_chain_key = bytearray(new_ck)
@@ -782,9 +763,7 @@ class PFSSession:
             # 4. Get message key
             if encrypted.send_ratchet_count in state.skipped_message_keys:
                 # Previously skipped message
-                message_key = state.skipped_message_keys.pop(
-                    encrypted.send_ratchet_count
-                )
+                message_key = state.skipped_message_keys.pop(encrypted.send_ratchet_count)
             else:
                 # Current message
                 mk_bytes = self._derive_message_key(bytes(state.recv_chain_key))
@@ -804,9 +783,7 @@ class PFSSession:
             )
 
             # 6. Update counters
-            state.recv_ratchet_count = max(
-                state.recv_ratchet_count, encrypted.send_ratchet_count
-            )
+            state.recv_ratchet_count = max(state.recv_ratchet_count, encrypted.send_ratchet_count)
             state.dh_recv_count = max(state.dh_recv_count, encrypted.dh_send_count)
 
             self._logger.debug(
@@ -878,9 +855,7 @@ class PFSSession:
     # PRIVATE METHODS
     # ==========================================================================
 
-    def _derive_initial_chain_keys(
-        self, shared_secret: bytes, salt: bytes
-    ) -> tuple[bytes, bytes]:
+    def _derive_initial_chain_keys(self, shared_secret: bytes, salt: bytes) -> tuple[bytes, bytes]:
         """
         Вывести начальные chain keys из shared secret.
 
@@ -940,9 +915,7 @@ class PFSSession:
             shared_secret = bytearray(ss_bytes)
 
             # 3. Derive new chain keys
-            new_send_ck, new_recv_ck = self._derive_dh_ratchet_keys(
-                bytes(shared_secret)
-            )
+            new_send_ck, new_recv_ck = self._derive_dh_ratchet_keys(bytes(shared_secret))
 
             # 4. Secure erase old keys
             self._secure_erase(state.send_chain_key)
@@ -965,9 +938,7 @@ class PFSSession:
         finally:
             self._secure_erase(shared_secret)
 
-    def _perform_dh_ratchet_receive(
-        self, state: SessionState, new_remote_public: bytes
-    ) -> None:
+    def _perform_dh_ratchet_receive(self, state: SessionState, new_remote_public: bytes) -> None:
         """
         Выполнить DH ratchet step при получении нового remote ephemeral key.
 
@@ -983,9 +954,7 @@ class PFSSession:
             shared_secret = bytearray(ss_bytes)
 
             # 2. Derive new chain keys (inverted for receiver)
-            new_send_ck, new_recv_ck = self._derive_dh_ratchet_keys(
-                bytes(shared_secret)
-            )
+            new_send_ck, new_recv_ck = self._derive_dh_ratchet_keys(bytes(shared_secret))
 
             # 3. Secure erase old keys
             self._secure_erase(state.send_chain_key)
@@ -1027,9 +996,7 @@ class PFSSession:
         if len(state.skipped_message_keys) > MAX_SKIPPED_CACHE_SIZE:
             # Удалить самые старые ключи
             sorted_keys = sorted(state.skipped_message_keys.keys())
-            keys_to_remove = sorted_keys[
-                : len(state.skipped_message_keys) - MAX_SKIPPED_CACHE_SIZE
-            ]
+            keys_to_remove = sorted_keys[: len(state.skipped_message_keys) - MAX_SKIPPED_CACHE_SIZE]
 
             for key in keys_to_remove:
                 removed_key = state.skipped_message_keys.pop(key)

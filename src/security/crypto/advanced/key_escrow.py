@@ -299,14 +299,10 @@ class DualKeyEscrow:
             )
 
             # 3. Wrap data key for user
-            user_wrapped = self._wrap_key(
-                bytes(data_key), user_public_key, HKDF_INFO_USER
-            )
+            user_wrapped = self._wrap_key(bytes(data_key), user_public_key, HKDF_INFO_USER)
 
             # 4. Wrap data key for escrow agent
-            escrow_wrapped = self._wrap_key(
-                bytes(data_key), escrow_public_key, HKDF_INFO_ESCROW
-            )
+            escrow_wrapped = self._wrap_key(bytes(data_key), escrow_public_key, HKDF_INFO_ESCROW)
 
             logger.debug("Encrypted with escrow: plaintext_size=%d", len(plaintext))
 
@@ -445,9 +441,7 @@ class DualKeyEscrow:
         except (ValueError, InvalidKeyError, DecryptionError):
             raise
         except Exception as exc:
-            raise DecryptionError(
-                f"Escrow decryption failed ({path_name} path): {exc}"
-            ) from exc
+            raise DecryptionError(f"Escrow decryption failed ({path_name} path): {exc}") from exc
         finally:
             self._secure_erase(data_key)
 
@@ -482,9 +476,7 @@ class DualKeyEscrow:
             )
 
             hkdf_salt = secrets.token_bytes(HKDF_SALT_SIZE)
-            wrapping_key = bytearray(
-                self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info)
-            )
+            wrapping_key = bytearray(self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info))
 
             ciphertext, nonce = self._cipher.encrypt(
                 key=bytes(wrapping_key),
@@ -533,9 +525,7 @@ class DualKeyEscrow:
             )
 
             hkdf_salt = wrapped.get("hkdf_salt", b"")
-            wrapping_key = bytearray(
-                self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info)
-            )
+            wrapping_key = bytearray(self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info))
 
             data_key = self._cipher.decrypt(
                 key=bytes(wrapping_key),

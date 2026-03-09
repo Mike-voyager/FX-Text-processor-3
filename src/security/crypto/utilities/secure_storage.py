@@ -255,9 +255,7 @@ class SecureStorage:
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         except ImportError as e:
-            raise CryptoError(
-                "cryptography library required for SecureStorage"
-            ) from e
+            raise CryptoError("cryptography library required for SecureStorage") from e
 
         nonce = os.urandom(_NONCE_SIZE)
         cipher = AESGCM(self._master_key)
@@ -269,14 +267,10 @@ class SecureStorage:
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         except ImportError as e:
-            raise CryptoError(
-                "cryptography library required for SecureStorage"
-            ) from e
+            raise CryptoError("cryptography library required for SecureStorage") from e
 
         if len(data) < _NONCE_SIZE + 16:
-            raise DecryptionFailedError(
-                "Data too short for AES-256-GCM"
-            )
+            raise DecryptionFailedError("Data too short for AES-256-GCM")
 
         nonce = data[:_NONCE_SIZE]
         ciphertext = data[_NONCE_SIZE:]
@@ -285,9 +279,7 @@ class SecureStorage:
             cipher = AESGCM(self._master_key)
             return cipher.decrypt(nonce, ciphertext, None)
         except Exception as e:
-            raise DecryptionFailedError(
-                "Failed to decrypt keystore"
-            ) from e
+            raise DecryptionFailedError("Failed to decrypt keystore") from e
 
     def _save_to_disk(self) -> None:
         """Атомарная запись хранилища на диск."""
@@ -333,6 +325,4 @@ class SecureStorage:
         try:
             self._store = json.loads(plaintext.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise CryptoError(
-                f"Failed to parse keystore data: {e}"
-            ) from e
+            raise CryptoError(f"Failed to parse keystore data: {e}") from e

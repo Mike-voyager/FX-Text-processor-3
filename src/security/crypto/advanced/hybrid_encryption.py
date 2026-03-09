@@ -214,12 +214,8 @@ class HybridEncryption:
         registry = AlgorithmRegistry.get_instance()
 
         try:
-            self._kex: KeyExchangeProtocol = registry.create(
-                config.kex_algorithm
-            )
-            self._cipher: SymmetricCipherProtocol = registry.create(
-                config.symmetric_algorithm
-            )
+            self._kex: KeyExchangeProtocol = registry.create(config.kex_algorithm)
+            self._cipher: SymmetricCipherProtocol = registry.create(config.symmetric_algorithm)
         except KeyError as exc:
             raise AlgorithmNotAvailableError(
                 algorithm=config.kex_algorithm,
@@ -337,8 +333,7 @@ class HybridEncryption:
             )
 
             self._logger.debug(
-                f"Encrypted: plaintext_size={len(plaintext)}, "
-                f"ciphertext_size={len(ciphertext)}"
+                f"Encrypted: plaintext_size={len(plaintext)}, ciphertext_size={len(ciphertext)}"
             )
 
             return {
@@ -349,15 +344,11 @@ class HybridEncryption:
             }
 
         except ValueError as exc:
-            raise InvalidKeyError(
-                f"Invalid recipient public key: {exc}"
-            ) from exc
+            raise InvalidKeyError(f"Invalid recipient public key: {exc}") from exc
         except (InvalidKeyError, EncryptionError):
             raise
         except Exception as exc:
-            raise EncryptionError(
-                f"Hybrid encryption failed: {exc}"
-            ) from exc
+            raise EncryptionError(f"Hybrid encryption failed: {exc}") from exc
         finally:
             self._secure_erase(bytearray(ephemeral_private))
             self._secure_erase(bytearray(shared_secret))
@@ -422,15 +413,11 @@ class HybridEncryption:
             return plaintext
 
         except ValueError as exc:
-            raise InvalidKeyError(
-                f"Invalid recipient private key: {exc}"
-            ) from exc
+            raise InvalidKeyError(f"Invalid recipient private key: {exc}") from exc
         except (InvalidKeyError, DecryptionError):
             raise
         except Exception as exc:
-            raise DecryptionError(
-                f"Hybrid decryption failed: {exc}"
-            ) from exc
+            raise DecryptionError(f"Hybrid decryption failed: {exc}") from exc
         finally:
             self._secure_erase(bytearray(shared_secret))
             self._secure_erase(bytearray(symmetric_key))
@@ -439,9 +426,7 @@ class HybridEncryption:
     # PRIVATE METHODS
     # ==========================================================================
 
-    def _derive_symmetric_key(
-        self, shared_secret: bytes, salt: bytes
-    ) -> bytes:
+    def _derive_symmetric_key(self, shared_secret: bytes, salt: bytes) -> bytes:
         """
         Вывести symmetric key из shared secret используя HKDF-SHA256.
 
@@ -460,9 +445,7 @@ class HybridEncryption:
         )
         return hkdf.derive(shared_secret)
 
-    def _validate_encrypted_data(
-        self, encrypted_data: Dict[str, bytes]
-    ) -> None:
+    def _validate_encrypted_data(self, encrypted_data: Dict[str, bytes]) -> None:
         """
         Проверить структуру encrypted_data.
 
@@ -473,9 +456,7 @@ class HybridEncryption:
         missing = required_fields - set(encrypted_data.keys())
 
         if missing:
-            raise ValueError(
-                f"Missing required fields in encrypted_data: {missing}"
-            )
+            raise ValueError(f"Missing required fields in encrypted_data: {missing}")
 
         for field_name in required_fields:
             if not encrypted_data[field_name]:
@@ -527,15 +508,10 @@ def create_hybrid_cipher(
         >>> cipher = create_hybrid_cipher("pqc_standard")
     """
     if preset not in PRESETS:
-        raise ValueError(
-            f"Unknown preset '{preset}'. "
-            f"Available: {list(PRESETS.keys())}"
-        )
+        raise ValueError(f"Unknown preset '{preset}'. Available: {list(PRESETS.keys())}")
 
     config = PRESETS[preset]
-    logger.debug(
-        f"Creating hybrid cipher with preset '{preset}': {config.description}"
-    )
+    logger.debug(f"Creating hybrid cipher with preset '{preset}': {config.description}")
     return HybridEncryption(config)
 
 

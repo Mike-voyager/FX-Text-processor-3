@@ -226,6 +226,11 @@ reportUnnecessaryIsInstance = false
 reportPossiblyUnboundVariable = false
 # Partially typed third-party libs (pycryptodome)
 reportUnknownMemberType = false
+# UPPERCASE optional dependency aliases (YK_SLOT, YK_KEY_TYPE, etc.) reassigned in except blocks
+reportConstantRedefinition = false
+# Untyped third-party libs (pyscard, ykman) return Unknown types
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
 
 
 

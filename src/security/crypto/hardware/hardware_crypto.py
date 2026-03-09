@@ -100,18 +100,16 @@ _PrivateKeyType = Union[rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey]
 # ==============================================================================
 
 try:
-    from smartcard.CardConnection import CardConnection as _CardConnection
     from smartcard.Exceptions import CardConnectionException, NoCardException
     from smartcard.System import readers as sc_readers
 
-    HAS_PYSCARD = True
+    has_pyscard = True
     logger.debug("pyscard detected, smartcard operations available")
 except ImportError:
     sc_readers = None
-    _CardConnection = None
     CardConnectionException = None
     NoCardException = None
-    HAS_PYSCARD = False
+    has_pyscard = False
     logger.debug("pyscard not installed. Install: pip install pyscard>=2.0.0")
 
 try:
@@ -128,19 +126,17 @@ try:
         PivSession,
     )
 
-    HAS_YKMAN = True
+    has_ykman = True
     logger.debug("yubikey-manager detected, YubiKey operations available")
 except ImportError:
     yk_list_all = None  # type: ignore[assignment]
-    PivSession = None  # type: ignore[assignment, misc]
-    YK_SLOT = None  # type: ignore[assignment, misc]
-    YK_KEY_TYPE = None  # type: ignore[assignment, misc]
-    YK_CAPABILITY = None  # type: ignore[assignment, misc]
-    YK_TRANSPORT = None  # type: ignore[assignment, misc]
-    HAS_YKMAN = False
-    logger.debug(
-        "yubikey-manager not installed. Install: pip install yubikey-manager>=5.0.0"
-    )
+    PivSession = None  # type: ignore[misc, assignment]
+    YK_SLOT = None  # type: ignore[misc, assignment]
+    YK_KEY_TYPE = None  # type: ignore[misc, assignment]
+    YK_CAPABILITY = None  # type: ignore[misc, assignment]
+    YK_TRANSPORT = None  # type: ignore[misc, assignment]
+    has_ykman = False
+    logger.debug("yubikey-manager not installed. Install: pip install yubikey-manager>=5.0.0")
 
 
 # ==============================================================================
@@ -606,9 +602,7 @@ def _detect_card_profile(reader: Any, reader_name: str) -> CardProfile:
             reader_name,
             atr_bytes.hex().upper(),
         )
-        card_type: SmartcardType = (
-            "openpgp" if "openpgp" in reader_name.lower() else "piv"
-        )
+        card_type: SmartcardType = "openpgp" if "openpgp" in reader_name.lower() else "piv"
         return CardProfile(
             card_type=card_type,
             capabilities=_make_smartcard_capabilities(card_type),
@@ -616,9 +610,7 @@ def _detect_card_profile(reader: Any, reader_name: str) -> CardProfile:
         )
 
     except Exception as exc:
-        _card_exc = tuple(
-            e for e in (CardConnectionException, NoCardException) if e is not None
-        )
+        _card_exc = tuple(e for e in (CardConnectionException, NoCardException) if e is not None)
         _is_no_card = bool(_card_exc) and isinstance(exc, _card_exc)
         if _is_no_card:
             # Ридер присутствует, карта не вставлена — не ошибка
@@ -645,7 +637,7 @@ def _detect_card_profile(reader: Any, reader_name: str) -> CardProfile:
             try:
                 connection.disconnect()
             except Exception:
-                pass
+                logger.debug("Failed to disconnect smartcard connection during cleanup")
 
 
 def _make_smartcard_capabilities(card_type: SmartcardType) -> DeviceCapabilities:
@@ -696,6 +688,9 @@ def _piv_algorithms_for_fw(fw: tuple[int, int, int] | None) -> tuple[str, ...]:
     if fw is None:
         return ("RSA-2048", "ECC-P256", "ECC-P384")
     return _make_yubikey_capabilities(fw).piv_algorithms
+
+
+_ = _piv_algorithms_for_fw  # retain: backward-compat helper, suppress unused warning
 
 
 # ==============================================================================
@@ -751,8 +746,7 @@ class ExternalKeypair:
     def __init__(self, private_key_der: bytearray, public_key_der: bytes) -> None:
         if not isinstance(private_key_der, bytearray):
             raise TypeError(
-                f"private_key_der must be bytearray, "
-                f"got {type(private_key_der).__name__}"
+                f"private_key_der must be bytearray, got {type(private_key_der).__name__}"
             )
         self.private_key_der: bytearray = private_key_der
         self.public_key_der: bytes = public_key_der
@@ -850,8 +844,7 @@ class SmartcardInfo:
             raise ValueError("SmartcardInfo.card_id не может быть пустым")
         if len(self.card_id) > 128:
             raise ValueError(
-                f"SmartcardInfo.card_id слишком длинный: "
-                f"{len(self.card_id)} > 128 символов"
+                f"SmartcardInfo.card_id слишком длинный: {len(self.card_id)} > 128 символов"
             )
 
 
@@ -897,14 +890,12 @@ class HardwareCryptoManager:
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        pyscard = "✓" if HAS_PYSCARD else "✗"
-        ykman = "✓" if HAS_YKMAN else "✗"
+        pyscard = "✓" if has_pyscard else "✗"
+        ykman = "✓" if has_ykman else "✗"
         with self._global_lock:
             tracked = len(self._device_locks)
             cache_state = (
-                "fresh"
-                if self._enum_cache is not None and self._enum_cache.is_fresh
-                else "stale"
+                "fresh" if self._enum_cache is not None and self._enum_cache.is_fresh else "stale"
             )
         return (
             f"HardwareCryptoManager("
@@ -930,7 +921,7 @@ class HardwareCryptoManager:
     @staticmethod
     def _ensure_pyscard() -> None:
         """Raises: AlgorithmNotAvailableError если pyscard не установлен."""
-        if not HAS_PYSCARD:
+        if not has_pyscard:
             raise AlgorithmNotAvailableError(
                 algorithm="Smartcard (PIV/OpenPGP)",
                 reason=(
@@ -943,7 +934,7 @@ class HardwareCryptoManager:
     @staticmethod
     def _ensure_ykman() -> None:
         """Raises: AlgorithmNotAvailableError если yubikey-manager не установлен."""
-        if not HAS_YKMAN:
+        if not has_ykman:
             raise AlgorithmNotAvailableError(
                 algorithm="YubiKey (PIV)",
                 reason=(
@@ -1002,11 +993,7 @@ class HardwareCryptoManager:
         """
         # Быстрая проверка кеша под локом (только чтение)
         with self._global_lock:
-            if (
-                not force_refresh
-                and self._enum_cache is not None
-                and self._enum_cache.is_fresh
-            ):
+            if not force_refresh and self._enum_cache is not None and self._enum_cache.is_fresh:
                 if strict and self._enum_cache.errors:
                     raise DeviceCommunicationError(
                         device_id="(enumeration)",
@@ -1031,11 +1018,7 @@ class HardwareCryptoManager:
 
         # Запись кеша под локом с повторной проверкой (другой поток мог успеть)
         with self._global_lock:
-            if (
-                self._enum_cache is None
-                or not self._enum_cache.is_fresh
-                or force_refresh
-            ):
+            if self._enum_cache is None or not self._enum_cache.is_fresh or force_refresh:
                 self._enum_cache = _EnumerationCache(
                     devices=all_devices,
                     errors=all_errors,
@@ -1063,10 +1046,7 @@ class HardwareCryptoManager:
         if strict and all_errors:
             raise DeviceCommunicationError(
                 device_id="(enumeration)",
-                reason=(
-                    f"{len(all_errors)} error(s) during enumeration: "
-                    f"{all_errors[0]}"
-                ),
+                reason=(f"{len(all_errors)} error(s) during enumeration: {all_errors[0]}"),
             )
 
         logger.info("Found %d hardware device(s)", len(all_devices))
@@ -1095,7 +1075,7 @@ class HardwareCryptoManager:
         Returns:
             ``(devices, errors)`` — частичный результат при ошибках.
         """
-        if not HAS_PYSCARD or sc_readers is None:
+        if not has_pyscard or sc_readers is None:
             return [], []
 
         result: list[SmartcardInfo] = []
@@ -1108,7 +1088,7 @@ class HardwareCryptoManager:
         }
 
         try:
-            available_readers = sc_readers()
+            available_readers: list[Any] = sc_readers()
         except Exception as exc:
             logger.warning("PC/SC enumeration failed: %s", exc)
             return [], [exc]
@@ -1133,18 +1113,14 @@ class HardwareCryptoManager:
 
             card_id = f"sc_{idx}_{reader_name[:20]}"
             protocols: frozenset[str] = (
-                frozenset({"openpgp"})
-                if profile.card_type == "openpgp"
-                else frozenset({"piv"})
+                frozenset({"openpgp"}) if profile.card_type == "openpgp" else frozenset({"piv"})
             )
 
             info = SmartcardInfo(
                 card_id=card_id,
                 card_type=profile.card_type,
                 key_generation=(
-                    "onboard"
-                    if profile.capabilities.can_generate_onboard
-                    else "external"
+                    "onboard" if profile.capabilities.can_generate_onboard else "external"
                 ),
                 available_slots=(
                     tuple(sorted(PIV_VALID_SLOTS)) if profile.card_type == "piv" else ()
@@ -1196,14 +1172,11 @@ class HardwareCryptoManager:
             >>> HardwareCryptoManager._get_yubikey_protocols(dev_info_fips)
             frozenset({'piv'})
         """
-        _FALLBACK: frozenset[str] = frozenset(
-            {"piv", "openpgp", "fido2", "oath", "otp"}
-        )
+        _FALLBACK: frozenset[str] = frozenset({"piv", "openpgp", "fido2", "oath", "otp"})
 
         if YK_CAPABILITY is None or YK_TRANSPORT is None:
             logger.debug(
-                "_get_yubikey_protocols: yubikit.management недоступен, "
-                "используется fallback"
+                "_get_yubikey_protocols: yubikit.management недоступен, используется fallback"
             )
             return _FALLBACK
 
@@ -1215,9 +1188,7 @@ class HardwareCryptoManager:
 
             enabled: dict[Any, int] = config.enabled_capabilities
             if not enabled:
-                logger.debug(
-                    "_get_yubikey_protocols: enabled_capabilities пустой, fallback"
-                )
+                logger.debug("_get_yubikey_protocols: enabled_capabilities пустой, fallback")
                 return _FALLBACK
 
             # Объединяем USB + NFC: устройство поддерживает протокол если он
@@ -1238,9 +1209,7 @@ class HardwareCryptoManager:
                 "otp": int(YK_CAPABILITY.OTP),
             }
 
-            protocols: set[str] = {
-                name for name, bit in cap_map.items() if combined_caps & bit
-            }
+            protocols: set[str] = {name for name, bit in cap_map.items() if combined_caps & bit}
 
             if not protocols:
                 # Есть capabilities, но ни один из известных битов не установлен
@@ -1264,9 +1233,7 @@ class HardwareCryptoManager:
             logger.debug("_get_yubikey_protocols: AttributeError (%s), fallback", exc)
             return _FALLBACK
         except Exception as exc:
-            logger.warning(
-                "_get_yubikey_protocols: неожиданная ошибка (%s), fallback", exc
-            )
+            logger.warning("_get_yubikey_protocols: неожиданная ошибка (%s), fallback", exc)
             return _FALLBACK
 
     def _list_yubikeys(
@@ -1279,7 +1246,7 @@ class HardwareCryptoManager:
         Returns:
             ``(devices, errors)`` — частичный результат при ошибках.
         """
-        if not HAS_YKMAN or yk_list_all is None:
+        if not has_ykman or yk_list_all is None:
             return [], []
 
         result: list[SmartcardInfo] = []
@@ -1373,8 +1340,7 @@ class HardwareCryptoManager:
 
                 if key_size not in (2048, 3072, 4096):
                     raise InvalidKeyError(
-                        f"Unsupported RSA key size: {key_size}. "
-                        "Supported: 2048, 3072, 4096",
+                        f"Unsupported RSA key size: {key_size}. Supported: 2048, 3072, 4096",
                         algorithm=algorithm,
                     )
                 private_key = rsa.generate_private_key(
@@ -1509,7 +1475,7 @@ class HardwareCryptoManager:
                 )
 
             try:
-                assert PivSession is not None  # guarded by HAS_YKMAN
+                assert PivSession is not None  # guarded by has_ykman
                 piv_session = PivSession(yk_device)
                 piv_session.verify_pin(pin)
 
@@ -1613,7 +1579,7 @@ class HardwareCryptoManager:
                         algorithm="PIV",
                     )
 
-                assert PivSession is not None  # guarded by HAS_YKMAN
+                assert PivSession is not None  # guarded by has_ykman
                 piv_session = PivSession(yk_device)
                 piv_session.verify_pin(pin)
 
@@ -1694,16 +1660,14 @@ class HardwareCryptoManager:
 
         with self._open_yubikey(card_id) as (yk_device, _):
             try:
-                assert PivSession is not None  # guarded by HAS_YKMAN
+                assert PivSession is not None  # guarded by has_ykman
                 piv_session = PivSession(yk_device)
                 piv_session.verify_pin(pin)
 
                 piv_slot = self._resolve_yk_slot(slot)
                 slot_metadata = piv_session.get_slot_metadata(piv_slot)
                 pub_key = slot_metadata.public_key
-                if not isinstance(
-                    pub_key, (ec.EllipticCurvePublicKey, rsa.RSAPublicKey)
-                ):
+                if not isinstance(pub_key, (ec.EllipticCurvePublicKey, rsa.RSAPublicKey)):
                     raise InvalidKeyError(
                         f"Unsupported key type for signing: {type(pub_key).__name__}"
                     )
@@ -1734,8 +1698,7 @@ class HardwareCryptoManager:
                     exc,
                 )
                 raise HardwareDeviceError(
-                    f"Signing failed on device '{card_id}', "
-                    f"slot 0x{slot:02X}: {exc}",
+                    f"Signing failed on device '{card_id}', slot 0x{slot:02X}: {exc}",
                     device_id=card_id,
                     context={"slot": f"0x{slot:02X}", "operation": "sign"},
                 ) from exc
@@ -1791,7 +1754,7 @@ class HardwareCryptoManager:
 
         with self._open_yubikey(card_id) as (yk_device, _):
             try:
-                assert PivSession is not None  # guarded by HAS_YKMAN
+                assert PivSession is not None  # guarded by has_ykman
                 piv_session = PivSession(yk_device)
                 piv_session.verify_pin(pin)
 
@@ -1833,8 +1796,7 @@ class HardwareCryptoManager:
                     exc,
                 )
                 raise HardwareDeviceError(
-                    f"Decryption failed on device '{card_id}', "
-                    f"slot 0x{slot:02X}: {exc}",
+                    f"Decryption failed on device '{card_id}', slot 0x{slot:02X}: {exc}",
                     device_id=card_id,
                     context={"slot": f"0x{slot:02X}", "operation": "decrypt"},
                 ) from exc
@@ -1874,7 +1836,7 @@ class HardwareCryptoManager:
 
         with self._open_yubikey(card_id) as (yk_device, _):
             try:
-                assert PivSession is not None  # guarded by HAS_YKMAN
+                assert PivSession is not None  # guarded by has_ykman
                 piv_session = PivSession(yk_device)
                 piv_slot = self._resolve_yk_slot(slot)
                 slot_metadata = piv_session.get_slot_metadata(piv_slot)
@@ -2121,7 +2083,7 @@ class HardwareCryptoManager:
                 try:
                     connection.close()
                 except Exception:
-                    pass
+                    logger.debug("Failed to close YubiKey connection during cleanup")
 
     # ------------------------------------------------------------------
     # INTERNAL: hash selection  [C4]
@@ -2300,8 +2262,8 @@ __all__: list[str] = [
     # Менеджер
     "HardwareCryptoManager",
     # Флаги доступности
-    "HAS_PYSCARD",
-    "HAS_YKMAN",
+    "has_pyscard",
+    "has_ykman",
 ]
 
 __version__ = "1.3.0"
