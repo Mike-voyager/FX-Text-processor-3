@@ -261,7 +261,7 @@ FX-Text-processor-3/
 │   │   ├── utilities   # 🚧 DONE/TODO tests
 │   │   │   ├── __init__.py
 │   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
-│   │   │   ├── config.py                 # + floppy_mode (disabled/basic/aggressive)
+│   │   │   ├── config.py                 # ✅ DONE
 │   │   │   ├── passwords.py
 │   │   │   ├── secure_storage.py         # + compression support
 │   │   │   ├── key_rotation.py
@@ -269,12 +269,12 @@ FX-Text-processor-3/
 │   │   │   ├── key_management.py         # NEW: Import/Export/Wrap
 │   │   │   └── migration.py              # NEW: Crypto agility
 │   │   │
-│   │   ├── hardware/← only CRYPTO operations! # 🚧 DONE/TODO tests
+│   │   ├── hardware/← only CRYPTO operations! # ✅ DONE
 │   │   │   ├── __init__.py
-│   │   │   ├── apdu_transport.py
+│   │   │   ├── apdu_transport.py       # ✅ DONE
 │   │   │   ├── backends.py             # ✅ DONE
 │   │   │   ├── openpgp_backend.py      # ✅ DONE
-│   │   │   └── hardware_crypto.py        # Smartcards, YubiKey (sign/encrypt/decrypt)
+│   │   │   └── hardware_crypto.py      # ✅ DONE  # Smartcards, YubiKey (sign/encrypt/decrypt)
 │   │   │
 │   │   └── 🏥 monitoring 
 │   │   │   ├── __init__.py

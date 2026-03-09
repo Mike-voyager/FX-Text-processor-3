@@ -254,6 +254,11 @@ class Argon2idKDF(KDFProtocol):
     DEFAULT_PARALLELISM = ARGON2_DEFAULT_PARALLELISM
     DEFAULT_SALT_LENGTH = ARGON2_DEFAULT_SALT_LENGTH
 
+    # KDFProtocol required attributes
+    algorithm_name = "Argon2id"
+    recommended_iterations = DEFAULT_TIME_COST
+    recommended_memory_cost = DEFAULT_MEMORY_COST
+
     def derive_key(
         self,
         password: bytes,
@@ -398,13 +403,17 @@ class PBKDF2SHA256KDF(KDFProtocol):
     MIN_ITERATIONS = PBKDF2_MIN_ITERATIONS
     DEFAULT_SALT_LENGTH = PBKDF2_DEFAULT_SALT_LENGTH
 
+    # KDFProtocol required attributes
+    algorithm_name = "PBKDF2-SHA256"
+    recommended_iterations = DEFAULT_ITERATIONS
+    recommended_memory_cost = None
+
     def derive_key(
         self,
         password: bytes,
         salt: bytes,
-        length: int = 32,  # ← было: length: int,
-        key_length: int = 32,  # ← новая строка
         *,
+        key_length: int = 32,
         iterations: Optional[int] = None,
         **kwargs: Any,
     ) -> bytes:
@@ -514,6 +523,11 @@ class ScryptKDF(KDFProtocol):
     DEFAULT_R = SCRYPT_DEFAULT_R  # 8
     DEFAULT_P = SCRYPT_DEFAULT_P  # 1
     DEFAULT_SALT_LENGTH = SCRYPT_DEFAULT_SALT_LENGTH
+
+    # KDFProtocol required attributes
+    algorithm_name = "Scrypt"
+    recommended_iterations = DEFAULT_N
+    recommended_memory_cost = DEFAULT_N * DEFAULT_R * 128 // 1024
 
     def derive_key(
         self,
@@ -645,6 +659,11 @@ class HKDFSHA256(KDFProtocol):
     """
 
     ALGORITHM_ID = "hkdf-sha256"
+
+    # KDFProtocol required attributes
+    algorithm_name = "HKDF-SHA256"
+    recommended_iterations = 1
+    recommended_memory_cost = None
 
     def derive_key(
         self,

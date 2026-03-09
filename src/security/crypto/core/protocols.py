@@ -86,8 +86,8 @@ class SymmetricCipherProtocol(Protocol):
         True
         >>> key = cipher.generate_key()
         >>> plaintext = b"Sensitive data"
-        >>> ciphertext, tag = cipher.encrypt(key, plaintext)
-        >>> decrypted = cipher.decrypt(key, ciphertext, tag)
+        >>> nonce, ciphertext = cipher.encrypt(key, plaintext)
+        >>> decrypted = cipher.decrypt(key, nonce, ciphertext)
         >>> decrypted == plaintext
         True
     """
@@ -114,7 +114,7 @@ class SymmetricCipherProtocol(Protocol):
             nonce: Nonce/IV (если None — генерируется автоматически).
                    ВНИМАНИЕ: Для AEAD алгоритмов НИКОГДА не используйте
                    один и тот же nonce с одним ключом дважды!
-            associated_data: Дополнительные данные для AEAD
+            aad: Дополнительные данные для AEAD
                             (только для AEAD алгоритмов, где is_aead=True)
 
         Returns:
@@ -136,17 +136,17 @@ class SymmetricCipherProtocol(Protocol):
             >>> key = cipher.generate_key()
             >>> plaintext = b"Secret message"
             >>> # AEAD: возвращает (ciphertext, tag)
-            >>> ciphertext, tag = cipher.encrypt(key, plaintext)
+            >>> nonce, ciphertext = cipher.encrypt(key, plaintext)
             >>> # non-AEAD: возвращает (ciphertext, nonce)
-            >>> ciphertext, nonce = cipher.encrypt(key, plaintext)
+            >>> nonce, ciphertext = cipher.encrypt(key, plaintext)
         """
         ...
 
     def decrypt(
         self,
         key: bytes,
-        ciphertext: bytes,
         nonce: bytes,
+        ciphertext: bytes,
         *,
         aad: Optional[bytes] = None,
     ) -> bytes:
@@ -158,7 +158,7 @@ class SymmetricCipherProtocol(Protocol):
             ciphertext: Зашифрованные данные
             nonce_or_tag: для AEAD — authentication tag,
                          для non-AEAD — nonce
-            associated_data: Дополнительные данные для AEAD
+            aad: Дополнительные данные для AEAD
                             (должны совпадать с теми, что были при encrypt)
 
         Returns:
@@ -177,7 +177,7 @@ class SymmetricCipherProtocol(Protocol):
 
         Example:
             >>> # AEAD
-            >>> plaintext = cipher.decrypt(key, ciphertext, tag)
+            >>> plaintext = cipher.decrypt(key, nonce, ciphertext)
             >>> # non-AEAD
             >>> plaintext = cipher.decrypt(key, ciphertext, nonce)
         """
@@ -757,7 +757,7 @@ class KDFProtocol(Protocol):
         >>> derived_key = kdf.derive_key(
         ...     password=password,
         ...     salt=salt,
-        ...     length=32
+        ...     key_length=32
         ... )
         >>> len(derived_key)
         32
@@ -784,7 +784,7 @@ class KDFProtocol(Protocol):
         Args:
             password: Пароль/входной материал (любая длина)
             salt: Соль (минимум 16 байт). ДОЛЖНА быть уникальной!
-            length: Желаемая длина ключа в байтах (обычно 32 для AES-256)
+            key_length: Желаемая длина ключа в байтах (обычно 32 для AES-256)
             iterations: Количество итераций (если None — использовать
                        recommended_iterations)
             memory_cost: Объём памяти в КБ (для Argon2id/Scrypt)
@@ -808,14 +808,14 @@ class KDFProtocol(Protocol):
         Example (хранение пароля):
             >>> password = b"user_password"
             >>> salt = os.urandom(16)
-            >>> key = kdf.derive_key(password, salt, length=32)
+            >>> key = kdf.derive_key(password, salt, key_length=32)
             >>> # Сохранить: ("argon2id", salt.hex(), key.hex())
 
         Example (проверка пароля):
             >>> # Загрузить: (algorithm_id, salt_hex, stored_key_hex)
             >>> salt = bytes.fromhex(salt_hex)
             >>> input_password = b"user_password"
-            >>> derived = kdf.derive_key(input_password, salt, length=32)
+            >>> derived = kdf.derive_key(input_password, salt, key_length=32)
             >>> # Constant-time сравнение
             >>> import secrets
             >>> is_valid = secrets.compare_digest(derived, stored_key)
@@ -828,7 +828,7 @@ class KDFProtocol(Protocol):
             >>> key_material = hkdf.derive_key(
             ...     password=shared_secret,
             ...     salt=b"unique_context",
-            ...     length=64  # 32 для AES + 32 для HMAC
+            ...     key_length=64  # 32 для AES + 32 для HMAC
             ... )
             >>> encryption_key = key_material[:32]
             >>> mac_key = key_material[32:]
