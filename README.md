@@ -213,8 +213,8 @@ FX-Text-processor-3/
 │   └── utils/ # Utilities # 🚧 TODO
 │
 │
-├── tests/                        # Test suite
-│   ├── unit/      # ✅ >3400 tests
+├── tests/   # ✅ >3400 tests            # Test suite
+│   ├── unit/      
 │   └── integration/
 │
 ├── docs/                         # Documentation⚠️ TODO
