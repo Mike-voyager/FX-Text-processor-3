@@ -258,7 +258,7 @@ FX-Text-processor-3/
 │   │   │   ├── ui_helpers.py
 │   │   │   └── profiles.py
 │   │   │
-│   │   ├── utilities   # ✅ DONE
+│   │   ├── utilities/   # ✅ DONE
 │   │   │   ├── __init__.py
 │   │   │   ├── utils.py                  # + FloppyOptimizer, NonceManager, SecureMemory
 │   │   │   ├── config.py                 
@@ -276,7 +276,7 @@ FX-Text-processor-3/
 │   │   │   ├── openpgp_backend.py      # ✅ DONE
 │   │   │   └── hardware_crypto.py      # ✅ DONE  # Smartcards, YubiKey (sign/encrypt/decrypt)
 │   │   │
-│   │   └── 🏥 monitoring 
+│   │   └── 🏥 monitoring/ 
 │   │   │   ├── __init__.py
 │   │       ├── health.py
 │   │       └── benchmarks.py [OPT]
