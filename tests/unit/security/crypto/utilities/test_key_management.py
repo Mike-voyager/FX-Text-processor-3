@@ -460,8 +460,9 @@ class TestWrapUnwrapIntegration:
 
     @pytest.fixture
     def real_manager(self) -> KeyManager:
-        from src.security.crypto.core.registry import AlgorithmRegistry
+        from src.security.crypto.core.registry import AlgorithmRegistry, register_all_algorithms
 
+        register_all_algorithms()
         return KeyManager(AlgorithmRegistry.get_instance())
 
     def test_real_wrap_unwrap_roundtrip(self, real_manager: KeyManager) -> None:

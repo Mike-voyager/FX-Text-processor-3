@@ -33,7 +33,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List
 
 __all__ = [
     "CryptoProfile",
@@ -88,7 +87,7 @@ class CryptoProfile(str, Enum):
             >>> CryptoProfile.LEGACY.label()
             'Legacy (совместимость)'
         """
-        _labels: Dict[CryptoProfile, str] = {
+        _labels: dict[CryptoProfile, str] = {
             CryptoProfile.STANDARD: "Стандартный",
             CryptoProfile.PARANOID: "Параноидальный",
             CryptoProfile.LEGACY: "Legacy (совместимость)",
@@ -97,7 +96,7 @@ class CryptoProfile(str, Enum):
             CryptoProfile.PQC_STANDARD: "Post-Quantum стандарт",
             CryptoProfile.PQC_PARANOID: "Post-Quantum параноидальный",
         }
-        return _labels[self]
+        return _labels.get(self, self.value.title())
 
     def description(self) -> str:
         """
@@ -106,7 +105,7 @@ class CryptoProfile(str, Enum):
         Returns:
             Описание с рекомендациями по применению
         """
-        _descriptions: Dict[CryptoProfile, str] = {
+        _descriptions: dict[CryptoProfile, str] = {
             CryptoProfile.STANDARD: (
                 "Баланс безопасности и производительности. "
                 "AES-256-GCM + Ed25519 + X25519. Рекомендуется для большинства случаев."
@@ -137,7 +136,7 @@ class CryptoProfile(str, Enum):
                 "Максимальная квантовая устойчивость."
             ),
         }
-        return _descriptions[self]
+        return _descriptions.get(self, "")
 
     def is_safe_for_new_systems(self) -> bool:
         """
@@ -228,9 +227,9 @@ class ProfileConfig:
     floppy_optimized: bool = False
     post_quantum: bool = False
     safe_for_new_systems: bool = True
-    additional_signing: List[str] = field(default_factory=list)
+    additional_signing: list[str] = field(default_factory=list)
 
-    def algorithm_ids(self) -> Dict[str, str]:
+    def algorithm_ids(self) -> dict[str, str]:
         """
         Все основные алгоритмы в виде словаря {категория: registry_id}.
 
@@ -260,7 +259,7 @@ class ProfileConfig:
 # ==============================================================================
 
 #: Все предустановленные профили. Ключ — CryptoProfile, значение — ProfileConfig.
-PROFILES: Dict[CryptoProfile, ProfileConfig] = {
+PROFILES: dict[CryptoProfile, ProfileConfig] = {
     # ------------------------------------------------------------------
     # STANDARD: современный баланс безопасности и производительности
     # ------------------------------------------------------------------
@@ -412,7 +411,7 @@ def list_profiles(
     safe_only: bool = False,
     floppy_only: bool = False,
     pqc_only: bool = False,
-) -> List[CryptoProfile]:
+) -> list[CryptoProfile]:
     """
     Список доступных профилей с опциональной фильтрацией.
 

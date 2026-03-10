@@ -172,6 +172,51 @@ PRESETS: Dict[str, HybridConfig] = {
 
 
 # ==============================================================================
+# HYBRID PAYLOAD
+# ==============================================================================
+
+
+@dataclass(frozen=True)
+class HybridPayload:
+    """
+    Результат операции гибридного шифрования.
+
+    Immutable контейнер, объединяющий данные протокола и метаданные
+    конфигурации. Полностью самодостаточен — содержит всё необходимое
+    для расшифровки без дополнительных параметров.
+
+    Attributes:
+        ephemeral_public_key: Временный публичный ключ отправителя для KEX
+        nonce: Nonce симметричного шифра (случайный, уникальный)
+        ciphertext: Зашифрованные данные (включает authentication tag)
+        hkdf_salt: Соль для HKDF деривации симметричного ключа
+        config: Имя конфигурации гибридного шифрования — определяет
+                алгоритмы KEX и симметричного шифра (например,
+                "classical_standard", "pqc_paranoid")
+
+    Note:
+        config хранится внутри объекта намеренно — это исключает
+        рассинхронизацию конфигурации между encrypt_hybrid() и
+        decrypt_hybrid(). Объект знает, как себя расшифровать.
+
+    Example:
+        >>> cipher = create_hybrid_cipher("classical_standard")
+        >>> bob_priv, bob_pub = cipher.generate_recipient_keypair()
+        >>> payload = cipher.encrypt_for_recipient(bob_pub, b"Secret")
+        >>> payload.config
+        'classical_standard'
+        >>> plaintext = cipher.decrypt_from_sender(bob_priv, payload)
+        >>> assert plaintext == b"Secret"
+    """
+
+    ephemeral_public_key: bytes
+    nonce: bytes
+    ciphertext: bytes
+    hkdf_salt: bytes
+    config: str = "classical_standard"
+
+
+# ==============================================================================
 # HYBRID ENCRYPTION CLASS
 # ==============================================================================
 
@@ -198,17 +243,19 @@ class HybridEncryption:
         >>> plaintext = cipher.decrypt_from_sender(bob_priv, encrypted)
     """
 
-    def __init__(self, config: HybridConfig) -> None:
+    def __init__(self, config: HybridConfig, *, preset_name: str = "classical_standard") -> None:
         """
         Инициализировать гибридное шифрование с конфигурацией.
 
         Args:
             config: Конфигурация гибридного шифрования
+            preset_name: Название пресета (для HybridPayload.config)
 
         Raises:
             AlgorithmNotAvailableError: Требуемый алгоритм недоступен
         """
         self._config = config
+        self._preset_name = preset_name
         self._logger = logging.getLogger(__name__)
 
         registry = AlgorithmRegistry.get_instance()
@@ -273,7 +320,7 @@ class HybridEncryption:
         plaintext: bytes,
         *,
         associated_data: Optional[bytes] = None,
-    ) -> Dict[str, bytes]:
+    ) -> HybridPayload:
         """
         Зашифровать данные для получателя используя гибридное шифрование.
 
@@ -282,7 +329,7 @@ class HybridEncryption:
             2. Вывести shared secret с public ключом получателя
             3. Вывести symmetric key из shared secret (HKDF-SHA256)
             4. Зашифровать plaintext с symmetric cipher
-            5. Вернуть ephemeral public key + ciphertext
+            5. Вернуть HybridPayload с ephemeral public key + ciphertext
 
         Args:
             recipient_public_key: Долгосрочный public ключ получателя (KEX)
@@ -290,12 +337,7 @@ class HybridEncryption:
             associated_data: Дополнительные аутентифицируемые данные (AEAD)
 
         Returns:
-            {
-                "ephemeral_public_key": bytes,
-                "nonce": bytes,
-                "ciphertext": bytes,
-                "hkdf_salt": bytes,
-            }
+            HybridPayload с зашифрованными данными и конфигурацией
 
         Raises:
             ValueError: Невалидный input (пустые keys/plaintext)
@@ -336,12 +378,13 @@ class HybridEncryption:
                 f"Encrypted: plaintext_size={len(plaintext)}, ciphertext_size={len(ciphertext)}"
             )
 
-            return {
-                "ephemeral_public_key": ephemeral_public,
-                "nonce": nonce,
-                "ciphertext": ciphertext,
-                "hkdf_salt": hkdf_salt,
-            }
+            return HybridPayload(
+                ephemeral_public_key=ephemeral_public,
+                nonce=nonce,
+                ciphertext=ciphertext,
+                hkdf_salt=hkdf_salt,
+                config=self._preset_name,
+            )
 
         except ValueError as exc:
             raise InvalidKeyError(f"Invalid recipient public key: {exc}") from exc
@@ -357,7 +400,7 @@ class HybridEncryption:
     def decrypt_from_sender(
         self,
         recipient_private_key: bytes,
-        encrypted_data: Dict[str, bytes],
+        encrypted_data: HybridPayload,
         *,
         associated_data: Optional[bytes] = None,
     ) -> bytes:
@@ -366,14 +409,14 @@ class HybridEncryption:
 
         Args:
             recipient_private_key: Долгосрочный private ключ получателя (KEX)
-            encrypted_data: Вывод из encrypt_for_recipient()
+            encrypted_data: Вывод из encrypt_for_recipient() — HybridPayload
             associated_data: Дополнительные аутентифицируемые данные (AEAD)
 
         Returns:
             Расшифрованный plaintext
 
         Raises:
-            ValueError: Невалидный input или отсутствующие поля
+            ValueError: Невалидный input или пустые поля
             InvalidKeyError: Невалидный recipient private key
             DecryptionError: Расшифровка не удалась
         """
@@ -386,10 +429,10 @@ class HybridEncryption:
         symmetric_key = b""
 
         try:
-            ephemeral_public = encrypted_data["ephemeral_public_key"]
-            nonce = encrypted_data["nonce"]
-            ciphertext = encrypted_data["ciphertext"]
-            hkdf_salt = encrypted_data.get("hkdf_salt", b"")
+            ephemeral_public = encrypted_data.ephemeral_public_key
+            nonce = encrypted_data.nonce
+            ciphertext = encrypted_data.ciphertext
+            hkdf_salt = encrypted_data.hkdf_salt
 
             # 1. Derive shared secret
             shared_secret = self._kex.derive_shared_secret(
@@ -426,6 +469,23 @@ class HybridEncryption:
     # PRIVATE METHODS
     # ==========================================================================
 
+    def _validate_encrypted_data(self, payload: HybridPayload) -> None:
+        """
+        Валидировать данные HybridPayload перед расшифровкой.
+
+        Args:
+            payload: HybridPayload для валидации
+
+        Raises:
+            ValueError: Если обязательные поля пусты
+        """
+        if not payload.ephemeral_public_key:
+            raise ValueError("'ephemeral_public_key' cannot be empty")
+        if not payload.nonce:
+            raise ValueError("'nonce' cannot be empty")
+        if not payload.ciphertext:
+            raise ValueError("'ciphertext' cannot be empty")
+
     def _derive_symmetric_key(self, shared_secret: bytes, salt: bytes) -> bytes:
         """
         Вывести symmetric key из shared secret используя HKDF-SHA256.
@@ -444,23 +504,6 @@ class HybridEncryption:
             info=HKDF_INFO_HYBRID_ENCRYPTION,
         )
         return hkdf.derive(shared_secret)
-
-    def _validate_encrypted_data(self, encrypted_data: Dict[str, bytes]) -> None:
-        """
-        Проверить структуру encrypted_data.
-
-        Raises:
-            ValueError: Отсутствующие обязательные поля или пустые значения
-        """
-        required_fields = {"ephemeral_public_key", "nonce", "ciphertext"}
-        missing = required_fields - set(encrypted_data.keys())
-
-        if missing:
-            raise ValueError(f"Missing required fields in encrypted_data: {missing}")
-
-        for field_name in required_fields:
-            if not encrypted_data[field_name]:
-                raise ValueError(f"Field '{field_name}' cannot be empty")
 
     @staticmethod
     def _secure_erase(data: bytearray) -> None:
@@ -512,7 +555,7 @@ def create_hybrid_cipher(
 
     config = PRESETS[preset]
     logger.debug(f"Creating hybrid cipher with preset '{preset}': {config.description}")
-    return HybridEncryption(config)
+    return HybridEncryption(config, preset_name=preset)
 
 
 # ==============================================================================
@@ -522,6 +565,7 @@ def create_hybrid_cipher(
 __all__ = [
     "HybridEncryption",
     "HybridConfig",
+    "HybridPayload",
     "PRESETS",
     "create_hybrid_cipher",
 ]

@@ -57,9 +57,12 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TypedDict
 
-from src.security.crypto.advanced.hybrid_encryption import create_hybrid_cipher
+from src.security.crypto.advanced.hybrid_encryption import (
+    HybridPayload,
+    create_hybrid_cipher,
+)
 from src.security.crypto.core.exceptions import (
     CryptoError,
     DecryptionError,
@@ -84,6 +87,7 @@ from src.security.crypto.service.profiles import (
 __all__ = [
     "CryptoService",
     "EncryptedDocument",
+    "HybridPayload",
     "SignedDocument",
 ]
 
@@ -92,6 +96,37 @@ logger = logging.getLogger(__name__)
 # Audit logger (заглушка; будет заменена на src.audit.AuditLogger в Phase 11)
 # TODO: from src.audit import AuditLogger
 _audit_logger = logging.getLogger("audit.crypto")
+
+
+# ==============================================================================
+# TYPED DICTS FOR SERIALIZATION
+# ==============================================================================
+
+
+class _EncryptedDocumentDictBase(TypedDict):
+    nonce: str
+    ciphertext: str
+    algorithm_id: str
+
+
+class _EncryptedDocumentDict(_EncryptedDocumentDictBase, total=False):
+    aad: str
+
+
+class _SignedDocumentDict(TypedDict):
+    signature: str
+    algorithm_id: str
+    public_key_hint: str
+
+
+class _AlgorithmInfoDict(TypedDict):
+    name: str
+    security_level: str
+    floppy_friendly: int
+    is_post_quantum: bool
+    is_aead: bool
+    status: str
+    description_ru: str | None
 
 
 # ==============================================================================
@@ -126,7 +161,7 @@ class EncryptedDocument:
     algorithm_id: str
     aad: bytes | None = None
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> _EncryptedDocumentDict:
         """
         Сериализовать в словарь для сохранения/передачи.
 
@@ -138,7 +173,7 @@ class EncryptedDocument:
             >>> d["algorithm_id"]
             'aes-256-gcm'
         """
-        result: dict[str, Any] = {
+        result: _EncryptedDocumentDict = {
             "nonce": self.nonce.hex(),
             "ciphertext": self.ciphertext.hex(),
             "algorithm_id": self.algorithm_id,
@@ -148,7 +183,7 @@ class EncryptedDocument:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> EncryptedDocument:
+    def from_dict(cls, data: _EncryptedDocumentDict) -> EncryptedDocument:
         """
         Десериализовать из словаря (обратная операция к to_dict).
 
@@ -199,7 +234,7 @@ class SignedDocument:
     algorithm_id: str
     public_key_hint: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> _SignedDocumentDict:
         """
         Сериализовать в словарь.
 
@@ -213,7 +248,7 @@ class SignedDocument:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> SignedDocument:
+    def from_dict(cls, data: _SignedDocumentDict) -> SignedDocument:
         """
         Десериализовать из словаря.
 
@@ -634,7 +669,7 @@ class CryptoService:
         recipient_public_key: bytes,
         *,
         config_name: str = "classical_standard",
-    ) -> dict[str, bytes | str]:
+    ) -> HybridPayload:
         """
         Зашифровать документ для получателя используя гибридное шифрование.
 
@@ -677,58 +712,64 @@ class CryptoService:
             raise ValueError("Публичный ключ получателя не может быть пустым")
 
         cipher = create_hybrid_cipher(config_name)
-        raw_result = cipher.encrypt_for_recipient(recipient_public_key, document)
-        result: dict[str, bytes | str] = {**raw_result}
+        payload = cipher.encrypt_for_recipient(recipient_public_key, document)
 
         _audit_logger.info("encrypt_hybrid: config=%s data_size=%d", config_name, len(document))
-        return result
+        return payload
 
     def decrypt_hybrid(
         self,
-        encrypted_data: dict[str, bytes | str],
+        payload: HybridPayload,
         recipient_private_key: bytes,
     ) -> bytes:
         """
         Расшифровать данные гибридного шифрования.
 
+        Использует payload.config для определения алгоритмов —
+        конфигурация неотделима от данных и не может быть указана неверно.
+
         Args:
-            encrypted_data: Результат encrypt_hybrid() (словарь с ephemeral_public_key,
-                            nonce, ciphertext, config)
-            recipient_private_key: Приватный ключ получателя
+            payload: Результат encrypt_hybrid(). Содержит зашифрованные
+                     данные и конфигурацию алгоритмов.
+            recipient_private_key: Приватный ключ получателя (KEX)
 
         Returns:
             Исходные данные (plaintext)
 
         Raises:
-            ValueError: Пустые аргументы или некорректный формат данных
-            DecryptionError: Ошибка расшифровки
+            ValueError: Пустой приватный ключ
+            AlgorithmNotAvailableError: Алгоритм из payload.config недоступен
+            DecryptionError: Неверный ключ или повреждены данные
 
         Example:
-            >>> plaintext = service.decrypt_hybrid(encrypted_data, private_key)
+            >>> priv, pub = service.generate_keypair("x25519")
+            >>> payload = service.encrypt_hybrid(b"Secret", pub)
+            >>> plaintext = service.decrypt_hybrid(payload, priv)
+            >>> assert plaintext == b"Secret"
         """
         if not recipient_private_key:
             raise ValueError("Приватный ключ не может быть пустым")
 
-        raw_config = encrypted_data.get("config", b"classical_standard")
-        config_name = raw_config.decode() if isinstance(raw_config, bytes) else str(raw_config)
-
-        cipher = create_hybrid_cipher(config_name)
+        # config хранится в payload — рассинхронизация алгоритмов невозможна
+        cipher = create_hybrid_cipher(payload.config)
 
         try:
-            plaintext = cipher.decrypt_from_sender(recipient_private_key, encrypted_data)
+            plaintext = cipher.decrypt_from_sender(recipient_private_key, payload)
         except Exception as exc:
             _audit_logger.warning(
                 "decrypt_hybrid FAILED: config=%s error=%s",
-                config_name,
+                payload.config,
                 type(exc).__name__,
             )
             raise DecryptionError(
-                f"Ошибка расшифровки гибридного шифра ({config_name})",
-                algorithm=config_name,
+                "Ошибка расшифровки гибридного шифра.",
+                algorithm=payload.config,
             ) from exc
 
         _audit_logger.info(
-            "decrypt_hybrid: config=%s plaintext_size=%d", config_name, len(plaintext)
+            "decrypt_hybrid: config=%s plaintext_size=%d",
+            payload.config,
+            len(plaintext),
         )
         return plaintext
 
@@ -810,9 +851,9 @@ class CryptoService:
             raise ValueError("Пароль не может быть пустым")
         if len(salt) < 16:
             raise ValueError(f"Соль слишком короткая: {len(salt)} байт (минимум 16)")
-        if key_length <= 0 or key_length > 64:
+        if key_length <= 0:
             raise ValueError(
-                f"Некорректная длина ключа: {key_length}. Ожидается значение в [1, 64] байт."
+                f"Некорректная длина ключа: {key_length}. Ожидается положительное значение."
             )
 
         algo_id = algorithm_id or self.config.kdf_algorithm
@@ -837,7 +878,9 @@ class CryptoService:
         """
         return self.config.algorithm_ids()
 
-    def get_available_algorithms(self, category: str | None = None) -> dict[str, Any]:
+    def get_available_algorithms(
+        self, category: str | None = None
+    ) -> dict[str, _AlgorithmInfoDict]:
         """
         Получить список доступных алгоритмов с метаданными.
 
@@ -863,7 +906,7 @@ class CryptoService:
             "kdf": AlgorithmCategory.KDF,
         }
 
-        result: dict[str, Any] = {}
+        result: dict[str, _AlgorithmInfoDict] = {}
         target_category = _category_map.get(category) if category else None
 
         for name in self._registry.list_algorithms():
@@ -917,7 +960,7 @@ class CryptoService:
         include_signature: bool = True,
         algorithm_id: str | None = None,
         signing_algorithm_id: str | None = None,
-    ) -> dict[str, int]:
+    ) -> dict[str, int | bool]:
         """
         Оценить размер зашифрованных+подписанных данных.
 

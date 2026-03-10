@@ -23,6 +23,7 @@ Date: February 17, 2026
 from src.security.crypto.service.crypto_service import (
     CryptoService,
     EncryptedDocument,
+    HybridPayload,
     SignedDocument,
 )
 from src.security.crypto.service.profiles import (
@@ -46,6 +47,7 @@ __all__ = [
     "CryptoService",
     # Result dataclasses
     "EncryptedDocument",
+    "HybridPayload",
     "SignedDocument",
     # Profiles
     "CryptoProfile",

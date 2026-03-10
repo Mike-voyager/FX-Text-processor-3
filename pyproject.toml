@@ -192,6 +192,8 @@ exclude = [
     "dist",
     "*.egg-info",
 ]
+reportMissingParameterType = "none"
+reportUnknownParameterType = "none"
 
 # Пути для поиска модулей (аналог extraPaths)
 extraPaths = ["."]

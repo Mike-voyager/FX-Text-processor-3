@@ -480,8 +480,9 @@ class TestMigrationIntegration:
 
     @pytest.fixture
     def real_migrator(self) -> CryptoMigrator:
-        from src.security.crypto.core.registry import AlgorithmRegistry
+        from src.security.crypto.core.registry import AlgorithmRegistry, register_all_algorithms
 
+        register_all_algorithms()
         return CryptoMigrator(AlgorithmRegistry.get_instance())  # type: ignore[arg-type]
 
     def test_can_migrate_aes_variants(self, real_migrator: CryptoMigrator) -> None:

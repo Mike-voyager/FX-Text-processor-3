@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import secrets
-from typing import Dict
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -20,6 +19,7 @@ from src.security.crypto.advanced.hybrid_encryption import (
     SYMMETRIC_KEY_SIZE,
     HybridConfig,
     HybridEncryption,
+    HybridPayload,
     create_hybrid_cipher,
 )
 from src.security.crypto.core.exceptions import (
@@ -87,14 +87,14 @@ def hybrid_encryption(
 
 
 @pytest.fixture
-def sample_encrypted_data() -> Dict[str, bytes]:
+def sample_encrypted_data() -> HybridPayload:
     """Корректная структура зашифрованных данных."""
-    return {
-        "ephemeral_public_key": b"\x02" * 32,
-        "nonce": b"\x04" * 12,
-        "ciphertext": b"some_ciphertext_bytes",
-        "hkdf_salt": b"\x05" * 32,
-    }
+    return HybridPayload(
+        ephemeral_public_key=b"\x02" * 32,
+        nonce=b"\x04" * 12,
+        ciphertext=b"some_ciphertext_bytes",
+        hkdf_salt=b"\x05" * 32,
+    )
 
 
 # ==============================================================================
@@ -358,31 +358,34 @@ class TestGenerateRecipientKeypair:
 class TestEncryptForRecipient:
     """Тесты для encrypt_for_recipient."""
 
-    def test_encrypt_returns_all_required_fields(
+    def test_encrypt_returns_hybrid_payload(
         self,
         hybrid_encryption: HybridEncryption,
     ) -> None:
-        """Результат должен содержать все обязательные поля."""
+        """Результат должен быть экземпляром HybridPayload."""
         result = hybrid_encryption.encrypt_for_recipient(
             recipient_public_key=b"\xcd" * 32,
             plaintext=b"Secret message",
         )
-        assert "ephemeral_public_key" in result
-        assert "nonce" in result
-        assert "ciphertext" in result
-        assert "hkdf_salt" in result
+        assert isinstance(result, HybridPayload)
+        assert result.ephemeral_public_key
+        assert result.nonce
+        assert result.ciphertext
+        assert result.hkdf_salt is not None
 
-    def test_encrypt_all_values_are_bytes(
+    def test_encrypt_all_fields_are_bytes(
         self,
         hybrid_encryption: HybridEncryption,
     ) -> None:
-        """Все значения возвращаемого dict должны быть bytes."""
+        """Все поля HybridPayload должны быть bytes."""
         result = hybrid_encryption.encrypt_for_recipient(
             recipient_public_key=b"\xcd" * 32,
             plaintext=b"Secret message",
         )
-        for field_name, value in result.items():
-            assert isinstance(value, bytes), f"Field '{field_name}' is not bytes"
+        assert isinstance(result.ephemeral_public_key, bytes)
+        assert isinstance(result.nonce, bytes)
+        assert isinstance(result.ciphertext, bytes)
+        assert isinstance(result.hkdf_salt, bytes)
 
     def test_encrypt_hkdf_salt_has_correct_size(
         self,
@@ -393,7 +396,7 @@ class TestEncryptForRecipient:
             recipient_public_key=b"\xcd" * 32,
             plaintext=b"Secret",
         )
-        assert len(result["hkdf_salt"]) == HKDF_SALT_SIZE
+        assert len(result.hkdf_salt) == HKDF_SALT_SIZE
 
     def test_encrypt_raises_on_empty_public_key(
         self,
@@ -512,7 +515,7 @@ class TestEncryptForRecipient:
             recipient_public_key=b"\xcd" * 32,
             plaintext=b"Secret",
         )
-        assert result["ephemeral_public_key"] == b"\x22" * 32
+        assert result.ephemeral_public_key == b"\x22" * 32
 
     def test_encrypt_calls_derive_shared_secret_with_recipient_key(
         self,
@@ -542,7 +545,7 @@ class TestDecryptFromSender:
     def test_decrypt_success_returns_plaintext(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_cipher: MagicMock,
     ) -> None:
         """Успешная расшифровка должна возвращать корректный plaintext."""
@@ -556,7 +559,7 @@ class TestDecryptFromSender:
     def test_decrypt_returns_bytes(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
     ) -> None:
         """Возвращаемое значение должно быть bytes."""
         result = hybrid_encryption.decrypt_from_sender(
@@ -568,7 +571,7 @@ class TestDecryptFromSender:
     def test_decrypt_raises_on_empty_private_key(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
     ) -> None:
         """Пустой recipient_private_key → ValueError."""
         with pytest.raises(ValueError, match="Recipient private key cannot be empty"):
@@ -578,47 +581,33 @@ class TestDecryptFromSender:
             )
 
     @pytest.mark.parametrize(
-        "missing_field",
-        ["ephemeral_public_key", "nonce", "ciphertext"],
-    )
-    def test_decrypt_raises_on_missing_required_field(
-        self,
-        hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
-        missing_field: str,
-    ) -> None:
-        """Отсутствие обязательного поля в encrypted_data → ValueError."""
-        data = dict(sample_encrypted_data)
-        del data[missing_field]
-        with pytest.raises(ValueError, match="Missing required fields"):
-            hybrid_encryption.decrypt_from_sender(
-                recipient_private_key=b"\xab" * 32,
-                encrypted_data=data,
-            )
-
-    @pytest.mark.parametrize(
         "empty_field",
         ["ephemeral_public_key", "nonce", "ciphertext"],
     )
     def test_decrypt_raises_on_empty_required_field(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
         empty_field: str,
     ) -> None:
         """Пустое обязательное поле → ValueError."""
-        data = dict(sample_encrypted_data)
-        data[empty_field] = b""
+        kwargs = {
+            "ephemeral_public_key": b"\x02" * 32,
+            "nonce": b"\x04" * 12,
+            "ciphertext": b"some_ciphertext_bytes",
+            "hkdf_salt": b"\x05" * 32,
+        }
+        kwargs[empty_field] = b""
+        payload = HybridPayload(**kwargs)
         with pytest.raises(ValueError, match="cannot be empty"):
             hybrid_encryption.decrypt_from_sender(
                 recipient_private_key=b"\xab" * 32,
-                encrypted_data=data,
+                encrypted_data=payload,
             )
 
     def test_decrypt_raises_invalid_key_on_value_error_from_kex(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_kex: MagicMock,
     ) -> None:
         """ValueError из KEX.derive_shared_secret → InvalidKeyError."""
@@ -632,7 +621,7 @@ class TestDecryptFromSender:
     def test_decrypt_raises_decryption_error_on_general_exception(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_cipher: MagicMock,
     ) -> None:
         """Общее исключение в cipher.decrypt → DecryptionError."""
@@ -646,7 +635,7 @@ class TestDecryptFromSender:
     def test_decrypt_reraises_invalid_key_error_unchanged(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_kex: MagicMock,
     ) -> None:
         """InvalidKeyError прокидывается без оборачивания."""
@@ -662,7 +651,7 @@ class TestDecryptFromSender:
     def test_decrypt_reraises_decryption_error_unchanged(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_cipher: MagicMock,
     ) -> None:
         """DecryptionError прокидывается без оборачивания."""
@@ -675,27 +664,28 @@ class TestDecryptFromSender:
             )
         assert exc_info.value is original
 
-    def test_decrypt_without_hkdf_salt_uses_empty_bytes(
+    def test_decrypt_with_empty_hkdf_salt(
         self,
         hybrid_encryption: HybridEncryption,
         mock_cipher: MagicMock,
     ) -> None:
-        """Отсутствие hkdf_salt → fallback на b'' (без исключений)."""
-        data_no_salt: Dict[str, bytes] = {
-            "ephemeral_public_key": b"\x02" * 32,
-            "nonce": b"\x04" * 12,
-            "ciphertext": b"some_ciphertext",
-        }
+        """Пустой hkdf_salt → fallback HKDF без соли (без исключений)."""
+        payload = HybridPayload(
+            ephemeral_public_key=b"\x02" * 32,
+            nonce=b"\x04" * 12,
+            ciphertext=b"some_ciphertext",
+            hkdf_salt=b"",
+        )
         result = hybrid_encryption.decrypt_from_sender(
             recipient_private_key=b"\xab" * 32,
-            encrypted_data=data_no_salt,
+            encrypted_data=payload,
         )
         assert isinstance(result, bytes)
 
     def test_decrypt_passes_associated_data_to_cipher(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_cipher: MagicMock,
     ) -> None:
         """associated_data должны передаваться в симметричный шифр."""
@@ -711,7 +701,7 @@ class TestDecryptFromSender:
     def test_decrypt_calls_kex_with_private_key_and_ephemeral_pub(
         self,
         hybrid_encryption: HybridEncryption,
-        sample_encrypted_data: Dict[str, bytes],
+        sample_encrypted_data: HybridPayload,
         mock_kex: MagicMock,
     ) -> None:
         """KEX.derive_shared_secret должен получать правильные ключи."""
@@ -722,7 +712,7 @@ class TestDecryptFromSender:
         )
         mock_kex.derive_shared_secret.assert_called_once_with(
             private_key=recipient_priv,
-            peer_public_key=sample_encrypted_data["ephemeral_public_key"],
+            peer_public_key=sample_encrypted_data.ephemeral_public_key,
         )
 
 
@@ -734,44 +724,18 @@ class TestDecryptFromSender:
 class TestValidateEncryptedData:
     """Тесты для приватного метода _validate_encrypted_data."""
 
-    def test_valid_data_passes_without_exception(
+    def test_valid_payload_passes_without_exception(
         self,
         hybrid_encryption: HybridEncryption,
     ) -> None:
-        """Корректные данные не должны вызывать исключений."""
-        valid: Dict[str, bytes] = {
-            "ephemeral_public_key": b"\x02" * 32,
-            "nonce": b"\x04" * 12,
-            "ciphertext": b"some_data",
-        }
-        hybrid_encryption._validate_encrypted_data(valid)  # no exception
-
-    def test_empty_dict_raises(
-        self,
-        hybrid_encryption: HybridEncryption,
-    ) -> None:
-        """Пустой dict → ValueError о missing fields."""
-        with pytest.raises(ValueError, match="Missing required fields"):
-            hybrid_encryption._validate_encrypted_data({})
-
-    @pytest.mark.parametrize(
-        "field_to_remove",
-        ["ephemeral_public_key", "nonce", "ciphertext"],
-    )
-    def test_missing_field_raises_with_field_name(
-        self,
-        hybrid_encryption: HybridEncryption,
-        field_to_remove: str,
-    ) -> None:
-        """Сообщение об ошибке должно содержать название пропущенного поля."""
-        data: Dict[str, bytes] = {
-            "ephemeral_public_key": b"\x02" * 32,
-            "nonce": b"\x04" * 12,
-            "ciphertext": b"some_data",
-        }
-        del data[field_to_remove]
-        with pytest.raises(ValueError, match="Missing required fields"):
-            hybrid_encryption._validate_encrypted_data(data)
+        """Корректный HybridPayload не должен вызывать исключений."""
+        payload = HybridPayload(
+            ephemeral_public_key=b"\x02" * 32,
+            nonce=b"\x04" * 12,
+            ciphertext=b"some_data",
+            hkdf_salt=b"\x05" * 32,
+        )
+        hybrid_encryption._validate_encrypted_data(payload)  # no exception
 
     @pytest.mark.parametrize(
         "empty_field",
@@ -783,28 +747,29 @@ class TestValidateEncryptedData:
         empty_field: str,
     ) -> None:
         """Пустое обязательное поле → ValueError с именем поля."""
-        data: Dict[str, bytes] = {
-            "ephemeral_public_key": b"\x02" * 32,
-            "nonce": b"\x04" * 12,
-            "ciphertext": b"some_data",
-        }
-        data[empty_field] = b""
-        with pytest.raises(ValueError, match=f"'{empty_field}'"):
-            hybrid_encryption._validate_encrypted_data(data)
-
-    def test_extra_fields_do_not_cause_failure(
-        self,
-        hybrid_encryption: HybridEncryption,
-    ) -> None:
-        """Дополнительные поля (например, hkdf_salt) не вызывают ошибок."""
-        data: Dict[str, bytes] = {
+        kwargs = {
             "ephemeral_public_key": b"\x02" * 32,
             "nonce": b"\x04" * 12,
             "ciphertext": b"some_data",
             "hkdf_salt": b"\x05" * 32,
-            "extra_field": b"extra",
         }
-        hybrid_encryption._validate_encrypted_data(data)  # no exception
+        kwargs[empty_field] = b""
+        payload = HybridPayload(**kwargs)
+        with pytest.raises(ValueError, match=f"'{empty_field}'"):
+            hybrid_encryption._validate_encrypted_data(payload)
+
+    def test_empty_hkdf_salt_does_not_raise(
+        self,
+        hybrid_encryption: HybridEncryption,
+    ) -> None:
+        """Пустой hkdf_salt не является обязательным — не вызывает ошибки."""
+        payload = HybridPayload(
+            ephemeral_public_key=b"\x02" * 32,
+            nonce=b"\x04" * 12,
+            ciphertext=b"some_data",
+            hkdf_salt=b"",
+        )
+        hybrid_encryption._validate_encrypted_data(payload)  # no exception
 
 
 # ==============================================================================
@@ -1050,15 +1015,16 @@ class TestEncryptDecryptRoundtrip:
         )
         assert decrypted == original
 
-    def test_encrypted_output_is_valid_for_decryption(
+    def test_encrypted_output_is_valid_hybrid_payload(
         self,
         hybrid_encryption: HybridEncryption,
     ) -> None:
-        """Вывод encrypt_for_recipient должен проходить валидацию в decrypt."""
+        """Вывод encrypt_for_recipient — HybridPayload, проходящий валидацию."""
         encrypted = hybrid_encryption.encrypt_for_recipient(
             recipient_public_key=b"\xcd" * 32,
             plaintext=b"test",
         )
+        assert isinstance(encrypted, HybridPayload)
         # Should not raise ValueError during validation
         hybrid_encryption._validate_encrypted_data(encrypted)
 
@@ -1107,7 +1073,7 @@ class TestEncryptDecryptRoundtrip:
         )
         # With real secrets.token_bytes, salts should differ
         # (mocked kex returns same ephemeral key, but salt is random)
-        assert isinstance(result1["hkdf_salt"], bytes)
-        assert isinstance(result2["hkdf_salt"], bytes)
-        assert len(result1["hkdf_salt"]) == HKDF_SALT_SIZE
-        assert len(result2["hkdf_salt"]) == HKDF_SALT_SIZE
+        assert isinstance(result1.hkdf_salt, bytes)
+        assert isinstance(result2.hkdf_salt, bytes)
+        assert len(result1.hkdf_salt) == HKDF_SALT_SIZE
+        assert len(result2.hkdf_salt) == HKDF_SALT_SIZE

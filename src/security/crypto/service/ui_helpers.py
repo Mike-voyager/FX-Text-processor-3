@@ -33,7 +33,6 @@ Priority: Phase 7 — Service Layer
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
 from src.security.crypto.core.metadata import (
     AlgorithmCategory,
@@ -116,7 +115,7 @@ def get_floppy_badge(metadata: AlgorithmMetadata) -> str:
         >>> get_floppy_badge(meta_pqc)
         '❌'
     """
-    _badges: Dict[FloppyFriendly, str] = {
+    _badges: dict[FloppyFriendly, str] = {
         FloppyFriendly.EXCELLENT: "💚",
         FloppyFriendly.ACCEPTABLE: "💛",
         FloppyFriendly.POOR: "❌",
@@ -143,7 +142,7 @@ def get_status_badge(metadata: AlgorithmMetadata) -> str:
         >>> get_status_badge(meta)
         '✅'
     """
-    _badges: Dict[ImplementationStatus, str] = {
+    _badges: dict[ImplementationStatus, str] = {
         ImplementationStatus.STABLE: "✅",
         ImplementationStatus.EXPERIMENTAL: "🧪",
         ImplementationStatus.DEPRECATED: "⚠️",
@@ -203,7 +202,7 @@ def format_algorithm_info(metadata: AlgorithmMetadata) -> str:
         Дискета: Отлично 💚
         ...
     """
-    lines: List[str] = []
+    lines: list[str] = []
 
     # Заголовок
     badge = get_security_badge(metadata)
@@ -235,7 +234,7 @@ def format_algorithm_info(metadata: AlgorithmMetadata) -> str:
         lines.append(key_info)
 
     # Флаги
-    flags: List[str] = []
+    flags: list[str] = []
     if metadata.is_aead:
         flags.append("AEAD (аутентифицированное шифрование)")
     if metadata.is_post_quantum:
@@ -286,7 +285,7 @@ def format_key_sizes(metadata: AlgorithmMetadata) -> str:
         >>> format_key_sizes(meta)
         '  Публичный ключ: 32 байт\\n  Приватный ключ: 32 байт\\n  Подпись: 64 байт'
     """
-    parts: List[str] = []
+    parts: list[str] = []
 
     if metadata.key_size is not None:
         parts.append(f"  Ключ: {metadata.key_size} байт")
@@ -318,7 +317,7 @@ def list_recommended_algorithms(
     floppy_mode: bool = False,
     post_quantum: bool = False,
     include_legacy: bool = False,
-) -> List[str]:
+) -> list[str]:
     """
     Список рекомендуемых алгоритмов для заданной категории.
 
@@ -349,7 +348,7 @@ def list_recommended_algorithms(
         >>> list_recommended_algorithms("signing", post_quantum=True)
         ['ML-DSA-65', 'ML-DSA-44', 'ML-DSA-87', 'Ed25519', ...]
     """
-    _category_map: Dict[str, AlgorithmCategory] = {
+    _category_map: dict[str, AlgorithmCategory] = {
         "symmetric": AlgorithmCategory.SYMMETRIC_CIPHER,
         "signing": AlgorithmCategory.SIGNATURE,
         "asymmetric": AlgorithmCategory.ASYMMETRIC_ENCRYPTION,
@@ -368,11 +367,12 @@ def list_recommended_algorithms(
     registry = AlgorithmRegistry.get_instance()
     all_names = registry.list_algorithms()
 
-    result: List[str] = []
+    result: list[str] = []
     for name in all_names:
         try:
             meta = registry.get_metadata(name)
         except Exception:
+            logger.warning("Не удалось получить метаданные для '%s'", name)
             continue
 
         if meta.category != algo_category:
@@ -393,11 +393,11 @@ def list_recommended_algorithms(
         result.append(name)
 
     # Сортировка: stable > experimental, затем по приоритетам
-    def _sort_key(name: str) -> tuple:  # type: ignore[type-arg]
+    def _sort_key(name: str) -> tuple[int, int, int, int, str]:
         try:
             meta = registry.get_metadata(name)
         except Exception:
-            return (99, 99, 99, name)
+            return (99, 99, 99, 99, name)
 
         # 0 = stable, 1 = experimental, 2 = deprecated
         status_order = {
@@ -434,7 +434,7 @@ def list_recommended_algorithms(
     return result
 
 
-def get_algorithm_warning(metadata: AlgorithmMetadata) -> Optional[str]:
+def get_algorithm_warning(metadata: AlgorithmMetadata) -> str | None:
     """
     Получить строку предупреждения для небезопасного/устаревшего алгоритма.
 
