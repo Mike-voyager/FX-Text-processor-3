@@ -414,19 +414,51 @@ class AlgorithmRegistry:
                 raise KeyError(f"Алгоритм '{name}' не найден в реестре")
             return self._registry[name].metadata
 
-    def list_algorithms(self) -> List[str]:
+    def list_algorithms(self) -> List[AlgorithmMetadata]:
         """
-        Получить список всех зарегистрированных алгоритмов.
+        Получить список метаданных всех зарегистрированных алгоритмов.
+
+        Returns:
+            Список AlgorithmMetadata (sorted by name). Spec: List[AlgorithmMetadata].
+
+        Example:
+            >>> metas = registry.list_algorithms()
+            >>> {m.id for m in metas}
+            {'aes-128-gcm', 'aes-256-gcm', 'chacha20-poly1305', ...}
+        """
+        with self._lock:
+            return sorted(
+                (entry.metadata for entry in self._registry.values()),
+                key=lambda m: m.name,
+            )
+
+    def list_algorithm_names(self) -> List[str]:
+        """
+        Получить список имён всех зарегистрированных алгоритмов.
 
         Returns:
             Список имён алгоритмов (sorted)
-
-        Example:
-            >>> registry.list_algorithms()
-            ['AES-128-GCM', 'AES-256-GCM', 'ChaCha20-Poly1305', ...]
         """
         with self._lock:
             return sorted(self._registry.keys())
+
+    def get_algorithm(self, name: str) -> Any:
+        """
+        Получить экземпляр алгоритма по имени. Spec: AlgorithmRegistry.get_algorithm().
+
+        Args:
+            name: Имя алгоритма
+
+        Returns:
+            Экземпляр алгоритма
+
+        Raises:
+            KeyError: Если алгоритм не найден
+
+        Example:
+            >>> cipher = registry.get_algorithm("aes-256-gcm")
+        """
+        return self.create(name)
 
     def list_by_category(self, category: AlgorithmCategory) -> List[str]:
         """

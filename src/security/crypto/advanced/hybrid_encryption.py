@@ -102,7 +102,7 @@ from src.security.crypto.core.registry import AlgorithmRegistry
 # TYPE ALIASES & CONSTANTS
 # ==============================================================================
 
-KEXAlgorithm = Literal["x25519", "x448", "kyber768", "kyber1024"]
+KEXAlgorithm = Literal["x25519", "x448", "ml-kem-768", "ml-kem-1024"]
 SymmetricAlgorithm = Literal["aes-256-gcm", "chacha20-poly1305"]
 
 HKDF_INFO_HYBRID_ENCRYPTION: Final[bytes] = b"hybrid-encryption-v1"
@@ -157,16 +157,16 @@ PRESETS: Dict[str, HybridConfig] = {
         description="X448 + ChaCha20-Poly1305 (max classical security)",
     ),
     "pqc_standard": HybridConfig(
-        kex_algorithm="kyber768",
+        kex_algorithm="ml-kem-768",
         symmetric_algorithm="aes-256-gcm",
         name="Post-Quantum Standard",
-        description="Kyber768 + AES-256-GCM (quantum-resistant)",
+        description="ML-KEM-768 + AES-256-GCM (quantum-resistant)",
     ),
     "pqc_paranoid": HybridConfig(
-        kex_algorithm="kyber1024",
+        kex_algorithm="ml-kem-1024",
         symmetric_algorithm="chacha20-poly1305",
         name="Post-Quantum Paranoid",
-        description="Kyber1024 + ChaCha20-Poly1305 (max quantum security)",
+        description="ML-KEM-1024 + ChaCha20-Poly1305 (max quantum security)",
     ),
 }
 
@@ -354,21 +354,28 @@ class HybridEncryption:
         symmetric_key = b""
 
         try:
-            # 1. Generate ephemeral keypair
-            ephemeral_private, ephemeral_public = self._kex.generate_keypair()
+            is_kem = hasattr(self._kex, "encapsulate") and hasattr(self._kex, "decapsulate")
 
-            # 2. Derive shared secret
-            shared_secret = self._kex.derive_shared_secret(
-                private_key=ephemeral_private,
-                peer_public_key=recipient_public_key,
-            )
+            if is_kem:
+                # KEM path: encapsulate → (kem_ciphertext, shared_secret)
+                # kem_ciphertext stored as ephemeral_public_key for transport
+                kem_ciphertext, shared_secret = self._kex.encapsulate(recipient_public_key)  # type: ignore[attr-defined]
+                ephemeral_token = kem_ciphertext
+            else:
+                # KEX path: generate ephemeral keypair, derive shared secret
+                ephemeral_private, ephemeral_public = self._kex.generate_keypair()
+                shared_secret = self._kex.derive_shared_secret(
+                    private_key=ephemeral_private,
+                    peer_public_key=recipient_public_key,
+                )
+                ephemeral_token = ephemeral_public
 
-            # 3. Derive symmetric key via HKDF-SHA256
+            # Derive symmetric key via HKDF-SHA256
             hkdf_salt = secrets.token_bytes(HKDF_SALT_SIZE)
             symmetric_key = self._derive_symmetric_key(shared_secret, hkdf_salt)
 
-            # 4. Encrypt with symmetric cipher
-            ciphertext, nonce = self._cipher.encrypt(
+            # Encrypt with symmetric cipher
+            nonce, ciphertext = self._cipher.encrypt(
                 key=symmetric_key,
                 plaintext=plaintext,
                 aad=associated_data,
@@ -379,7 +386,7 @@ class HybridEncryption:
             )
 
             return HybridPayload(
-                ephemeral_public_key=ephemeral_public,
+                ephemeral_public_key=ephemeral_token,
                 nonce=nonce,
                 ciphertext=ciphertext,
                 hkdf_salt=hkdf_salt,
@@ -429,18 +436,24 @@ class HybridEncryption:
         symmetric_key = b""
 
         try:
-            ephemeral_public = encrypted_data.ephemeral_public_key
+            ephemeral_token = encrypted_data.ephemeral_public_key
             nonce = encrypted_data.nonce
             ciphertext = encrypted_data.ciphertext
             hkdf_salt = encrypted_data.hkdf_salt
 
-            # 1. Derive shared secret
-            shared_secret = self._kex.derive_shared_secret(
-                private_key=recipient_private_key,
-                peer_public_key=ephemeral_public,
-            )
+            is_kem = hasattr(self._kex, "encapsulate") and hasattr(self._kex, "decapsulate")
 
-            # 2. Derive symmetric key via HKDF-SHA256
+            if is_kem:
+                # KEM path: decapsulate kem_ciphertext → shared_secret
+                shared_secret = self._kex.decapsulate(recipient_private_key, ephemeral_token)  # type: ignore[attr-defined]
+            else:
+                # KEX path: derive shared secret from ephemeral public key
+                shared_secret = self._kex.derive_shared_secret(
+                    private_key=recipient_private_key,
+                    peer_public_key=ephemeral_token,
+                )
+
+            # Derive symmetric key via HKDF-SHA256
             symmetric_key = self._derive_symmetric_key(shared_secret, hkdf_salt)
 
             # 3. Decrypt ciphertext

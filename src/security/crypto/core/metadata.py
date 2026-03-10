@@ -477,6 +477,21 @@ class AlgorithmMetadata:
                 f"Постквантовый алгоритм {self.name} должен иметь security_level=QUANTUM_RESISTANT"
             )
 
+    @property
+    def id(self) -> str:
+        """Algorithm ID (lowercase). Spec: AlgorithmMetadata.id = 'aes-256-gcm'."""
+        return self.name.lower()
+
+    @property
+    def security_tags(self) -> frozenset[SecurityLevel]:
+        """Security tags set. Spec: AlgorithmMetadata.security_tags: Set[SecurityLevel]."""
+        return frozenset({self.security_level})
+
+    @property
+    def deprecated(self) -> bool:
+        """Whether algorithm is deprecated. Spec: AlgorithmMetadata.deprecated: bool."""
+        return self.status == ImplementationStatus.DEPRECATED
+
     def is_safe_for_production(self) -> bool:
         """
         Безопасен ли алгоритм для production использования.

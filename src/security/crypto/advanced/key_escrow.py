@@ -292,7 +292,7 @@ class DualKeyEscrow:
             data_key = bytearray(secrets.token_bytes(DATA_KEY_SIZE))
 
             # 2. Encrypt plaintext with data key
-            ciphertext, nonce = self._cipher.encrypt(
+            nonce, ciphertext = self._cipher.encrypt(
                 key=bytes(data_key),
                 plaintext=plaintext,
                 aad=associated_data,
@@ -478,7 +478,7 @@ class DualKeyEscrow:
             hkdf_salt = secrets.token_bytes(HKDF_SALT_SIZE)
             wrapping_key = bytearray(self._derive_key(bytes(shared_secret), hkdf_salt, hkdf_info))
 
-            ciphertext, nonce = self._cipher.encrypt(
+            nonce, ciphertext = self._cipher.encrypt(
                 key=bytes(wrapping_key),
                 plaintext=data_key,
             )

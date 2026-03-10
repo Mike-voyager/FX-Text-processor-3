@@ -575,7 +575,7 @@ class GroupKeyManager:
 
         Raises:
             ValueError: Пустой приватный ключ.
-            KeyError: member_id не найден в wrapped_keys.
+            DecryptionError: member_id не найден в wrapped_keys (участник удалён).
             InvalidKeyError: Неверный приватный ключ.
             DecryptionError: Расшифровка не удалась.
         """
@@ -583,7 +583,7 @@ class GroupKeyManager:
             raise ValueError("Member private key cannot be empty")
 
         if member_id not in encrypted_message.wrapped_keys:
-            raise KeyError(f"No wrapped key for member '{member_id}' in message")
+            raise DecryptionError(f"No wrapped key for member '{member_id}' in message")
 
         group_key = bytearray(GROUP_KEY_SIZE)
         try:
