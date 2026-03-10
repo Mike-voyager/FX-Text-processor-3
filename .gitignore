@@ -148,3 +148,4 @@ temp/
 
 # Crypto backups
 .crypto_backup_*/
+.claude
