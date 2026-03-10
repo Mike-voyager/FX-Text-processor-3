@@ -252,7 +252,7 @@ FX-Text-processor-3/
 │   │   │   ├── key_escrow.py             # ✅ DONE
 │   │   │   └── session_keys.py           # ✅ DONE
 │   │   │
-│   │   ├── service/  # 🚧 DONE/TODO tests
+│   │   ├── service/  # ✅ DONE
 │   │   │   ├── __init__.py
 │   │   │   ├── crypto_service.py         # + integration with src.audit
 │   │   │   ├── ui_helpers.py
