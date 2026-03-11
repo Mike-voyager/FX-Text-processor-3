@@ -11,9 +11,9 @@ Unit-тесты для метаданных криптографических �
 Coverage target: ≥95%
 """
 
-import pytest
-from typing import Dict, Any
+from typing import Any, Dict
 
+import pytest
 from src.security.crypto.core.metadata import (
     AlgorithmCategory,
     AlgorithmMetadata,
@@ -36,7 +36,6 @@ from src.security.crypto.core.protocols import (
     SymmetricCipherProtocol,
 )
 
-
 # ==============================================================================
 # TEST: AlgorithmCategory
 # ==============================================================================
@@ -58,10 +57,7 @@ class TestAlgorithmCategory:
         """Метод label() возвращает русские названия."""
         assert AlgorithmCategory.SYMMETRIC_CIPHER.label() == "Симметричное шифрование"
         assert AlgorithmCategory.SIGNATURE.label() == "Цифровая подпись"
-        assert (
-            AlgorithmCategory.ASYMMETRIC_ENCRYPTION.label()
-            == "Асимметричное шифрование"
-        )
+        assert AlgorithmCategory.ASYMMETRIC_ENCRYPTION.label() == "Асимметричное шифрование"
         assert AlgorithmCategory.KEY_EXCHANGE.label() == "Обмен ключами"
         assert AlgorithmCategory.HASH.label() == "Хеширование"
         assert AlgorithmCategory.KDF.label() == "Вывод ключей"
@@ -242,9 +238,7 @@ class TestAlgorithmMetadata:
             description_ru="AES-256 в режиме Galois/Counter Mode",
         )
 
-    def test_create_valid_metadata(
-        self, valid_symmetric_metadata: AlgorithmMetadata
-    ) -> None:
+    def test_create_valid_metadata(self, valid_symmetric_metadata: AlgorithmMetadata) -> None:
         """Создание валидных метаданных."""
         assert valid_symmetric_metadata.name == "AES-256-GCM"
         assert valid_symmetric_metadata.category == AlgorithmCategory.SYMMETRIC_CIPHER
@@ -252,9 +246,7 @@ class TestAlgorithmMetadata:
         assert valid_symmetric_metadata.nonce_size == 12
         assert valid_symmetric_metadata.is_aead is True
 
-    def test_metadata_is_frozen(
-        self, valid_symmetric_metadata: AlgorithmMetadata
-    ) -> None:
+    def test_metadata_is_frozen(self, valid_symmetric_metadata: AlgorithmMetadata) -> None:
         """Метаданные immutable (frozen)."""
         with pytest.raises(AttributeError):
             valid_symmetric_metadata.name = "Changed"  # type: ignore
@@ -305,9 +297,7 @@ class TestAlgorithmMetadata:
         )
         assert not metadata.is_safe_for_production()
 
-    def test_total_overhead_bytes(
-        self, valid_symmetric_metadata: AlgorithmMetadata
-    ) -> None:
+    def test_total_overhead_bytes(self, valid_symmetric_metadata: AlgorithmMetadata) -> None:
         """Расчёт total_overhead_bytes."""
         # key_size = 32
         assert valid_symmetric_metadata.total_overhead_bytes() == 32
@@ -371,9 +361,7 @@ class TestAlgorithmMetadataValidation:
 
     def test_symmetric_cipher_requires_key_size(self) -> None:
         """Симметричный шифр требует key_size."""
-        with pytest.raises(
-            ValueError, match="Симметричный шифр .* требует key_size и nonce_size"
-        ):
+        with pytest.raises(ValueError, match="Симметричный шифр .* требует key_size и nonce_size"):
             AlgorithmMetadata(
                 name="AES-256-GCM",
                 category=AlgorithmCategory.SYMMETRIC_CIPHER,
@@ -388,9 +376,7 @@ class TestAlgorithmMetadataValidation:
 
     def test_signature_requires_signature_size(self) -> None:
         """Алгоритм подписи требует signature_size."""
-        with pytest.raises(
-            ValueError, match="Алгоритм подписи .* требует signature_size"
-        ):
+        with pytest.raises(ValueError, match="Алгоритм подписи .* требует signature_size"):
             AlgorithmMetadata(
                 name="Ed25519",
                 category=AlgorithmCategory.SIGNATURE,
@@ -509,9 +495,7 @@ class TestAlgorithmMetadataSerialization:
         assert restored.key_size == sample_metadata.key_size
         assert restored.is_aead == sample_metadata.is_aead
 
-    def test_to_dict_from_dict_roundtrip(
-        self, sample_metadata: AlgorithmMetadata
-    ) -> None:
+    def test_to_dict_from_dict_roundtrip(self, sample_metadata: AlgorithmMetadata) -> None:
         """Roundtrip: to_dict → from_dict → to_dict."""
         data1 = sample_metadata.to_dict()
         restored = AlgorithmMetadata.from_dict(data1)
@@ -659,9 +643,7 @@ class TestFactoryFunctions:
         assert metadata.protocol_class == KDFProtocol
         assert metadata.extra["recommended_iterations"] == 3
         assert metadata.extra["recommended_memory_cost"] == 65536
-        assert (
-            metadata.floppy_friendly == FloppyFriendly.EXCELLENT
-        )  # KDF всегда EXCELLENT
+        assert metadata.floppy_friendly == FloppyFriendly.EXCELLENT  # KDF всегда EXCELLENT
 
     def test_factory_with_use_cases(self) -> None:
         """Factory functions поддерживают use_cases."""

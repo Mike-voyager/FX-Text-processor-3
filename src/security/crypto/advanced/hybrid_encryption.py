@@ -71,7 +71,7 @@ References:
 - RFC 7748: X25519, X448
 - RFC 5869: HKDF
 
-Author: FX Text Processor 3 Team
+Author: Mike Voyager
 Version: 2.3.2
 Date: February 18, 2026
 """

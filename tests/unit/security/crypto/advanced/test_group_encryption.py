@@ -18,12 +18,11 @@ from typing import Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.security.crypto.advanced.group_encryption import (
+    _X25519_KEY_SIZE,
     GROUP_KEY_SIZE,
     HKDF_SALT_SIZE,
     MAX_GROUP_MEMBERS,
-    _X25519_KEY_SIZE,
     Group,
     GroupEncryptedMessage,
     GroupKeyManager,
@@ -35,7 +34,6 @@ from src.security.crypto.core.exceptions import (
     EncryptionError,
     InvalidKeyError,
 )
-
 
 # ==============================================================================
 # FIXTURES
@@ -203,16 +201,12 @@ class TestCreateGroup:
         with pytest.raises(ValueError, match="cannot be empty"):
             manager.create_group("")
 
-    def test_whitespace_group_id_raises_value_error(
-        self, manager: GroupKeyManager
-    ) -> None:
+    def test_whitespace_group_id_raises_value_error(self, manager: GroupKeyManager) -> None:
         """group_id из пробелов вызывает ValueError."""
         with pytest.raises(ValueError, match="cannot be empty"):
             manager.create_group("   ")
 
-    def test_duplicate_group_id_raises_value_error(
-        self, manager: GroupKeyManager
-    ) -> None:
+    def test_duplicate_group_id_raises_value_error(self, manager: GroupKeyManager) -> None:
         """Дублирующий group_id вызывает ValueError."""
         manager.create_group("dup")
         with pytest.raises(ValueError, match="already exists"):
@@ -249,9 +243,7 @@ class TestGetGroup:
         g = manager.get_group("find-me")
         assert g.group_id == "find-me"
 
-    def test_get_nonexistent_group_raises_key_error(
-        self, manager: GroupKeyManager
-    ) -> None:
+    def test_get_nonexistent_group_raises_key_error(self, manager: GroupKeyManager) -> None:
         """Несуществующий group_id вызывает KeyError."""
         with pytest.raises(KeyError, match="not found"):
             manager.get_group("ghost")
@@ -271,9 +263,7 @@ class TestDeleteGroup:
         manager.delete_group("to-delete")
         assert "to-delete" not in manager._groups
 
-    def test_delete_nonexistent_group_raises_key_error(
-        self, manager: GroupKeyManager
-    ) -> None:
+    def test_delete_nonexistent_group_raises_key_error(self, manager: GroupKeyManager) -> None:
         """Удаление несуществующей группы — KeyError."""
         with pytest.raises(KeyError, match="not found"):
             manager.delete_group("ghost-group")
@@ -635,9 +625,7 @@ class TestEncryptForGroup:
     ) -> None:
         """Шифрование с associated_data не выбрасывает исключений."""
         group, *_ = group_with_members
-        result = manager.encrypt_for_group(
-            group, b"hello", associated_data=b"extra-aad"
-        )
+        result = manager.encrypt_for_group(group, b"hello", associated_data=b"extra-aad")
         assert result is not None
 
 
@@ -740,9 +728,7 @@ class TestDecryptAsMember:
     ) -> None:
         """Неверный associated_data при расшифровке — исключение."""
         group, alice_priv, _, _, _ = group_with_members
-        encrypted = manager.encrypt_for_group(
-            group, b"hello", associated_data=b"correct-aad"
-        )
+        encrypted = manager.encrypt_for_group(group, b"hello", associated_data=b"correct-aad")
         with pytest.raises(Exception):
             manager.decrypt_as_member(
                 group, "alice", alice_priv, encrypted, associated_data=b"wrong-aad"
@@ -899,9 +885,7 @@ class TestWrapUnwrapKey:
         """Разворачивание с неверным AAD вызывает исключение (AEAD tamper detection)."""
         priv, pub = manager.generate_member_keypair()
         group_key = bytearray(b"\xaa" * GROUP_KEY_SIZE)
-        wrapped = manager._wrap_key_for_member(
-            group_key, pub, group_aad=b"correct-group"
-        )
+        wrapped = manager._wrap_key_for_member(group_key, pub, group_aad=b"correct-group")
         with pytest.raises(Exception):
             manager._unwrap_key_for_member(wrapped, priv, group_aad=b"wrong-group")
 
@@ -958,9 +942,7 @@ class TestDeriveWrappingKey:
         k2 = manager._derive_wrapping_key(secret, salt2)
         assert k1 != k2
 
-    def test_different_secret_gives_different_key(
-        self, manager: GroupKeyManager
-    ) -> None:
+    def test_different_secret_gives_different_key(self, manager: GroupKeyManager) -> None:
         """Разный shared_secret даёт разный ключ."""
         import secrets as _secrets
 
@@ -1159,12 +1141,8 @@ class TestThreadSafety:
 
         threads = []
         for _ in range(5):
-            threads.append(
-                threading.Thread(target=encrypt_decrypt, args=(alice_priv, "alice"))
-            )
-            threads.append(
-                threading.Thread(target=encrypt_decrypt, args=(bob_priv, "bob"))
-            )
+            threads.append(threading.Thread(target=encrypt_decrypt, args=(alice_priv, "alice")))
+            threads.append(threading.Thread(target=encrypt_decrypt, args=(bob_priv, "bob")))
 
         for t in threads:
             t.start()
@@ -1354,7 +1332,5 @@ class TestExports:
         for name in exports:
             import importlib
 
-            mod = importlib.import_module(
-                "src.security.crypto.advanced.group_encryption"
-            )
+            mod = importlib.import_module("src.security.crypto.advanced.group_encryption")
             assert hasattr(mod, name), f"{name} not found in module"
