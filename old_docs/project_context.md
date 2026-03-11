@@ -908,14 +908,14 @@ config_path = Path.home() / ".fxtextprocessor" / "config.json"
 **Documents:**
 
 - `.fxsd` — FX Super Document (незашифрованный, JSON)
-- `.fxsd.enc` — FX Super Document Encrypted (AES-256-GCM)
+- `.fxsd.enc` — FX Super Document Encrypted
 - `.fxstpl` — FX Super Template (шаблон формы)
 
 **Security:**
 
-- `.fxsblank` — FX Super Blank (защищённый бланк, всегда зашифрован)
+- `.fxsblank` — FX Super Blank 
 - `.fxskeystore.enc` — FX Super Keystore (хранилище ключей)
-- `.fxssig` — FX Super Signature (цифровая подпись Ed25519)
+- `.fxssig` — FX Super Signature 
 
 **System:**
 
