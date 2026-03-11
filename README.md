@@ -38,10 +38,10 @@ Every document receives a unique hierarchical composite index:
 
 ```
 DVN-44-K53-IX
- │   │   │   └── SEQUENCE: IX (римские цифры, всегда последний сегмент)
- │   │   └────── SERIES: K53 (серия)
- │   └────────── SUBTYPE: 44 (подтип)
- └────────────── ROOT_CODE: DVN (вербальная нота)
+ │   │   │   └── SEQUENCE: IX 
+ │   │   └────── SERIES: K53 
+ │   └────────── SUBTYPE: 44 
+ └────────────── ROOT_CODE: DVN 
 ```
 
 Arbitrary nesting depth. Last segment is always Roman numerals.
