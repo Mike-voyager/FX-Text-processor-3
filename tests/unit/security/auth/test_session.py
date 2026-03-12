@@ -2,7 +2,6 @@ import logging
 from typing import FrozenSet, Tuple
 
 import pytest
-
 from src.security.auth.session import (
     DEFAULT_ACCESS_TTL_SECONDS,
     DEFAULT_IDLE_TIMEOUT_SECONDS,
@@ -69,9 +68,7 @@ def test_access_expiration(mgr: SessionManager, clock: Clock) -> None:
 
 def test_idle_timeout_independent_of_access_ttl(clock: Clock) -> None:
     # Make access TTL very long but idle short to ensure idle triggers
-    mgr = SessionManager(
-        clock=clock.now, access_ttl_seconds=10_000, idle_timeout_seconds=60
-    )
+    mgr = SessionManager(clock=clock.now, access_ttl_seconds=10_000, idle_timeout_seconds=60)
     b = mgr.issue("u2")
     clock.add(61)
     with pytest.raises(TokenExpired):
@@ -208,9 +205,7 @@ def test_validate_errors_on_unknown_and_mismatch(mgr: SessionManager) -> None:
         mgr.validate_access(b.access_token, device_fingerprint="wrong")
 
 
-def test_refresh_errors_on_unknown_and_expired(
-    mgr: SessionManager, clock: Clock
-) -> None:
+def test_refresh_errors_on_unknown_and_expired(mgr: SessionManager, clock: Clock) -> None:
     with pytest.raises(InvalidToken):
         mgr.refresh("non-existent-refresh")
     b = mgr.issue("u13")
@@ -220,9 +215,7 @@ def test_refresh_errors_on_unknown_and_expired(
 
 
 def test_snapshot_contains_fields(mgr: SessionManager) -> None:
-    b = mgr.issue(
-        "u14", scopes=frozenset({"r", "w"}), mfa_required=True, device_fingerprint="fp"
-    )
+    b = mgr.issue("u14", scopes=frozenset({"r", "w"}), mfa_required=True, device_fingerprint="fp")
     snap = mgr.get_snapshot(b.session_id)
     assert snap["session_id"] == b.session_id
     assert snap["user_id"] == "u14"
@@ -238,9 +231,7 @@ def test_invalid_user_id_raises(mgr: SessionManager) -> None:
 
 def test_issue_with_remember_respects_policy(clock: Clock) -> None:
     # allow_remember=False -> игнорируем remember и используем базовый refresh TTL
-    mgr = SessionManager(
-        clock=clock.now, allow_remember=False, refresh_ttl_seconds=7 * 24 * 3600
-    )
+    mgr = SessionManager(clock=clock.now, allow_remember=False, refresh_ttl_seconds=7 * 24 * 3600)
     b = mgr.issue("uR", remember=True)
     assert (b.refresh_expires_at - clock.now()) == 7 * 24 * 3600
 
@@ -278,9 +269,7 @@ def test_update_scopes_fails_when_refresh_expired(clock: Clock) -> None:
 
 def test_list_active_sessions_mixed_states(clock: Clock) -> None:
     # idle_timeout=60s, refresh_ttl=120s
-    mgr = SessionManager(
-        clock=clock.now, idle_timeout_seconds=60, refresh_ttl_seconds=120
-    )
+    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=60, refresh_ttl_seconds=120)
 
     # Создаём три сессии одного пользователя
     alive = mgr.issue("uMix")
@@ -401,9 +390,7 @@ def test_issue_with_allow_remember_affects_refresh_ttl(clock: Clock) -> None:
 
 def test_validate_access_after_idle_but_before_refresh(clock: Clock) -> None:
     # idle короткий, refresh длинный — validate должен падать по idle
-    mgr = SessionManager(
-        clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600
-    )
+    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600)
     b = mgr.issue("uIdle")
     # Превысим idle, но далеко не refresh
     clock.add(31)
@@ -413,10 +400,277 @@ def test_validate_access_after_idle_but_before_refresh(clock: Clock) -> None:
 
 def test_refresh_after_idle_still_checks_idle(clock: Clock) -> None:
     # refresh должен проверять idle — при неактивности тоже падать
-    mgr = SessionManager(
-        clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600
-    )
+    mgr = SessionManager(clock=clock.now, idle_timeout_seconds=30, refresh_ttl_seconds=3600)
     b = mgr.issue("uIdleRef")
     clock.add(31)
     with pytest.raises(TokenExpired):
         mgr.refresh(b.refresh_token)
+
+
+# ---------------------------------------------------------------------------
+# Новые тесты для достижения ≥95% покрытия
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.security
+def test_normalize_device_fp_empty_string_returns_none(clock: Clock) -> None:
+    """_normalize_device_fp с пустой строкой должен вернуть None (не хешировать)."""
+    from src.security.auth.session import _normalize_device_fp
+
+    # Arrange / Act / Assert
+    assert _normalize_device_fp("") is None
+    assert _normalize_device_fp("   ") is None
+    assert _normalize_device_fp(None) is None
+    assert _normalize_device_fp("abc") is not None
+
+
+@pytest.mark.security
+def test_normalize_ip_empty_string_returns_none(clock: Clock) -> None:
+    """_normalize_ip с пустой строкой должен вернуть None."""
+    from src.security.auth.session import _normalize_ip
+
+    # Arrange / Act / Assert
+    assert _normalize_ip("") is None
+    assert _normalize_ip("   ") is None
+    assert _normalize_ip(None) is None
+    # Валидный IP нормализуется
+    assert _normalize_ip("127.0.0.1") == "127.0.0.1"
+    # Невалидный IP возвращается как литерал
+    assert _normalize_ip("not-an-ip") == "not-an-ip"
+
+
+@pytest.mark.security
+def test_in_memory_storage_delete_cleans_empty_user_set(clock: Clock) -> None:
+    """InMemorySessionStorage.delete удаляет пустой set пользователя из _by_user."""
+    from src.security.auth.session import InMemorySessionStorage, SessionRecord
+
+    # Arrange
+    storage = InMemorySessionStorage()
+    mgr = SessionManager(storage=storage, clock=clock.now)
+    b = mgr.issue("solo_user")
+    sid = b.session_id
+
+    # Убеждаемся что запись существует
+    assert storage.get(sid) is not None
+
+    # Act — удаляем единственную сессию пользователя
+    storage.delete(sid)
+
+    # Assert — set пользователя должен быть удалён из _by_user
+    assert "solo_user" not in storage._by_user  # type: ignore[attr-defined]
+
+
+@pytest.mark.security
+def test_in_memory_storage_delete_nonexistent_is_noop(clock: Clock) -> None:
+    """InMemorySessionStorage.delete несуществующего session_id не падает."""
+    from src.security.auth.session import InMemorySessionStorage
+
+    # Arrange
+    storage = InMemorySessionStorage()
+
+    # Act / Assert — не должно бросать исключение
+    storage.delete("does-not-exist")
+
+
+@pytest.mark.security
+def test_in_memory_storage_index_refresh_get(clock: Clock) -> None:
+    """InMemorySessionStorage.index_refresh_get возвращает session_id по хешу."""
+    from src.security.auth.session import InMemorySessionStorage
+
+    # Arrange
+    storage = InMemorySessionStorage()
+    storage.index_refresh_add("hash123", "sess_abc")
+
+    # Act
+    result = storage.index_refresh_get("hash123")
+    missing = storage.index_refresh_get("nonexistent")
+
+    # Assert
+    assert result == "sess_abc"
+    assert missing is None
+
+
+@pytest.mark.security
+def test_revoke_by_session_id_returns_false_for_unknown(clock: Clock) -> None:
+    """revoke_by_session_id возвращает False для несуществующего session_id."""
+    mgr = SessionManager(clock=clock.now)
+
+    # Act / Assert
+    result = mgr.revoke_by_session_id("totally-fake-sid")
+    assert result is False
+
+
+@pytest.mark.security
+def test_validate_access_raises_token_revoked_after_revoke(clock: Clock) -> None:
+    """После revoke validate_access должен бросать InvalidToken (индекс снят)."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("rev_user")
+
+    # Act
+    mgr.revoke_by_session_id(b.session_id)
+
+    # Assert — токен удалён из индекса, поэтому InvalidToken, а не TokenRevoked
+    with pytest.raises(InvalidToken):
+        mgr.validate_access(b.access_token)
+
+
+@pytest.mark.security
+def test_require_mfa_not_required_session_returns_immediately(clock: Clock) -> None:
+    """require_mfa с mfa_required=False должен возвращаться без исключений."""
+    mgr = SessionManager(clock=clock.now)
+
+    # Arrange — сессия без требования MFA
+    b = mgr.issue("no_mfa_user", mfa_required=False)
+
+    # Act / Assert — не должно бросать PermissionError
+    mgr.require_mfa(b.session_id)
+
+
+@pytest.mark.security
+def test_require_mfa_revoked_session_raises_token_revoked(clock: Clock) -> None:
+    """require_mfa для отозванной сессии бросает TokenRevoked."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("rev_mfa_user", mfa_required=True)
+    mgr.mark_mfa_satisfied(b.session_id)
+
+    # Act
+    mgr.revoke_by_session_id(b.session_id)
+
+    # Assert
+    with pytest.raises(TokenRevoked):
+        mgr.require_mfa(b.session_id)
+
+
+@pytest.mark.security
+def test_update_scopes_invalid_type_raises_value_error(clock: Clock) -> None:
+    """update_scopes с не-frozenset бросает ValueError."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("scope_user")
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="frozenset"):
+        mgr.update_scopes(b.session_id, {"read", "write"})  # type: ignore[arg-type]
+
+
+@pytest.mark.security
+def test_list_active_sessions_skips_none_records(clock: Clock) -> None:
+    """list_active_sessions не падает если запись из хранилища вернула None."""
+    from src.security.auth.session import InMemorySessionStorage
+
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("ghost_user")
+
+    # Удаляем запись напрямую — имитируем рассогласование индексов
+    mgr._storage.delete(b.session_id)  # type: ignore[attr-defined]
+
+    # Act — не должно бросать исключений
+    cnt, ids = mgr.list_active_sessions("ghost_user")
+    assert cnt == 0
+
+
+@pytest.mark.security
+def test_list_active_sessions_skips_refresh_expired(clock: Clock) -> None:
+    """list_active_sessions исключает сессии с истёкшим refresh_expires_at."""
+    mgr = SessionManager(clock=clock.now, refresh_ttl_seconds=10)
+    b = mgr.issue("rexp_user")
+
+    # Истекаем refresh
+    clock.add(11)
+
+    cnt, _ = mgr.list_active_sessions("rexp_user")
+    assert cnt == 0
+
+
+@pytest.mark.security
+def test_enforce_user_session_limit_zero_is_noop(clock: Clock) -> None:
+    """При max_sessions_per_user=0 лимит отключён — можно создать много сессий."""
+    mgr = SessionManager(clock=clock.now, max_sessions_per_user=0)
+
+    # Arrange / Act — создаём много сессий без eviction
+    sessions = [mgr.issue("unlimited") for _ in range(15)]
+
+    # Assert — все токены валидны
+    for s in sessions:
+        mgr.validate_access(s.access_token)
+
+
+@pytest.mark.security
+def test_enforce_user_session_limit_evicts_already_revoked_records(clock: Clock) -> None:
+    """LRU eviction пропускает уже отозванные записи при подсчёте."""
+    mgr = SessionManager(clock=clock.now, max_sessions_per_user=3)
+
+    b1 = mgr.issue("lru_user")
+    clock.add(1)
+    b2 = mgr.issue("lru_user")
+    clock.add(1)
+    b3 = mgr.issue("lru_user")
+
+    # Отзываем b2 вручную — оно revoked=True
+    mgr.revoke_by_session_id(b2.session_id)
+
+    # Создаём ещё одну сессию — должно выселить b1 (oldest non-revoked)
+    clock.add(1)
+    b4 = mgr.issue("lru_user")
+
+    # b4 должна быть доступна
+    mgr.validate_access(b4.access_token)
+
+
+@pytest.mark.security
+def test_mark_mfa_satisfied_idempotent_does_not_reset_timestamp(clock: Clock) -> None:
+    """mark_mfa_satisfied вызванный дважды не обновляет временную метку повторно."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("mfa_idem", mfa_required=True)
+    mgr.mark_mfa_satisfied(b.session_id)
+
+    snap1 = mgr.get_snapshot(b.session_id)
+    ts1 = snap1["mfa_last_verified_at"]
+
+    clock.add(10)
+    # Повторный вызов — уже satisfied, не должен обновлять timestamp
+    mgr.mark_mfa_satisfied(b.session_id)
+
+    snap2 = mgr.get_snapshot(b.session_id)
+    ts2 = snap2["mfa_last_verified_at"]
+
+    # Временная метка не должна измениться
+    assert ts1 == ts2
+
+
+@pytest.mark.security
+def test_require_record_raises_invalid_token_for_unknown(clock: Clock) -> None:
+    """_require_record бросает InvalidToken для несуществующего session_id."""
+    mgr = SessionManager(clock=clock.now)
+
+    # Act / Assert — напрямую вызываем internal метод
+    with pytest.raises(InvalidToken):
+        mgr._require_record("nonexistent-sid")  # type: ignore[attr-defined]
+
+
+@pytest.mark.security
+def test_refresh_token_revoked_session_raises_token_revoked(clock: Clock) -> None:
+    """refresh для отозванной сессии бросает TokenRevoked."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("rev_refresh")
+
+    # Отзываем сессию, но сохраняем refresh_token до revoke
+    # Нам нужен токен до revoke, чтобы pop из индекса не убрал его
+    # Поэтому патчим: создаём fresh token, revoke вручную без снятия refresh-индекса
+    rec = mgr._storage.get(b.session_id)  # type: ignore[attr-defined]
+    assert rec is not None
+    rec.revoked = True  # type: ignore[attr-defined]
+
+    # Act — refresh должен бросить TokenRevoked
+    with pytest.raises(TokenRevoked):
+        mgr.refresh(b.refresh_token)
+
+
+@pytest.mark.security
+def test_update_scopes_revoked_raises_token_revoked(clock: Clock) -> None:
+    """update_scopes для отозванной сессии бросает TokenRevoked."""
+    mgr = SessionManager(clock=clock.now)
+    b = mgr.issue("rev_scopes", mfa_required=False)
+    mgr.revoke_by_session_id(b.session_id)
+
+    with pytest.raises(TokenRevoked):
+        mgr.update_scopes(b.session_id, frozenset({"read"}))

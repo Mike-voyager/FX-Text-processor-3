@@ -271,9 +271,7 @@ class Fido2Factor:
                     "response": response,
                 }
             )
-            raise SignatureVerificationFailed(
-                f"Signature verification failed: {e}"
-            ) from e
+            raise SignatureVerificationFailed(f"Signature verification failed: {e}") from e
 
     def add_device(
         self,

@@ -145,9 +145,9 @@ class TotpLockedOut(TotpError):
 
 # ---- Internal State for Rate Limiting ----
 # Keep minimal per-user counters in memory; for multi-process, back these by shared store
-_rl_state: Dict[str, Dict[str, Any]] = (
-    {}
-)  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} }
+_rl_state: Dict[
+    str, Dict[str, Any]
+] = {}  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} }
 
 
 def _now() -> datetime:
@@ -198,10 +198,7 @@ def _register_success(user_id: str) -> None:
 def _check_qr_rate_limit(user_id: str) -> None:
     st = _get_rl(user_id)
     last_qr: Optional[datetime] = st.get("last_qr")
-    if (
-        last_qr
-        and (_now() - last_qr).total_seconds() < _config["rate"]["qr_min_interval"]
-    ):
+    if last_qr and (_now() - last_qr).total_seconds() < _config["rate"]["qr_min_interval"]:
         _logger.debug("QR generation too frequent for user=%s", user_id)
     st["last_qr"] = _now()
 

@@ -181,9 +181,7 @@ class TotpFactor:
                     "otp": otp[:2] + "****" if len(otp) >= 2 else "****",
                 }
             )
-            raise TotpVerificationFailed(
-                f"Invalid OTP format (expected {digits} digits)"
-            )
+            raise TotpVerificationFailed(f"Invalid OTP format (expected {digits} digits)")
 
         # Anti-replay check
         if enable_anti_replay:
@@ -191,10 +189,7 @@ class TotpFactor:
             current_time_step = int(_now().timestamp() / interval)
             last_used_time_step = state.get("last_used_time_step")
 
-            if (
-                last_used_time_step is not None
-                and current_time_step <= last_used_time_step
-            ):
+            if last_used_time_step is not None and current_time_step <= last_used_time_step:
                 audit.append(
                     {
                         "timestamp": now_str,
@@ -263,9 +258,7 @@ class TotpFactor:
             >>> if factor.is_secret_configured(state):
             ...     factor.verify("alice", "123456", state)
         """
-        return (
-            "secret" in state and state["secret"] is not None and state["secret"] != ""
-        )
+        return "secret" in state and state["secret"] is not None and state["secret"] != ""
 
     @staticmethod
     def validate_otp_format(otp: str, expected_digits: int = DEFAULT_DIGITS) -> bool:
@@ -318,9 +311,7 @@ class TotpFactor:
         totp = pyotp.TOTP(secret, digits=digits, interval=interval)
         return totp.provisioning_uri(name=username, issuer_name=issuer)
 
-    def rotate_secret(
-        self, state: Dict[str, Any], new_secret: Optional[str] = None
-    ) -> str:
+    def rotate_secret(self, state: Dict[str, Any], new_secret: Optional[str] = None) -> str:
         """
         Rotate TOTP secret (for security refresh).
 
@@ -439,9 +430,7 @@ class TotpFactor:
         audit = state.get("audit", [])
         success_count = sum(1 for event in audit if event.get("result") == "success")
         fail_count = sum(1 for event in audit if event.get("result") == "fail")
-        replay_count = sum(
-            1 for event in audit if event.get("result") == "replay_detected"
-        )
+        replay_count = sum(1 for event in audit if event.get("result") == "replay_detected")
 
         data = {
             "created_at": state.get("created_at"),

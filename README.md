@@ -153,7 +153,7 @@ src/
 ├── security/                # Security subsystem
 │   ├── crypto/              # ✅ Cryptographic primitives (v2.3, 46 algorithms)
 │   │   ├── core/            #    Protocols, metadata, AlgorithmRegistry, exceptions
-│   │   ├── algorithms/      #    symmetric/, signing/, asymmetric/, key_exchange/, hashing/, kdf/
+│   │   ├── algorithms/      #    symmetric, signing, asymmetric, key_exchange, hashing, kdf
 │   │   ├── advanced/        #    Hybrid encryption, group encryption, key escrow, session keys
 │   │   ├── service/         #    CryptoService, profiles (Standard/Paranoid/PQC/Legacy)
 │   │   ├── utilities/       #    FloppyOptimizer, NonceManager, SecureStorage, key rotation

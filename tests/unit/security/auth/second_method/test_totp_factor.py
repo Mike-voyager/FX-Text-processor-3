@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pyotp
 import pytest
-
 from src.security.auth.second_method.totp import (
     TotpFactor,
     TotpSecretMissing,
@@ -37,9 +36,7 @@ def test_totp_setup_with_custom_secret() -> None:
     user_id = "bob"
     username = "testbob"
     issuer = "TestApp"
-    state = factor.setup(
-        user_id=user_id, secret=custom_secret, username=username, issuer=issuer
-    )
+    state = factor.setup(user_id=user_id, secret=custom_secret, username=username, issuer=issuer)
     assert state["secret"] == custom_secret
     code = pyotp.TOTP(custom_secret).now()
     assert factor.verify(user_id, code, state)
@@ -274,9 +271,9 @@ def test_totp_audit_success_entry() -> None:
     factor.verify("carol", otp, state)
 
     audit = state.get("audit", [])
-    assert any(
-        entry.get("result") == "success" for entry in audit
-    ), "Audit trail should contain a success entry"
+    assert any(entry.get("result") == "success" for entry in audit), (
+        "Audit trail should contain a success entry"
+    )
 
 
 def test_totp_audit_replay_entry() -> None:
@@ -294,9 +291,9 @@ def test_totp_audit_replay_entry() -> None:
         factor.verify("dave", otp, state)
 
     audit = state.get("audit", [])
-    assert any(
-        entry.get("result") == "replay_detected" for entry in audit
-    ), "Audit trail should contain a replay_detected entry"
+    assert any(entry.get("result") == "replay_detected" for entry in audit), (
+        "Audit trail should contain a replay_detected entry"
+    )
 
 
 def test_totp_audit_invalid_format_entry() -> None:
@@ -314,9 +311,9 @@ def test_totp_audit_invalid_format_entry() -> None:
         factor.verify("eve", "ABCDE", state)
 
     audit = state.get("audit", [])
-    assert any(
-        entry.get("result") == "invalid_format" for entry in audit
-    ), "Audit trail should contain an invalid_format entry"
+    assert any(entry.get("result") == "invalid_format" for entry in audit), (
+        "Audit trail should contain an invalid_format entry"
+    )
 
 
 def test_totp_rotated_secret_still_usable() -> None:
@@ -354,15 +351,13 @@ def test_totp_audit_multiple_entries() -> None:
         factor.verify("grace", "XYZ12", state)
 
     audit = state.get("audit", [])
-    assert any(
-        e.get("result") == "success" for e in audit
-    ), "Audit must contain a success entry"
-    assert any(
-        e.get("result") == "replay_detected" for e in audit
-    ), "Audit must contain a replay_detected entry"
-    assert any(
-        e.get("result") == "invalid_format" for e in audit
-    ), "Audit must contain an invalid_format entry"
+    assert any(e.get("result") == "success" for e in audit), "Audit must contain a success entry"
+    assert any(e.get("result") == "replay_detected" for e in audit), (
+        "Audit must contain a replay_detected entry"
+    )
+    assert any(e.get("result") == "invalid_format" for e in audit), (
+        "Audit must contain an invalid_format entry"
+    )
 
 
 def test_totp_anti_replay_disabled() -> None:

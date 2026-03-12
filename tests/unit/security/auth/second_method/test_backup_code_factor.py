@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from src.security.auth.second_method.code import (
     CODE_BITS,
     DEFAULT_TTL_DAYS,
@@ -125,9 +124,7 @@ def test_lockout_unlock_cycle() -> None:
             pass
     assert "lock_until" in state
     # Advance time past lockout
-    state["lock_until"] = (
-        datetime.now(timezone.utc) - timedelta(seconds=1)
-    ).isoformat()
+    state["lock_until"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
     # Now should not raise
     fake_code2 = "dcba-" * 16
     with pytest.raises(CodeLockout):
@@ -137,9 +134,7 @@ def test_lockout_unlock_cycle() -> None:
 
 def test_expired_code_and_expire_method() -> None:
     factor, state = setup_factor_state()
-    past = (
-        datetime.now(timezone.utc) - timedelta(days=DEFAULT_TTL_DAYS + 1)
-    ).isoformat()
+    past = (datetime.now(timezone.utc) - timedelta(days=DEFAULT_TTL_DAYS + 1)).isoformat()
     state["created_at"] = past
     with pytest.raises(CodeExpired):
         factor.verify("user_test", state["codes"][0]["code"], state)

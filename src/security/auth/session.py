@@ -2,13 +2,15 @@
 """
 RU: Менеджер сессий аутентификации для локального приложения: выпуск access/refresh токенов,
 их ротация, контроль TTL, привязка к устройству/IP, idle timeout, свежесть MFA (MFA-freshness),
-ограничение числа одновременных сессий на пользователя, отзыв и сборка мусора. Хранение состояния — только в памяти
-(после перезапуска требуется повторный вход), потокобезопасность через RLock, DI‑дружественный интерфейс хранилища.
+ограничение числа одновременных сессий на пользователя, отзыв и сборка мусора.
+Хранение состояния — только в памяти (после перезапуска требуется повторный вход),
+потокобезопасность через RLock, DI‑дружественный интерфейс хранилища.
 
-EN: Authentication session manager for a local product. Issues access/refresh tokens, rotates refresh on use,
-enforces TTLs, optional device/IP binding, idle timeout, MFA freshness window, per-user session limit, revocation,
-and garbage collection. In-memory only (no persistence across restarts), thread-safe via instance-level RLock,
-and designed for DI with a pluggable storage protocol.
+EN: Authentication session manager for a local product. Issues access/refresh tokens,
+rotates refresh on use, enforces TTLs, optional device/IP binding, idle timeout,
+MFA freshness window, per-user session limit, revocation, and garbage collection.
+In-memory only (no persistence across restarts), thread-safe via instance-level RLock, and designed
+for DI with a pluggable storage protocol.
 
 Notes:
 - This module does not verify passwords or second factors; use password and MFA services for that.
@@ -496,9 +498,7 @@ class SessionManager:
                 rec.revoked = True
                 self._storage.index_access_remove(rec.access_token_hash)
                 self._storage.index_refresh_pop(rec.refresh_token_hash)
-                LOG.warning(
-                    "Session revoked sid=%s user=%s", rec.session_id, rec.user_id
-                )
+                LOG.warning("Session revoked sid=%s user=%s", rec.session_id, rec.user_id)
             return True
 
     def revoke_all_user_sessions(self, user_id: str) -> int:
@@ -522,16 +522,10 @@ class SessionManager:
                 rec.mfa_last_verified_at = now
                 LOG.info("MFA satisfied sid=%s user=%s", rec.session_id, rec.user_id)
 
-    def require_mfa(
-        self, session_id: str, freshness_seconds: Optional[int] = None
-    ) -> None:
+    def require_mfa(self, session_id: str, freshness_seconds: Optional[int] = None) -> None:
         """Ensure session has MFA satisfied and fresh within the given window; raise on violation."""
         now = self._clock()
-        window = (
-            self._mfa_fresh_default
-            if freshness_seconds is None
-            else int(freshness_seconds)
-        )
+        window = self._mfa_fresh_default if freshness_seconds is None else int(freshness_seconds)
         with self._lock:
             rec = self._require_record(session_id)
             self._enforce_not_revoked(rec)
@@ -539,10 +533,7 @@ class SessionManager:
                 return
             if not rec.mfa_satisfied:
                 raise PermissionError("MFA not satisfied for this session.")
-            if (
-                rec.mfa_last_verified_at is None
-                or (now - rec.mfa_last_verified_at) > window
-            ):
+            if rec.mfa_last_verified_at is None or (now - rec.mfa_last_verified_at) > window:
                 raise PermissionError("MFA freshness window exceeded.")
 
     # ---------- Scopes Management ----------
@@ -566,9 +557,7 @@ class SessionManager:
             is_elevation = not rec.scopes.issuperset(new_scopes)
             if is_elevation and require_fresh_mfa and rec.mfa_required:
                 window = (
-                    self._mfa_fresh_default
-                    if freshness_seconds is None
-                    else int(freshness_seconds)
+                    self._mfa_fresh_default if freshness_seconds is None else int(freshness_seconds)
                 )
                 if (
                     (not rec.mfa_satisfied)
@@ -707,6 +696,4 @@ class SessionManager:
         to_evict = [sid for sid, _ in records[:needed]]
         for sid in to_evict:
             self.revoke_by_session_id(sid)
-            LOG.info(
-                "Evicted LRU session due to per-user limit sid=%s user=%s", sid, user_id
-            )
+            LOG.info("Evicted LRU session due to per-user limit sid=%s user=%s", sid, user_id)

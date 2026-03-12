@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 
 import pytest
-
 from src.security.auth.second_method.fido2 import (
     CredentialMismatch,
     DeviceNotFound,
@@ -11,9 +10,7 @@ from src.security.auth.second_method.fido2 import (
 )
 
 
-def mk_device_info(
-    cid: str = "cid1", pk: str = "pk1", name: str = "YubiKey 5"
-) -> Dict[str, Any]:
+def mk_device_info(cid: str = "cid1", pk: str = "pk1", name: str = "YubiKey 5") -> Dict[str, Any]:
     return {
         "credential_id": cid,
         "public_key": pk,
