@@ -47,9 +47,7 @@ _LOG = logging.getLogger(__name__)
 # ---- Constants & Policy ----
 _DEFAULT_SALT_LENGTH: Final[int] = 16
 _HASH_FORMAT_VERSION: Final[str] = "v1"
-_HASH_FORMAT_RE: Final[re.Pattern[str]] = re.compile(
-    r"^v1:argon2id\$[0-9a-f]{16,}\$.+$"
-)
+_HASH_FORMAT_RE: Final[re.Pattern[str]] = re.compile(r"^v1:argon2id\$[0-9a-f]{16,}\$.+$")
 
 _PEPPER_ENV_VAR: Final[str] = "FX_TEXT_PW_PEPPER"
 MAX_FAILED_ATTEMPTS: Final[int] = 5
@@ -148,7 +146,7 @@ def is_valid_password(
     req_special: bool = _REQ_SPECIAL,
     req_upper: bool = _REQ_UPPER,
     req_digit: bool = _REQ_DIGIT,
-    blacklist: Optional[set] = None,
+    blacklist: Optional[set[str]] = None,
 ) -> bool:
     if not isinstance(password, str):
         return False
@@ -295,15 +293,11 @@ class PasswordHasher:
             return
         e = self._event(event, user_id, metadata)
         try:
-            self.mfa_callback(
-                e.event, e.user_id, {"timestamp": e.timestamp, **e.metadata}
-            )
+            self.mfa_callback(e.event, e.user_id, {"timestamp": e.timestamp, **e.metadata})
         except Exception as exc:
             _LOG.error("MFA callback error for %s: %s", event, exc)
 
-    def _mix_password(
-        self, password: str, salt: bytes, pepper: Optional[bytes] = None
-    ) -> str:
+    def _mix_password(self, password: str, salt: bytes, pepper: Optional[bytes] = None) -> str:
         salt_marker = blake2b(salt, digest_size=8).hexdigest()
         # Guard extremely long passwords to avoid memory blow-up during concat
         if len(password) > _MAX_INPUT_LENGTH:
@@ -334,9 +328,7 @@ class PasswordHasher:
             return False
         if not self.pepper_rotated_at:
             return True
-        return _now() - self.pepper_rotated_at <= timedelta(
-            days=self.pepper_rotation_days
-        )
+        return _now() - self.pepper_rotated_at <= timedelta(days=self.pepper_rotation_days)
 
     # ---- Public API ----
     def generate_salt(self, length: int = _DEFAULT_SALT_LENGTH) -> bytes:
@@ -381,9 +373,7 @@ class PasswordHasher:
                 user_id,
                 metadata={"ver": _HASH_FORMAT_VERSION},
             )
-            _LOG.info(
-                "Password hashed for user %s: ver=%s", user_id, _HASH_FORMAT_VERSION
-            )
+            _LOG.info("Password hashed for user %s: ver=%s", user_id, _HASH_FORMAT_VERSION)
             return result
 
     async def hash_password_async(
@@ -409,10 +399,8 @@ class PasswordHasher:
                     user_id,
                     metadata={"locked": True, "attempts": attempts},
                 )
-                _LOG.warning(
-                    "User %s locked out after %d failed attempts.", user_id, attempts
-                )
-                raise LockoutActive("Account is locked")
+                _LOG.warning("User %s locked out after %d failed attempts.", user_id, attempts)
+                return False
 
             try:
                 version, salt, argon_hash = self._parse_hash(hashed)
@@ -454,14 +442,12 @@ class PasswordHasher:
                             self._fire_mfa(MfaEvent.PASSWORD_LOCKOUT, user_id)
                     return False
 
-            except LockoutActive:
-                raise
-            except InvalidHashFormat:
-                raise
             except Exception as exc:
+                # Минимум утечки информации: любые внутренние ошибки
+                # логируются и возвращают False без раскрытия деталей.
                 self._fire_mfa(MfaEvent.ALERT, user_id, metadata={"error": str(exc)})
                 _LOG.error("Error verifying password for user %s: %s", user_id, exc)
-                raise InternalError("Verification failed") from exc
+                return False
 
     async def verify_password_async(
         self,
@@ -510,13 +496,9 @@ class PasswordHasher:
                 # Be conservative: require rehash on internal errors
                 return True
 
-    def update_password(
-        self, password: str, hashed: str, user_id: str = "unknown"
-    ) -> str:
+    def update_password(self, password: str, hashed: str, user_id: str = "unknown") -> str:
         with self._lock:
-            if not self.verify_password(
-                password, hashed, user_id, track_attempts=False
-            ):
+            if not self.verify_password(password, hashed, user_id, track_attempts=False):
                 raise PolicyViolation("Password verification failed. Update aborted.")
             if self.needs_rehash(hashed, user_id):
                 salt = self.generate_salt()
@@ -564,9 +546,7 @@ class PasswordHasher:
             "mfa_rate_limit_sec": _MFA_RATE_LIMIT_SEC,
         }
         if deterministic:
-            return OrderedDict(
-                sorted(data.items(), key=lambda kv: kv[0])
-            )  # stable key order
+            return OrderedDict(sorted(data.items(), key=lambda kv: kv[0]))  # stable key order
         return data
 
     def export_audit(self, user_id: str, deterministic: bool = True) -> Dict[str, Any]:

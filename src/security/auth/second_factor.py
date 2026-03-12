@@ -25,7 +25,7 @@ from typing import (
     runtime_checkable,
 )
 
-from src.security.crypto.core.protocols import KeyStoreProtocol  # type: ignore
+from src.security.crypto.core.protocols import KeyStoreProtocol
 
 from .second_method.code import BackupCodeFactor
 from .second_method.fido2 import Fido2Factor
@@ -104,9 +104,7 @@ class SecondFactorManager:
         >>> ok = mgr.verify_factor("uid1", "totp", otp="123456")
     """
 
-    def __init__(
-        self, storage: KeyStoreProtocol, logger: Optional[logging.Logger] = None
-    ) -> None:
+    def __init__(self, storage: KeyStoreProtocol, logger: Optional[logging.Logger] = None) -> None:
         self._logger = logger or logging.getLogger("security.second_factor")
         self._lock = threading.RLock()
         self._storage: KeyStoreProtocol = storage
@@ -115,9 +113,7 @@ class SecondFactorManager:
         self._factor_registry: Dict[str, Type[FactorProtocol]] = {}
         self.register_factor_type("totp", cast(Type[FactorProtocol], TotpFactor))
         self.register_factor_type("fido2", cast(Type[FactorProtocol], Fido2Factor))
-        self.register_factor_type(
-            "backupcode", cast(Type[FactorProtocol], BackupCodeFactor)
-        )
+        self.register_factor_type("backupcode", cast(Type[FactorProtocol], BackupCodeFactor))
 
         self._factors: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         self._audit: List[Dict[str, Any]] = []
@@ -140,13 +136,9 @@ class SecondFactorManager:
             return
         try:
             obj = json.loads(raw_bytes.decode("utf-8"))
-            self._factors = cast(
-                Dict[str, Dict[str, List[Dict[str, Any]]]], obj.get("factors", {})
-            )
+            self._factors = cast(Dict[str, Dict[str, List[Dict[str, Any]]]], obj.get("factors", {}))
             self._audit = cast(List[Dict[str, Any]], obj.get("audit", []))
-            self._logger.debug(
-                "Loaded MFA state from keystore item '%s'", _STORAGE_ITEM
-            )
+            self._logger.debug("Loaded MFA state from keystore item '%s'", _STORAGE_ITEM)
         except Exception as e:
             self._logger.error("Failed to parse MFA state JSON: %s", e)
             self._factors = {}
@@ -158,9 +150,7 @@ class SecondFactorManager:
                 "factors": self._factors,
                 "audit": self._audit,
             }
-            data = json.dumps(
-                payload, ensure_ascii=False, separators=(",", ":")
-            ).encode("utf-8")
+            data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             self._storage.save(_STORAGE_ITEM, data)
             self._logger.debug("Saved MFA state to keystore item '%s'", _STORAGE_ITEM)
         except Exception as e:
@@ -242,9 +232,7 @@ class SecondFactorManager:
                 "state": factor_state,
                 "ts": _state_created_ts(factor_state),
             }
-            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(
-                entry
-            )
+            self._factors.setdefault(user_id, {}).setdefault(factor_type, []).append(entry)
             self._audit.append(
                 {
                     "action": "setup",
@@ -255,9 +243,7 @@ class SecondFactorManager:
                 }
             )
             self._save_storage()
-            return cast(str, factor_state.get("id")) or str(
-                factor_state.get("created", "")
-            )
+            return cast(str, factor_state.get("id")) or str(factor_state.get("created", ""))
 
     def verify_factor(
         self,
@@ -322,9 +308,7 @@ class SecondFactorManager:
                     ok = result
                 elif isinstance(result, dict):
                     status = result.get("status")
-                    ok = bool(
-                        status == "success" or result.get("ok") or result.get("valid")
-                    )
+                    ok = bool(status == "success" or result.get("ok") or result.get("valid"))
                     reason = result.get("detail") or result.get("reason")
                 else:
                     ok = bool(result)
@@ -452,9 +436,7 @@ class SecondFactorManager:
             state = cast(Dict[str, Any], factor_list[-1]["state"])
             return _copy_for_public(state) if redact else dict(state)
 
-    def get_status_public(
-        self, user_id: str, factor_type: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_status_public(self, user_id: str, factor_type: str) -> Optional[Dict[str, Any]]:
         """
         Public factor status for UI: returns ID, timestamps, TTL etc.
         """
@@ -480,8 +462,7 @@ class SecondFactorManager:
             self._validate_user_id(user_id)
             self._validate_factor_type(factor_type)
             records = [
-                entry["state"]
-                for entry in self._factors.get(user_id, {}).get(factor_type, [])
+                entry["state"] for entry in self._factors.get(user_id, {}).get(factor_type, [])
             ]
             if not redact:
                 return [dict(r) for r in records]
@@ -502,6 +483,39 @@ class SecondFactorManager:
             return list(history)
 
     # ---------- Discovery ops ----------
+
+    def rotate_factor(
+        self, user_id: str, factor_type: str, **kwargs: Any
+    ) -> Optional[Dict[str, Any]]:
+        """Заменяет фактор: удаляет все существующие и создаёт новый.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            factor_type: Тип фактора.
+            **kwargs: Параметры для нового фактора (передаются в setup_factor).
+
+        Returns:
+            Статус нового фактора или None при ошибке.
+        """
+        self._validate_user_id(user_id)
+        self._validate_factor_type(factor_type)
+        self.remove_all_factors(user_id, factor_type)
+        self.setup_factor(user_id, factor_type, **kwargs)
+        return self.get_status(user_id, factor_type)
+
+    def _secure_del(self, mapping: Dict[str, Any], keys: List[str]) -> None:
+        """Безопасно зануляет bytearray-значения и удаляет ключи из словаря.
+
+        Args:
+            mapping: Словарь с данными для очистки.
+            keys: Список ключей для удаления.
+        """
+        for key in keys:
+            val = mapping.get(key)
+            if isinstance(val, bytearray):
+                for i in range(len(val)):
+                    val[i] = 0
+            mapping.pop(key, None)
 
     def list_factors(self, user_id: str) -> Dict[str, List[str]]:
         """

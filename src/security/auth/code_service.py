@@ -12,9 +12,7 @@ import threading
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from src.app_context import get_app_context
-from src.security.crypto.kdf import (  # ensure exported in kdf.__all__
-    derive_key_argon2id,
-)
+from src.security.crypto.algorithms.kdf import Argon2idKDF
 
 _logger = logging.getLogger("security.auth.code_service")
 _lock = threading.Lock()
@@ -62,9 +60,7 @@ def issue_backup_codes_for_user(
             mgr.setup_factor(user_id, "backupcode", count=count, ttlseconds=ttlsec)
             state = _export_state(user_id)
             raw_codes = state.get("codes", [])
-            codes: List[Dict[str, Any]] = [
-                c if isinstance(c, dict) else dict(c) for c in raw_codes
-            ]
+            codes: List[Dict[str, Any]] = [c if isinstance(c, dict) else dict(c) for c in raw_codes]
             remaining = int(state.get("remaining", len(codes)))
             consumed = int(state.get("consumed", 0))
             _logger.info("Backup codes issued: user=%s count=%d", user_id, count)
@@ -73,9 +69,7 @@ def issue_backup_codes_for_user(
                 remaining=remaining,
                 consumed=consumed,
                 ttl_seconds=(
-                    int(state.get("ttl_seconds", ttlsec))
-                    if "ttl_seconds" in state
-                    else ttlsec
+                    int(state.get("ttl_seconds", ttlsec)) if "ttl_seconds" in state else ttlsec
                 ),
             )
         except Exception as exc:
@@ -177,9 +171,7 @@ def get_backup_codes_audit(user_id: str) -> List[Any]:
         try:
             state = _export_state(user_id)
             audit = cast(List[Any], state.get("audit", []))
-            _logger.debug(
-                "Backup code audit requested: user=%s size=%d", user_id, len(audit)
-            )
+            _logger.debug("Backup code audit requested: user=%s size=%d", user_id, len(audit))
             return audit
         except Exception as exc:
             _logger.error(
@@ -204,8 +196,5 @@ def get_backup_code_secret_for_storage(user_id: str, code: str) -> bytes:
         raise PermissionError("Invalid backup code")
 
     personal_salt = ("backup/user/" + user_id).encode("utf-8")
-    return derive_key_argon2id(
-        password=(user_id + "|" + code),
-        salt=personal_salt,
-        length=32,
-    )
+    password_bytes = (user_id + "|" + code).encode("utf-8")
+    return Argon2idKDF().derive_key(password_bytes, personal_salt, key_length=32)

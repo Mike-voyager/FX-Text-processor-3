@@ -69,9 +69,7 @@ def format_code(raw_hex: str, block_size: int = BLOCK_SIZE) -> str:
         >>> format_code("a1b2c3d4e5f6", 4)
         'a1b2-c3d4-e5f6'
     """
-    return "-".join(
-        [raw_hex[i : i + block_size] for i in range(0, len(raw_hex), block_size)]
-    )
+    return "-".join([raw_hex[i : i + block_size] for i in range(0, len(raw_hex), block_size)])
 
 
 class BackupCodeFactor:
@@ -157,9 +155,7 @@ class BackupCodeFactor:
         state["codes"] = []
         state["lock_until"] = now_str
         state["audit"] = state.get("audit", [])
-        state["audit"].append(
-            {"action": "remove", "timestamp": now_str, "user_id": user_id}
-        )
+        state["audit"].append({"action": "remove", "timestamp": now_str, "user_id": user_id})
 
     def verify(self, user_id: str, code: str, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -322,9 +318,7 @@ class BackupCodeFactor:
             return OrderedDict(sorted(data.items(), key=lambda kv: kv[0]))
         return data
 
-    def export_audit(
-        self, state: Dict[str, Any], deterministic: bool = True
-    ) -> Dict[str, Any]:
+    def export_audit(self, state: Dict[str, Any], deterministic: bool = True) -> Dict[str, Any]:
         """
         Export audit summary for monitoring.
 

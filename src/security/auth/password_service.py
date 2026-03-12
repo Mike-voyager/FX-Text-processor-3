@@ -71,9 +71,7 @@ class InMemoryUserStorage:
     def user_exists(self, user_id: str) -> bool:
         return user_id in self._storage
 
-    def get_password_history(
-        self, user_id: str, limit: int = PASSWORD_HISTORY_LENGTH
-    ) -> List[str]:
+    def get_password_history(self, user_id: str, limit: int = PASSWORD_HISTORY_LENGTH) -> List[str]:
         return self._history.get(user_id, [])[-limit:]
 
     def add_password_to_history(self, user_id: str, password_hash: str) -> None:
@@ -145,9 +143,7 @@ class PasswordService:
         """Check if password was used recently."""
         history = self.storage.get_password_history(user_id)
         for old_hash in history:
-            if self.hasher.verify_password(
-                new_password, old_hash, user_id, track_attempts=False
-            ):
+            if self.hasher.verify_password(new_password, old_hash, user_id, track_attempts=False):
                 return False
         return True
 
@@ -156,9 +152,7 @@ class PasswordService:
         created_at = self.storage.get_password_created_at(user_id)
         if not created_at:
             return False
-        return datetime.now(timezone.utc) > (
-            created_at + timedelta(days=PASSWORD_EXPIRY_DAYS)
-        )
+        return datetime.now(timezone.utc) > (created_at + timedelta(days=PASSWORD_EXPIRY_DAYS))
 
     def _audit_log(self, event: str, user_id: str, details: Dict[str, Any]) -> None:
         record: Dict[str, Any] = {
@@ -175,9 +169,7 @@ class PasswordService:
 
         if not is_valid_password(password):
             self.last_error = "Password does not meet policy"
-            self._audit_log(
-                "password_policy_violation", user_id, {"reason": "weak_password"}
-            )
+            self._audit_log("password_policy_violation", user_id, {"reason": "weak_password"})
             raise WeakPasswordError(self.last_error)
 
         if self.storage.user_exists(user_id) and not self._check_password_history(
@@ -192,9 +184,7 @@ class PasswordService:
             password_hash = self.hasher.hash_password(password, salt, user_id)
         except PolicyViolation as e:
             self.last_error = str(e) or "Password policy violation"
-            self._audit_log(
-                "password_policy_violation", user_id, {"reason": "hasher_rejected"}
-            )
+            self._audit_log("password_policy_violation", user_id, {"reason": "hasher_rejected"})
             raise WeakPasswordError(self.last_error)
         self.storage.set_password_hash(user_id, password_hash)
         self.storage.set_temporary_flag(user_id, False)
@@ -257,9 +247,7 @@ class PasswordService:
 
         return result
 
-    def change_password(
-        self, user_id: str, old_password: str, new_password: str
-    ) -> bool:
+    def change_password(self, user_id: str, old_password: str, new_password: str) -> bool:
         """Change user password (requires old password verification)."""
         self.last_error = None
 
@@ -358,6 +346,33 @@ class PasswordService:
         policy = self.hasher.export_policy()
         return dict(policy)
 
+    def check_password_strength(self, password: str) -> Dict[str, Any]:
+        """Проверяет сложность пароля без хеширования.
+
+        Возвращает словарь с результатом проверки и списком нарушений.
+        Используется для UI-валидации перед отправкой пароля.
+
+        Args:
+            password: Проверяемый пароль.
+
+        Returns:
+            Словарь ``{"valid": bool, "issues": list[str]}``.
+            Ключи issues: ``"length<8"``, ``"no_uppercase"``,
+            ``"no_lowercase"``, ``"no_digit"``, ``"no_special"``.
+        """
+        issues: List[str] = []
+        if len(password) < 8:
+            issues.append("length<8")
+        if not any(c.isupper() for c in password):
+            issues.append("no_uppercase")
+        if not any(c.islower() for c in password):
+            issues.append("no_lowercase")
+        if not any(c.isdigit() for c in password):
+            issues.append("no_digit")
+        if not any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in password):
+            issues.append("no_special")
+        return {"valid": len(issues) == 0, "issues": issues}
+
     def is_password_expired(self, user_id: str) -> bool:
         """Check if password has expired."""
         return self._check_expiration(user_id)
@@ -367,9 +382,7 @@ class PasswordService:
         created_at = self.storage.get_password_created_at(user_id)
         if not created_at:
             return None
-        delta = (created_at + timedelta(days=PASSWORD_EXPIRY_DAYS)) - datetime.now(
-            timezone.utc
-        )
+        delta = (created_at + timedelta(days=PASSWORD_EXPIRY_DAYS)) - datetime.now(timezone.utc)
         return max(0, delta.days)
 
     def get_statistics(self) -> Dict[str, Any]:

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Thread-safe proxy API for controller/UI to interact with FIDO2/WebAuthn factor using SecondFactorManager.
-All security logic is delegated to the manager via public APIs. Operations guarded by a module-level mutex.
+Thread-safe proxy API for controller/UI to interact
+with FIDO2/WebAuthn factor using SecondFactorManager.
+All security logic is delegated to the manager via public APIs.
+Operations guarded by a module-level mutex.
 """
 
 from __future__ import annotations
@@ -11,7 +13,20 @@ import threading
 from typing import Any, Dict, List, cast
 
 from src.app_context import get_app_context
-from src.security.crypto.algorithms.kdf import Argon2idKDF
+
+# KDF: callers/tests may monkeypatch derive_key_argon2id on this module
+try:
+    from src.security.crypto.algorithms.kdf import Argon2idKDF as _Argon2idKDF
+
+    def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
+        """Обёртка над Argon2idKDF для монкепатчинга в тестах."""
+        return _Argon2idKDF().derive_key(password, salt, key_length=length)
+
+except ImportError:
+
+    def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
+        raise RuntimeError("Argon2idKDF is not available")
+
 
 _logger = logging.getLogger("security.auth.fido2_service")
 _lock = threading.Lock()
@@ -96,6 +111,10 @@ def get_fido2_secret_for_storage(user_id: str, response: Dict[str, Any]) -> byte
         if not credential_id:
             raise PermissionError("Missing credential_id")
 
+        signature = response.get("signature", "")
+        if not signature:
+            raise PermissionError("Missing signature")
+
         # Read registered public_key from state snapshot if present
         state = _export_state(user_id)
         pubkey = state.get("public_key", "")
@@ -105,9 +124,8 @@ def get_fido2_secret_for_storage(user_id: str, response: Dict[str, Any]) -> byte
 
         personal_salt = f"fido2/user/{user_id}/dev/{credential_id}".encode("utf-8")
 
-        kdf = Argon2idKDF()
-        return kdf.derive_key(
-            password=(user_id + "|" + credential_id + "|" + str(pubkey)).encode("utf-8"),
-            salt=personal_salt,
-            key_length=32,
+        return derive_key_argon2id(
+            (user_id + "|" + credential_id + "|" + str(pubkey)).encode("utf-8"),
+            personal_salt,
+            32,
         )
