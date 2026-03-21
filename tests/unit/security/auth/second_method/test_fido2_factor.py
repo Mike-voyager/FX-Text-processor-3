@@ -9,6 +9,20 @@ from src.security.auth.second_method.fido2 import (
     SignatureVerificationFailed,
 )
 
+# Импорт из re-export стаба — обеспечивает coverage fido2_factor.py
+from src.security.auth.second_method.fido2_factor import (  # noqa: F401
+    CredentialMismatch as _CM_stub,
+)
+from src.security.auth.second_method.fido2_factor import (
+    DeviceNotFound as _DNF_stub,
+)
+from src.security.auth.second_method.fido2_factor import (
+    Fido2Factor as _FF_stub,
+)
+from src.security.auth.second_method.fido2_factor import (
+    SignatureVerificationFailed as _SVF_stub,
+)
+
 
 def mk_device_info(cid: str = "cid1", pk: str = "pk1", name: str = "YubiKey 5") -> Dict[str, Any]:
     return {
@@ -165,3 +179,74 @@ def test_remove_device_empty() -> None:
     state: Dict[str, Any] = {"devices": []}
     res = factor.remove_device(state, "doesnotexist")
     assert res is False
+
+
+# ============================================================
+# Целевые тесты для покрытия недостающих строк
+# ============================================================
+
+
+@pytest.mark.security
+def test_verify_challenge_none_raises_signature_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """verify() бросает SignatureVerificationFailed, если challenge=None (строка 221)."""
+    # Arrange
+    factor, state = setup_basic_state_with_device()
+    response = mk_server_response("cid1", challenge=None)  # type: ignore[arg-type]
+
+    # Act / Assert — challenge=None должен вызвать ValueError внутри, который
+    # перехватывается в блоке except и поднимается как SignatureVerificationFailed
+    with pytest.raises(SignatureVerificationFailed):
+        factor.verify("userX", response, state)
+
+
+@pytest.mark.security
+def test_verify_challenge_as_string_encodes_to_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """verify() принимает challenge как str и кодирует в bytes (строка 223)."""
+    # Arrange
+    factor, state = setup_basic_state_with_device()
+    # Патчим authenticate_complete чтобы избежать реального FIDO2 вызова
+    monkeypatch.setattr(
+        "fido2.server.Fido2Server.authenticate_complete",
+        lambda *args, **kwargs: True,
+    )
+    # challenge передаётся как строка
+    response = mk_server_response("cid1", challenge="string_challenge_value")
+
+    # Act / Assert — не должно бросать TypeError (строка с encode проходит)
+    # Если authenticate_complete возвращает True — verify вернёт True
+    result = factor.verify("userX", response, state)
+    assert result is True
+
+
+@pytest.mark.security
+def test_verify_challenge_as_int_raises_signature_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """verify() бросает SignatureVerificationFailed, если challenge — int (строка 227)."""
+    # Arrange
+    factor, state = setup_basic_state_with_device()
+    response = mk_server_response("cid1", challenge=42)  # type: ignore[arg-type]
+
+    # Act / Assert — challenge=int вызывает TypeError, перехватывается как
+    # SignatureVerificationFailed
+    with pytest.raises(SignatureVerificationFailed):
+        factor.verify("userX", response, state)
+
+
+@pytest.mark.security
+def test_remove_device_second_entry_first_no_match() -> None:
+    """remove_device() проходит мимо первого устройства и удаляет второе (строка 314->313)."""
+    # Arrange — два устройства с разными credential_id
+    factor = Fido2Factor()
+    state = factor.setup("userZ", device_info=mk_device_info("cid_first", "pk1", "First"))
+    factor.add_device(state, mk_device_info("cid_second", "pk2", "Second"))
+    assert factor.get_device_count(state) == 2
+
+    # Act — удаляем второе устройство, первая итерация цикла НЕ совпадает
+    result = factor.remove_device(state, "cid_second")
+
+    # Assert
+    assert result is True
+    assert factor.get_device_count(state) == 1
+    remaining = factor.get_devices(state)
+    assert remaining[0]["credential_id"] == "cid_first"

@@ -284,3 +284,78 @@ class TestListProfiles:
 
     def test_returns_list(self) -> None:
         assert isinstance(list_profiles(), list)
+
+
+
+# =============================================================================
+# KDF Parameters Tests
+# =============================================================================
+
+
+class TestProfileConfigKDFParams:
+    """Tests for KDF parameters in ProfileConfig."""
+
+    def test_kdf_params_default_values(self) -> None:
+        """Test default KDF parameter values."""
+        from src.security.crypto.service.profiles import ProfileConfig, CryptoProfile
+
+        config = ProfileConfig(
+            profile=CryptoProfile.STANDARD,
+            symmetric_algorithm="aes-256-gcm",
+            signing_algorithm="Ed25519",
+            kex_algorithm="x25519",
+            hash_algorithm="sha256",
+            kdf_algorithm="argon2id",
+            asymmetric_algorithm="RSA-OAEP-2048",
+            description="Test",
+        )
+
+        # Default values should be 64MB memory, 2 iterations, 4 threads
+        assert config.kdf_memory_cost == 65536  # 64MB in KB
+        assert config.kdf_time_cost == 2
+        assert config.kdf_parallelism == 4
+
+    def test_paranoid_profile_kdf_params(self) -> None:
+        """Test PARANOID profile has stronger KDF parameters."""
+        from src.security.crypto.service.profiles import get_profile_config, CryptoProfile
+
+        config = get_profile_config(CryptoProfile.PARANOID)
+
+        # Paranoid should have 256MB memory and 5 iterations
+        assert config.kdf_memory_cost == 262144  # 256MB in KB
+        assert config.kdf_time_cost == 5
+        assert config.kdf_parallelism == 4
+
+    def test_pqc_paranoid_profile_kdf_params(self) -> None:
+        """Test PQC_PARANOID profile has stronger KDF parameters."""
+        from src.security.crypto.service.profiles import get_profile_config, CryptoProfile
+
+        config = get_profile_config(CryptoProfile.PQC_PARANOID)
+
+        # PQC Paranoid should also have 256MB memory and 5 iterations
+        assert config.kdf_memory_cost == 262144  # 256MB in KB
+        assert config.kdf_time_cost == 5
+        assert config.kdf_parallelism == 4
+
+    def test_standard_profile_default_kdf_params(self) -> None:
+        """Test STANDARD profile uses default KDF parameters."""
+        from src.security.crypto.service.profiles import get_profile_config, CryptoProfile
+
+        config = get_profile_config(CryptoProfile.STANDARD)
+
+        # Standard should have default 64MB memory and 2 iterations
+        assert config.kdf_memory_cost == 65536  # 64MB in KB
+        assert config.kdf_time_cost == 2
+        assert config.kdf_parallelism == 4
+
+    def test_legacy_profile_kdf_params(self) -> None:
+        """Test LEGACY profile uses default KDF parameters (PBKDF2 ignores them)."""
+        from src.security.crypto.service.profiles import get_profile_config, CryptoProfile
+
+        config = get_profile_config(CryptoProfile.LEGACY)
+
+        # Legacy uses PBKDF2, but should still have KDF params defined
+        assert config.kdf_algorithm == "pbkdf2-sha256"
+        assert config.kdf_memory_cost == 65536  # Default
+        assert config.kdf_time_cost == 2
+

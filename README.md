@@ -28,6 +28,8 @@ Professional **cross-platform** WYSIWYG text editor for **Epson FX-890** dot mat
 - **PC866 Cyrillic** — dynamic charset switching (CP437, CP866, CP1251, etc.)
 - **Image processing** — dithering (Floyd-Steinberg, Burkes), grayscale, raster graphics (8-pin, 24-pin)
 - **Barcode/QR** — native ESC/P rendering (EAN, Code128, QR, DataMatrix, PDF417)
+- **Free-form text editing** — Word-like documents with headers, footers, tables, images
+- **Structured forms** — field-based documents with validation and cryptographic signing
 - **Document types** — hierarchical type system with inheritance, field schemas, alphanumeric indexing
 - **Form builder** — template system with variable substitution, field constructor
 - **Excel import** — range-to-field mapping from .xlsx into document forms
@@ -145,7 +147,7 @@ src/
 │       └── (13 modules total, ✅ 100% complete)
 │
 ├── documents/               # Document processing & rendering
-│   ├── types/               # 📋 Document type hierarchy (TypeRegistry, IndexTemplate)
+│   ├── types/               # 📋 Document types (DOC=text, INV/DVN=forms), TypeRegistry
 │   ├── constructor/         # 📋 Form/document construction (ExcelImporter, FieldBuilder)
 │   ├── format/              # 📋 Serialization (.fxsd, .fxsd.enc, migration)
 │   └── printing/            # 📋 ESC/P render pipeline (document → paragraph → run → bytes)
@@ -159,12 +161,14 @@ src/
 │   │   ├── utilities/       #    FloppyOptimizer, NonceManager, SecureStorage, key rotation
 │   │   └── hardware/        #    PIV, OpenPGP card, YubiKey backends
 │   │
-│   ├── auth/                # 🚧 Authentication (77%)
+│   ├── auth/                # ✅ Authentication (98%)
 │   │   ├── password.py, password_service.py     # Argon2id
-│   │   ├── session.py                           # Access/refresh tokens, IP binding
+│   │   ├── session.py, session_service.py       # Access/refresh tokens, IP binding
 │   │   ├── fido2_service.py                     # CTAP2 direct
 │   │   ├── totp_service.py                      # RFC 6238
 │   │   ├── code_service.py                      # Backup codes (one-time use)
+│   │   ├── auth_service.py                      # MFA flow orchestration
+│   │   ├── permissions.py, permissions_service.py # Scope-based access control
 │   │   └── second_method/                       # Factor implementations
 │   │
 │   ├── audit/               # ✅ Immutable audit log (hash chain + HMAC)
@@ -285,7 +289,7 @@ isort src/ tests/
 | ESC/P Commands | ✅ 100% | >95% | 420+ |
 | Barcode Generation | ✅ 100% | ~95% | 85+ |
 | Security (Crypto) | ✅ 100% | ~95% | 180+ |
-| Security (Auth) | 🚧 77% | ~90% | 150+ |
+| Security (Auth) | ✅ 98% | 98.67% | 616+ | MFA flow complete (Password + FIDO2/TOTP/Backup Codes) |
 | Security (Audit/Blanks/Compliance) | ✅ 100% | >90% | — |
 | Document Types & Indexing | 📋 TODO | — | — |
 | Document Constructor | 📋 TODO | ~75% | 95+ |
@@ -301,8 +305,8 @@ isort src/ tests/
 1. `documents/types/` + `documents/constructor/` — refactor from form/
 2. `documents/printing/` — ESC/P render pipeline
 3. `printer/` — transport adapters
-4. `security/auth/` — complete FIDO2 flow
-5. GUI (View) + Controllers — Tkinter interface
+4. GUI (View) + Controllers — Tkinter interface
+5. Integration testing — GUI ↔ Service layer
 
 ## Floppy Disk Optimization
 

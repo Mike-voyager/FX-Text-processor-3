@@ -69,7 +69,7 @@ def setup_factor(
     """
     try:
         _validate_input(user_id, factor_type)
-        factor_id = _manager.setup_factor(user_id, factor_type, **kwargs)
+        _manager.setup_factor(user_id, factor_type, **kwargs)
         state = _manager.get_status(user_id, factor_type) or {}
         return FactorStatus(valid=True, state=state)
     except Exception as e:
@@ -129,7 +129,7 @@ def rotate_factor(
     try:
         _validate_input(user_id, factor_type)
         _manager.remove_all_factors(user_id, factor_type)
-        factor_id = _manager.setup_factor(user_id, factor_type, **kwargs)
+        _manager.setup_factor(user_id, factor_type, **kwargs)
         state = _manager.get_status(user_id, factor_type) or {}
         return FactorStatus(valid=True, state=state)
     except Exception as e:

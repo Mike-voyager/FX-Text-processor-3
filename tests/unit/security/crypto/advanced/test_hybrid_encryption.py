@@ -37,8 +37,8 @@ from src.security.crypto.core.exceptions import (
 
 @pytest.fixture
 def mock_kex() -> MagicMock:
-    """Мок KeyExchangeProtocol."""
-    kex = MagicMock()
+    """Мок KeyExchangeProtocol (classical KEX, без encapsulate/decapsulate)."""
+    kex = MagicMock(spec=["generate_keypair", "derive_shared_secret"])
     kex.generate_keypair.return_value = (b"\x01" * 32, b"\x02" * 32)
     kex.derive_shared_secret.return_value = b"\x03" * 32
     return kex
@@ -59,7 +59,7 @@ def mock_registry(mock_kex: MagicMock, mock_cipher: MagicMock) -> MagicMock:
     registry = MagicMock()
 
     def _create_side_effect(algorithm: str) -> MagicMock:
-        if algorithm in ("x25519", "x448", "kyber768", "kyber1024"):
+        if algorithm in ("x25519", "x448", "ml-kem-768", "ml-kem-1024"):
             return mock_kex
         return mock_cipher
 
@@ -187,8 +187,8 @@ class TestPresets:
         [
             ("classical_standard", "x25519", "aes-256-gcm"),
             ("classical_paranoid", "x448", "chacha20-poly1305"),
-            ("pqc_standard", "kyber768", "aes-256-gcm"),
-            ("pqc_paranoid", "kyber1024", "chacha20-poly1305"),
+            ("pqc_standard", "ml-kem-768", "aes-256-gcm"),
+            ("pqc_paranoid", "ml-kem-1024", "chacha20-poly1305"),
         ],
     )
     def test_preset_algorithms(

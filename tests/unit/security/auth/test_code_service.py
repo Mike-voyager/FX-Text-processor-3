@@ -122,11 +122,10 @@ def test_get_backup_code_secret_for_storage_success(
 ) -> None:
     codes.issue_backup_codes_for_user("sec", count=1, ttlsec=600)
 
-    class FakeKDF:
-        def derive_key(self, password: bytes, salt: bytes, key_length: int = 32) -> bytes:
-            return b"k" * key_length
+    def fake_derive_key(password: bytes, salt: bytes, length: int) -> bytes:
+        return b"k" * length
 
-    monkeypatch.setattr(codes, "Argon2idKDF", FakeKDF)
+    monkeypatch.setattr(codes, "derive_key_argon2id", fake_derive_key)
     secret = codes.get_backup_code_secret_for_storage("sec", "safe")
     assert isinstance(secret, bytes)
     assert secret == b"k" * 32
@@ -137,11 +136,10 @@ def test_get_backup_code_secret_for_storage_fail(
 ) -> None:
     codes.issue_backup_codes_for_user("failuser", count=1, ttlsec=600)
 
-    class FakeKDF:
-        def derive_key(self, password: bytes, salt: bytes, key_length: int = 32) -> bytes:
-            return b"k" * key_length
+    def fake_derive_key(password: bytes, salt: bytes, length: int) -> bytes:
+        return b"k" * length
 
-    monkeypatch.setattr(codes, "Argon2idKDF", FakeKDF)
+    monkeypatch.setattr(codes, "derive_key_argon2id", fake_derive_key)
     with pytest.raises(PermissionError):
         codes.get_backup_code_secret_for_storage("failuser", "notvalid")
 
@@ -430,3 +428,57 @@ def test_export_state_returns_empty_dict_when_export_returns_none(
 
     # Assert
     assert result == {}
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_uses_default_on_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует default при исключении get_app_context (строки 29-30)."""
+
+    # Arrange
+    def failing_get_app_context() -> Any:
+        raise RuntimeError("Context not available")
+
+    monkeypatch.setattr(codes, "get_app_context", failing_get_app_context)
+
+    # Act
+    result = codes._get_crypto_service_impl()
+
+    # Assert
+    assert result is codes._default_crypto_service
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_uses_context_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует crypto_service из app_context когда доступен (строка 27-28)."""
+
+    # Arrange
+    mock_crypto_service = object()
+    ctx: Any = type("Ctx", (), {"crypto_service": mock_crypto_service})()
+    monkeypatch.setattr(codes, "get_app_context", lambda: ctx)
+
+    # Act
+    result = codes._get_crypto_service_impl()
+
+    # Assert
+    assert result is mock_crypto_service
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_fallback_no_crypto_service_attr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует default когда crypto_service отсутствует в context (строка 27)."""
+
+    # Arrange
+    ctx: Any = type("Ctx", (), {})()  # No crypto_service attribute
+    monkeypatch.setattr(codes, "get_app_context", lambda: ctx)
+
+    # Act
+    result = codes._get_crypto_service_impl()
+
+    # Assert
+    assert result is codes._default_crypto_service

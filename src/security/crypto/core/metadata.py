@@ -477,6 +477,10 @@ class AlgorithmMetadata:
                 f"Постквантовый алгоритм {self.name} должен иметь security_level=QUANTUM_RESISTANT"
             )
 
+    def __hash__(self) -> int:
+        """Хеш по имени алгоритма (use_cases/extra не хешируемы как list/dict)."""
+        return hash(self.name)
+
     @property
     def id(self) -> str:
         """Algorithm ID (lowercase). Spec: AlgorithmMetadata.id = 'aes-256-gcm'."""

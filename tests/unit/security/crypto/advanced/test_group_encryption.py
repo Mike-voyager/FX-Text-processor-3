@@ -701,10 +701,10 @@ class TestDecryptAsMember:
         manager: GroupKeyManager,
         group_with_members: Tuple[Group, bytes, bytes, bytes, bytes],
     ) -> None:
-        """Участник, не входящий в wrapped_keys, — KeyError."""
+        """Участник, не входящий в wrapped_keys, — DecryptionError."""
         group, alice_priv, _, _, _ = group_with_members
         encrypted = manager.encrypt_for_group(group, b"hello")
-        with pytest.raises(KeyError, match="No wrapped key"):
+        with pytest.raises(DecryptionError, match="No wrapped key"):
             manager.decrypt_as_member(group, "charlie", alice_priv, encrypted)
 
     def test_decrypt_with_matching_associated_data(

@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 import pytest
-
 from src.security.auth.permissions import (
     MFA_REQUIRED_PERMISSIONS,
     OPERATOR_SCOPES,
@@ -130,9 +129,7 @@ class TestPermissionsServiceDecide:
         # Arrange
         svc = PermissionsService()
         # Act
-        decision = svc.decide(
-            OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=True
-        )
+        decision = svc.decide(OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=True)
         # Assert
         assert decision.granted is True
 
@@ -152,9 +149,7 @@ class TestPermissionsServiceDecide:
         # Arrange
         svc = PermissionsService()
         # Act
-        decision = svc.decide(
-            OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False
-        )
+        decision = svc.decide(OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False)
         # Assert
         assert decision.granted is False
         assert decision.reason == DenialReason.MFA_REQUIRED
@@ -164,9 +159,7 @@ class TestPermissionsServiceDecide:
         # Arrange
         svc = PermissionsService()
         # Act
-        decision = svc.decide(
-            OPERATOR_SCOPES, Permission.KEY_EXPORT, mfa_satisfied=False
-        )
+        decision = svc.decide(OPERATOR_SCOPES, Permission.KEY_EXPORT, mfa_satisfied=False)
         # Assert
         assert decision.mfa_required is True
 
@@ -262,9 +255,7 @@ class TestPermissionsServiceCheck:
         # Arrange
         svc = PermissionsService()
         # Act
-        result = svc.check(
-            OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False
-        )
+        result = svc.check(OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False)
         # Assert
         assert result is False
 
@@ -299,18 +290,14 @@ class TestPermissionsServiceAssertAccess:
         svc = PermissionsService()
         # Act / Assert
         with pytest.raises(MFARequiredError):
-            svc.assert_access(
-                OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False
-            )
+            svc.assert_access(OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=False)
 
     def test_assert_access_passes_mfa_satisfied(self) -> None:
         """assert_access() проходит для MFA-операции с mfa_satisfied=True."""
         # Arrange
         svc = PermissionsService()
         # Act / Assert — не должно бросать
-        svc.assert_access(
-            OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=True
-        )
+        svc.assert_access(OPERATOR_SCOPES, Permission.DEVICE_PROVISION, mfa_satisfied=True)
 
 
 # ---------------------------------------------------------------------------

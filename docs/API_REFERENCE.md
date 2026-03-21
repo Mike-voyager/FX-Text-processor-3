@@ -1,8 +1,8 @@
 # FX Text Processor 3 — API Reference
 
-**Версия:** 3.0  
-**Дата:** March 2026  
-**Python:** 3.11+  
+**Версия:** 3.1
+**Дата:** March 2026 (updated 2026-03-18)
+**Python:** 3.11+
 **Архитектура:** MVC (Tkinter)
 
 ---
@@ -34,6 +34,14 @@
 4. [Document Constructor (`src/documents/constructor/`)](#4-document-constructor-srcdocumentsconstructor)
    - 4.1 [ExcelImporter](#41-excelimporter)
    - 4.2 [VariableParser](#42-variableparser)
+   - 4.3 [InputMask](#43-inputmask)
+   - 4.4 [FormValidator](#44-formvalidator)
+   - 4.5 [SchemaLinter](#45-schemalinter)
+   - 4.6 [FormHistory](#46-formhistory)
+   - 4.7 [TemplateLibrary](#47-templatelibrary)
+   - 4.8 [ApprovalWorkflow](#48-approvalworkflow)
+   - 4.9 [SchemaDocumentationGenerator](#49-schemadocumentationgenerator)
+   - 4.10 [TestFillMode](#410-testfillmode)
 5. [Document Rendering (`src/documents/printing/`)](#5-document-rendering-srcdocumentsprinting)
 6. [Security API](#6-security-api)
    - 6.1 [CryptoService](#61-cryptoservice)
@@ -43,6 +51,24 @@
 7. [Printer Adapters (`src/printer/`)](#7-printer-adapters-srcprinter)
 8. [App Context (`src/app_context.py`)](#8-app-context-srcapp_contextpy)
 9. [File Formats & Extensions](#9-file-formats--extensions)
+10. [Editing Services API (`src/services/`)](#10-editing-services-api-srcservices)
+    - 10.1 [CommandHistoryService](#101-commandhistoryservice)
+    - 10.2 [FindReplaceService](#102-findreplaceservice)
+    - 10.3 [AutoSaveService](#103-autosaveservice)
+    - 10.4 [DocumentStatsService](#104-documentstatsservice)
+    - 10.5 [ClipboardService](#105-clipboardservicen)
+    - 10.6 [NotificationService](#106-notificationservice)
+    - 10.7 [DocumentLockService](#107-documentlockservice)
+    - 10.8 [VersionHistoryService](#108-versionhistoryservice)
+    - 10.9 [DocumentManagerService](#109-documentmanagerservice)
+    - 10.10 [ExportService](#1010-exportservice)
+    - 10.11 [PrintQueueService](#1011-printqueueservice)
+    - 10.12 [BatchService](#1012-batchservice)
+    - 10.13 [IndexSearchService](#1013-indexsearchservice)
+    - 10.14 [KeyBindingsService](#1014-keybindingsservice)
+    - 10.15 [WatermarkService](#1015-watermarkservice)
+    - 10.16 [PaperFormatService](#1016-paperformatservice)
+11. [Floppy Disk Optimization API](#11-floppy-disk-optimization-api)
 
 ---
 
@@ -141,16 +167,30 @@ class PrinterSettings:
 
 Корневой объект доменной модели. Представляет полный документ, состоящий из секций.
 
+Поддерживает два режима работы:
+- **FREE_FORM** — свободное редактирование текста (Word-like)
+- **STRUCTURED_FORM** — структурированные формы с полями
+
+Оба режима используют единый класс `Document`, различие задаётся через `document_type` &rarr; `DocumentMode`.
+
 ```python
 class Document:
     id: UUID
     metadata: DocumentMetadata
+    document_type: str                 # Код типа из TypeRegistry ("DOC", "INV", "DVN")
     page_settings: PageSettings
     printer_settings: PrinterSettings
     sections: list[Section]
     file_path: Path | None
     is_modified: bool
 ```
+
+**Два режима документов:**
+
+| Режим | `document_type` | Описание | Использование |
+|-------|-----------------|----------|---------------|
+| FREE_FORM | `"DOC"` | Свободное редактирование текста, колонтитулы, таблицы | Письма, отчёты, заметки |
+| STRUCTURED_FORM | `"INV"`, `"DVN"` | Формы с полями, валидацией, подписью | Бланки, счета, ноты |
 
 **Методы:**
 
@@ -909,6 +949,26 @@ def print_barcode(
 
 Система типизации документов и автоматической индексации. Позволяет регистрировать типы документов, определять их структуру (поля) и формат индексов.
 
+Система поддерживает **два режима документов**:
+- **FREE_FORM** — свободное редактирование текста (Word-like документы)
+- **STRUCTURED_FORM** — структурированные формы с полями и валидацией
+
+---
+
+### Enum `DocumentMode`
+
+```python
+class DocumentMode(str, Enum):
+    """Режим работы с документом."""
+    FREE_FORM = "free_form"              # Текстовые документы (свободное редактирование)
+    STRUCTURED_FORM = "structured_form"  # Структурированные формы с полями
+```
+
+| Значение | Описание | Примеры |
+|----------|----------|---------|
+| `FREE_FORM` | Свободное редактирование текста без схемы полей | DOC — базовый текстовый документ |
+| `STRUCTURED_FORM` | Структурированные документы с валидацией полей | INV, DVN — формы с полями |
+
 ---
 
 ### 3.1 TypeRegistry
@@ -929,7 +989,8 @@ class TypeRegistry:
     def register_type(
         code: str,
         name: str,
-        index_template: IndexTemplate,
+        document_mode: DocumentMode,
+        index_template: IndexTemplate | None,
         field_schema: TypeSchema,
         parent_code: str | None = None,
         metadata: dict[str, Any] | None = None
@@ -943,12 +1004,35 @@ class TypeRegistry:
 |----------|-----|----------|
 | `code` | `str` | Уникальный код типа (например, `"INV"` для Invoice). |
 | `name` | `str` | Человеко-читаемое название типа. |
-| `index_template` | `IndexTemplate` | Шаблон генерации индекса. |
-| `field_schema` | `TypeSchema` | Схема полей документа данного типа. |
+| `document_mode` | `DocumentMode` | Режим: `FREE_FORM` (текст) или `STRUCTURED_FORM` (форма). |
+| `index_template` | `IndexTemplate \| None` | Шаблон индекса. `None` для текстовых документов. |
+| `field_schema` | `TypeSchema` | Схема полей. Пустая для `FREE_FORM`. |
 | `parent_code` | `str \| None` | Код родительского типа (для подтипов). |
 | `metadata` | `dict[str, Any] \| None` | Дополнительные метаданные типа. |
 
 **Возвращает:** `DocumentType` — зарегистрированный тип.
+
+**Примеры:**
+
+```python
+# Регистрация текстового документа (DOC)
+registry.register_type(
+    code="DOC",
+    name="Базовый документ",
+    document_mode=DocumentMode.FREE_FORM,
+    index_template=None,  # Нет индекса
+    field_schema=TypeSchema(fields=()),  # Пустая схема
+)
+
+# Регистрация формы (INV)
+registry.register_type(
+    code="INV",
+    name="Счёт",
+    document_mode=DocumentMode.STRUCTURED_FORM,
+    index_template=IndexTemplate(...),
+    field_schema=TypeSchema(fields=[...]),
+)
+```
 
 ---
 
@@ -1093,7 +1177,28 @@ class FieldType(str, Enum):
     BARCODE = "barcode"               # Штрихкод
     SIGNATURE = "signature"           # Электронная подпись
     STAMP = "stamp"                   # Печать
+
+    # Extended Field Types
+    CHECKBOX = "checkbox"             # Булев флажок
+    DROPDOWN = "dropdown"               # Выпадающий список
+    RADIO_GROUP = "radio_group"         # Группа радиокнопок
+    CURRENCY = "currency"               # Денежная сумма
+    MULTI_LINE_TEXT = "multi_line_text" # Многострочный текст
+    PHONE = "phone"                     # Телефон
+    EMAIL = "email"                     # Email
 ```
+
+**Extended Field Types:**
+
+| Тип | Описание | Параметры |
+|-----|----------|-----------|
+| `CHECKBOX` | Булев флажок | `default_value: bool` |
+| `DROPDOWN` | Выпадающий список | `options: tuple[str, ...]`, `allow_custom: bool` |
+| `RADIO_GROUP` | Группа радиокнопок | `options: tuple[str, ...]`, `layout: horizontal\|vertical` |
+| `CURRENCY` | Денежная сумма | `currency_code: str`, `decimal_places: int` |
+| `MULTI_LINE_TEXT` | Многострочный текст | `rows: int`, `max_rows: int`, `wrap: bool` |
+| `PHONE` | Телефон | `region: str`, `mask: str` |
+| `EMAIL` | Email | `verify_domain: bool` |
 
 ---
 
@@ -1112,6 +1217,26 @@ class FieldDefinition:
     default_value: Any = None              # Значение по умолчанию
     validation: list[str] = field(default_factory=list)  # Правила валидации (regex, min/max и т.д.)
     inherited_from: str | None = None      # Код типа, от которого поле унаследовано (None = собственное)
+
+    # Extended Validation Rules
+    min_value: float | None = None         # Минимальное числовое значение
+    max_value: float | None = None         # Максимальное числовое значение
+    min_date: date | None = None           # Минимальная дата
+    max_date: date | None = None           # Максимальная дата
+    required_if: str | None = None         # Условная обязательность ("fieldA == 'value'")
+    cross_field_rules: tuple[str, ...] = () # Кросс-полевая валидация
+
+    # Conditional Visibility
+    visibility_condition: str | None = None  # Показывать если: "subtype == '44'"
+    read_only_condition: str | None = None   # Только чтение если: "status == 'SIGNED'"
+    enabled_condition: str | None = None     # Активно если: "fieldA == 'value'"
+
+    # Field UX
+    tab_index: int | None = None              # Порядок Tab-навигации
+    input_mask: str | None = None             # Маска ввода (дата: "##.##.####")
+    placeholder: str | None = None            # Подсказка в пустом поле
+    autocomplete_source: str | None = None    # Источник автодополнения
+    help_text: str | None = None              # Вспомогательный текст (tooltip)
 ```
 
 **Правила валидации (`validation`)** — список строковых выражений:
@@ -1126,6 +1251,26 @@ class FieldDefinition:
 | `date_format:FMT` | `date_format:%d.%m.%Y` | Формат даты |
 | `one_of:A,B,C` | `one_of:RUB,USD,EUR` | Допустимые значения |
 
+**Расширенные правила валидации:**
+
+- `min_value` / `max_value` — числовые диапазоны
+- `min_date` / `max_date` — диапазоны дат
+- `required_if` — условная обязательность ("fieldA == 'value'")
+- `cross_field_rules` — кросс-полевая валидация
+
+Сервис `FormValidator` выполняет валидацию формы целиком перед подписью:
+
+```python
+class FormValidator:
+    def validate(self, document: Document, schema: TypeSchema) -> ValidationResult: ...
+
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    field_errors: dict[str, list[str]]
+    cross_field_errors: list[str]
+```
+
 ---
 
 #### Класс `TypeSchema`
@@ -1136,6 +1281,9 @@ class FieldDefinition:
 @dataclass
 class TypeSchema:
     fields: list[FieldDefinition]
+    version: str = "1.0"                      # Версия схемы
+    compatibility_version: str = "1.0"        # Минимальная совместимая версия
+    deprecated_fields: tuple[str, ...] = () # Устаревшие field_ids
 ```
 
 **Методы:**
@@ -1145,6 +1293,53 @@ class TypeSchema:
 | `get_field` | `(name: str) -> FieldDefinition` | Возвращает определение поля по имени. Бросает `KeyError`, если поле не найдено. |
 | `merge_with_parent` | `(parent_schema: TypeSchema) -> TypeSchema` | Возвращает новую схему, объединяя текущую с родительской. Поля родителя помечаются `inherited_from`. Поля дочернего типа с тем же именем переопределяют родительские. |
 | `validate_data` | `(data: dict[str, Any]) -> ValidationResult` | Валидирует данные по схеме. Проверяет обязательные поля, типы значений и правила `validation`. |
+| `migrate` | `(data: dict[str, Any], target_version: str) -> dict[str, Any]` | Мигрирует данные формы к целевой версии схемы. |
+
+**Версионирование схем:**
+
+- `version` — текущая версия схемы
+- `compatibility_version` — минимальная совместимая версия
+- `deprecated_fields` — устаревшие поля, которые больше не используются
+- `SchemaMigration` — автоматическая миграция данных при обновлении схемы
+
+**Примеры схем:**
+
+```python
+# FREE_FORM — текстовый документ (DOC)
+# Пустая схема без обязательных полей
+text_document_schema = TypeSchema(
+    fields=[],  # Нет предопределённых полей формы
+    version="1.0"
+)
+
+# STRUCTURED_FORM — форма счёта (INV)
+# Полная схема с валидацией
+invoice_schema = TypeSchema(
+    fields=[
+        FieldDefinition(
+            field_id="invoice_number",
+            field_type=FieldType.TEXT_INPUT,
+            label="Номер счёта",
+            required=True,
+            validation=[r"regex:^INV-[IVXLCDM]+"]
+        ),
+        FieldDefinition(
+            field_id="client_name",
+            field_type=FieldType.TEXT_INPUT,
+            label="Клиент",
+            required=True,
+            max_length=100
+        ),
+        FieldDefinition(
+            field_id="items",
+            field_type=FieldType.TABLE,
+            label="Товары/услуги",
+            required=True
+        ),
+    ],
+    version="1.0"
+)
+```
 
 **Класс `ValidationResult`:**
 
@@ -1317,6 +1512,288 @@ result = parser.parse(template, variables)
 
 names = parser.extract_variables(template)
 # ["doc_number", "date", "total"]
+```
+
+---
+
+### 4.3 InputMask
+
+Модуль масок ввода для полей форм.
+
+```python
+class InputMask:
+    def __init__(self, pattern: str, placeholder: str = "_") -> None: ...
+```
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|-------------|----------|
+| `pattern` | `str` | — | Маска ввода: `#` (цифра), `A` (буква), `R` (римская цифра) |
+| `placeholder` | `str` | `"_"` | Символ placeholder для незаполненных позиций |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `apply` | `(raw: str) -> str` | Применяет маску к сырому вводу. Пример: `"123"` + `"##.##.####"` → `"12.3_.____"` |
+| `strip` | `(masked: str) -> str` | Удаляет маску, оставляет только значимые символы. Пример: `"12.3_.____"` → `"123"` |
+| `is_complete` | `(masked: str) -> bool` | Проверяет, заполнена ли маска полностью |
+| `build_from_template` | `(index_template: IndexTemplate) -> InputMask` | **staticmethod.** Строит маску для document_index из IndexTemplate |
+
+**Примеры масок:**
+
+| Тип | Маска | Результат |
+|-----|-------|-----------|
+| Дата | `##.##.####` | `25.12.2026` |
+| Телефон | `+7 (###) ###-##-##` | `+7 (495) 123-45-67` |
+| Индекс | `AAA-##-A##-RR` | `DVN-44-K53-IX` |
+
+---
+
+### 4.4 FormValidator
+
+Трёхуровневая валидация форм.
+
+```python
+class FormValidator:
+    def __init__(self, schema: TypeSchema) -> None: ...
+```
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `schema` | `TypeSchema` | Схема для валидации |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `validate_field` | `(field_id: str, value: str) -> list[ValidationResult]` | Уровень 1: валидация отдельного поля |
+| `validate_form` | `(document: Document) -> list[ValidationResult]` | Уровень 2: валидация всей формы |
+| `validate_cross_fields` | `(document: Document) -> list[ValidationResult]` | Уровень 3: кросс-полевая валидация |
+
+**Класс `ValidationResult`:**
+
+```python
+@dataclass(frozen=True)
+class ValidationResult:
+    field_id: str | None       # None = ошибка уровня формы
+    severity: Severity         # ERROR | WARNING | INFO
+    code: str                  # машиночитаемый код ошибки
+    message: str               # человекочитаемое сообщение
+```
+
+**Класс `Severity`:**
+
+```python
+class Severity(Enum):
+    ERROR = "error"       # Блокирует подпись
+    WARNING = "warning"   # Предупреждение
+    INFO = "info"         # Информация
+```
+
+---
+
+### 4.5 SchemaLinter
+
+Линтер для проверки схем форм.
+
+```python
+class SchemaLinter:
+    def __init__(self) -> None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `check_conflicts` | `(schema: TypeSchema) -> list[LintResult]` | Проверяет конфликты позиций полей (перекрытие) |
+| `check_coverage` | `(schema: TypeSchema, renderer: Renderer) -> list[LintResult]` | Проверяет покрытие всех полей рендерером |
+| `check_references` | `(schema: TypeSchema) -> list[LintResult]` | Проверяет валидность ссылок между полями |
+
+**Класс `LintResult`:**
+
+```python
+@dataclass(frozen=True)
+class LintResult:
+    severity: Severity
+    code: str
+    message: str
+    field_id: str | None
+```
+
+---
+
+### 4.6 FormHistory
+
+История заполнения полей для автозаполнения.
+
+```python
+class FormHistory:
+    def __init__(self, history_path: Path = Path("~/.fxtextprocessor/history/")) -> None: ...
+```
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|-------------|----------|
+| `history_path` | `Path` | `~/.fxtextprocessor/history/` | Путь к директории истории |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `add_entry` | `(field_id: str, value: str, doc_type: str) -> None` | Добавляет запись в историю |
+| `get_suggestions` | `(field_id: str, limit: int = 5) -> list[tuple[str, int]]` | Возвращает частотно-ранжированные предложения (value, frequency) |
+| `prefill_from_previous` | `(doc_type: str, series: str) -> dict[str, str]` | Копирует значения из последнего документа той же серии |
+| `clear_old_entries` | `(days: int = 90) -> int` | Очищает записи старше N дней, возвращает количество удалённых |
+
+---
+
+### 4.7 TemplateLibrary
+
+Библиотека шаблонов с версионированием.
+
+```python
+class TemplateLibrary:
+    def __init__(self, library_path: Path = Path("~/.fxtextprocessor/templates/")) -> None: ...
+```
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|-------------|----------|
+| `library_path` | `Path` | `~/.fxtextprocessor/templates/` | Путь к библиотеке шаблонов |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `import_template` | `(source_path: Path, verify_signature: bool = True) -> TemplateInfo` | Импортирует шаблон с внешнего носителя |
+| `export_template` | `(template_id: str, target_path: Path) -> None` | Экспортирует шаблон на внешний носитель |
+| `list_templates` | `() -> list[TemplateInfo]` | Возвращает список шаблонов с метаданными |
+| `get_preview` | `(template_id: str) -> Image` | Генерирует превью шаблона (PIL Image) |
+| `delete_template` | `(template_id: str) -> bool` | Удаляет шаблон из библиотеки |
+
+**Класс `TemplateInfo`:**
+
+```python
+@dataclass(frozen=True)
+class TemplateInfo:
+    template_id: str
+    name: str
+    version: str
+    doc_type: str
+    created_at: datetime
+    signature_valid: bool
+    preview_thumbnail: bytes | None
+```
+
+---
+
+### 4.8 ApprovalWorkflow
+
+Workflow согласования для single-operator.
+
+```python
+class ApprovalWorkflow:
+    def __init__(self, audit_log: AuditLogProtocol) -> None: ...
+```
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `audit_log` | `AuditLogProtocol` | Audit log для записи переходов |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `transition` | `(document: Document, from_state: FormStatus, to_state: FormStatus, mfa: bool = True) -> None` | Переход между состояниями с MFA |
+| `switch_role` | `(role: WorkflowRole) -> None` | Переключение роли оператора |
+| `add_comment` | `(field_id: str, comment: str, author_role: WorkflowRole) -> FieldAnnotation` | Добавляет комментарий к полю |
+| `get_comments` | `(field_id: str) -> list[FieldAnnotation]` | Возвращает комментарии к полю |
+| `can_transition` | `(document: Document, to_state: FormStatus) -> bool` | Проверяет возможность перехода |
+
+**Класс `WorkflowRole`:**
+
+```python
+class WorkflowRole(Enum):
+    OPERATOR = "operator"       # Заполнение формы
+    EDITOR = "editor"           # Редактирование/проверка
+    SUPERVISOR = "supervisor"   # Согласование
+    SIGNATORY = "signatory"     # Подписание
+```
+
+**Класс `FieldAnnotation`:**
+
+```python
+@dataclass(frozen=True)
+class FieldAnnotation:
+    annotation_id: str
+    field_id: str
+    comment: str
+    author_role: WorkflowRole
+    created_at: datetime
+    resolved: bool = False
+```
+
+---
+
+### 4.9 SchemaDocumentationGenerator
+
+Генератор документации из TypeSchema.
+
+```python
+class SchemaDocumentationGenerator:
+    def __init__(self) -> None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `to_plaintext` | `(schema: TypeSchema) -> str` | Текстовое описание для печати на FX-890 |
+| `to_fxsd` | `(schema: TypeSchema) -> Document` | Создаёт документ-инструкцию по заполнению |
+| `diff` | `(old: TypeSchema, new: TypeSchema) -> SchemaDiff` | Сравнивает две версии схемы |
+
+**Класс `SchemaDiff`:**
+
+```python
+@dataclass(frozen=True)
+class SchemaDiff:
+    added_fields: list[str]
+    removed_fields: list[str]
+    modified_fields: list[tuple[str, str, str]]  # field_id, old, new
+    compatibility_broken: bool
+```
+
+---
+
+### 4.10 TestFillMode
+
+Режим тестового заполнения форм.
+
+```python
+class TestFillMode:
+    def __init__(self, file_adapter: FileAdapter) -> None: ...
+```
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `file_adapter` | `FileAdapter` | Адаптер для вывода .escp дампа |
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `generate_synthetic_data` | `(schema: TypeSchema) -> dict[str, str]` | Генерирует тестовые данные для всех полей |
+| `export_escp_dump` | `(document: Document, path: Path) -> None` | Экспортирует ESC/P дамп для проверки |
+| `run_edge_case_tests` | `(schema: TypeSchema) -> list[TestResult]` | Тесты граничных случаев |
+| `validate_output` | `(document: Document) -> list[ValidationResult]` | Проверяет валидность вывода |
+
+**Класс `TestResult`:**
+
+```python
+@dataclass(frozen=True)
+class TestResult:
+    test_name: str
+    passed: bool
+    message: str
+    severity: Severity
 ```
 
 ---
@@ -1839,7 +2316,788 @@ def get_app_context(
 
 ---
 
-## 10. Floppy Disk Optimization API
+## 10. Editing Services API (`src/services/`)
+
+Сервисы для WYSIWYG-редактирования и управления документами. Критичны для GUI.
+
+> **Статус:** ❌ Не реализовано — API спецификация.
+
+---
+
+### 10.1 CommandHistoryService
+
+**Файл:** `src/services/command_history_service.py`
+
+Управление историей команд — undo/redo.
+
+```python
+@dataclass(frozen=True)
+class Command:
+    """Базовый класс команды для undo/redo."""
+    command_id: str
+    timestamp: datetime
+    description: str
+
+    def execute(self) -> None: ...
+    def undo(self) -> None: ...
+    def redo(self) -> None: ...
+
+class CommandHistoryService:
+    def __init__(self, max_history: int = 100) -> None: ...
+    def execute(self, command: Command) -> None: ...
+    def undo(self) -> bool: ...  # True если undo доступен
+    def redo(self) -> bool: ...  # True если redo доступен
+    def can_undo(self) -> bool: ...
+    def can_redo(self) -> bool: ...
+    def clear(self) -> None: ...
+    def get_history(self) -> list[Command]: ...
+    def get_current_index(self) -> int: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `__init__` | `(max_history: int = 100) -> None` | Создаёт сервис с ограничением истории. |
+| `execute` | `(command: Command) -> None` | Выполняет команду и добавляет в историю. Очищает redo-историю. |
+| `undo` | `() -> bool` | Отменяет последнюю команду. Возвращает `True` если undo было доступно. |
+| `redo` | `() -> bool` | Повторяет отменённую команду. Возвращает `True` если redo было доступно. |
+| `can_undo` | `() -> bool` | Проверяет, доступна ли отмена. |
+| `can_redo` | `() -> bool` | Проверяет, доступен ли повтор. |
+| `clear` | `() -> None` | Очищает всю историю. |
+| `get_history` | `() -> list[Command]` | Возвращает список команд в истории. |
+| `get_current_index` | `() -> int` | Возвращает текущий индекс в истории. |
+
+**Пример использования:**
+
+```python
+from src.services.command_history_service import CommandHistoryService, Command
+
+history = CommandHistoryService(max_history=50)
+
+# Создаём и выполняем команду
+insert_cmd = InsertTextCommand(position=0, text="Hello")
+history.execute(insert_cmd)
+
+# Undo
+if history.can_undo():
+    history.undo()
+
+# Redo
+if history.can_redo():
+    history.redo()
+```
+
+---
+
+### 10.2 FindReplaceService
+
+**Файл:** `src/services/find_replace_service.py`
+
+Поиск и замена текста в документе.
+
+```python
+@dataclass(frozen=True)
+class SearchResult:
+    paragraph_index: int
+    run_index: int
+    start_offset: int
+    end_offset: int
+    matched_text: str
+
+@dataclass(frozen=True)
+class SearchOptions:
+    case_sensitive: bool = False
+    whole_word: bool = False
+    use_regex: bool = False
+    direction: SearchDirection = SearchDirection.FORWARD
+
+class FindReplaceService:
+    def __init__(self, document: Document) -> None: ...
+    def find(self, pattern: str, options: SearchOptions) -> list[SearchResult]: ...
+    def find_next(
+        self,
+        pattern: str,
+        from_position: CursorPosition,
+        options: SearchOptions
+    ) -> SearchResult | None: ...
+    def replace(self, result: SearchResult, replacement: str) -> Command: ...
+    def replace_all(
+        self,
+        pattern: str,
+        replacement: str,
+        options: SearchOptions
+    ) -> Command: ...
+    def count_matches(self, pattern: str, options: SearchOptions) -> int: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `__init__` | `(document: Document) -> None` | Привязывает сервис к документу. |
+| `find` | `(pattern: str, options: SearchOptions) -> list[SearchResult]` | Находит все вхождения паттерна. |
+| `find_next` | `(pattern: str, from_position: CursorPosition, options: SearchOptions) -> SearchResult \| None` | Находит следующее вхождение от позиции. |
+| `replace` | `(result: SearchResult, replacement: str) -> Command` | Заменяет найденный текст. Возвращает команду для undo. |
+| `replace_all` | `(pattern: str, replacement: str, options: SearchOptions) -> Command` | Заменяет все вхождения. Возвращает составную команду. |
+| `count_matches` | `(pattern: str, options: SearchOptions) -> int` | Считает количество вхождений без замены. |
+
+---
+
+### 10.3 AutoSaveService
+
+**Файл:** `src/services/auto_save_service.py`
+
+Автосохранение и восстановление после сбоя.
+
+```python
+class AutoSaveService:
+    def __init__(
+        self,
+        document_service: DocumentServiceProtocol,
+        interval_seconds: int = 60,
+        temp_dir: Path | None = None
+    ) -> None: ...
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+    def force_save(self) -> Path: ...  # Возвращает путь к .fxsd.tmp
+    def recover_if_needed(self) -> Document | None: ...
+    def clear_temp(self) -> None: ...
+    def has_recovery_file(self, document_path: Path) -> bool: ...
+    def get_recovery_info(self, document_path: Path) -> RecoveryInfo | None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `__init__` | `(document_service, interval_seconds=60, temp_dir=None) -> None` | Создаёт сервис автосохранения. |
+| `start` | `() -> None` | Запускает фоновый таймер автосохранения. |
+| `stop` | `() -> None` | Останавливает таймер. |
+| `force_save` | `() -> Path` | Немедленно сохраняет в .fxsd.tmp. |
+| `recover_if_needed` | `() -> Document \| None` | Проверяет и восстанавливает документ из .fxsd.tmp. |
+| `clear_temp` | `() -> None` | Удаляет все временные файлы. |
+| `has_recovery_file` | `(document_path: Path) -> bool` | Проверяет наличие файла восстановления. |
+| `get_recovery_info` | `(document_path: Path) -> RecoveryInfo \| None` | Возвращает метаданные восстановления. |
+
+**Формат файла:** `.fxsd.tmp` — JSON с полями:
+- `original_path`: путь к оригинальному файлу
+- `saved_at`: timestamp автосохранения
+- `document`: сериализованный документ
+
+---
+
+### 10.4 DocumentStatsService
+
+**Файл:** `src/services/document_stats_service.py`
+
+Статистика документа — счётчики символов, слов, строк.
+
+```python
+@dataclass(frozen=True)
+class DocumentStats:
+    character_count: int
+    word_count: int
+    line_count: int
+    paragraph_count: int
+    page_count_estimate: int  # На основе lines_per_page
+
+@dataclass(frozen=True)
+class Selection:
+    start_paragraph: int
+    start_offset: int
+    end_paragraph: int
+    end_offset: int
+
+class DocumentStatsService:
+    def calculate(self, document: Document) -> DocumentStats: ...
+    def calculate_selection(self, document: Document, selection: Selection) -> DocumentStats: ...
+    def get_character_count(self, document: Document) -> int: ...
+    def get_word_count(self, document: Document) -> int: ...
+    def get_line_count(self, document: Document) -> int: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `calculate` | `(document: Document) -> DocumentStats` | Полная статистика документа. |
+| `calculate_selection` | `(document: Document, selection: Selection) -> DocumentStats` | Статистика выделенного фрагмента. |
+| `get_character_count` | `(document: Document) -> int` | Только количество символов. |
+| `get_word_count` | `(document: Document) -> int` | Только количество слов (разделитель — пробелы). |
+| `get_line_count` | `(document: Document) -> int` | Только количество строк. |
+
+---
+
+### 10.5 ClipboardService
+
+**Файл:** `src/services/clipboard_service.py`
+
+Интеграция с системным буфером обмена.
+
+```python
+@dataclass(frozen=True)
+class ClipboardContent:
+    text: str
+    formatting: TextStyle | None  # None для plain text
+    source_document: str | None  # document_id для внутреннего copy-paste
+
+class ClipboardService:
+    def __init__(self) -> None: ...
+    def copy(self, content: ClipboardContent) -> None: ...
+    def cut(self, content: ClipboardContent, document: Document, position: Position) -> Command: ...
+    def paste(self) -> ClipboardContent | None: ...
+    def can_paste(self) -> bool: ...
+    def get_formats(self) -> list[ClipboardFormat]: ...
+    def paste_special(self, format: ClipboardFormat) -> ClipboardContent | None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `copy` | `(content: ClipboardContent) -> None` | Копирует в системный буфер. |
+| `cut` | `(content: ClipboardContent, document: Document, position: Position) -> Command` | Вырезает (копирует + удаляет). Возвращает команду для undo. |
+| `paste` | `() -> ClipboardContent \| None` | Вставляет из буфера. |
+| `can_paste` | `() -> bool` | Проверяет, есть ли данные в буфере. |
+| `get_formats` | `() -> list[ClipboardFormat]` | Доступные форматы в буфере. |
+| `paste_special` | `(format: ClipboardFormat) -> ClipboardContent \| None` | Вставка в определённом формате. |
+
+---
+
+### 10.6 NotificationService
+
+**Файл:** `src/services/notification_service.py`
+
+Система уведомлений и статус-бар.
+
+```python
+@dataclass(frozen=True)
+class Notification:
+    id: str
+    message: str
+    level: NotificationLevel  # INFO, WARNING, ERROR, SUCCESS
+    duration_ms: int
+    actions: list[NotificationAction]
+
+@dataclass(frozen=True)
+class NotificationAction:
+    label: str
+    callback: Callable[[], None]
+
+class NotificationService:
+    def __init__(self) -> None: ...
+    def show(
+        self,
+        message: str,
+        level: NotificationLevel = NotificationLevel.INFO,
+        duration_ms: int = 5000
+    ) -> str: ...  # Возвращает notification_id
+    def show_progress(
+        self,
+        message: str,
+        total: int
+    ) -> ProgressHandle: ...
+    def dismiss(self, notification_id: str) -> None: ...
+    def subscribe(self, callback: Callable[[Notification], None]) -> None: ...
+    def unsubscribe(self, callback: Callable[[Notification], None]) -> None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `show` | `(message: str, level=INFO, duration_ms=5000) -> str` | Показывает уведомление. Возвращает ID. |
+| `show_progress` | `(message: str, total: int) -> ProgressHandle` | Показывает прогресс-бар. |
+| `dismiss` | `(notification_id: str) -> None` | Скрывает уведомление. |
+| `subscribe` | `(callback: Callable[[Notification], None]) -> None` | Подписка на уведомления. |
+| `unsubscribe` | `(callback: Callable[[Notification], None]) -> None` | Отписка. |
+
+---
+
+### 10.7 DocumentLockService
+
+**Файл:** `src/services/document_lock_service.py`
+
+Блокировка документа от двойного открытия (portable mode).
+
+```python
+@dataclass(frozen=True)
+class LockHandle:
+    document_path: Path
+    lock_file_path: Path
+    acquired_at: datetime
+
+@dataclass(frozen=True)
+class LockInfo:
+    pid: int
+    username: str
+    acquired_at: datetime
+    machine_id: str
+
+class DocumentLockService:
+    def __init__(self, lock_dir: Path) -> None: ...
+    def acquire(self, document_path: Path) -> LockHandle | None: ...
+    def release(self, handle: LockHandle) -> None: ...
+    def is_locked(self, document_path: Path) -> bool: ...
+    def get_lock_info(self, document_path: Path) -> LockInfo | None: ...
+    def force_release(self, document_path: Path) -> bool: ...  # Для recovery
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `acquire` | `(document_path: Path) -> LockHandle \| None` | Блокирует документ. None если уже заблокирован. |
+| `release` | `(handle: LockHandle) -> None` | Снимает блокировку. |
+| `is_locked` | `(document_path: Path) -> bool` | Проверяет блокировку. |
+| `get_lock_info` | `(document_path: Path) -> LockInfo \| None` | Информация о блокировке. |
+| `force_release` | `(document_path: Path) -> bool` | Принудительное снятие (для recovery). |
+
+**Формат .fxsd.lock:**
+```json
+{
+  "pid": 12345,
+  "username": "operator",
+  "machine_id": "uuid",
+  "acquired_at": "2026-03-18T10:30:00Z"
+}
+```
+
+---
+
+### 10.8 VersionHistoryService
+
+**Файл:** `src/services/version_history_service.py`
+
+История версий документа — diff между версиями.
+
+```python
+@dataclass(frozen=True)
+class VersionInfo:
+    version: int
+    timestamp: datetime
+    author: str
+    change_summary: str
+    snapshot_path: Path | None
+
+@dataclass(frozen=True)
+class DocumentDiff:
+    added_paragraphs: list[int]
+    removed_paragraphs: list[int]
+    modified_paragraphs: list[tuple[int, ParagraphDiff]]
+
+class VersionHistoryService:
+    def __init__(self, history_dir: Path) -> None: ...
+    def save_version(self, document: Document, change_summary: str = "") -> VersionInfo: ...
+    def get_versions(self, document_id: str) -> list[VersionInfo]: ...
+    def get_version(self, document_id: str, version: int) -> Document: ...
+    def compare(self, document_id: str, version_a: int, version_b: int) -> DocumentDiff: ...
+    def revert_to(self, document_id: str, version: int) -> Command: ...
+    def delete_version(self, document_id: str, version: int) -> bool: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `save_version` | `(document: Document, change_summary="") -> VersionInfo` | Сохраняет версию. |
+| `get_versions` | `(document_id: str) -> list[VersionInfo]` | Список всех версий. |
+| `get_version` | `(document_id: str, version: int) -> Document` | Загружает конкретную версию. |
+| `compare` | `(document_id: str, version_a: int, version_b: int) -> DocumentDiff` | Сравнивает две версии. |
+| `revert_to` | `(document_id: str, version: int) -> Command` | Откатывает к версии. Возвращает команду. |
+| `delete_version` | `(document_id: str, version: int) -> bool` | Удаляет версию. |
+
+---
+
+### 10.9 DocumentManagerService
+
+**Файл:** `src/services/document_manager_service.py`
+
+Управление несколькими открытыми документами (MDI).
+
+```python
+@dataclass(frozen=True)
+class DocumentHandle:
+    handle_id: str
+    document: Document
+    file_path: Path | None
+    is_modified: bool
+    is_active: bool
+
+class DocumentManagerService:
+    def __init__(self) -> None: ...
+    def open_document(self, path: Path) -> DocumentHandle: ...
+    def create_document(self, doc_type: str | None = None) -> DocumentHandle: ...
+    def close_document(self, handle: DocumentHandle, force: bool = False) -> bool: ...
+    def get_active(self) -> DocumentHandle | None: ...
+    def set_active(self, handle: DocumentHandle) -> None: ...
+    def list_open(self) -> list[DocumentHandle]: ...
+    def has_unsaved_changes(self, handle: DocumentHandle) -> bool: ...
+    def save_all(self) -> list[tuple[DocumentHandle, bool]]: ...  # (handle, success)
+    def get_handle_by_path(self, path: Path) -> DocumentHandle | None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `open_document` | `(path: Path) -> DocumentHandle` | Открывает документ с диска. |
+| `create_document` | `(doc_type: str \| None = None) -> DocumentHandle` | Создаёт новый документ. |
+| `close_document` | `(handle: DocumentHandle, force: bool = False) -> bool` | Закрывает документ. False если есть несохранённые изменения. |
+| `get_active` | `() -> DocumentHandle \| None` | Активный документ. |
+| `set_active` | `(handle: DocumentHandle) -> None` | Делает документ активным. |
+| `list_open` | `() -> list[DocumentHandle]` | Список открытых документов. |
+| `has_unsaved_changes` | `(handle: DocumentHandle) -> bool` | Проверяет несохранённые изменения. |
+| `save_all` | `() -> list[tuple[DocumentHandle, bool]]` | Сохраняет все документы. |
+| `get_handle_by_path` | `(path: Path) -> DocumentHandle \| None` | Находит handle по пути. |
+
+---
+
+### 10.10 ExportService
+
+**Файл:** `src/services/export_service.py`
+
+Экспорт документа в различные форматы.
+
+```python
+class ExportFormat(Enum):
+    TXT = "txt"
+    MD = "markdown"
+    HTML = "html"
+    PDF = "pdf"  # Future
+
+class ExportOptions:
+    include_metadata: bool = False
+    encoding: str = "utf-8"
+    line_ending: str = "\n"
+
+class ExportService:
+    def __init__(self) -> None: ...
+    def export_txt(self, document: Document, path: Path, options: ExportOptions | None = None) -> None: ...
+    def export_md(self, document: Document, path: Path, options: ExportOptions | None = None) -> None: ...
+    def export_html(self, document: Document, path: Path, options: ExportOptions | None = None) -> None: ...
+    def export(self, document: Document, path: Path, format: ExportFormat, options: ExportOptions | None = None) -> None: ...
+    def get_supported_formats(self) -> list[ExportFormat]: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `export_txt` | `(document: Document, path: Path, options=None) -> None` | Экспорт в plain text. |
+| `export_md` | `(document: Document, path: Path, options=None) -> None` | Экспорт в Markdown. |
+| `export_html` | `(document: Document, path: Path, options=None) -> None` | Экспорт в HTML. |
+| `export` | `(document: Document, path: Path, format: ExportFormat, options=None) -> None` | Универсальный метод экспорта. |
+| `get_supported_formats` | `() -> list[ExportFormat]` | Список поддерживаемых форматов. |
+
+---
+
+### 10.11 PrintQueueService
+
+**Файл:** `src/services/print_queue_service.py`
+
+Очередь заданий печати с приоритетами.
+
+```python
+@dataclass(frozen=True)
+class PrintJob:
+    id: str
+    document: Document
+    priority: PrintPriority
+    status: PrintJobStatus
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+
+class PrintPriority(Enum):
+    LOW = 0
+    NORMAL = 1
+    HIGH = 2
+    URGENT = 3
+
+class PrintJobStatus(Enum):
+    PENDING = "pending"
+    PRINTING = "printing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class PrintQueueService:
+    def __init__(self, printer_adapter: PrinterProtocol) -> None: ...
+    def enqueue(self, document: Document, priority: PrintPriority = PrintPriority.NORMAL) -> str: ...
+    def cancel(self, job_id: str) -> bool: ...
+    def get_status(self, job_id: str) -> PrintJobStatus: ...
+    def get_queue(self) -> list[PrintJob]: ...
+    def get_job(self, job_id: str) -> PrintJob | None: ...
+    def process_queue(self) -> None: ...
+    def pause(self) -> None: ...
+    def resume(self) -> None: ...
+    def clear_completed(self) -> int: ...  # Возвращает количество удалённых
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `enqueue` | `(document: Document, priority=NORMAL) -> str` | Добавляет задание в очередь. Возвращает job_id. |
+| `cancel` | `(job_id: str) -> bool` | Отменяет задание. |
+| `get_status` | `(job_id: str) -> PrintJobStatus` | Статус задания. |
+| `get_queue` | `() -> list[PrintJob]` | Все задания в очереди. |
+| `get_job` | `(job_id: str) -> PrintJob \| None` | Конкретное задание. |
+| `process_queue` | `() -> None` | Обрабатывает очередь (вызывается background thread). |
+| `pause` | `() -> None` | Приостанавливает обработку. |
+| `resume` | `() -> None` | Возобновляет обработку. |
+| `clear_completed` | `() -> int` | Удаляет завершённые задания. |
+
+---
+
+### 10.12 BatchService
+
+**Файл:** `src/services/batch_service.py`
+
+Пакетные операции — batch print, batch export.
+
+```python
+@dataclass(frozen=True)
+class BatchPrintOptions:
+    copies: int = 1
+    collate: bool = True
+    priority: PrintPriority = PrintPriority.NORMAL
+
+@dataclass(frozen=True)
+class BatchResult:
+    total: int
+    succeeded: int
+    failed: int
+    errors: list[tuple[str, str]]  # (document_id, error_message)
+
+class BatchService:
+    def __init__(
+        self,
+        document_service: DocumentServiceProtocol,
+        print_service: PrintServiceProtocol
+    ) -> None: ...
+    def batch_print(
+        self,
+        documents: list[Document],
+        options: BatchPrintOptions
+    ) -> BatchResult: ...
+    def batch_export(
+        self,
+        documents: list[Document],
+        format: ExportFormat,
+        output_dir: Path,
+        naming_pattern: str = "{index}_{title}.{ext}"
+    ) -> BatchResult: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `batch_print` | `(documents: list[Document], options: BatchPrintOptions) -> BatchResult` | Пакетная печать. |
+| `batch_export` | `(documents: list[Document], format: ExportFormat, output_dir: Path, naming_pattern="{index}_{title}.{ext}") -> BatchResult` | Пакетный экспорт. |
+
+---
+
+### 10.13 IndexSearchService
+
+**Файл:** `src/services/index_search_service.py`
+
+Поиск и фильтрация документов по индексу DVN-44-K53-IX.
+
+```python
+@dataclass(frozen=True)
+class DocumentInfo:
+    document_id: str
+    file_path: Path
+    document_type: str
+    document_index: str
+    created_at: datetime
+    modified_at: datetime
+
+@dataclass(frozen=True)
+class SearchCriteria:
+    document_type: str | None = None
+    series: str | None = None
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+    author: str | None = None
+
+class IndexSearchService:
+    def __init__(self, documents_dir: Path) -> None: ...
+    def search_by_index(self, pattern: str) -> list[DocumentInfo]: ...
+    def search_by_type(self, doc_type: str) -> list[DocumentInfo]: ...
+    def search_by_series(self, series: str) -> list[DocumentInfo]: ...
+    def search_by_date_range(self, start: datetime, end: datetime) -> list[DocumentInfo]: ...
+    def filter(self, criteria: SearchCriteria) -> list[DocumentInfo]: ...
+    def get_recent(self, count: int = 10) -> list[DocumentInfo]: ...
+    def rebuild_index(self) -> None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `search_by_index` | `(pattern: str) -> list[DocumentInfo]` | Поиск по шаблону индекса (regex). |
+| `search_by_type` | `(doc_type: str) -> list[DocumentInfo]` | Документы определённого типа. |
+| `search_by_series` | `(series: str) -> list[DocumentInfo]` | Документы серии (например, "K53"). |
+| `search_by_date_range` | `(start: datetime, end: datetime) -> list[DocumentInfo]` | По диапазону дат. |
+| `filter` | `(criteria: SearchCriteria) -> list[DocumentInfo]` | Комбинированный фильтр. |
+| `get_recent` | `(count: int = 10) -> list[DocumentInfo]` | Недавние документы. |
+| `rebuild_index` | `() -> None` | Перестраивает индекс. |
+
+---
+
+### 10.14 KeyBindingsService
+
+**Файл:** `src/services/key_bindings_service.py`
+
+Система горячих клавиш.
+
+```python
+class KeyBindingsService:
+    def __init__(self, config_path: Path | None = None) -> None: ...
+    def register(self, key_combo: str, action_id: str) -> None: ...
+    def unregister(self, key_combo: str) -> None: ...
+    def get_action(self, key_combo: str) -> str | None: ...
+    def get_bindings_for_action(self, action_id: str) -> list[str]: ...
+    def is_registered(self, key_combo: str) -> bool: ...
+    def load_defaults(self) -> None: ...
+    def load_from_file(self, path: Path) -> None: ...
+    def save(self) -> None: ...
+    def reset_to_defaults(self) -> None: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `register` | `(key_combo: str, action_id: str) -> None` | Регистрирует сочетание клавиш. |
+| `unregister` | `(key_combo: str) -> None` | Удаляет регистрацию. |
+| `get_action` | `(key_combo: str) -> str \| None` | Возвращает action_id по сочетанию. |
+| `get_bindings_for_action` | `(action_id: str) -> list[str]` | Все сочетания для действия. |
+| `is_registered` | `(key_combo: str) -> bool` | Проверяет регистрацию. |
+| `load_defaults` | `() -> None` | Загружает дефолтные биндинги. |
+| `load_from_file` | `(path: Path) -> None` | Загружает из файла. |
+| `save` | `() -> None` | Сохраняет в файл. |
+| `reset_to_defaults` | `() -> None` | Сброс к дефолтам. |
+
+**Формат key_combo:** `"Ctrl+S"`, `"Ctrl+Shift+Z"`, `"F5"`, `"Alt+F4"`
+
+---
+
+### 10.15 WatermarkService
+
+**Файл:** `src/services/watermark_service.py`
+
+Водяные знаки через ESC/P graphics layer.
+
+```python
+@dataclass(frozen=True)
+class WatermarkConfig:
+    text: str                    # "КОПИЯ", "ЧЕРНОВИК", "КОНФИДЕНЦИАЛЬНО"
+    font_size: int = 48
+    opacity: float = 0.3         # 0.0 - 1.0
+    angle: int = 45              # Угол наклона в градусах
+    position: WatermarkPosition = WatermarkPosition.CENTER
+    repeat: bool = True          # Повторять по всей странице
+
+class WatermarkPosition(Enum):
+    CENTER = "center"
+    TOP_LEFT = "top_left"
+    TOP_RIGHT = "top_right"
+    BOTTOM_LEFT = "bottom_left"
+    BOTTOM_RIGHT = "bottom_right"
+    DIAGONAL = "diagonal"
+
+class WatermarkService:
+    def __init__(self, renderer: DocumentRenderer) -> None: ...
+    def apply_watermark(
+        self,
+        document: Document,
+        config: WatermarkConfig
+    ) -> bytes: ...  # ESC/P с watermark
+    def remove_watermark(self, escp_data: bytes) -> bytes: ...
+    def preview_watermark(
+        self,
+        document: Document,
+        config: WatermarkConfig
+    ) -> Image: ...  # PIL Image для preview
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `apply_watermark` | `(document: Document, config: WatermarkConfig) -> bytes` | Накладывает водяной знак на ESC/P. |
+| `remove_watermark` | `(escp_data: bytes) -> bytes` | Удаляет watermark (если возможно). |
+| `preview_watermark` | `(document: Document, config: WatermarkConfig) -> Image` | Генерирует preview. |
+
+---
+
+### 10.16 PaperFormatService
+
+**Файл:** `src/services/paper_format_service.py`
+
+Управление форматами бумаги и профилями.
+
+```python
+@dataclass(frozen=True)
+class PaperFormat:
+    name: str                    # "A4", "Letter", "A5", "Custom"
+    width_inches: float
+    height_inches: float
+    lines_per_page: int        # При 1/6 lpi
+    default_margins: Margins
+
+@dataclass(frozen=True)
+class Margins:
+    left: float
+    right: float
+    top: float
+    bottom: float
+
+class PaperFormatService:
+    def __init__(self) -> None: ...
+    def get_builtin_formats(self) -> list[PaperFormat]: ...
+    def get_format(self, name: str) -> PaperFormat: ...
+    def create_custom_format(
+        self,
+        name: str,
+        width: float,
+        height: float,
+        margins: Margins
+    ) -> PaperFormat: ...
+    def apply_format(self, document: Document, format: PaperFormat) -> Command: ...
+    def estimate_page_count(self, document: Document, format: PaperFormat) -> int: ...
+    def delete_custom_format(self, name: str) -> bool: ...
+```
+
+**Методы:**
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `get_builtin_formats` | `() -> list[PaperFormat]` | Встроенные форматы. |
+| `get_format` | `(name: str) -> PaperFormat` | Формат по имени. |
+| `create_custom_format` | `(name: str, width: float, height: float, margins: Margins) -> PaperFormat` | Создаёт кастомный формат. |
+| `apply_format` | `(document: Document, format: PaperFormat) -> Command` | Применяет формат. Возвращает команду. |
+| `estimate_page_count` | `(document: Document, format: PaperFormat) -> int` | Оценка количества страниц. |
+| `delete_custom_format` | `(name: str) -> bool` | Удаляет кастомный формат. |
+
+**Встроенные форматы:**
+
+| Формат | Размер | Строки (1/6 lpi) | Строки (1/8 lpi) |
+|--------|--------|------------------|------------------|
+| Letter | 8.5×11" | 66 | 88 |
+| A4 | 8.27×11.69" | 70 | 93 |
+| Legal | 8.5×14" | 84 | 112 |
+| A5 | 5.83×8.27" | 49 | 66 |
+
+---
+
+## 11. Floppy Disk Optimization API
 
 Опциональный модуль для оптимизации документов под ограничения 3.5" дискет (1.44 MB). Включается по желанию пользователя.
 
@@ -1902,4 +3160,4 @@ class AlgorithmMetadata:
 
 ---
 
-*FX Text Processor 3 — API Reference v3.0 — March 2026*
+*FX Text Processor 3 — API Reference v3.1 — March 2026*

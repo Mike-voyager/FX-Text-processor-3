@@ -12,7 +12,45 @@ import threading
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from src.app_context import get_app_context
-from src.security.crypto.algorithms.kdf import Argon2idKDF
+
+# KDF import; callers/tests may monkeypatch derive_key_argon2id on this module
+try:
+    from src.security.crypto.service.crypto_service import CryptoService
+    from src.security.crypto.service.profiles import CryptoProfile
+
+    _default_crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+
+    def _get_crypto_service_impl() -> CryptoService:
+        """Implementation: Получить CryptoService из app_context или создать default."""
+        try:
+            ctx = get_app_context()
+            if hasattr(ctx, "crypto_service"):
+                return ctx.crypto_service
+        except Exception:  # pragma: no cover
+            _logger.debug("Failed to get crypto_service from app_context, using default")
+        # Fallback for tests or pre-initialization
+        return _default_crypto_service
+
+    def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
+        """Обёртка над CryptoService.derive_key для совместимости с monkeypatching в тестах."""
+        crypto_service = _get_crypto_service_impl()
+        return crypto_service.derive_key(password, salt, key_length=length)
+
+except Exception:  # pragma: no cover
+
+    def _get_crypto_service_impl_fallback() -> Any:
+        raise RuntimeError("_get_crypto_service_impl is not available")
+
+    def derive_key_argon2id_fallback(password: bytes, salt: bytes, length: int) -> bytes:  # noqa: ARG001
+        raise RuntimeError("derive_key_argon2id is not available")
+
+    # Assign fallback implementations
+    _get_crypto_service_impl = _get_crypto_service_impl_fallback
+    derive_key_argon2id = derive_key_argon2id_fallback
+
+
+# Public alias for backward compatibility
+_get_crypto_service = _get_crypto_service_impl
 
 _logger = logging.getLogger("security.auth.code_service")
 _lock = threading.Lock()
@@ -197,4 +235,4 @@ def get_backup_code_secret_for_storage(user_id: str, code: str) -> bytes:
 
     personal_salt = ("backup/user/" + user_id).encode("utf-8")
     password_bytes = (user_id + "|" + code).encode("utf-8")
-    return Argon2idKDF().derive_key(password_bytes, personal_salt, key_length=32)
+    return derive_key_argon2id(password_bytes, personal_salt, 32)

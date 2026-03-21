@@ -564,7 +564,7 @@ class TestRegistryIntegration:
     def test_list_by_category(self, registry: AlgorithmRegistry) -> None:
         """Тест фильтрации алгоритмов по категории."""
         # Get all algorithms and filter manually
-        all_algos = registry.list_algorithms()
+        all_algos = registry.list_algorithm_names()
         signatures = [
             name
             for name in all_algos
@@ -869,7 +869,7 @@ def test_registry_initialized_on_import() -> None:
     registry = AlgorithmRegistry.get_instance()
 
     # Should have 20 signature algorithms
-    all_algos = registry.list_algorithms()
+    all_algos = registry.list_algorithm_names()
     signatures = [
         name
         for name in all_algos
@@ -886,6 +886,7 @@ def test_registry_initialized_on_import() -> None:
 
 def test_falcon_size_distribution() -> None:
     """Измерить реальное распределение размеров Falcon подписей."""
+    pytest.importorskip("oqs", reason="liboqs-python not installed")
     import statistics
 
     signer = Falcon512Signer()

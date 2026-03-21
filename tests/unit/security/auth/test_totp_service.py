@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, cast
 
 import pytest
-
 import src.security.auth.totp_service as tots
 
 
@@ -377,9 +376,7 @@ def test_get_first_totp_state_with_nested_state() -> None:
                 {
                     "_factors": {
                         "utest": {
-                            "totp": [
-                                {"state": {"secret": "TESTSECRET", "username": "tuser"}}
-                            ]
+                            "totp": [{"state": {"secret": "TESTSECRET", "username": "tuser"}}]
                         }
                     }
                 },
@@ -621,7 +618,7 @@ def test_get_totp_secret_for_storage_audit_on_success(
             return True
 
     monkeypatch.setitem(sys.modules, "pyotp", types.SimpleNamespace(TOTP=DummyTOTP))
-    monkeypatch.setitem(tots._config, "kdf", lambda pw, salt, n: b"\xAA" * n)
+    monkeypatch.setitem(tots._config, "kdf", lambda pw, salt, n: b"\xaa" * n)
 
     # Act
     result = tots.get_totp_secret_for_storage("succaudit", "anycode")
@@ -645,7 +642,7 @@ def test_get_totp_secret_for_storage_pepper_str(
 
     def capturing_kdf(pw: bytes, salt: bytes, n: int) -> bytes:
         captured.append(pw)
-        return b"\xBB" * n
+        return b"\xbb" * n
 
     class DummyTOTP:
         def __init__(self, secret: str, **kwargs: Any) -> None:
@@ -681,7 +678,7 @@ def test_get_totp_secret_for_storage_pepper_bytes(
 
     def capturing_kdf(pw: bytes, salt: bytes, n: int) -> bytes:
         captured.append(pw)
-        return b"\xCC" * n
+        return b"\xcc" * n
 
     class DummyTOTP:
         def __init__(self, secret: str, **kwargs: Any) -> None:
@@ -723,7 +720,7 @@ def test_get_totp_secret_for_storage_non_bytes_derived(
 
     # KDF возвращает bytearray вместо bytes
     def bytearray_kdf(pw: bytes, salt: bytes, n: int) -> bytearray:
-        return bytearray(b"\xDD" * n)
+        return bytearray(b"\xdd" * n)
 
     monkeypatch.setitem(sys.modules, "pyotp", types.SimpleNamespace(TOTP=DummyTOTP))
     monkeypatch.setitem(tots._config, "kdf", bytearray_kdf)
@@ -733,7 +730,7 @@ def test_get_totp_secret_for_storage_non_bytes_derived(
 
     # Assert — результат должен быть bytes
     assert isinstance(result, bytes)
-    assert result == b"\xDD" * 64
+    assert result == b"\xdd" * 64
 
 
 @pytest.mark.security
@@ -810,3 +807,504 @@ def test_get_totp_secret_for_storage_locked_out(
     # Act / Assert
     with pytest.raises(tots.TotpLockedOut):
         tots.get_totp_secret_for_storage("locksec", "anyotp")
+
+
+@pytest.mark.security
+def test_configure_totp_service_digits_branch() -> None:
+    """configure_totp_service с digits и interval обновляет конфиг (строка 115->117).
+
+    Покрывает отдельные ветки: if digits is not None → if interval is not None.
+    """
+    # Arrange
+    original_digits = tots._config["digits"]
+    original_interval = tots._config["interval"]
+
+    # Act — передаём только digits и interval (без остальных параметров)
+    tots.configure_totp_service(digits=8, interval=60)
+
+    # Assert
+    assert tots._config["digits"] == 8
+    assert tots._config["interval"] == 60
+
+    # Cleanup
+    tots.configure_totp_service(digits=original_digits, interval=original_interval)
+
+
+@pytest.mark.security
+def test_get_first_totp_state_when_totp_list_not_a_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_first_totp_state возвращает {} если totp_list не является списком (строка 218->224).
+
+    Покрывает ветку: isinstance(totp_list, list) → False.
+    """
+
+    # Arrange — mfa_manager._factors с нестандартной структурой (строка вместо списка)
+    ctx: Any = type(
+        "Ctx",
+        (),
+        {
+            "mfa_manager": type(
+                "Mgr",
+                (),
+                {
+                    "_factors": {
+                        "baduser": {
+                            "totp": "not_a_list"  # намеренно не список
+                        }
+                    }
+                },
+            )()
+        },
+    )()
+
+    # Act
+    result = tots._get_first_totp_state(ctx, "baduser")
+
+    # Assert — возвращается пустой словарь
+    assert result == {}
+
+
+@pytest.mark.security
+def test_get_totp_secret_for_storage_non_bytes_non_bytearray_derived(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """KDF возвращает объект, не являющийся bytes/bytearray — конвертируется в bytes (строка 584).
+
+    Покрывает ветку: if not isinstance(derived, (bytes, bytearray)): derived = bytes(derived).
+    """
+    # Arrange
+    tots.setup_totp_for_user("memview_user", "mvlogin")
+
+    class DummyTOTP:
+        def __init__(self, secret: str, **kwargs: Any) -> None:
+            pass
+
+        def verify(self, code: str, **kwargs: Any) -> bool:
+            return True
+
+    # KDF возвращает memoryview — не bytes и не bytearray, но конвертируется через bytes()
+    def memoryview_kdf(pw: bytes, salt: bytes, n: int) -> memoryview:
+        return memoryview(bytearray(b"\xee" * n))
+
+    monkeypatch.setitem(sys.modules, "pyotp", types.SimpleNamespace(TOTP=DummyTOTP))
+    monkeypatch.setitem(tots._config, "kdf", memoryview_kdf)
+
+    # Act
+    result = tots.get_totp_secret_for_storage("memview_user", "anyotp")
+
+    # Assert — результат конвертирован в bytes
+    assert isinstance(result, bytes)
+    assert result == b"\xee" * 64
+
+
+# =============================================================================
+# TOTPService Class Tests (DI Pattern)
+# =============================================================================
+
+
+class TestTOTPServiceDI:
+    """Tests for TOTPService with Dependency Injection."""
+
+    def test_totp_service_init_with_crypto_service(self, monkeypatch: Any) -> None:
+        """Test TOTPService initialization with custom CryptoService."""
+        from src.security.crypto.service.crypto_service import CryptoService
+        from src.security.crypto.service.profiles import CryptoProfile
+
+        # Create CryptoService with PARANOID profile
+        crypto_service = CryptoService(profile=CryptoProfile.PARANOID)
+
+        # Create TOTPService with DI
+        service = tots.TOTPService(crypto_service=crypto_service)
+
+        # Verify crypto_service is set
+        assert service._crypto_service is crypto_service
+        assert service._get_crypto_service() is crypto_service
+
+    def test_totp_service_uses_app_context_fallback(self, monkeypatch: Any) -> None:
+        """Test TOTPService falls back to app context when no crypto_service provided."""
+        from src.security.crypto.service.crypto_service import CryptoService
+        from src.security.crypto.service.profiles import CryptoProfile
+
+        # Create a mock context with crypto_service
+        mock_crypto = CryptoService(profile=CryptoProfile.STANDARD)
+        mock_ctx = types.SimpleNamespace(crypto_service=mock_crypto)
+
+        # Patch get_app_context
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Create TOTPService without crypto_service
+        service = tots.TOTPService()
+
+        # Verify it falls back to app context
+        assert service._crypto_service is None
+        assert service._get_crypto_service() is mock_crypto
+
+    def test_totp_service_derive_key_returns_bytes(self) -> None:
+        """Test that _derive_key returns bytes of correct length."""
+        from src.security.crypto.service.crypto_service import CryptoService
+        from src.security.crypto.service.profiles import CryptoProfile
+
+        # Create CryptoService
+        crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+
+        # Create TOTPService
+        service = tots.TOTPService(crypto_service=crypto_service)
+
+        # Call _derive_key
+        result = service._derive_key(b"test_password", b"test_salt_32_bytes_long_123", 32)
+
+        # Verify result is bytes with correct length
+        assert isinstance(result, bytes)
+        assert len(result) == 32
+
+    def test_totp_service_derive_key_different_profiles(self) -> None:
+        """Test that _derive_key works with different crypto profiles."""
+        from src.security.crypto.service.crypto_service import CryptoService
+        from src.security.crypto.service.profiles import CryptoProfile
+
+        # Test with STANDARD profile
+        standard_service = CryptoService(profile=CryptoProfile.STANDARD)
+        standard_totp = tots.TOTPService(crypto_service=standard_service)
+        result1 = standard_totp._derive_key(b"password", b"salt_32_bytes_long__1234567890", 32)
+        assert isinstance(result1, bytes)
+        assert len(result1) == 32
+
+        # Test with PARANOID profile
+        paranoid_service = CryptoService(profile=CryptoProfile.PARANOID)
+        paranoid_totp = tots.TOTPService(crypto_service=paranoid_service)
+        result2 = paranoid_totp._derive_key(b"password", b"salt_32_bytes_long__1234567890", 32)
+        assert isinstance(result2, bytes)
+        assert len(result2) == 32
+
+        # Both results should be valid bytes (different profiles may produce
+        # different results, but this is not guaranteed at the KDF level)
+
+    def test_totp_service_uses_correct_profile(self, monkeypatch: Any) -> None:
+        """Test that TOTPService respects the active crypto profile."""
+        from src.security.crypto.service.crypto_service import CryptoService
+        from src.security.crypto.service.profiles import CryptoProfile
+
+        # Create CryptoServices with different profiles
+        standard_service = CryptoService(profile=CryptoProfile.STANDARD)
+        paranoid_service = CryptoService(profile=CryptoProfile.PARANOID)
+
+        # Create TOTPServices with different profiles
+        standard_totp = tots.TOTPService(crypto_service=standard_service)
+        paranoid_totp = tots.TOTPService(crypto_service=paranoid_service)
+
+        # Verify each service uses its own profile
+        assert standard_totp._get_crypto_service().profile == CryptoProfile.STANDARD
+        assert paranoid_totp._get_crypto_service().profile == CryptoProfile.PARANOID
+
+
+class TestTOTPServiceIntegration:
+    """Integration tests for TOTPService with real dependencies."""
+
+    def test_totp_service_setup_totp(self, monkeypatch: Any) -> None:
+        """Test TOTPService.setup_totp_for_user works with DI."""
+        manager = DummyManager()
+        mock_ctx = DummyContext(manager)
+        mock_ctx.crypto_service = None  # Will use default
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Create TOTPService
+        service = tots.TOTPService()
+
+        # Setup TOTP for user
+        result = service.setup_totp_for_user("user1", "testuser")
+
+        # Verify result structure
+        assert "uri" in result
+        assert "qr" in result
+        assert "qr_mime" in result
+        assert "otpauth://totp/" in result["uri"]
+
+    def test_totp_service_validate_code(self, monkeypatch: Any) -> None:
+        """Test TOTPService.validate_totp_code works with DI."""
+        manager = DummyManager()
+        mock_ctx = DummyContext(manager)
+        mock_ctx.crypto_service = None
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Setup user first
+        tots.setup_totp_for_user("user2", "testuser")
+
+        # Create TOTPService
+        service = tots.TOTPService()
+
+        # Validate code (DummyManager.verify_factor returns True for "goldcode")
+        result = service.validate_totp_code("user2", "goldcode")
+
+        assert result is True
+
+
+
+class TestTOTPServiceGetSecretForStorage:
+    """Tests for TOTPService.get_totp_secret_for_storage method."""
+
+    def test_get_totp_secret_for_storage_success(self, monkeypatch: Any) -> None:
+        """Test get_totp_secret_for_storage returns derived key on success."""
+        import pyotp
+
+        # Create real TOTP with known secret
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        # Use longer user_id to ensure salt >= 16 bytes
+        user_id = "user_with_long_name_123"
+
+        # Setup user with real secret
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": secret,
+                        "digits": 6,
+                        "interval": 30,
+                        "username": "testuser",
+                        "issuer": "Test",
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Create TOTPService
+        service = tots.TOTPService()
+
+        # Get derived key
+        result = service.get_totp_secret_for_storage(user_id, code)
+
+        assert isinstance(result, bytes)
+        assert len(result) == 64  # default dk_len
+
+    def test_get_totp_secret_for_storage_invalid_code(self, monkeypatch: Any) -> None:
+        """Test get_totp_secret_for_storage raises TotpInvalidCode for invalid code."""
+        user_id = "user_with_long_name_456"
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": "JBSWY3DPEHPK3PXP",
+                        "digits": 6,
+                        "interval": 30,
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        service = tots.TOTPService()
+
+        with pytest.raises(tots.TotpInvalidCode):
+            service.get_totp_secret_for_storage(user_id, "000000")
+
+    def test_get_totp_secret_for_storage_not_configured(self, monkeypatch: Any) -> None:
+        """Test get_totp_secret_for_storage raises TotpNotConfigured when no secret."""
+        user_id = "user_with_long_name_789"
+        manager = DummyManager()
+        manager._factors[user_id] = {"totp": [{"state": {"audit": []}}]}
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        service = tots.TOTPService()
+
+        with pytest.raises(tots.TotpNotConfigured):
+            service.get_totp_secret_for_storage(user_id, "123456")
+
+    def test_get_totp_secret_for_storage_with_pepper(self, monkeypatch: Any) -> None:
+        """Test get_totp_secret_for_storage with pepper returns different key."""
+        import pyotp
+
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        user_id = "user_with_long_name_abc"
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": secret,
+                        "digits": 6,
+                        "interval": 30,
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Without pepper
+        service1 = tots.TOTPService()
+        result1 = service1.get_totp_secret_for_storage(user_id, code)
+
+        # With pepper
+        service2 = tots.TOTPService(pepper="testpepper")
+        result2 = service2.get_totp_secret_for_storage(user_id, code)
+
+        assert result1 != result2
+
+    def test_get_totp_secret_for_storage_custom_dk_len(self, monkeypatch: Any) -> None:
+        """Test get_totp_secret_for_storage with custom dk_len."""
+        import pyotp
+
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        user_id = "user_with_long_name_def"
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": secret,
+                        "digits": 6,
+                        "interval": 30,
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        service = tots.TOTPService()
+        result = service.get_totp_secret_for_storage(user_id, code, dk_len=32)
+
+        assert len(result) == 32
+
+
+class TestModuleLevelGetSecretForStorage:
+    """Tests for module-level get_totp_secret_for_storage function."""
+
+    def test_module_get_totp_secret_for_storage_success(self, monkeypatch: Any) -> None:
+        """Test module-level get_totp_secret_for_storage works."""
+        import pyotp
+
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        user_id = "module_test_user_long_name"
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": secret,
+                        "digits": 6,
+                        "interval": 30,
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        result = tots.get_totp_secret_for_storage(user_id, code)
+
+        assert isinstance(result, bytes)
+        assert len(result) == 64
+
+    def test_module_get_totp_secret_for_storage_with_pepper(self, monkeypatch: Any) -> None:
+        """Test module-level get_totp_secret_for_storage with configured pepper."""
+        import pyotp
+
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        user_id = "module_test_user_pepper"
+        manager = DummyManager()
+        manager._factors[user_id] = {
+            "totp": [
+                {
+                    "state": {
+                        "secret": secret,
+                        "digits": 6,
+                        "interval": 30,
+                        "audit": [],
+                    }
+                }
+            ]
+        }
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Configure pepper
+        tots.configure_totp_service(pepper="testpepper123")
+        try:
+            result = tots.get_totp_secret_for_storage(user_id, code)
+            assert isinstance(result, bytes)
+        finally:
+            # Reset pepper
+            tots.configure_totp_service(pepper=None)
+
+
+class TestTOTPServiceCryptoFallback:
+    """Tests for TOTPService crypto service fallback behavior."""
+
+    def test_totp_service_get_crypto_service_fallback(self, monkeypatch: Any) -> None:
+        """Test _get_crypto_service falls back to default when app_context fails."""
+        # Make get_app_context raise exception
+        def failing_context() -> Any:
+            raise RuntimeError("No context")
+
+        monkeypatch.setattr(tots, "get_app_context", failing_context)
+
+        service = tots.TOTPService()
+        # Should fall back to _default_crypto_service
+        crypto = service._get_crypto_service()
+        assert crypto is not None
+
+    def test_totp_service_get_crypto_service_no_attr(self, monkeypatch: Any) -> None:
+        """Test _get_crypto_service falls back when crypto_service attr missing."""
+        class NoCryptoContext:
+            pass
+
+        monkeypatch.setattr(tots, "get_app_context", NoCryptoContext)
+
+        service = tots.TOTPService()
+        crypto = service._get_crypto_service()
+        assert crypto is not None
+
+
+class TestSetupTotpAuditLogging:
+    """Tests for audit logging in setup_totp_for_user."""
+
+    def test_setup_totp_audit_exception_handling(self, monkeypatch: Any) -> None:
+        """Test setup_totp_for_user handles audit logging exceptions."""
+        manager = DummyManager()
+        # Make state not support setdefault (simulate exception)
+        original_setup = manager.setup_factor
+
+        def broken_setup(user_id: str, ftype: str, **kwargs: Any) -> None:
+            original_setup(user_id, ftype, **kwargs)
+            # Replace state with something that will fail on setdefault
+            manager._factors[user_id][ftype][0]["state"] = None  # type: ignore
+
+        manager.setup_factor = broken_setup
+
+        mock_ctx = DummyContext(manager)
+        monkeypatch.setattr(tots, "get_app_context", lambda: mock_ctx)
+
+        # Should not raise despite audit logging failure
+        result = tots.setup_totp_for_user("user1", "testuser")
+        assert "uri" in result
+
+    def test_setup_totp_include_secret(self, monkeypatch: Any) -> None:
+        """Test setup_totp_for_user with include_secret=True."""
+        manager = DummyManager()

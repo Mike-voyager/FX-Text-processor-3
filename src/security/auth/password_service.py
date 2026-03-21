@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 PASSWORD_EXPIRY_DAYS: int = 180
 PASSWORD_HISTORY_LENGTH: int = 5
-TEMP_PASSWORD_FLAG: str = "__TEMP__"
+TEMP_PASSWORD_FLAG: str = "__TEMP__"  # noqa: S105
 
 
 class UserStorage(Protocol):
@@ -185,7 +185,7 @@ class PasswordService:
         except PolicyViolation as e:
             self.last_error = str(e) or "Password policy violation"
             self._audit_log("password_policy_violation", user_id, {"reason": "hasher_rejected"})
-            raise WeakPasswordError(self.last_error)
+            raise WeakPasswordError(self.last_error) from e
         self.storage.set_password_hash(user_id, password_hash)
         self.storage.set_temporary_flag(user_id, False)
         self._audit_log("password_created", user_id, {})
@@ -230,9 +230,9 @@ class PasswordService:
 
         try:
             result = bool(self.hasher.verify_password(password, stored_hash, user_id))
-        except LockoutActive:
+        except LockoutActive as err:
             self.last_error = "Account locked"
-            raise AccountLockedError(self.last_error)
+            raise AccountLockedError(self.last_error) from err
         except (InvalidHashFormat, InternalError) as e:
             self.last_error = str(e) or "Verification error"
             return False
@@ -268,7 +268,7 @@ class PasswordService:
             new_hash = self.hasher.hash_password(new_password, salt, user_id)
         except PolicyViolation as e:
             self.last_error = str(e) or "Password policy violation"
-            raise WeakPasswordError(self.last_error)
+            raise WeakPasswordError(self.last_error) from e
         self.storage.set_password_hash(user_id, new_hash)
         self.storage.set_temporary_flag(user_id, False)
         self._audit_log("password_changed", user_id, {})
@@ -289,7 +289,7 @@ class PasswordService:
             new_hash = self.hasher.hash_password(new_password, salt, user_id)
         except PolicyViolation as e:
             self.last_error = str(e) or "Reset password policy violation"
-            raise WeakPasswordError(self.last_error)
+            raise WeakPasswordError(self.last_error) from e
         self.storage.set_password_hash(user_id, new_hash)
         self.storage.set_temporary_flag(user_id, True)
 
@@ -311,7 +311,7 @@ class PasswordService:
             temp_hash = self.hasher.hash_password(temp_password, salt, user_id)
         except PolicyViolation as e:
             self.last_error = str(e) or "Temporary password policy violation"
-            raise WeakPasswordError(self.last_error)
+            raise WeakPasswordError(self.last_error) from e
         self.storage.set_password_hash(user_id, temp_hash)
         self.storage.set_temporary_flag(user_id, True)
         self._audit_log("temporary_password_set", user_id, {})

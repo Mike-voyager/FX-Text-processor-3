@@ -134,9 +134,9 @@ def run_with_timeout(
     fut: Future[Any] = pool.submit(func, *args, **kwargs)
     try:
         return fut.result(timeout=timeout)
-    except FuturesTimeout:
+    except FuturesTimeout as err:
         fut.cancel()
-        raise InternalError("Password operation timed out")
+        raise InternalError("Password operation timed out") from err
 
 
 def is_valid_password(
@@ -186,8 +186,8 @@ def zero_memory(buf: Union[bytes, bytearray, memoryview]) -> None:
                 buf[i] = 0
         elif isinstance(buf, memoryview) and not buf.readonly:
             buf[:] = b"\x00" * len(buf)
-    except Exception:
-        pass
+    except Exception as e:
+        _LOG.debug("zero_memory failed: %s", e)
 
 
 def _rate_limited(user_id: str, event: str) -> bool:
@@ -203,12 +203,12 @@ def _rate_limited(user_id: str, event: str) -> bool:
 
 # ---- MFA Events ----
 class MfaEvent:
-    PASSWORD_HASHED = "password_hashed"
-    PASSWORD_VERIFY_SUCCESS = "password_verify_success"
-    PASSWORD_VERIFY_FAILED = "password_verify_failed"
-    PASSWORD_REHASH_NEEDED = "password_rehash_needed"
-    PASSWORD_POLICY_VIOLATION = "password_policy_violation"
-    PASSWORD_LOCKOUT = "password_lockout"
+    PASSWORD_HASHED = "password_hashed"  # noqa: S105
+    PASSWORD_VERIFY_SUCCESS = "password_verify_success"  # noqa: S105
+    PASSWORD_VERIFY_FAILED = "password_verify_failed"  # noqa: S105
+    PASSWORD_REHASH_NEEDED = "password_rehash_needed"  # noqa: S105
+    PASSWORD_POLICY_VIOLATION = "password_policy_violation"  # noqa: S105
+    PASSWORD_LOCKOUT = "password_lockout"  # noqa: S105
     ALERT = "alert"
 
 
@@ -576,7 +576,10 @@ class PasswordHasher:
 
     def zeroize_all_secrets(self) -> None:
         with self._lock:
-            # Drop pepper references (bytes are immutable; dropping references is the safest approach)
+            """
+            Drop pepper references (bytes are immutable;
+            dropping references is the safest approach)
+            """
             if self.pepper is not None:
                 object.__setattr__(self, "pepper", None)
             if self.pepper_old is not None:

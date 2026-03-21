@@ -30,10 +30,6 @@ from typing import Any, Callable, FrozenSet, Mapping, Optional, Tuple
 
 from .permissions import OPERATOR_SCOPES
 from .session import (
-    DEFAULT_ACCESS_TTL_SECONDS,
-    DEFAULT_IDLE_TIMEOUT_SECONDS,
-    DEFAULT_MFA_FRESHNESS_SECONDS,
-    DEFAULT_REFRESH_TTL_SECONDS,
     SessionManager,
     TokenBundle,
     ValidationResult,

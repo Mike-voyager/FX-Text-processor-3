@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Tuple
 
 import pytest
-
 from src.security.auth.permissions import OPERATOR_SCOPES
 from src.security.auth.session import TokenBundle, ValidationResult
 from src.security.auth.session_service import SessionInfo, SessionService
@@ -118,9 +117,7 @@ class DummySessionManager:
     def mark_mfa_satisfied(self, session_id: str) -> None:
         self.mfa_satisfied.append(session_id)
 
-    def require_mfa(
-        self, session_id: str, freshness_seconds: Optional[int] = None
-    ) -> None:
+    def require_mfa(self, session_id: str, freshness_seconds: Optional[int] = None) -> None:
         self.mfa_required_checks.append(session_id)
 
     def refresh(
@@ -142,9 +139,7 @@ class DummySessionManager:
         self.revoked_all.append(user_id)
         return self._revoke_all_count
 
-    def list_active_sessions(
-        self, user_id: str
-    ) -> Tuple[int, Tuple[str, ...]]:
+    def list_active_sessions(self, user_id: str) -> Tuple[int, Tuple[str, ...]]:
         self.listed.append(user_id)
         return self._list_result
 
@@ -384,9 +379,7 @@ class TestRequireMfa:
         mgr = DummySessionManager()
         captured: Dict[str, Any] = {}
 
-        def _mock_require(
-            session_id: str, freshness_seconds: Optional[int] = None
-        ) -> None:
+        def _mock_require(session_id: str, freshness_seconds: Optional[int] = None) -> None:
             captured["sid"] = session_id
             captured["freshness"] = freshness_seconds
 

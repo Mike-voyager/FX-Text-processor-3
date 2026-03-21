@@ -1,7 +1,6 @@
 from typing import Any, Dict, Iterator, List, Optional, Type
 
 import pytest
-
 import src.security.auth.second_factor_service as svc
 from src.security.auth.second_factor_service import AuditRecord, FactorStatus
 
@@ -13,9 +12,7 @@ class DummyManager:
             "created": 0,
             "ttlseconds": 100000,
         }
-        self.audit: List[Dict[str, Any]] = [
-            {"action": "setup", "user": "u", "type": "t", "ts": 1}
-        ]
+        self.audit: List[Dict[str, Any]] = [{"action": "setup", "user": "u", "type": "t", "ts": 1}]
         self.verify_result = True
 
     def setup_factor(self, user_id: str, factor_type: str, **kwargs: Any) -> str:

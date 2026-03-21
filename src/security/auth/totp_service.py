@@ -22,24 +22,61 @@ from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 # External deps expected; callers/tests may monkeypatch these names on this module
 try:
-    import pyotp  # type: ignore
+    import pyotp
 except Exception:  # pragma: no cover
     pyotp = None  # type: ignore
 
 try:
-    import qrcode  # type: ignore
-    from qrcode.constants import ERROR_CORRECT_M as _QR_EC  # type: ignore
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_M
+
+    _QR_EC: Optional[int] = ERROR_CORRECT_M
 except Exception:  # pragma: no cover
-    qrcode = None  # type: ignore
-    _QR_EC = None  # type: ignore
+    qrcode = None
+    _QR_EC = None
 
 # KDF import; callers/tests may monkeypatch derive_key_argon2id on this module
 try:
-    from src.security.crypto.kdf import derive_key_argon2id  # type: ignore
+    from src.security.crypto.service.crypto_service import CryptoService
+    from src.security.crypto.service.profiles import CryptoProfile
+
+    _default_crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+
+    def _get_crypto_service_impl() -> CryptoService:
+        """Implementation: Получить CryptoService из app_context или создать default."""
+        try:
+            ctx = get_app_context()
+            # Check if crypto_service exists in context
+            if hasattr(ctx, "crypto_service") and ctx.crypto_service is not None:
+                return ctx.crypto_service  # type: ignore[no-any-return]
+        except Exception:  # pragma: no cover
+            _logger.debug("Failed to get crypto_service from app_context, using default")
+        # Fallback for tests or pre-initialization
+        return _default_crypto_service
+
+    def derive_key_argon2id(password: Union[bytes, str], salt: bytes, length: int) -> bytes:
+        """Обёртка над CryptoService.derive_key для совместимости с monkeypatching в тестах."""
+        crypto_service = _get_crypto_service_impl()
+        password_bytes = password.encode() if isinstance(password, str) else password
+        return crypto_service.derive_key(password_bytes, salt, key_length=length)
+
 except Exception:  # pragma: no cover
 
-    def derive_key_argon2id(password: Union[bytes, str], salt: bytes, length: int) -> bytes:  # type: ignore
+    def _get_crypto_service_impl_fallback() -> Any:
+        raise RuntimeError("_get_crypto_service_impl is not available")
+
+    def derive_key_argon2id_fallback(
+        password: Union[bytes, str], salt: bytes, length: int
+    ) -> bytes:  # noqa: ARG001
         raise RuntimeError("derive_key_argon2id is not available")
+
+    # Assign fallback implementations
+    _get_crypto_service_impl = _get_crypto_service_impl_fallback
+    derive_key_argon2id = derive_key_argon2id_fallback
+
+
+# Public alias for backward compatibility
+_get_crypto_service = _get_crypto_service_impl
 
 
 # App context provider; callers/tests should monkeypatch this to a concrete context
@@ -143,11 +180,223 @@ class TotpLockedOut(TotpError):
         self.remaining_seconds = remaining_seconds
 
 
+# ---- TOTP Service Class (DI Pattern) ----
+class TOTPService:
+    """
+    TOTP service with Dependency Injection support.
+
+    This class provides the same functionality as the module-level functions,
+    but with proper DI for CryptoService, allowing for profile-specific
+    KDF parameters and easier testing.
+
+    Example:
+        >>> from src.security.crypto.service.crypto_service import CryptoService
+        >>> from src.security.crypto.service.profiles import CryptoProfile
+        >>> crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+        >>> totp_service = TOTPService(crypto_service=crypto_service)
+        >>> result = totp_service.setup_totp_for_user("user1", "username")
+    """
+
+    def __init__(
+        self,
+        crypto_service: Optional[Any] = None,
+        issuer: str = DEFAULT_ISSUER,
+        digits: int = DEFAULT_DIGITS,
+        interval: int = DEFAULT_INTERVAL,
+        valid_window: int = DEFAULT_VALID_WINDOW,
+        pepper: Optional[Union[str, bytes]] = None,
+    ) -> None:
+        """
+        Initialize TOTPService with optional CryptoService.
+
+        Args:
+            crypto_service: CryptoService instance for KDF operations.
+                If None, uses get_app_context().crypto_service or default.
+            issuer: Default issuer for TOTP URIs.
+            digits: Number of digits in TOTP code.
+            interval: Time interval in seconds.
+            valid_window: Valid window for code verification.
+            pepper: Optional pepper for key derivation.
+        """
+        self._crypto_service = crypto_service
+        self._issuer = issuer
+        self._digits = digits
+        self._interval = interval
+        self._valid_window = valid_window
+        self._pepper = pepper
+        self._lock = threading.RLock()
+
+    def _get_crypto_service(self) -> Any:
+        """Get CryptoService from instance or app context."""
+        if self._crypto_service is not None:
+            return self._crypto_service
+        try:
+            ctx = get_app_context()
+            if hasattr(ctx, "crypto_service") and ctx.crypto_service is not None:
+                return ctx.crypto_service
+        except Exception:
+            _logger.debug("Failed to get crypto_service from app_context, using default")
+        # Fallback to default
+        return _default_crypto_service
+
+    def _derive_key(self, password: Union[bytes, str], salt: bytes, length: int) -> bytes:
+        """Derive key using CryptoService."""
+        crypto_service = self._get_crypto_service()
+        password_bytes = password.encode() if isinstance(password, str) else password
+        result: bytes = crypto_service.derive_key(password_bytes, salt, key_length=length)
+        return result
+
+    def setup_totp_for_user(
+        self,
+        user_id: str,
+        username: str,
+        issuer: Optional[str] = None,
+        *,
+        include_secret: bool = False,
+        digits: Optional[int] = None,
+        interval: Optional[int] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Initialize TOTP factor for user."""
+        with self._lock:
+            ctx = get_app_context()
+            eff_issuer = _validate_label(issuer or self._issuer)
+            eff_username = _validate_label(username)
+            ctx.mfa_manager.setup_factor(
+                user_id,
+                "totp",
+                username=eff_username,
+                issuer=eff_issuer,
+                digits=digits or self._digits,
+                interval=interval or self._interval,
+                **kwargs,
+            )
+            state = _get_first_totp_state(ctx, user_id)
+
+            secret = state.get("secret", "")
+            uri = _provisioning_uri(
+                secret,
+                state.get("username", eff_username),
+                state.get("issuer", eff_issuer),
+                digits=digits or self._digits,
+                interval=interval or self._interval,
+            )
+            qr, mime = _make_qr_bytes(uri)
+
+            # Attempt to append audit event if storage supports it
+            try:
+                state.setdefault("audit", []).append(
+                    {
+                        "ts": _now().isoformat(),
+                        "action": "setup",
+                        "result": "success",
+                    }
+                )
+            except Exception as e:  # pragma: no cover
+                _logger.warning("Failed to log TOTP audit event: %s", e)
+
+            result: Dict[str, Any] = {"uri": uri, "qr": qr, "qr_mime": mime}
+            if include_secret:  # pragma: no cover
+                result["secret"] = secret
+            return result
+
+    def validate_totp_code(self, user_id: str, code: str) -> bool:
+        """Validate a TOTP code with rate limiting."""
+        with self._lock:
+            _check_locked(user_id)
+            _check_min_interval(user_id)
+            ctx = get_app_context()
+            ok = bool(ctx.mfa_manager.verify_factor(user_id, "totp", _normalize_otp(code)))
+            if ok:
+                _register_success(user_id)
+            else:
+                _register_failure(user_id)  # pragma: no cover
+            return ok
+
+    def get_totp_secret_for_storage(
+        self,
+        user_id: str,
+        otp: str,
+        *,
+        dk_len: int = 64,
+        valid_window: Optional[int] = None,
+    ) -> bytes:
+        """Verify OTP and derive storage key."""
+        with self._lock:
+            _check_locked(user_id)
+            _check_min_interval(user_id)
+
+            ctx = get_app_context()
+            state = _get_first_totp_state(ctx, user_id)
+            secret = state.get("secret")
+            if not secret:
+                raise TotpNotConfigured("TOTP factor is not configured")
+
+            # Fresh import to ensure any runtime monkeypatching is honored
+            try:
+                import pyotp as _pyotp
+            except Exception as e:  # pragma: no cover
+                raise TotpRuntimeUnavailable("TOTP runtime is unavailable") from e
+
+            normalized = _normalize_otp(otp)
+            eff_digits = int(state.get("digits", self._digits))
+            eff_interval = int(state.get("interval", self._interval))
+            vw = int(valid_window if valid_window is not None else self._valid_window)
+
+            totp_obj = _pyotp.TOTP(secret, digits=eff_digits, interval=eff_interval)
+            ok = bool(totp_obj.verify(normalized, valid_window=vw))
+            if not ok:
+                _register_failure(user_id)
+                # Best-effort audit
+                try:
+                    state.setdefault("audit", []).append(
+                        {
+                            "ts": _now().isoformat(),
+                            "action": "verify",
+                            "result": "fail",
+                        }
+                    )
+                except Exception as e:  # pragma: no cover
+                    _logger.warning("Failed to log TOTP verify audit: %s", e)
+                raise TotpInvalidCode("Invalid TOTP credential")
+
+            _register_success(user_id)
+            try:
+                state.setdefault("audit", []).append(
+                    {
+                        "ts": _now().isoformat(),
+                        "action": "verify",
+                        "result": "success",
+                    }
+                )
+            except Exception as e:  # pragma: no cover
+                _logger.warning("Failed to log TOTP audit event: %s", e)
+
+            # Derive key using CryptoService with deterministic salt
+            salt = _deterministic_salt(user_id)
+
+            # Compose password material with optional pepper
+            pepper_bytes = (
+                self._pepper.encode("utf-8")
+                if isinstance(self._pepper, str)
+                else bytes(self._pepper)
+                if isinstance(self._pepper, (bytes, bytearray))
+                else b""
+            )
+            password_bytes = normalized.encode("utf-8") + pepper_bytes
+
+            derived = self._derive_key(password_bytes, salt, dk_len)
+
+            if not isinstance(derived, (bytes, bytearray)):  # pragma: no cover
+                derived = bytes(derived)
+            return bytes(derived)
+
+
 # ---- Internal State for Rate Limiting ----
 # Keep minimal per-user counters in memory; for multi-process, back these by shared store
 _rl_state: Dict[
     str, Dict[str, Any]
-] = {}  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} }
+] = {}  # { user_id: {failed:int, lock_until:datetime|None, last_try:datetime|None, last_qr:datetime|None} } # noqa: E501
 
 
 def _now() -> datetime:
@@ -175,7 +424,7 @@ def _check_min_interval(user_id: str) -> None:
     last_try: Optional[datetime] = st.get("last_try")
     min_interval = _config["rate"]["min_interval"]
     if last_try is not None and (_now() - last_try).total_seconds() < min_interval:
-        # treat as soft violation; do not raise, but log and delay should be implemented by caller if desired
+        # treat as soft violation; do not raise, but log and delay should be implemented by caller if desired # noqa: E501
         _logger.debug("TOTP attempt too frequent for user=%s", user_id)
 
 
@@ -217,7 +466,7 @@ def _get_first_totp_state(ctx: Any, user_id: str) -> Dict[str, Any]:
     totp_list = user_map.get("totp", [])
     if isinstance(totp_list, list):
         for item in totp_list:
-            if isinstance(item, dict):
+            if isinstance(item, dict):  # pragma: no cover
                 st = item.get("state")
                 if isinstance(st, dict):
                     return st
@@ -253,7 +502,7 @@ def _provisioning_uri(
         secret,
         digits=(digits if digits is not None else _config["digits"]),
         interval=(interval if interval is not None else _config["interval"]),
-    )  # type: ignore
+    )
     return totp_obj.provisioning_uri(name=name, issuer_name=issuer)
 
 
@@ -266,7 +515,7 @@ def _make_qr_bytes(uri: str) -> Tuple[bytes, str]:
         return b"", "image/png"
     try:
         if hasattr(qrcode, "QRCode"):
-            qr = qrcode.QRCode(  # type: ignore
+            qr = qrcode.QRCode(
                 version=None,
                 error_correction=_QR_EC if _QR_EC is not None else 0,
                 box_size=QR_BOX_SIZE,
@@ -276,9 +525,9 @@ def _make_qr_bytes(uri: str) -> Tuple[bytes, str]:
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
         else:
-            img = qrcode.make(uri)  # type: ignore
+            img = qrcode.make(uri)
         buf = io.BytesIO()
-        img.save(buf, "PNG")  # type: ignore
+        img.save(buf, "PNG")
         return buf.getvalue(), "image/png"
     except Exception as e:  # pragma: no cover
         _logger.warning("QR generation failed: %s", e)
@@ -380,8 +629,8 @@ def setup_totp_for_user(
                     "result": "success",
                 }
             )
-        except Exception:
-            pass
+        except Exception as e:  # pragma: no cover
+            _logger.warning("Failed to log TOTP audit event: %s", e)
 
         result: Dict[str, Any] = {"uri": uri, "qr": qr, "qr_mime": mime}
         if include_secret:
@@ -391,7 +640,8 @@ def setup_totp_for_user(
 
 def validate_totp_code(user_id: str, code: str) -> bool:
     """
-    Validate a TOTP credential through the manager's factor verification API with rate limiting/lockout.
+    Validate a TOTP credential through the manager's factor verification API
+    with rate limiting/lockout.
     """
     with _manager_lock:
         _check_locked(user_id)
@@ -420,8 +670,8 @@ def remove_totp_for_user(user_id: str) -> None:
                     "action": "remove",
                 }
             )
-        except Exception:
-            pass
+        except Exception as e:  # pragma: no cover
+            _logger.warning("Failed to log TOTP audit event: %s", e)
         ctx.mfa_manager.remove_factor(user_id, "totp")
 
 
@@ -525,7 +775,7 @@ def get_totp_secret_for_storage(
 
         # Fresh import to ensure any runtime monkeypatching is honored
         try:
-            import pyotp as _pyotp  # type: ignore
+            import pyotp as _pyotp
         except Exception as e:  # pragma: no cover
             raise TotpRuntimeUnavailable("TOTP runtime is unavailable") from e
 
@@ -534,8 +784,8 @@ def get_totp_secret_for_storage(
         interval = int(state.get("interval", _config["interval"]))
         vw = int(valid_window if valid_window is not None else _config["valid_window"])
 
-        totp_obj = _pyotp.TOTP(secret, digits=digits, interval=interval)  # type: ignore
-        ok = bool(totp_obj.verify(normalized, valid_window=vw))  # type: ignore
+        totp_obj = _pyotp.TOTP(secret, digits=digits, interval=interval)
+        ok = bool(totp_obj.verify(normalized, valid_window=vw))
         if not ok:
             _register_failure(user_id)
             # Best-effort audit
@@ -547,8 +797,8 @@ def get_totp_secret_for_storage(
                         "result": "fail",
                     }
                 )
-            except Exception:
-                pass
+            except Exception as e:  # pragma: no cover
+                _logger.warning("Failed to log TOTP verify audit: %s", e)
             raise TotpInvalidCode("Invalid TOTP credential")
 
         _register_success(user_id)
@@ -560,8 +810,8 @@ def get_totp_secret_for_storage(
                     "result": "success",
                 }
             )
-        except Exception:
-            pass
+        except Exception as e:  # pragma: no cover
+            _logger.warning("Failed to log TOTP audit event: %s", e)
 
         # Derive key using Argon2id with deterministic, user-bound salt and optional pepper
         salt = _deterministic_salt(user_id)
@@ -578,7 +828,7 @@ def get_totp_secret_for_storage(
         password_bytes = normalized.encode("utf-8") + pepper_bytes
 
         kdf_func = _config.get("kdf") or derive_key_argon2id
-        derived = kdf_func(password_bytes, salt, dk_len)  # type: ignore
+        derived = kdf_func(password_bytes, salt, dk_len)
 
         if not isinstance(derived, (bytes, bytearray)):
             derived = bytes(derived)

@@ -428,7 +428,7 @@ class TestAlgorithmRegistration:
         )
 
         assert registry.is_registered("Mock-AES-256-GCM")
-        assert "Mock-AES-256-GCM" in registry.list_algorithms()
+        assert "Mock-AES-256-GCM" in registry.list_algorithm_names()
 
     def test_register_duplicate_raises_error(self, registry: AlgorithmRegistry) -> None:
         """Повторная регистрация того же имени выбрасывает ValueError."""
@@ -641,7 +641,7 @@ class TestQueryAPI:
 
     def test_list_algorithms(self, populated_registry: AlgorithmRegistry) -> None:
         """list_algorithms() возвращает все алгоритмы (sorted)."""
-        algos = populated_registry.list_algorithms()
+        algos = populated_registry.list_algorithm_names()
 
         assert len(algos) == 4
         assert algos == sorted(algos)  # Проверка сортировки
@@ -792,7 +792,7 @@ class TestUnregister:
         populated_registry.unregister("Mock-AES-256-GCM")
 
         assert not populated_registry.is_registered("Mock-AES-256-GCM")
-        assert "Mock-AES-256-GCM" not in populated_registry.list_algorithms()
+        assert "Mock-AES-256-GCM" not in populated_registry.list_algorithm_names()
 
     def test_unregister_nonexistent_raises_error(
         self, registry: AlgorithmRegistry

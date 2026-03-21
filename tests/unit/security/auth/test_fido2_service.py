@@ -4,7 +4,6 @@ import types
 from typing import Any, Dict, Iterator, List, cast
 
 import pytest
-
 import src.security.auth.fido2_service as f2s
 
 
@@ -125,9 +124,7 @@ def test_get_fido2_secret_for_storage_success(
     ctx = f2s.get_app_context()
     mgr = cast(DummyContext, ctx).mfa_manager
     mgr._factors[user] = {"fido2": [{"state": {}}]}
-    monkeypatch.setattr(
-        f2s, "derive_key_argon2id", lambda pw, salt, length: b"key" * (length // 3)
-    )
+    monkeypatch.setattr(f2s, "derive_key_argon2id", lambda pw, salt, length: b"key" * (length // 3))
     secret = f2s.get_fido2_secret_for_storage(
         user, {"allow": "ok", "credential_id": "cid", "signature": "sig"}
     )
@@ -273,3 +270,93 @@ def test_get_fido2_secret_uses_empty_pubkey_fallback(
     # Assert — возвращает 32 нулевых байта (наш stub)
     assert len(secret) == 32
     assert secret == b"\x00" * 32
+
+
+@pytest.mark.security
+def test_get_fido2_secret_with_public_key_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """get_fido2_secret_for_storage: если state содержит public_key — он используется (строка 121->125).
+
+    Покрывает ветку if not pubkey: FALSE — т.е. pubkey IS truthy, строка 121->125 не выполняется.
+    """
+    from typing import cast
+
+    # Arrange — состояние с public_key
+    user = "pubkey_present_user"
+    ctx = f2s.get_app_context()
+    mgr = cast(DummyContext, ctx).mfa_manager
+    mgr._factors[user] = {"fido2": [{"state": {"public_key": "mypublickey"}}]}
+
+    captured_passwords: list = []
+
+    def capturing_kdf(pw: bytes, salt: bytes, length: int) -> bytes:
+        captured_passwords.append(pw)
+        return b"\xff" * length
+
+    monkeypatch.setattr(f2s, "derive_key_argon2id", capturing_kdf)
+
+    # Act
+    secret = f2s.get_fido2_secret_for_storage(
+        user, {"allow": "ok", "credential_id": "mycred", "signature": "mysig"}
+    )
+
+    # Assert — вернулся 32-байтный ключ
+    assert len(secret) == 32
+    assert secret == b"\xff" * 32
+
+    # Assert — public_key "mypublickey" вошёл в password_bytes для KDF
+    assert len(captured_passwords) == 1
+    assert b"mypublickey" in captured_passwords[0]
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_uses_default_on_exception_fido2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует default при исключении get_app_context (строки 30-31)."""
+
+    # Arrange
+    def failing_get_app_context() -> Any:
+        raise RuntimeError("Context not available")
+
+    monkeypatch.setattr(f2s, "get_app_context", failing_get_app_context)
+
+    # Act
+    result = f2s._get_crypto_service_impl()
+
+    # Assert
+    assert result is f2s._default_crypto_service
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_uses_context_when_available_fido2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует crypto_service из app_context когда доступен (строка 28)."""
+
+    # Arrange
+    mock_crypto_service = object()
+    ctx: Any = type("Ctx", (), {"crypto_service": mock_crypto_service})()
+    monkeypatch.setattr(f2s, "get_app_context", lambda: ctx)
+
+    # Act
+    result = f2s._get_crypto_service_impl()
+
+    # Assert
+    assert result is mock_crypto_service
+
+
+@pytest.mark.security
+def test_get_crypto_service_impl_fallback_no_crypto_service_attr_fido2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_get_crypto_service_impl использует default когда crypto_service отсутствует в context (строка 28)."""
+
+    # Arrange
+    ctx: Any = type("Ctx", (), {})()  # No crypto_service attribute
+    monkeypatch.setattr(f2s, "get_app_context", lambda: ctx)
+
+    # Act
+    result = f2s._get_crypto_service_impl()
+
+    # Assert
+    assert result is f2s._default_crypto_service

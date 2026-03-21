@@ -14,19 +14,44 @@ from typing import Any, Dict, List, cast
 
 from src.app_context import get_app_context
 
-# KDF: callers/tests may monkeypatch derive_key_argon2id on this module
+# KDF import; callers/tests may monkeypatch derive_key_argon2id on this module
 try:
-    from src.security.crypto.algorithms.kdf import Argon2idKDF as _Argon2idKDF
+    from src.security.crypto.service.crypto_service import CryptoService
+    from src.security.crypto.service.profiles import CryptoProfile
+
+    _default_crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+
+    def _get_crypto_service_impl() -> CryptoService:
+        """Implementation: Получить CryptoService из app_context или создать default."""
+        try:
+            ctx = get_app_context()
+            if hasattr(ctx, "crypto_service"):
+                return ctx.crypto_service
+        except Exception:  # pragma: no cover
+            _logger.debug("Failed to get crypto_service from app_context, using default")
+        # Fallback for tests or pre-initialization
+        return _default_crypto_service
 
     def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
-        """Обёртка над Argon2idKDF для монкепатчинга в тестах."""
-        return _Argon2idKDF().derive_key(password, salt, key_length=length)
+        """Обёртка над CryptoService.derive_key для совместимости с monkeypatching в тестах."""
+        crypto_service = _get_crypto_service_impl()
+        return crypto_service.derive_key(password, salt, key_length=length)
 
-except ImportError:
+except Exception:  # pragma: no cover
 
-    def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
-        raise RuntimeError("Argon2idKDF is not available")
+    def _get_crypto_service_impl_fallback() -> Any:
+        raise RuntimeError("_get_crypto_service_impl is not available")
 
+    def derive_key_argon2id_fallback(password: bytes, salt: bytes, length: int) -> bytes:  # noqa: ARG001
+        raise RuntimeError("derive_key_argon2id is not available")
+
+    # Assign fallback implementations
+    _get_crypto_service_impl = _get_crypto_service_impl_fallback
+    derive_key_argon2id = derive_key_argon2id_fallback
+
+
+# Public alias for backward compatibility
+_get_crypto_service = _get_crypto_service_impl
 
 _logger = logging.getLogger("security.auth.fido2_service")
 _lock = threading.Lock()

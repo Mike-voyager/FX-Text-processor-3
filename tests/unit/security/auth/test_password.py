@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-
 from src.security.auth.password import (
     MAX_FAILED_ATTEMPTS,
     MfaEvent,
@@ -818,8 +817,8 @@ def test_rate_limited_blocks_duplicate_event() -> None:
     result_second = _rate_limited("rateuser", "test_event")
 
     # Assert
-    assert result_first is False   # первый вызов не блокируется
-    assert result_second is True   # второй блокируется
+    assert result_first is False  # первый вызов не блокируется
+    assert result_second is True  # второй блокируется
 
 
 @pytest.mark.security

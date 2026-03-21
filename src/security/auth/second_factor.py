@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Менеджер второго фактора (MFA/2FA) FX Text Processor 3.
-RU: Централизует хранение и управление всеми факторами (TOTP, FIDO2, Backup Codes), поддерживает расширяемый DI, TTL, аудит, потокобезопасность.
-EN: Centralized MFA/2FA manager for factor lifecycle and audit, supporting extensible DI, TTL, thread safety.
+RU: Централизует хранение и управление всеми факторами (TOTP, FIDO2, Backup Codes),
+поддерживает расширяемый DI, TTL, аудит, потокобезопасность.
+EN: Centralized MFA/2FA manager for factor lifecycle and audit,
+supporting extensible DI, TTL, thread safety.
 """
 
 from __future__ import annotations
@@ -33,6 +35,8 @@ from .second_method.fido2 import Fido2Factor
 # Факторы: импорт строго через Protocol для расширяемости и типизации
 from .second_method.totp import TotpFactor
 
+LOG = logging.getLogger(__name__)
+
 
 @runtime_checkable
 class FactorProtocol(Protocol):
@@ -61,8 +65,8 @@ def _state_created_ts(state: Dict[str, Any]) -> int:
     if isinstance(created_at, str):
         try:
             return int(datetime.fromisoformat(created_at).timestamp())
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.debug("Failed to parse created_at timestamp: %s", e)
     created = state.get("created")
     try:
         return int(created) if created is not None else _now_ts()
@@ -370,8 +374,8 @@ class SecondFactorManager:
                     self._logger.warning("Factor remove failed: %s", e)
             try:
                 del factor_list[idx]
-            except Exception:
-                pass
+            except Exception as e:
+                LOG.debug("Failed to delete factor from list: %s", e)
             if (
                 user_id in self._factors
                 and factor_type in self._factors[user_id]
@@ -379,13 +383,15 @@ class SecondFactorManager:
             ):
                 try:
                     del self._factors[user_id][factor_type]
-                except Exception:
-                    pass
+                except Exception as e:
+                    LOG.debug(
+                        "Failed to delete factor type %s for user %s: %s", factor_type, user_id, e
+                    )
                 if user_id in self._factors and not self._factors[user_id]:
                     try:
                         del self._factors[user_id]
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        LOG.debug("Failed to delete user %s from factors: %s", user_id, e)
             self._audit.append(
                 {
                     "action": "remove",

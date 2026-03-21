@@ -73,7 +73,7 @@ def _build_mock_registry(
     mock_kex.generate_keypair.return_value = (FAKE_EPHEMERAL_PRIV, FAKE_EPHEMERAL_PUB)
     mock_kex.derive_shared_secret.return_value = FAKE_SHARED_SECRET
 
-    mock_cipher.encrypt.return_value = (FAKE_CIPHERTEXT, FAKE_NONCE)
+    mock_cipher.encrypt.return_value = (FAKE_NONCE, FAKE_CIPHERTEXT)
     mock_cipher.decrypt.return_value = SAMPLE_PLAINTEXT
 
     if kex_side_effect:
@@ -330,7 +330,7 @@ class TestEncrypt:
     ) -> None:
         """ciphertext и nonce в результате совпадают с тем, что вернул cipher."""
         _, _, mock_cipher = mock_registry_patch
-        mock_cipher.encrypt.return_value = (FAKE_CIPHERTEXT, FAKE_NONCE)
+        mock_cipher.encrypt.return_value = (FAKE_NONCE, FAKE_CIPHERTEXT)
         result = escrow.encrypt(
             plaintext=SAMPLE_PLAINTEXT,
             user_public_key=FAKE_PUB_KEY,

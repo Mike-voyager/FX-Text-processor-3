@@ -207,6 +207,9 @@ class ProfileConfig:
         post_quantum: Использует ли PQC алгоритмы
         safe_for_new_systems: Безопасен ли для новых систем
         additional_signing: Дополнительные алгоритмы подписи (для hybrid classical+PQC)
+        kdf_memory_cost: Параметр memory_cost для Argon2id (в KB, 65536 = 64MB)
+        kdf_time_cost: Параметр time_cost для Argon2id (итерации)
+        kdf_parallelism: Параметр parallelism для Argon2id (потоки)
 
     Example:
         >>> config = get_profile_config(CryptoProfile.STANDARD)
@@ -228,6 +231,10 @@ class ProfileConfig:
     post_quantum: bool = False
     safe_for_new_systems: bool = True
     additional_signing: list[str] = field(default_factory=list)
+    # KDF parameters for profile-specific tuning
+    kdf_memory_cost: int = 65536  # 64MB default (in KB)
+    kdf_time_cost: int = 2  # iterations
+    kdf_parallelism: int = 4  # threads
 
     def algorithm_ids(self) -> dict[str, str]:
         """
@@ -291,6 +298,10 @@ PROFILES: dict[CryptoProfile, ProfileConfig] = {
         floppy_optimized=False,
         post_quantum=False,
         safe_for_new_systems=True,
+        # Paranoid: stronger KDF parameters (256MB memory, 5 iterations)
+        kdf_memory_cost=262144,  # 256MB
+        kdf_time_cost=5,
+        kdf_parallelism=4,
     ),
     # ------------------------------------------------------------------
     # LEGACY: только для обратной совместимости
@@ -373,6 +384,10 @@ PROFILES: dict[CryptoProfile, ProfileConfig] = {
         post_quantum=True,
         safe_for_new_systems=True,
         additional_signing=["Ed448"],  # гибридная подпись classical+PQC
+        # PQC Paranoid: stronger KDF parameters (256MB memory, 5 iterations)
+        kdf_memory_cost=262144,  # 256MB
+        kdf_time_cost=5,
+        kdf_parallelism=4,
     ),
 }
 

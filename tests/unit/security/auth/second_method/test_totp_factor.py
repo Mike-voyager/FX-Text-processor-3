@@ -11,6 +11,17 @@ from src.security.auth.second_method.totp import (
     TotpVerificationFailed,
 )
 
+# Импорт из re-export стаба — обеспечивает coverage totp_factor.py
+from src.security.auth.second_method.totp_factor import (  # noqa: F401
+    TotpFactor as _TF_stub,
+)
+from src.security.auth.second_method.totp_factor import (
+    TotpSecretMissing as _TSM_stub,
+)
+from src.security.auth.second_method.totp_factor import (
+    TotpVerificationFailed as _TVF_stub,
+)
+
 
 def test_totp_setup_and_verify_default_secret() -> None:
     factor = TotpFactor()
@@ -496,3 +507,60 @@ def test_verify_exception_triggers_error_audit() -> None:
             factor.verify("errU", code, state)
     audit = state["audit"]
     assert any(e.get("result") == "error" for e in audit)
+
+
+# ============================================================
+# Целевые тесты для покрытия недостающих строк
+# ============================================================
+
+
+@pytest.mark.security
+def test_verify_wrong_code_without_anti_replay_raises_failed() -> None:
+    """Неверный код при enable_anti_replay=False поднимает TotpVerificationFailed (строки 226-233).
+
+    Покрывает ветку else (код синтаксически валиден, но криптографически неверен),
+    а также строки 235->236 (except TotpVerificationFailed: raise).
+    """
+    # Arrange
+    factor = TotpFactor()
+    state = factor.setup("wrong_code_user")
+    secret = state["secret"]
+    # Намеренно берём код, который точно не равен текущему TOTP
+    wrong_code = "000000"
+    actual_code = pyotp.TOTP(secret).now()
+    # Убеждаемся что wrong_code действительно неверный
+    if wrong_code == actual_code:
+        wrong_code = "999999"
+
+    # Act / Assert — валидный формат (6 цифр), но неверный TOTP → TotpVerificationFailed
+    with pytest.raises(TotpVerificationFailed):
+        factor.verify("wrong_code_user", wrong_code, state, enable_anti_replay=False)
+
+    # Assert — в аудите должна быть запись с result="fail"
+    audit = state.get("audit", [])
+    assert any(e.get("result") == "fail" for e in audit)
+
+
+@pytest.mark.security
+def test_rotate_secret_without_new_secret_generates_random() -> None:
+    """rotate_secret() без аргумента new_secret генерирует новый случайный секрет (строки 335->338).
+
+    Покрывает ветку if not new_secret: new_secret = pyotp.random_base32().
+    """
+    # Arrange
+    factor = TotpFactor()
+    state = factor.setup("rotate_auto_user")
+    old_secret = state["secret"]
+
+    # Act — вызов без аргумента new_secret
+    new_secret = factor.rotate_secret(state)
+
+    # Assert — секрет сгенерирован и отличается от старого
+    assert new_secret is not None
+    assert len(new_secret) > 0
+    assert state["secret"] == new_secret
+    assert state["rotated"] is True
+    assert state["last_used_time_step"] is None
+    # Аудит должен содержать secret_rotated
+    audit = factor.get_audit_log(state)
+    assert any(e.get("action") == "secret_rotated" for e in audit)

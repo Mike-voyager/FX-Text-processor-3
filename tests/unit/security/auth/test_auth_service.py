@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 import pytest
-
 from src.security.auth.auth_service import (
     AuthError,
     AuthResult,
@@ -89,9 +88,7 @@ class DummyPasswordService:
             raise self._verify_raises
         return self._verify_result
 
-    def change_password(
-        self, user_id: str, *, current_password: str, new_password: str
-    ) -> bool:
+    def change_password(self, user_id: str, *, current_password: str, new_password: str) -> bool:
         self.change_calls.append(
             {
                 "user_id": user_id,
@@ -176,9 +173,7 @@ class DummySessionService:
     def mark_mfa_satisfied(self, session_id: str) -> None:
         self.mfa_satisfied.append(session_id)
 
-    def require_mfa(
-        self, session_id: str, freshness_seconds: Optional[int] = None
-    ) -> None:
+    def require_mfa(self, session_id: str, freshness_seconds: Optional[int] = None) -> None:
         self.mfa_required_checks.append(session_id)
         if self._require_mfa_raises is not None:
             raise self._require_mfa_raises
@@ -205,9 +200,7 @@ class DummySessionService:
 class DummyPermissionsService:
     """Заглушка PermissionsService."""
 
-    def __init__(
-        self, assert_raises: Optional[Exception] = None
-    ) -> None:
+    def __init__(self, assert_raises: Optional[Exception] = None) -> None:
         self._assert_raises = assert_raises
         self.assert_calls: List[Dict[str, Any]] = []
 
@@ -256,12 +249,8 @@ def _make_auth_service(
     perm_service: Optional[DummyPermissionsService] = None,
 ) -> Tuple[AuthService, DummyPasswordService, DummyMFAManager, DummySessionService]:
     """Фабрика AuthService с заглушками зависимостей."""
-    pw_svc = DummyPasswordService(
-        verify_result=pw_verify, verify_raises=pw_raises
-    )
-    mfa_mgr = DummyMFAManager(
-        verify_result=mfa_verify, verify_raises=mfa_raises
-    )
+    pw_svc = DummyPasswordService(verify_result=pw_verify, verify_raises=pw_raises)
+    mfa_mgr = DummyMFAManager(verify_result=mfa_verify, verify_raises=mfa_raises)
     sess_svc = DummySessionService()
     perms_svc = perm_service or DummyPermissionsService()
     svc = AuthService(
@@ -459,9 +448,7 @@ class TestAuthenticatePasswordFailures:
     def test_password_exception_returns_password_error_reason(self) -> None:
         """authenticate() возвращает failure_reason='password_error' при исключении."""
         # Arrange
-        svc, pw, mfa, sess = _make_auth_service(
-            pw_raises=RuntimeError("db error")
-        )
+        svc, pw, mfa, sess = _make_auth_service(pw_raises=RuntimeError("db error"))
         # Act
         result = svc.authenticate("operator", password="secret")
         # Assert
@@ -482,9 +469,7 @@ class TestAuthenticatePasswordFailures:
         """authenticate() вызывает audit 'auth.failed' при исключении пароля."""
         # Arrange
         audit = DummyAuditLog()
-        svc, pw, mfa, sess = _make_auth_service(
-            pw_raises=RuntimeError("err"), audit=audit
-        )
+        svc, pw, mfa, sess = _make_auth_service(pw_raises=RuntimeError("err"), audit=audit)
         # Act
         svc.authenticate("operator", password="secret")
         # Assert
@@ -544,9 +529,7 @@ class TestAuthenticateMFAFailures:
     def test_mfa_exception_returns_mfa_error(self) -> None:
         """authenticate() возвращает 'mfa_error' при исключении в verify_factor."""
         # Arrange
-        svc, pw, mfa, sess = _make_auth_service(
-            mfa_raises=RuntimeError("fido2 error")
-        )
+        svc, pw, mfa, sess = _make_auth_service(mfa_raises=RuntimeError("fido2 error"))
         # Act
         result = svc.authenticate(
             "operator",
@@ -588,13 +571,9 @@ class TestAuthenticateMFAFailures:
         """authenticate() вызывает audit 'auth.failed' при исключении MFA."""
         # Arrange
         audit = DummyAuditLog()
-        svc, pw, mfa, sess = _make_auth_service(
-            mfa_raises=RuntimeError("err"), audit=audit
-        )
+        svc, pw, mfa, sess = _make_auth_service(mfa_raises=RuntimeError("err"), audit=audit)
         # Act
-        svc.authenticate(
-            "operator", password="secret", factor_type="totp", factor_credential="x"
-        )
+        svc.authenticate("operator", password="secret", factor_type="totp", factor_credential="x")
         # Assert
         events = [c[0] for c in audit.calls]
         assert "auth.failed" in events
@@ -605,9 +584,7 @@ class TestAuthenticateMFAFailures:
         audit = DummyAuditLog()
         svc, pw, mfa, sess = _make_auth_service(mfa_verify=False, audit=audit)
         # Act
-        svc.authenticate(
-            "operator", password="secret", factor_type="totp", factor_credential="bad"
-        )
+        svc.authenticate("operator", password="secret", factor_type="totp", factor_credential="bad")
         # Assert
         events = [c[0] for c in audit.calls]
         assert "auth.failed" in events
@@ -824,8 +801,6 @@ class TestChangePassword:
                 session_id="sid-1",
             )
 
-
-
     def test_change_password_returns_false_does_not_revoke(self) -> None:
         """change_password() не отзывает сессии, если password_service вернул False."""
         # Arrange
@@ -874,7 +849,8 @@ class TestAuditCallbackHandling:
         """Исключение в audit_callback не выходит при неудаче аутентификации."""
         # Arrange
         svc, pw, mfa, sess = _make_auth_service(
-            pw_verify=False, audit=BrokenAuditLog()  # type: ignore[arg-type]
+            pw_verify=False,
+            audit=BrokenAuditLog(),  # type: ignore[arg-type]
         )
         # Act / Assert — не должно бросать
         result = svc.authenticate("operator", password="wrong")

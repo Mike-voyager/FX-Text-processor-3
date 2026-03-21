@@ -14,12 +14,15 @@ for DI with a pluggable storage protocol.
 
 Notes:
 - This module does not verify passwords or second factors; use password and MFA services for that.
-- Sessions only encapsulate lifecycle/policy and the MFA-satisfied flag with optional freshness checks.
+- Sessions only encapsulate lifecycle/policy
+and the MFA-satisfied flag with optional freshness checks.
 
 Examples:
     >>> from security.auth.session import SessionManager
-    >>> mgr = SessionManager(allow_remember=False, idle_timeout_seconds=30*60, mfa_freshness_seconds=15*60)
-    >>> bundle = mgr.issue("alice", scopes=frozenset({"read"}), mfa_required=True, device_fingerprint="dev1", ip="127.0.0.1")
+    >>> mgr = SessionManager(allow_remember=False,
+    idle_timeout_seconds=30*60, mfa_freshness_seconds=15*60)
+    >>> bundle = mgr.issue("alice", scopes=frozenset({"read"}),
+    mfa_required=True, device_fingerprint="dev1", ip="127.0.0.1")
     >>> v = mgr.validate_access(bundle.access_token, device_fingerprint="dev1", ip="127.0.0.1")
     >>> (v.valid, v.mfa_ok)
     (True, False)
@@ -299,9 +302,11 @@ class InMemorySessionStorage(SessionStorageProtocol):
 
 
 class SessionManager:
-    """Issue and manage access/refresh tokens with device/IP binding, idle timeout and MFA freshness.
+    """Issue and manage access/refresh tokens with device/IP binding,
+    idle timeout and MFA freshness.
 
-    All public methods are thread-safe via an instance-level RLock. Tokens are opaque; only BLAKE2b hashes are stored.
+    All public methods are thread-safe via an instance-level RLock. Tokens are opaque;
+    only BLAKE2b hashes are stored.
     """
 
     def __init__(
@@ -523,7 +528,7 @@ class SessionManager:
                 LOG.info("MFA satisfied sid=%s user=%s", rec.session_id, rec.user_id)
 
     def require_mfa(self, session_id: str, freshness_seconds: Optional[int] = None) -> None:
-        """Ensure session has MFA satisfied and fresh within the given window; raise on violation."""
+        """Ensure session has MFA satisfied and fresh within the given window; raise on violation."""  # noqa: E501
         now = self._clock()
         window = self._mfa_fresh_default if freshness_seconds is None else int(freshness_seconds)
         with self._lock:
@@ -545,7 +550,7 @@ class SessionManager:
         require_fresh_mfa: bool = True,
         freshness_seconds: Optional[int] = None,
     ) -> None:
-        """Update session scopes. Scope elevation optionally requires fresh MFA; narrowing is always allowed."""
+        """Update session scopes. Scope elevation optionally requires fresh MFA; narrowing is always allowed."""  # noqa: E501
         if not isinstance(new_scopes, frozenset):
             raise ValueError("new_scopes must be a frozenset[str].")
         now = self._clock()
@@ -565,7 +570,7 @@ class SessionManager:
                     or (now - rec.mfa_last_verified_at > window)
                 ):
                     raise PermissionError("Scope elevation requires fresh MFA.")
-            rec.scopes = frozenset(new_scopes)  # type: ignore[misc]
+            rec.scopes = frozenset(new_scopes)
             LOG.info(
                 "Session scopes updated sid=%s elevation=%s",
                 rec.session_id,
@@ -615,7 +620,7 @@ class SessionManager:
             return len(active), tuple(active)
 
     def purge_expired(self) -> int:
-        """Remove sessions expired by refresh or idle, and revoked ones; drop indexes accordingly."""
+        """Remove sessions expired by refresh or idle, and revoked ones; drop indexes accordingly."""  # noqa: E501
         now = self._clock()
         purged = 0
         with self._lock:

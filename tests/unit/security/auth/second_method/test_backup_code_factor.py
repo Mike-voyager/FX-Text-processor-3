@@ -3,6 +3,20 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
+# Импорт из re-export стаба — обеспечивает coverage backup_code_factor.py
+from src.security.auth.second_method.backup_code_factor import (  # noqa: F401
+    BackupCodeFactor as _BCF_stub,
+)
+from src.security.auth.second_method.backup_code_factor import (
+    CodeExpired as _CE_stub,
+)
+from src.security.auth.second_method.backup_code_factor import (
+    CodeLockout as _CL_stub,
+)
+from src.security.auth.second_method.backup_code_factor import (
+    CodeUsed as _CU_stub,
+)
 from src.security.auth.second_method.code import (
     CODE_BITS,
     DEFAULT_TTL_DAYS,
@@ -302,3 +316,61 @@ def test_verify_nonexistent_code_returns_fail() -> None:
     # После лимита — выброшен lockout
     with pytest.raises(CodeLockout):
         factor.verify("edge_case", fake_code, state)
+
+
+# ============================================================
+# Целевые тесты для покрытия недостающих строк
+# ============================================================
+
+
+@pytest.mark.security
+def test_expire_skips_already_used_codes() -> None:
+    """expire() пропускает коды, которые уже помечены used=True (строка 255->254)."""
+    # Arrange — создаём состояние и вручную помечаем все коды как использованные
+    factor = BackupCodeFactor()
+    state = factor.setup("user_expire_used", count=3)
+    for c in state["codes"]:
+        c["used"] = True
+
+    # Act — вызов expire на уже использованных кодах не должен ломаться
+    factor.expire(state)
+
+    # Assert — все коды по-прежнему помечены как использованные
+    assert all(c["used"] for c in state["codes"])
+
+
+@pytest.mark.security
+def test_get_lock_remaining_seconds_when_locked() -> None:
+    """get_lock_remaining_seconds() возвращает положительное число, если lock_until в будущем."""
+    from datetime import timedelta, timezone
+
+    # Arrange
+    factor = BackupCodeFactor()
+    state = factor.setup("user_locked_check", count=1)
+    future = (datetime.now(timezone.utc) + timedelta(seconds=300)).isoformat()
+    state["lock_until"] = future
+
+    # Act
+    remaining = factor.get_lock_remaining_seconds(state)
+
+    # Assert — оставшееся время должно быть положительным
+    assert remaining > 0
+    assert remaining <= 300
+
+
+@pytest.mark.security
+def test_get_lock_remaining_seconds_when_not_locked() -> None:
+    """get_lock_remaining_seconds() возвращает 0, если lock_until отсутствует или в прошлом."""
+    from datetime import timedelta, timezone
+
+    # Arrange
+    factor = BackupCodeFactor()
+    state = factor.setup("user_not_locked", count=1)
+
+    # Act — без lock_until
+    assert factor.get_lock_remaining_seconds(state) == 0
+
+    # Act — lock_until в прошлом
+    past = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
+    state["lock_until"] = past
+    assert factor.get_lock_remaining_seconds(state) == 0

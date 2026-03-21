@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, Generator
 
 import pytest
-
 from src.security.auth.second_factor import SecondFactorManager
 from src.security.crypto.core.protocols import KeyStoreProtocol
 
@@ -220,9 +219,7 @@ def test_secure_del_branches(manager: SecondFactorManager) -> None:
         {"factors": {"a": {"t": [{"state": {}}]}}, "audit": []},
     ],
 )
-def test_factors_audit_edge_cases(
-    manager: SecondFactorManager, scenario: Dict[str, Any]
-) -> None:
+def test_factors_audit_edge_cases(manager: SecondFactorManager, scenario: Dict[str, Any]) -> None:
     manager._factors = scenario.get("factors", {})
     manager._audit = scenario.get("audit", [])
     assert manager.get_history("a", "t") is not None
@@ -645,6 +642,7 @@ def test_verify_factor_expired_state(manager: SecondFactorManager) -> None:
     entry = manager._factors[user_id]["dummy"][-1]
     entry["state"]["ttlseconds"] = 1
     entry["state"]["created"] = 1  # очень давно
+    entry["state"]["created_at"] = "2000-01-01T00:00:00+00:00"  # ISO-форма тоже в прошлом
 
     # Act
     result = manager.verify_factor(user_id, "dummy", "valid")
@@ -993,9 +991,7 @@ def test_verify_factor_dict_result_with_reason(manager: SecondFactorManager) -> 
         def setup(self, user_id: str, **kwargs: Any) -> Dict[str, Any]:
             return {"id": "drid"}
 
-        def verify(
-            self, user_id: str, credential: Any, state: Dict[str, Any]
-        ) -> Dict[str, Any]:
+        def verify(self, user_id: str, credential: Any, state: Dict[str, Any]) -> Dict[str, Any]:
             return {"valid": True, "reason": "all-ok"}
 
         def remove(self, user_id: str, state: Dict[str, Any]) -> None:
@@ -1022,3 +1018,58 @@ def test_state_is_expired_ttl_seconds_alt_key() -> None:
     state: Dict[str, Any] = {"created": 1000, "ttl_seconds": 1}
     # Act / Assert
     assert _state_is_expired(state) is True
+
+
+@pytest.mark.security
+def test_setup_factor_assigns_id_when_state_has_none(manager: SecondFactorManager) -> None:
+    """setup_factor генерирует id через uuid, если фактор не возвращает 'id' в state (строка 218).
+
+    Покрывает ветку: if not factor_state.get("id"): factor_state["id"] = uuid.uuid4().hex
+    """
+
+    class DummyFactorNoId:
+        """Фактор, возвращающий state без поля id."""
+
+        def setup(self, user_id: str, **kwargs: Any) -> Dict[str, Any]:
+            # Намеренно не включаем "id"
+            return {"created": 12345}
+
+        def verify(self, user_id: str, credential: Any, state: Dict[str, Any]) -> bool:
+            return True
+
+        def remove(self, user_id: str, state: Dict[str, Any]) -> None:
+            pass
+
+    # Arrange
+    storage = DummyStorage()
+    m = SecondFactorManager(storage=storage)  # type: ignore[arg-type]
+    m.register_factor_type("noid", DummyFactorNoId)  # type: ignore[arg-type]
+
+    # Act
+    fid = m.setup_factor("user_noid", "noid")
+
+    # Assert — id должен быть установлен через uuid.uuid4().hex (32 hex-символа)
+    assert fid is not None
+    assert len(fid) == 32
+    status = m.get_status("user_noid", "noid")
+    assert status is not None
+    assert status.get("id") == fid
+
+
+@pytest.mark.security
+def test_remove_factor_by_nonexistent_id_removes_last(manager: SecondFactorManager) -> None:
+    """remove_factor с factor_id, которого нет, удаляет последний элемент (строки 355->359).
+
+    Покрывает ветку: idx остаётся None после цикла → idx = len(factor_list) - 1.
+    """
+    # Arrange — добавляем один фактор
+    user_id = "nonexistent_id_user"
+    manager.setup_factor(user_id, "dummy")
+    # Убеждаемся что фактор есть
+    assert manager.get_status(user_id, "dummy") is not None
+
+    # Act — передаём несуществующий factor_id
+    manager.remove_factor(user_id, "dummy", factor_id="this_id_does_not_exist")
+
+    # Assert — последний (и единственный) фактор был удалён
+    assert manager.get_status(user_id, "dummy") is None

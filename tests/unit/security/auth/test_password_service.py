@@ -3,7 +3,6 @@
 from datetime import timedelta
 
 import pytest
-
 from src.security.auth.password_service import (
     AccountLockedError,
     InMemoryUserStorage,
@@ -224,9 +223,7 @@ def test_statistics_with_expiring_passwords(service: PasswordService) -> None:
 
     created_at = service.storage.get_password_created_at("expire_soon")
     assert created_at is not None
-    service.storage.set_password_created_at(
-        "expire_soon", created_at - timedelta(days=160)
-    )
+    service.storage.set_password_created_at("expire_soon", created_at - timedelta(days=160))
 
     stats = service.get_statistics()
     assert "password_expires_soon" in stats
@@ -324,6 +321,7 @@ def test_create_password_hasher_policy_violation_branch() -> None:
     class StrictHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -398,6 +396,7 @@ def test_verify_password_raises_lockout_active_from_hasher() -> None:
     class LockingHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -453,6 +452,7 @@ def test_verify_password_internal_error_returns_false() -> None:
     class ErrorHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -574,6 +574,7 @@ def test_change_password_hasher_policy_violation_branch() -> None:
 
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -581,6 +582,7 @@ def test_change_password_hasher_policy_violation_branch() -> None:
             if self._calls == 1:
                 # Первый вызов — create_password
                 from src.security.auth.password import PasswordHasher as _PH
+
                 return _PH(time_cost=1, memory_cost=8192, parallelism=1).hash_password(
                     password, salt, user_id
                 )
@@ -595,6 +597,7 @@ def test_change_password_hasher_policy_violation_branch() -> None:
         ) -> bool:
             # verify через реальный hasher
             from src.security.auth.password import PasswordHasher as _PH
+
             return _PH(time_cost=1, memory_cost=8192, parallelism=1).verify_password(
                 password, hashed, user_id, track_attempts
             )
@@ -654,6 +657,7 @@ def test_reset_password_hasher_policy_violation_branch() -> None:
     class AlwaysFailHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -717,6 +721,7 @@ def test_set_temporary_password_hasher_policy_violation_branch() -> None:
     class AlwaysFailHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:
@@ -877,6 +882,7 @@ def test_verify_password_internal_exception_returns_false() -> None:
     class ErrorVerifyHasher:
         def generate_salt(self) -> bytes:
             import secrets
+
             return secrets.token_bytes(16)
 
         def hash_password(self, password: str, salt: bytes, user_id: str) -> str:

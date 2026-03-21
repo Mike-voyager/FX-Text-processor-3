@@ -27,8 +27,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Final, FrozenSet, Optional
 
 from .permissions import (
-    MFA_REQUIRED_PERMISSIONS,
-    OPERATOR_SCOPES,
     MFARequiredError,
     Permission,
     PermissionChecker,

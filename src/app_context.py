@@ -18,6 +18,8 @@ from typing import Any
 
 from src.security.auth.second_factor import SecondFactorManager
 from src.security.crypto.core.protocols import KeyStoreProtocol
+from src.security.crypto.service.crypto_service import CryptoService
+from src.security.crypto.service.profiles import CryptoProfile
 from src.security.crypto.utilities.secure_storage import SecureStorage
 
 __all__ = ["AppContext", "get_app_context"]
@@ -77,6 +79,7 @@ class AppContext:
         mfa_enabled: bool = True,
         audit_enabled: bool = True,
         user_id: str | None = None,
+        crypto_profile: CryptoProfile = CryptoProfile.STANDARD,
     ) -> None:
         """
         Инициализирует контекст приложения.
@@ -89,6 +92,7 @@ class AppContext:
             mfa_enabled: Включить поддержку MFA.
             audit_enabled: Включить аудит-лог.
             user_id: ID пользователя для авторизации.
+            crypto_profile: Профиль криптографии (STANDARD, PARANOID, PQC, LEGACY).
         """
         # По умолчанию in-memory; файловый бэкенд подключается после аутентификации
         self.storage: KeyStoreProtocol = _InMemoryStore()
@@ -99,6 +103,9 @@ class AppContext:
         self.audit: Any = None
         self.user_id: str | None = user_id
         self.services: dict[str, Any] = {}
+
+        # Initialize crypto service with selected profile
+        self.crypto_service: CryptoService = CryptoService(profile=crypto_profile)
 
     def register_service(self, name: str, service: Any) -> None:
         """
@@ -163,6 +170,7 @@ def get_app_context(
     mfa_enabled: bool = True,
     audit_enabled: bool = True,
     user_id: str | None = None,
+    crypto_profile: CryptoProfile = CryptoProfile.STANDARD,
 ) -> AppContext:
     """
     Возвращает глобальный AppContext (синглтон).
@@ -176,6 +184,7 @@ def get_app_context(
         mfa_enabled: Включить поддержку MFA.
         audit_enabled: Включить аудит-лог.
         user_id: ID пользователя.
+        crypto_profile: Профиль криптографии (по умолчанию STANDARD).
 
     Returns:
         Глобальный экземпляр AppContext.
@@ -189,5 +198,6 @@ def get_app_context(
                 mfa_enabled=mfa_enabled,
                 audit_enabled=audit_enabled,
                 user_id=user_id,
+                crypto_profile=crypto_profile,
             )
     return _ctx

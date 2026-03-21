@@ -13,7 +13,6 @@ from __future__ import annotations
 from typing import FrozenSet
 
 import pytest
-
 from src.security.auth.permissions import (
     MFA_REQUIRED_PERMISSIONS,
     OPERATOR_PERMISSIONS,
@@ -562,9 +561,7 @@ class TestScopesToPermissions:
         assert result == frozenset()
         assert "unknown_scope_xyz" in caplog.text
 
-    def test_unknown_scope_combined_with_known(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_unknown_scope_combined_with_known(self, caplog: pytest.LogCaptureFixture) -> None:
         """Неизвестный scope игнорируется, известный обрабатывается корректно."""
         # Arrange
         scopes: FrozenSet[str] = frozenset({"documents", "nonexistent"})
@@ -646,9 +643,7 @@ class TestPermissionChecker:
         scopes: FrozenSet[str] = frozenset({"full"})
         # Act / Assert
         with pytest.raises(MFARequiredError):
-            checker.assert_permission(
-                scopes, Permission.DEVICE_PROVISION, mfa_satisfied=False
-            )
+            checker.assert_permission(scopes, Permission.DEVICE_PROVISION, mfa_satisfied=False)
 
     def test_assert_permission_passes_with_mfa_satisfied(self) -> None:
         """assert_permission() не выбрасывает исключение при mfa_satisfied=True."""
@@ -656,9 +651,7 @@ class TestPermissionChecker:
         checker = PermissionChecker()
         scopes: FrozenSet[str] = frozenset({"full"})
         # Act / Assert — не должно бросать
-        checker.assert_permission(
-            scopes, Permission.DEVICE_PROVISION, mfa_satisfied=True
-        )
+        checker.assert_permission(scopes, Permission.DEVICE_PROVISION, mfa_satisfied=True)
 
     def test_assert_permission_passes_non_mfa_without_mfa(self) -> None:
         """assert_permission() не требует MFA для обычной операции."""
@@ -666,9 +659,7 @@ class TestPermissionChecker:
         checker = PermissionChecker()
         scopes: FrozenSet[str] = frozenset({"full"})
         # Act / Assert — не должно бросать
-        checker.assert_permission(
-            scopes, Permission.DOCUMENT_READ, mfa_satisfied=False
-        )
+        checker.assert_permission(scopes, Permission.DOCUMENT_READ, mfa_satisfied=False)
 
     def test_effective_permissions_equals_scopes_to_permissions(self) -> None:
         """effective_permissions() идентично scopes_to_permissions()."""
