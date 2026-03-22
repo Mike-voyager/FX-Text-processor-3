@@ -3,7 +3,7 @@
 Simple invoice with basic fields.
 """
 
-from src.documents.types.document_type import DocumentType
+from src.documents.types.document_type import DocumentMode, DocumentType
 from src.documents.types.index_template import IndexSegmentDef, IndexTemplate, SegmentType
 from src.documents.types.type_schema import FieldDefinition, FieldType, TypeSchema
 
@@ -12,6 +12,7 @@ INV = DocumentType(
     code="INV",
     name="Счёт",
     parent_code=None,
+    document_mode=DocumentMode.STRUCTURED_FORM,
     index_template=IndexTemplate(
         segments=(
             IndexSegmentDef(
@@ -47,113 +48,112 @@ INV = DocumentType(
     field_schema=TypeSchema(
         fields=(
             FieldDefinition(
-                name="invoice_number",
+                field_id="invoice_number",
                 field_type=FieldType.TEXT_INPUT,
                 label="Номер счёта",
-                label_en="Invoice number",
+                label_i18n={"en": "Invoice number"},
                 required=True,
-                validation=("min_length:1", "max_length:50"),
+                validation_pattern=r"^.{1,50}$",
                 placeholder="INV-001",
             ),
             FieldDefinition(
-                name="date",
+                field_id="date",
                 field_type=FieldType.DATE_INPUT,
                 label="Дата",
-                label_en="Date",
+                label_i18n={"en": "Date"},
                 required=True,
             ),
             FieldDefinition(
-                name="supplier",
+                field_id="supplier",
                 field_type=FieldType.TEXT_INPUT,
                 label="Поставщик",
-                label_en="Supplier",
+                label_i18n={"en": "Supplier"},
                 required=True,
-                validation=("min_length:1", "max_length:200"),
+                validation_pattern=r"^.{1,200}$",
             ),
             FieldDefinition(
-                name="supplier_inn",
+                field_id="supplier_inn",
                 field_type=FieldType.TEXT_INPUT,
                 label="ИНН поставщика",
-                label_en="Supplier TIN",
+                label_i18n={"en": "Supplier TIN"},
                 required=True,
-                validation=("regex:^\\d{10}|\\d{12}$",),
+                validation_pattern=r"^\d{10}|\d{12}$",
                 placeholder="1234567890",
             ),
             FieldDefinition(
-                name="buyer",
+                field_id="buyer",
                 field_type=FieldType.TEXT_INPUT,
                 label="Покупатель",
-                label_en="Buyer",
+                label_i18n={"en": "Buyer"},
                 required=True,
-                validation=("min_length:1", "max_length:200"),
+                validation_pattern=r"^.{1,200}$",
             ),
             FieldDefinition(
-                name="buyer_inn",
+                field_id="buyer_inn",
                 field_type=FieldType.TEXT_INPUT,
                 label="ИНН покупателя",
-                label_en="Buyer TIN",
+                label_i18n={"en": "Buyer TIN"},
                 required=True,
-                validation=("regex:^\\d{10}|\\d{12}$",),
+                validation_pattern=r"^\d{10}|\d{12}$",
                 placeholder="1234567890",
             ),
             FieldDefinition(
-                name="items_table",
+                field_id="items_table",
                 field_type=FieldType.TABLE,
                 label="Товары и услуги",
-                label_en="Items and services",
+                label_i18n={"en": "Items and services"},
                 required=True,
             ),
             FieldDefinition(
-                name="subtotal",
+                field_id="subtotal",
                 field_type=FieldType.CURRENCY,
                 label="Сумма без НДС",
-                label_en="Subtotal",
+                label_i18n={"en": "Subtotal"},
                 required=True,
             ),
             FieldDefinition(
-                name="vat",
+                field_id="vat",
                 field_type=FieldType.CURRENCY,
                 label="НДС",
-                label_en="VAT",
+                label_i18n={"en": "VAT"},
                 required=True,
             ),
             FieldDefinition(
-                name="total",
+                field_id="total",
                 field_type=FieldType.CALCULATED,
                 label="Итого",
-                label_en="Total",
+                label_i18n={"en": "Total"},
                 required=True,
             ),
             FieldDefinition(
-                name="payment_details",
+                field_id="payment_details",
                 field_type=FieldType.MULTI_LINE_TEXT,
                 label="Платёжные реквизиты",
-                label_en="Payment details",
+                label_i18n={"en": "Payment details"},
                 required=False,
             ),
             FieldDefinition(
-                name="notes",
+                field_id="notes",
                 field_type=FieldType.MULTI_LINE_TEXT,
                 label="Примечание",
-                label_en="Notes",
+                label_i18n={"en": "Notes"},
                 required=False,
             ),
             FieldDefinition(
-                name="signature",
+                field_id="signature",
                 field_type=FieldType.SIGNATURE,
                 label="Подпись",
-                label_en="Signature",
+                label_i18n={"en": "Signature"},
                 required=False,
             ),
             FieldDefinition(
-                name="stamp",
+                field_id="stamp",
                 field_type=FieldType.STAMP,
                 label="Печать",
-                label_en="Stamp",
+                label_i18n={"en": "Stamp"},
                 required=False,
             ),
         ),
         version="1.0",
     ),
 )
-

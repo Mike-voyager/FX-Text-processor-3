@@ -20,7 +20,7 @@ class ExcelMappingType(str, Enum):
     RANGE = "range"  # Произвольный диапазон
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExcelFieldMapping:
     """Описание маппинга поля документа на данные Excel.
 
@@ -78,14 +78,11 @@ class ExcelImporter:
                 import openpyxl
 
                 self._openpyxl = openpyxl
-                self._workbook = openpyxl.load_workbook(
-                    self._file_path, data_only=True
-                )
+                self._workbook = openpyxl.load_workbook(self._file_path, data_only=True)
             except ImportError:
                 raise ImportError(
-                    "openpyxl is required for Excel import. "
-                    "Install with: pip install openpyxl"
-                )
+                    "openpyxl is required for Excel import. Install with: pip install openpyxl"
+                ) from None
         return self._openpyxl
 
     def get_sheets(self) -> list[str]:
@@ -94,12 +91,10 @@ class ExcelImporter:
         Returns:
             Список имён листов.
         """
-        openpyxl = self._get_openpyxl()
+        self._get_openpyxl()  # Инициализация workbook
         return list(self._workbook.sheetnames)
 
-    def preview_range(
-        self, sheet: str, range_ref: str, limit: int = 10
-    ) -> list[Any]:
+    def preview_range(self, sheet: str, range_ref: str, limit: int = 10) -> list[Any]:
         """Предварительный просмотр данных из диапазона.
 
         Args:
@@ -163,7 +158,7 @@ class ExcelImporter:
         Returns:
             Обновлённый словарь данных формы.
         """
-        openpyxl = self._get_openpyxl()
+        self._get_openpyxl()  # Инициализация workbook
 
         result = dict(form_data)
 
@@ -184,15 +179,14 @@ class ExcelImporter:
 
         return result
 
-    def _read_column(
-        self, worksheet: Any, range_ref: str, mapping: ExcelFieldMapping
-    ) -> list[Any]:
+    def _read_column(self, worksheet: Any, range_ref: str, mapping: ExcelFieldMapping) -> list[Any]:
         """Читает данные из столбца."""
         import re
 
         match = re.match(r"^([A-Z]+)(\d+)?:([A-Z]+)(\d+)?$", range_ref)
         if match:
-            start_col, start_row, end_col, end_row = match.groups()
+            start_col, start_row, _end_col, end_row = match.groups()
+            col_letter = start_col
             start_row = int(start_row) if start_row else 1
             end_row = int(end_row) if end_row else worksheet.max_row
         else:
@@ -216,9 +210,7 @@ class ExcelImporter:
 
         return values
 
-    def _read_row(
-        self, worksheet: Any, range_ref: str, mapping: ExcelFieldMapping
-    ) -> list[Any]:
+    def _read_row(self, worksheet: Any, range_ref: str, mapping: ExcelFieldMapping) -> list[Any]:
         """Читает данные из строки."""
         import re
 
@@ -248,8 +240,6 @@ class ExcelImporter:
         self, worksheet: Any, range_ref: str, mapping: ExcelFieldMapping
     ) -> list[list[Any]]:
         """Читает данные из диапазона."""
-        openpyxl = self._get_openpyxl()
-
         values = []
         for row in worksheet[range_ref]:
             row_data = []

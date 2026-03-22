@@ -8,7 +8,6 @@ Provides:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 
 class SegmentType(str, Enum):
@@ -47,7 +46,7 @@ class IndexSegmentDef:
     auto_increment: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class IndexTemplate:
     """Шаблон генерации и парсинга индексов документов.
 
@@ -56,10 +55,36 @@ class IndexTemplate:
 
     Example:
         segments = [
-            IndexSegmentDef("type", SegmentType.ROOT_CODE, "Тип", "Type", r"DVN", None, False),
-            IndexSegmentDef("subtype", SegmentType.SUBTYPE, "Подтип", "Subtype", r"\\d{1,2}", None, False),
-            IndexSegmentDef("series", SegmentType.SERIES, "Серия", "Series", r"[A-Z]\\d{2}", None, False),
-            IndexSegmentDef("seq", SegmentType.SEQUENCE, "Номер", "Number", r"[IVXLCDM]+", None, True),
+            IndexSegmentDef(
+                "type", SegmentType.ROOT_CODE, "Тип", "Type", r"DVN", None, False
+            ),
+            IndexSegmentDef(
+                "subtype",
+                SegmentType.SUBTYPE,
+                "Подтип",
+                "Subtype",
+                r"\\d{1,2}",
+                None,
+                False,
+            ),
+            IndexSegmentDef(
+                "series",
+                SegmentType.SERIES,
+                "Серия",
+                "Series",
+                r"[A-Z]\\d{2}",
+                None,
+                False,
+            ),
+            IndexSegmentDef(
+                "seq",
+                SegmentType.SEQUENCE,
+                "Номер",
+                "Number",
+                r"[IVXLCDM]+",
+                None,
+                True,
+            ),
         ]
         template = IndexTemplate(segments=segments)
         # Форматирование: {"type": "DVN", "subtype": "44", "series": "K53"} + sequence=9
@@ -77,13 +102,9 @@ class IndexTemplate:
         # Проверяем, что последний сегмент - SEQUENCE
         last_segment = self.segments[-1]
         if last_segment.segment_type != SegmentType.SEQUENCE:
-            raise ValueError(
-                f"Last segment must be SEQUENCE, got {last_segment.segment_type}"
-            )
+            raise ValueError(f"Last segment must be SEQUENCE, got {last_segment.segment_type}")
 
-    def format(
-        self, values: dict[str, str], sequence: int
-    ) -> str:
+    def format(self, values: dict[str, str], sequence: int) -> str:
         """Форматирует индекс из значений сегментов и порядкового номера.
 
         Args:
@@ -107,9 +128,7 @@ class IndexTemplate:
             else:
                 # Остальные сегменты из values
                 if segment.name not in values:
-                    raise ValueError(
-                        f"Missing required segment value: {segment.name}"
-                    )
+                    raise ValueError(f"Missing required segment value: {segment.name}")
                 value = values[segment.name]
                 parts.append(value)
 
@@ -131,9 +150,7 @@ class IndexTemplate:
         parts = index.split(self.separator)
 
         if len(parts) != len(self.segments):
-            raise ValueError(
-                f"Index has {len(parts)} segments, expected {len(self.segments)}"
-            )
+            raise ValueError(f"Index has {len(parts)} segments, expected {len(self.segments)}")
 
         result: dict[str, str] = {}
 

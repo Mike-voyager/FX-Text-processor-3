@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fx-document-v1.0",
+  "title": "FX Super Document",
+  "description": "Schema for FX Text Processor document files (.fxsd)",
+  "type": "object",
+  "required": ["format_version", "generator", "document"],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Document format version"
+    },
+    "generator": {
+      "type": "string",
+      "description": "Application that generated the document",
+      "example": "FXTextProcessor/3.0"
+    },
+    "document": {
+      "type": "object",
+      "required": ["metadata", "sections"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique document identifier"
+        },
+        "document_type": {
+          "type": "string",
+          "description": "Document type code (e.g., DOC, INV, DVN)"
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["title", "created", "modified"],
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Document title"
+            },
+            "author": {
+              "type": "string",
+              "description": "Document author"
+            },
+            "created": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Creation timestamp (ISO 8601)"
+            },
+            "modified": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Last modification timestamp (ISO 8601)"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Document subject"
+            },
+            "keywords": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Document keywords"
+            },
+            "version": {
+              "type": "string",
+              "default": "1.0",
+              "description": "Document version"
+            }
+          }
+        },
+        "page_settings": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string",
+              "enum": ["a4", "letter", "legal", "b5", "custom"]
+            },
+            "orientation": {
+              "type": "string",
+              "enum": ["portrait", "landscape"]
+            },
+            "width_inches": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "height_inches": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "margin_left_inches": {
+              "type": "number",
+              "minimum": 0
+            },
+            "margin_right_inches": {
+              "type": "number",
+              "minimum": 0
+            },
+            "margin_top_inches": {
+              "type": "number",
+              "minimum": 0
+            },
+            "margin_bottom_inches": {
+              "type": "number",
+              "minimum": 0
+            },
+            "line_spacing": {
+              "type": "string",
+              "enum": ["1/6", "1/8", "n/180", "n/360"]
+            },
+            "characters_per_line": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 200
+            },
+            "lines_per_page": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 200
+            }
+          }
+        },
+        "printer_settings": {
+          "type": "object",
+          "properties": {
+            "printer_name": {
+              "type": "string",
+              "default": "Epson FX-890"
+            },
+            "codepage": {
+              "type": "string",
+              "enum": ["437", "850", "860", "863", "865", "866"]
+            },
+            "print_quality": {
+              "type": "string",
+              "enum": ["draft", "nlq"]
+            },
+            "font_family": {
+              "type": "string",
+              "enum": ["usd", "hsd", "draft", "roman", "sans_serif"]
+            },
+            "characters_per_inch": {
+              "type": "string",
+              "enum": ["10", "12", "15", "17", "20", "proportional"]
+            },
+            "print_direction": {
+              "type": "string",
+              "enum": ["bidirectional", "unidirectional"]
+            },
+            "paper_type": {
+              "type": "string",
+              "enum": ["continuous_tractor", "cut_sheet", "roll", "envelope"]
+            },
+            "paper_source": {
+              "type": "string",
+              "enum": ["auto", "tractor_front", "tractor_rear", "cut_sheet_feeder", "manual"]
+            },
+            "default_alignment": {
+              "type": "string",
+              "enum": ["left", "center", "right"]
+            }
+          }
+        },
+        "sections": {
+          "type": "array",
+          "description": "Document sections",
+          "items": {
+            "type": "object",
+            "required": ["paragraphs"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "page_settings": {
+                "$ref": "#/properties/document/properties/page_settings"
+              },
+              "paragraphs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "alignment": {
+                      "type": "string",
+                      "enum": ["left", "center", "right"]
+                    },
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "style": {
+                            "type": "object",
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "underline": {
+                                "type": "boolean"
+                              },
+                              "font_family": {
+                                "type": "string"
+                              },
+                              "font_size": {
+                                "type": "number"
+                              },
+                              "color": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

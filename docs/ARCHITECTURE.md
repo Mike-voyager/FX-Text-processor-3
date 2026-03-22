@@ -257,7 +257,12 @@ src/
 │   │   ├── field_palette.py      # Палитра элементов для визуального редактора
 │   │   ├── variable_parser.py    # Подстановка переменных, ESC/P переменные
 │   │   ├── excel_import.py       # ExcelImporter + ExcelFieldMapping
-│   │   └── style_manager.py      # Стили элементов (наследование стилей)
+│   │   ├── style_manager.py      # Стили элементов (наследование стилей)
+│   │   ├── form_status.py        # Статусы формы (draft/pending/signed/archived)
+│   │   ├── form_validator.py     # Валидация форм перед подписью
+│   │   ├── formula_engine.py     # Вычисляемые поля (формулы)
+│   │   ├── input_mask.py         # Маски ввода (дата, телефон, ИНН)
+│   │   └── table_schema.py       # Схемы табличных полей
 │   │
 │   ├── format/              # Serialization & migration
 │   │   ├── document_format.py    # .fxsd / .fxsd.enc сериализация

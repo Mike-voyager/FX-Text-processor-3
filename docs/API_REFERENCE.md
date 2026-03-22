@@ -986,15 +986,7 @@ class TypeRegistry:
 ---
 
 ```python
-    def register_type(
-        code: str,
-        name: str,
-        document_mode: DocumentMode,
-        index_template: IndexTemplate | None,
-        field_schema: TypeSchema,
-        parent_code: str | None = None,
-        metadata: dict[str, Any] | None = None
-    ) -> DocumentType
+    def register_type(doc_type: DocumentType) -> DocumentType
 ```
 Регистрирует новый тип документа.
 
@@ -1002,36 +994,37 @@ class TypeRegistry:
 
 | Параметр | Тип | Описание |
 |----------|-----|----------|
-| `code` | `str` | Уникальный код типа (например, `"INV"` для Invoice). |
-| `name` | `str` | Человеко-читаемое название типа. |
-| `document_mode` | `DocumentMode` | Режим: `FREE_FORM` (текст) или `STRUCTURED_FORM` (форма). |
-| `index_template` | `IndexTemplate \| None` | Шаблон индекса. `None` для текстовых документов. |
-| `field_schema` | `TypeSchema` | Схема полей. Пустая для `FREE_FORM`. |
-| `parent_code` | `str \| None` | Код родительского типа (для подтипов). |
-| `metadata` | `dict[str, Any] \| None` | Дополнительные метаданные типа. |
+| `doc_type` | `DocumentType` | Экземпляр DocumentType для регистрации. |
 
 **Возвращает:** `DocumentType` — зарегистрированный тип.
+
+**Raises:** `ValueError` — если тип с таким кодом уже зарегистрирован.
 
 **Примеры:**
 
 ```python
+from src.documents.types.document_type import DocumentType, DocumentMode
+from src.documents.types.type_schema import TypeSchema
+
 # Регистрация текстового документа (DOC)
-registry.register_type(
+doc_type = DocumentType(
     code="DOC",
     name="Базовый документ",
     document_mode=DocumentMode.FREE_FORM,
     index_template=None,  # Нет индекса
     field_schema=TypeSchema(fields=()),  # Пустая схема
 )
+registry.register_type(doc_type)
 
 # Регистрация формы (INV)
-registry.register_type(
+inv_type = DocumentType(
     code="INV",
     name="Счёт",
     document_mode=DocumentMode.STRUCTURED_FORM,
     index_template=IndexTemplate(...),
     field_schema=TypeSchema(fields=[...]),
 )
+registry.register_type(inv_type)
 ```
 
 ---
@@ -1202,6 +1195,25 @@ class FieldType(str, Enum):
 
 ---
 
+#### Enum `OverflowBehavior`
+
+Поведение при переполнении текстового поля.
+
+```python
+class OverflowBehavior(str, Enum):
+    TRUNCATE = "truncate"           # Обрезать лишнее
+    WRAP = "wrap"                   # Переносить на новую строку
+    SHRINK_FONT = "shrink_font"    # Уменьшать шрифт
+```
+
+| Значение | Описание |
+|----------|----------|
+| `TRUNCATE` | Обрезает текст до максимальной длины. Используется по умолчанию. |
+| `WRAP` | Переносит текст на новую строку. Требует поддержки многострочного режима. |
+| `SHRINK_FONT` | Уменьшает размер шрифта для размещения текста. Имеет ограничения (минимальный размер). |
+
+---
+
 #### Класс `FieldDefinition`
 
 Определение одного поля в схеме типа.
@@ -1209,13 +1221,17 @@ class FieldType(str, Enum):
 ```python
 @dataclass
 class FieldDefinition:
-    name: str                              # Программное имя поля
+    field_id: str                          # Программное имя поля (ранее `name`)
     field_type: FieldType                  # Тип поля
     label: str                             # Метка (русский)
-    label_en: str                          # Метка (английский)
+    label_i18n: dict[str, str] = field(default_factory=dict)  # Локализованные метки {lang: label}
     required: bool = True                  # Обязательность
+    readonly: bool = False                 # Только для чтения
     default_value: Any = None              # Значение по умолчанию
-    validation: list[str] = field(default_factory=list)  # Правила валидации (regex, min/max и т.д.)
+    validation_pattern: str | None = None  # Regex-паттерн валидации
+    max_length: int | None = None          # Максимальная длина строки
+    options: tuple[str, ...] | None = None # Допустимые значения (для DROPDOWN/RADIO_GROUP)
+    escp_variable: str | None = None       # Связь с ESC/P переменной
     inherited_from: str | None = None      # Код типа, от которого поле унаследовано (None = собственное)
 
     # Extended Validation Rules

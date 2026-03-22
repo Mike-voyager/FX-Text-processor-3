@@ -9,12 +9,12 @@ Provides:
 - StyleManager: Style inheritance for elements
 """
 
-from src.documents.constructor.form_constructor import FormConstructor
+from src.documents.constructor.excel_import import ExcelFieldMapping, ExcelImporter
 from src.documents.constructor.field_builder import FieldBuilder
 from src.documents.constructor.field_palette import FieldPalette
-from src.documents.constructor.variable_parser import VariableParser
-from src.documents.constructor.excel_import import ExcelImporter, ExcelFieldMapping
+from src.documents.constructor.form_constructor import FormConstructor
 from src.documents.constructor.style_manager import StyleManager
+from src.documents.constructor.variable_parser import VariableParser
 
 __all__ = [
     "FormConstructor",

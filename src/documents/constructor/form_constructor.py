@@ -33,9 +33,7 @@ class FormConstructor:
         """
         self._registry = registry or TypeRegistry.get_instance()
 
-    def create_from_type(
-        self, type_code: str, **initial_values: Any
-    ) -> dict[str, Any]:
+    def create_from_type(self, type_code: str, **initial_values: Any) -> dict[str, Any]:
         """Создаёт документ из типа.
 
         Args:
@@ -73,17 +71,15 @@ class FormConstructor:
 
         # Заполняем поля значениями по умолчанию
         for field_def in schema.fields:
-            if field_def.name in initial_values:
+            if field_def.field_id in initial_values:
                 # Используем переданное значение
-                data["fields"][field_def.name] = initial_values[field_def.name]
+                data["fields"][field_def.field_id] = initial_values[field_def.field_id]
             elif field_def.default_value is not None:
                 # Используем значение по умолчанию
-                data["fields"][field_def.name] = field_def.default_value
+                data["fields"][field_def.field_id] = field_def.default_value
             else:
                 # Пустое значение
-                data["fields"][field_def.name] = self._get_empty_value(
-                    field_def.field_type
-                )
+                data["fields"][field_def.field_id] = self._get_empty_value(field_def.field_type)
 
         return data
 
@@ -134,9 +130,7 @@ class FormConstructor:
         }
         return empty_values.get(field_type, None)
 
-    def validate_data(
-        self, type_code: str, data: dict[str, Any]
-    ) -> dict[str, list[str]]:
+    def validate_data(self, type_code: str, data: dict[str, Any]) -> dict[str, list[str]]:
         """Валидирует данные документа по схеме типа.
 
         Args:
@@ -154,22 +148,20 @@ class FormConstructor:
         fields_data = data.get("fields", {})
 
         for field_def in schema.fields:
-            value = fields_data.get(field_def.name)
+            value = fields_data.get(field_def.field_id)
 
             # Проверка обязательности
-            if field_def.required and (
-                value is None or value == "" or value == []
-            ):
-                if field_def.name not in errors:
-                    errors[field_def.name] = []
-                errors[field_def.name].append(f"Field '{field_def.label}' is required")
+            if field_def.required and (value is None or value == "" or value == []):
+                if field_def.field_id not in errors:
+                    errors[field_def.field_id] = []
+                errors[field_def.field_id].append(f"Field '{field_def.label}' is required")
                 continue
 
             # Проверка типа
             if value is not None and value != "":
-                field_errors = schema.validate_value(field_def.name, value)
+                field_errors = schema.validate_value(field_def.field_id, value)
                 if field_errors:
-                    errors[field_def.name] = field_errors
+                    errors[field_def.field_id] = field_errors
 
         return errors
 

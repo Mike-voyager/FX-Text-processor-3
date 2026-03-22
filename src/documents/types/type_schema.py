@@ -10,7 +10,10 @@ Provides:
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.documents.constructor.table_schema import TableSchema
 
 
 class FieldType(str, Enum):
@@ -75,13 +78,16 @@ class FieldDefinition:
     """Определение одного поля в схеме типа документа.
 
     Attributes:
-        name: Программное имя поля.
+        field_id: Программное имя поля (ранее `name`).
         field_type: Тип поля из enum FieldType.
         label: Метка поля на русском языке.
-        label_en: Метка поля на английском языке.
+        label_i18n: Словарь локализованных меток {lang: label}.
         required: Обязательность поля.
         default_value: Значение по умолчанию.
-        validation: Список правил валидации.
+        validation_pattern: Regex-паттерн для валидации.
+        max_length: Максимальная длина строки.
+        options: Допустимые значения для DROPDOWN/RADIO_GROUP.
+        escp_variable: Связь с ESC/P переменной.
         inherited_from: Код типа, от которого поле унаследовано (None = собственное).
         min_value: Минимальное числовое значение.
         max_value: Максимальное числовое значение.
@@ -99,14 +105,19 @@ class FieldDefinition:
         help_text: Вспомогательный текст (tooltip).
     """
 
-    name: str
+    field_id: str  # Changed from `name` per ARCHITECTURE.md
     field_type: FieldType
     label: str
-    label_en: str
+    label_i18n: dict[str, str] = field(
+        default_factory=dict, compare=False, hash=False
+    )  # Changed from `label_en: str`
     required: bool = True
     readonly: bool = False  # Поле только для чтения
     default_value: Any = None
-    validation: tuple[str, ...] = field(default_factory=tuple)
+    validation_pattern: str | None = None  # Changed from `validation: tuple[str, ...]`
+    max_length: int | None = None
+    options: tuple[str, ...] | None = None
+    escp_variable: str | None = None
     inherited_from: str | None = None
 
     # Extended validation rules
@@ -129,8 +140,11 @@ class FieldDefinition:
     autocomplete_source: str | None = None
     help_text: str | None = None
 
+    # Table schema for TABLE fields
+    table_schema: "TableSchema | None" = None
 
-@dataclass
+
+@dataclass(frozen=True)
 class TypeSchema:
     """Схема полей для типа документа.
 
@@ -152,16 +166,16 @@ class TypeSchema:
             # Пустая схема допустима (могут быть только вычисляемые поля)
             return
 
-        # Проверяем уникальность имен полей
-        names = [f.name for f in self.fields]
-        if len(names) != len(set(names)):
-            raise ValueError("Field names must be unique")
+        # Проверяем уникальность field_id полей
+        field_ids = [f.field_id for f in self.fields]
+        if len(field_ids) != len(set(field_ids)):
+            raise ValueError("Field IDs must be unique")
 
-    def get_field(self, name: str) -> FieldDefinition:
-        """Возвращает определение поля по имени.
+    def get_field(self, field_id: str) -> FieldDefinition:
+        """Возвращает определение поля по field_id.
 
         Args:
-            name: Имя поля.
+            field_id: Идентификатор поля.
 
         Returns:
             Определение поля.
@@ -170,13 +184,13 @@ class TypeSchema:
             KeyError: Если поле не найдено.
         """
         for field_def in self.fields:
-            if field_def.name == name:
+            if field_def.field_id == field_id:
                 return field_def
-        raise KeyError(f"Field not found: {name}")
+        raise KeyError(f"Field not found: {field_id}")
 
-    def has_field(self, name: str) -> bool:
-        """Проверяет наличие поля в схеме."""
-        return any(f.name == name for f in self.fields)
+    def has_field(self, field_id: str) -> bool:
+        """Проверяет наличие поля в схеме по field_id."""
+        return any(f.field_id == field_id for f in self.fields)
 
     @property
     def required_fields(self) -> list[FieldDefinition]:
@@ -188,19 +202,15 @@ class TypeSchema:
         """Возвращает список необязательных полей."""
         return [f for f in self.fields if not f.required]
 
-    def get_fields_by_type(
-        self, field_type: FieldType
-    ) -> list[FieldDefinition]:
+    def get_fields_by_type(self, field_type: FieldType) -> list[FieldDefinition]:
         """Возвращает поля указанного типа."""
         return [f for f in self.fields if f.field_type == field_type]
 
-    def validate_value(
-        self, name: str, value: Any
-    ) -> list[str]:
+    def validate_value(self, field_id: str, value: Any) -> list[str]:
         """Валидирует значение поля по его определению.
 
         Args:
-            name: Имя поля.
+            field_id: Идентификатор поля.
             value: Значение для валидации.
 
         Returns:
@@ -209,13 +219,13 @@ class TypeSchema:
         errors: list[str] = []
 
         try:
-            field_def = self.get_field(name)
+            field_def = self.get_field(field_id)
         except KeyError:
-            return [f"Unknown field: {name}"]
+            return [f"Unknown field: {field_id}"]
 
         # Проверка обязательности
         if field_def.required and (value is None or value == ""):
-            errors.append(f"Field '{name}' is required")
+            errors.append(f"Field '{field_id}' is required")
             return errors  # Дальнейшие проверки не имеют смысла
 
         if value is None or value == "":
@@ -226,13 +236,9 @@ class TypeSchema:
             try:
                 num = float(value) if isinstance(value, str) else value
                 if field_def.min_value is not None and num < field_def.min_value:
-                    errors.append(
-                        f"Value {num} is less than minimum {field_def.min_value}"
-                    )
+                    errors.append(f"Value {num} is less than minimum {field_def.min_value}")
                 if field_def.max_value is not None and num > field_def.max_value:
-                    errors.append(
-                        f"Value {num} is greater than maximum {field_def.max_value}"
-                    )
+                    errors.append(f"Value {num} is greater than maximum {field_def.max_value}")
             except (ValueError, TypeError):
                 errors.append(f"Invalid number value: {value}")
 
@@ -241,47 +247,142 @@ class TypeSchema:
                 # Дополнительная валидация даты при необходимости
                 pass
 
-        # Проверка по validation правилам
-        for rule in field_def.validation:
-            rule_errors = self._validate_rule(field_def.name, value, rule)
-            errors.extend(rule_errors)
-
-        return errors
-
-    def _validate_rule(
-        self, field_name: str, value: Any, rule: str
-    ) -> list[str]:
-        """Валидирует значение по одному правилу."""
-        errors: list[str] = []
-
-        if rule.startswith("min_length:"):
-            min_len = int(rule.split(":")[1])
-            if len(str(value)) < min_len:
-                errors.append(
-                    f"Field '{field_name}' must be at least {min_len} characters"
-                )
-
-        elif rule.startswith("max_length:"):
-            max_len = int(rule.split(":")[1])
-            if len(str(value)) > max_len:
-                errors.append(
-                    f"Field '{field_name}' must be at most {max_len} characters"
-                )
-
-        elif rule.startswith("regex:"):
+        # Проверка по validation_pattern
+        if field_def.validation_pattern:
             import re
 
-            pattern = rule.split(":", 1)[1]
-            if not re.match(pattern, str(value)):
+            if not re.match(field_def.validation_pattern, str(value)):
                 errors.append(
-                    f"Field '{field_name}' doesn't match pattern {pattern}"
+                    f"Field '{field_id}' doesn't match pattern {field_def.validation_pattern}"
                 )
 
-        elif rule.startswith("one_of:"):
-            allowed = rule.split(":", 1)[1].split(",")
-            if str(value) not in allowed:
+        # Проверка max_length
+        if field_def.max_length is not None:
+            if len(str(value)) > field_def.max_length:
                 errors.append(
-                    f"Field '{field_name}' must be one of: {allowed}"
+                    f"Field '{field_id}' must be at most {field_def.max_length} characters"
                 )
+
+        # Проверка options
+        if field_def.options is not None:
+            if str(value) not in field_def.options:
+                errors.append(f"Field '{field_id}' must be one of: {field_def.options}")
 
         return errors
+
+    def to_dict(self) -> dict[str, Any]:
+        """Сериализует схему в словарь.
+
+        Returns:
+            Словарь с данными схемы.
+
+        Example:
+            >>> schema = TypeSchema(fields=())
+            >>> data = schema.to_dict()
+            >>> "fields" in data
+            True
+        """
+        return {
+            "fields": [
+                {
+                    "field_id": f.field_id,
+                    "field_type": f.field_type.value,
+                    "label": f.label,
+                    "label_i18n": dict(f.label_i18n) if f.label_i18n else {},
+                    "required": f.required,
+                    "readonly": f.readonly,
+                    "default_value": f.default_value,
+                    "validation_pattern": f.validation_pattern,
+                    "max_length": f.max_length,
+                    "options": list(f.options) if f.options else None,
+                    "escp_variable": f.escp_variable,
+                    "inherited_from": f.inherited_from,
+                    "min_value": f.min_value,
+                    "max_value": f.max_value,
+                    "min_date": f.min_date.isoformat() if f.min_date else None,
+                    "max_date": f.max_date.isoformat() if f.max_date else None,
+                    "required_if": f.required_if,
+                    "cross_field_rules": list(f.cross_field_rules) if f.cross_field_rules else [],
+                    "visibility_condition": f.visibility_condition,
+                    "read_only_condition": f.read_only_condition,
+                    "enabled_condition": f.enabled_condition,
+                    "tab_index": f.tab_index,
+                    "input_mask": f.input_mask,
+                    "placeholder": f.placeholder,
+                    "autocomplete_source": f.autocomplete_source,
+                    "help_text": f.help_text,
+                }
+                for f in self.fields
+            ],
+            "version": self.version,
+            "compatibility_version": self.compatibility_version,
+            "deprecated_fields": list(self.deprecated_fields),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "TypeSchema":
+        """Десериализует схему из словаря.
+
+        Args:
+            data: Словарь с данными схемы.
+
+        Returns:
+            Экземпляр TypeSchema.
+
+        Example:
+            >>> data = {"fields": [], "version": "1.0"}
+            >>> schema = TypeSchema.from_dict(data)
+            >>> schema.version
+            '1.0'
+        """
+        from datetime import datetime
+
+        fields_data = data.get("fields", [])
+        fields = []
+
+        for f_data in fields_data:
+            field_type = FieldType(f_data.get("field_type", "text_input"))
+            min_date = None
+            max_date = None
+
+            if f_data.get("min_date"):
+                min_date = datetime.fromisoformat(f_data["min_date"]).date()
+            if f_data.get("max_date"):
+                max_date = datetime.fromisoformat(f_data["max_date"]).date()
+
+            field_def = FieldDefinition(
+                field_id=f_data.get("field_id", ""),
+                field_type=field_type,
+                label=f_data.get("label", ""),
+                label_i18n=f_data.get("label_i18n", {}),
+                required=f_data.get("required", True),
+                readonly=f_data.get("readonly", False),
+                default_value=f_data.get("default_value"),
+                validation_pattern=f_data.get("validation_pattern"),
+                max_length=f_data.get("max_length"),
+                options=tuple(f_data["options"]) if f_data.get("options") else None,
+                escp_variable=f_data.get("escp_variable"),
+                inherited_from=f_data.get("inherited_from"),
+                min_value=f_data.get("min_value"),
+                max_value=f_data.get("max_value"),
+                min_date=min_date,
+                max_date=max_date,
+                required_if=f_data.get("required_if"),
+                cross_field_rules=tuple(f_data.get("cross_field_rules", [])),
+                visibility_condition=f_data.get("visibility_condition"),
+                read_only_condition=f_data.get("read_only_condition"),
+                enabled_condition=f_data.get("enabled_condition"),
+                tab_index=f_data.get("tab_index"),
+                input_mask=f_data.get("input_mask"),
+                placeholder=f_data.get("placeholder"),
+                autocomplete_source=f_data.get("autocomplete_source"),
+                help_text=f_data.get("help_text"),
+            )
+            fields.append(field_def)
+
+        return cls(
+            fields=tuple(fields),
+            version=data.get("version", "1.0"),
+            compatibility_version=data.get("compatibility_version", "1.0"),
+            deprecated_fields=tuple(data.get("deprecated_fields", [])),
+        )

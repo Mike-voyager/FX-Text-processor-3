@@ -85,9 +85,7 @@ class VariableParser:
 
         return sorted(variables)
 
-    def substitute_batch(
-        self, templates: list[str], variables: dict[str, Any]
-    ) -> list[str]:
+    def substitute_batch(self, templates: list[str], variables: dict[str, Any]) -> list[str]:
         """Пакетная подстановка переменных.
 
         Args:
@@ -132,9 +130,7 @@ class VariableParser:
         """
         return bool(self.extract_variables(template))
 
-    def validate_variables(
-        self, template: str, variables: dict[str, Any]
-    ) -> list[str]:
+    def validate_variables(self, template: str, variables: dict[str, Any]) -> list[str]:
         """Валидирует наличие всех переменных.
 
         Args:

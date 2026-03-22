@@ -8,7 +8,6 @@ Provides:
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 from src.documents.types.type_schema import FieldType
 
@@ -23,7 +22,7 @@ class PaletteCategory(str, Enum):
     MEDIA = "media"  # Штрихкоды, QR
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaletteEntry:
     """Элемент палитры полей.
 
@@ -275,9 +274,7 @@ class FieldPalette:
         return [e for e in cls.ENTRIES if e.category == category]
 
     @classmethod
-    def get_by_field_type(
-        cls, field_type: FieldType
-    ) -> PaletteEntry | None:
+    def get_by_field_type(cls, field_type: FieldType) -> PaletteEntry | None:
         """Возвращает элемент палитры по типу поля.
 
         Args:

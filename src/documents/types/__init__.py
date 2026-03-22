@@ -8,25 +8,25 @@ Provides:
 - SegmentType, FieldType: Enumerations for types and fields
 """
 
-from src.documents.types.registry import TypeRegistry
-from src.documents.types.document_type import DocumentType, DocumentSubtype
-from src.documents.types.index_template import (
-    IndexTemplate,
-    IndexSegmentDef,
-    SegmentType,
-)
-from src.documents.types.type_schema import (
-    TypeSchema,
-    FieldDefinition,
-    FieldType,
-)
+from src.documents.types.document_type import DocumentSubtype, DocumentType
 from src.documents.types.index_formatter import (
     format_index,
-    parse_index,
     int_to_roman,
+    parse_index,
     roman_to_int,
 )
+from src.documents.types.index_template import (
+    IndexSegmentDef,
+    IndexTemplate,
+    SegmentType,
+)
 from src.documents.types.inheritance import resolve_schema
+from src.documents.types.registry import TypeRegistry
+from src.documents.types.type_schema import (
+    FieldDefinition,
+    FieldType,
+    TypeSchema,
+)
 
 __all__ = [
     "TypeRegistry",

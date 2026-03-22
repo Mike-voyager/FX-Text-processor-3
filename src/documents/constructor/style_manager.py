@@ -15,6 +15,13 @@ class StyleProperties:
     """Свойства стиля для элемента документа.
 
     Атрибуты соответствуют возможностям ESC/P.
+
+    Note: Не frozen, т.к. используется для накопления стилей через _merge_style.
+    """
+
+    """Свойства стиля для элемента документа.
+
+    Атрибуты соответствуют возможностям ESC/P.
     """
 
     # Text formatting
@@ -97,9 +104,7 @@ class StyleManager:
             StyleInheritance.RUN,
         ]
 
-    def set_style(
-        self, level: str, properties: StyleProperties
-    ) -> None:
+    def set_style(self, level: str, properties: StyleProperties) -> None:
         """Устанавливает стиль для уровня.
 
         Args:
@@ -138,7 +143,8 @@ class StyleManager:
         try:
             target_idx = self._inheritance_chain.index(level)
         except ValueError:
-            target_idx = len(self._inheritance_chain)
+            # Unknown level - return empty style
+            return result
 
         # Collect all styles up to and including target level
         for i in range(target_idx + 1):
@@ -148,9 +154,7 @@ class StyleManager:
 
         return result
 
-    def _merge_style(
-        self, target: StyleProperties, source: StyleProperties
-    ) -> None:
+    def _merge_style(self, target: StyleProperties, source: StyleProperties) -> None:
         """Объединяет стили (source переопределяет target).
 
         Args:

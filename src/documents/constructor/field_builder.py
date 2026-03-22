@@ -7,13 +7,12 @@ Provides:
 """
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
-from src.documents.types.type_schema import FieldDefinition, FieldType, OverflowBehavior
+from src.documents.types.type_schema import FieldDefinition, OverflowBehavior
 
 
-@dataclass
+@dataclass(frozen=True)
 class FieldPosition:
     """Позиция поля в документе.
 
@@ -62,10 +61,10 @@ class FieldBuilder:
 
         return {
             "id": f"field_{self._counter}",
-            "field_name": field_def.name,
+            "field_id": field_def.field_id,
             "field_type": field_def.field_type.value,
             "label": field_def.label,
-            "label_en": field_def.label_en,
+            "label_i18n": field_def.label_i18n,
             "required": field_def.required,
             "value": value if value is not None else field_def.default_value,
             "position": {
@@ -75,16 +74,12 @@ class FieldBuilder:
                 "height": position.height_rows,
                 "overflow": position.overflow_behavior.value,
             },
-            "validation": list(field_def.validation),
+            "validation": [field_def.validation_pattern] if field_def.validation_pattern else [],
             "validation_rules": {
                 "min_value": field_def.min_value,
                 "max_value": field_def.max_value,
-                "min_date": field_def.min_date.isoformat()
-                if field_def.min_date
-                else None,
-                "max_date": field_def.max_date.isoformat()
-                if field_def.max_date
-                else None,
+                "min_date": field_def.min_date.isoformat() if field_def.min_date else None,
+                "max_date": field_def.max_date.isoformat() if field_def.max_date else None,
                 "required_if": field_def.required_if,
                 "cross_field_rules": list(field_def.cross_field_rules),
             },

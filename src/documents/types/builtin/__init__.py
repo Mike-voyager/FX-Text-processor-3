@@ -6,10 +6,11 @@ Provides pre-registered document types:
 - DVN: Verbal note (Вербальная нота)
 """
 
+# Import to trigger registration and get constants
+from src.documents.types.builtin.base import DOC
+from src.documents.types.builtin.invoice import INV
+from src.documents.types.builtin.verbal_note import DVN
 from src.documents.types.document_type import DocumentType
 
 # Re-export for convenience
-__all__ = ["DOC", "INV", "DVN"]
-
-# Import to trigger registration
-from src.documents.types.builtin import base, invoice, verbal_note  # noqa: F401, E402
+__all__ = ["DocumentType", "DOC", "INV", "DVN"]

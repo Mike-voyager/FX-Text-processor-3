@@ -8,7 +8,6 @@ Provides:
 """
 
 import re
-from typing import Any
 
 # Mapping for roman numerals
 _ROMAN_NUMERALS: list[tuple[int, str]] = [
@@ -124,9 +123,7 @@ def roman_to_int(roman: str) -> int:
     return total
 
 
-def format_index(
-    segments: list[str], separator: str = "-"
-) -> str:
+def format_index(segments: list[str], separator: str = "-") -> str:
     """Собирает полный индекс из сегментов.
 
     Args:
@@ -145,9 +142,7 @@ def format_index(
     return separator.join(segments)
 
 
-def parse_index(
-    index: str, separator: str = "-"
-) -> list[str]:
+def parse_index(index: str, separator: str = "-") -> list[str]:
     """Разбирает индекс на сегменты.
 
     Args:

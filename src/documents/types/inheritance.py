@@ -9,9 +9,7 @@ from src.documents.types.registry import TypeRegistry
 from src.documents.types.type_schema import FieldDefinition, FieldType, TypeSchema
 
 
-def resolve_schema(
-    doc_type: DocumentType, registry: TypeRegistry
-) -> TypeSchema:
+def resolve_schema(doc_type: DocumentType, registry: TypeRegistry) -> TypeSchema:
     """Разрешает полную схему, объединяя поля родителя и потомка.
 
     Дочерний тип наследует ВСЕ поля родителя и может добавлять свои.
@@ -50,13 +48,17 @@ def resolve_schema(
     for field_def in parent_schema.fields:
         # Помечаем как унаследованные
         inherited_field = FieldDefinition(
-            name=field_def.name,
+            field_id=field_def.field_id,
             field_type=field_def.field_type,
             label=field_def.label,
-            label_en=field_def.label_en,
+            label_i18n=field_def.label_i18n,
             required=field_def.required,
+            readonly=field_def.readonly,
             default_value=field_def.default_value,
-            validation=field_def.validation,
+            validation_pattern=field_def.validation_pattern,
+            max_length=field_def.max_length,
+            options=field_def.options,
+            escp_variable=field_def.escp_variable,
             inherited_from=parent_type.code,
             min_value=field_def.min_value,
             max_value=field_def.max_value,
@@ -72,12 +74,13 @@ def resolve_schema(
             placeholder=field_def.placeholder,
             autocomplete_source=field_def.autocomplete_source,
             help_text=field_def.help_text,
+            table_schema=field_def.table_schema,
         )
-        merged_fields[field_def.name] = inherited_field
+        merged_fields[field_def.field_id] = inherited_field
 
     # Затем добавляем/переопределяем поля потомка
     for field_def in doc_type.field_schema.fields:
-        merged_fields[field_def.name] = field_def
+        merged_fields[field_def.field_id] = field_def
 
     # Формируем итоговую схему
     return TypeSchema(
@@ -88,9 +91,7 @@ def resolve_schema(
     )
 
 
-def merge_schemas(
-    base: TypeSchema, override: TypeSchema
-) -> TypeSchema:
+def merge_schemas(base: TypeSchema, override: TypeSchema) -> TypeSchema:
     """Объединяет две схемы, где override переопределяет base.
 
     Args:
@@ -104,17 +105,16 @@ def merge_schemas(
 
     # Добавляем поля из base
     for field_def in base.fields:
-        merged[field_def.name] = field_def
+        merged[field_def.field_id] = field_def
 
     # Переопределяем/добавляем поля из override
     for field_def in override.fields:
-        merged[field_def.name] = field_def
+        merged[field_def.field_id] = field_def
 
     return TypeSchema(
         fields=tuple(merged.values()),
         version=override.version or base.version,
-        compatibility_version=override.compatibility_version
-        or base.compatibility_version,
+        compatibility_version=override.compatibility_version or base.compatibility_version,
         deprecated_fields=override.deprecated_fields or base.deprecated_fields,
     )
 
@@ -128,11 +128,7 @@ def get_inherited_field_names(schema: TypeSchema) -> set[str]:
     Returns:
         Множество имён унаследованных полей.
     """
-    return {
-        f.name
-        for f in schema.fields
-        if f.inherited_from is not None
-    }
+    return {f.field_id for f in schema.fields if f.inherited_from is not None}
 
 
 def get_own_field_names(schema: TypeSchema) -> set[str]:
@@ -144,16 +140,10 @@ def get_own_field_names(schema: TypeSchema) -> set[str]:
     Returns:
         Множество имён собственных полей.
     """
-    return {
-        f.name
-        for f in schema.fields
-        if f.inherited_from is None
-    }
+    return {f.field_id for f in schema.fields if f.inherited_from is None}
 
 
-def filter_fields_by_type(
-    schema: TypeSchema, field_type: FieldType
-) -> list[FieldDefinition]:
+def filter_fields_by_type(schema: TypeSchema, field_type: FieldType) -> list[FieldDefinition]:
     """Возвращает поля указанного типа.
 
     Args:

@@ -1,15 +1,32 @@
 """Document type definitions.
 
 Provides:
+- DocumentMode: Enum for document modes (FREE_FORM, STRUCTURED_FORM)
 - DocumentType: Main document type definition
 - DocumentSubtype: Subtype definition for document types
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 from src.documents.types.index_template import IndexTemplate
 from src.documents.types.type_schema import TypeSchema
+
+
+class DocumentMode(str, Enum):
+    """Режим работы с документом.
+
+    FREE_FORM — свободное редактирование текста (Word-like документы).
+    STRUCTURED_FORM — структурированные формы с полями и валидацией.
+
+    Attributes:
+        FREE_FORM: Текстовые документы без предопределённой схемы полей.
+        STRUCTURED_FORM: Формы с полями, валидацией и подписью.
+    """
+
+    FREE_FORM = "free_form"
+    STRUCTURED_FORM = "structured_form"
 
 
 @dataclass(frozen=True)
@@ -41,7 +58,8 @@ class DocumentType:
         code: Уникальный код типа (например, "DVN", "INV", "DOC").
         name: Человеко-читаемое название типа на русском.
         parent_code: Код родительского типа (None для корневых).
-        index_template: Шаблон генерации индекса.
+        document_mode: Режим документа (FREE_FORM или STRUCTURED_FORM).
+        index_template: Шаблон генерации индекса (None для FREE_FORM).
         field_schema: Схема полей документа.
         subtypes: Кортеж подтипов данного типа.
         metadata: Дополнительные метаданные.
@@ -50,7 +68,8 @@ class DocumentType:
     code: str
     name: str
     parent_code: str | None
-    index_template: IndexTemplate
+    document_mode: DocumentMode
+    index_template: IndexTemplate | None
     field_schema: TypeSchema
     subtypes: tuple[DocumentSubtype, ...] = field(default_factory=tuple)
     metadata: tuple[tuple[str, Any], ...] = field(default_factory=tuple)
@@ -104,6 +123,7 @@ class DocumentType:
             code=self.code,
             name=self.name,
             parent_code=self.parent_code,
+            document_mode=self.document_mode,
             index_template=self.index_template,
             field_schema=schema,
             subtypes=self.subtypes,
@@ -111,14 +131,13 @@ class DocumentType:
         )
         return new_instance
 
-    def with_index_template(
-        self, template: IndexTemplate
-    ) -> "DocumentType":
+    def with_index_template(self, template: IndexTemplate) -> "DocumentType":
         """Создаёт копию с новым шаблоном индекса."""
         new_instance = DocumentType(
             code=self.code,
             name=self.name,
             parent_code=self.parent_code,
+            document_mode=self.document_mode,
             index_template=template,
             field_schema=self.field_schema,
             subtypes=self.subtypes,

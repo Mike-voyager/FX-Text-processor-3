@@ -5,7 +5,7 @@ Provides thread-safe singleton access to all registered document types.
 
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, Iterator
+from typing import Iterator
 
 from src.documents.types.document_type import DocumentSubtype, DocumentType
 
@@ -85,9 +85,7 @@ class TypeRegistry:
         """
         with self._lock:
             if doc_type.code in self._types:
-                raise ValueError(
-                    f"Document type '{doc_type.code}' is already registered"
-                )
+                raise ValueError(f"Document type '{doc_type.code}' is already registered")
 
             self._types[doc_type.code] = doc_type
 
@@ -136,6 +134,7 @@ class TypeRegistry:
                 code=parent_type.code,
                 name=parent_type.name,
                 parent_code=parent_type.parent_code,
+                document_mode=parent_type.document_mode,
                 index_template=parent_type.index_template,
                 field_schema=parent_type.field_schema,
                 subtypes=tuple(updated_subtypes),
@@ -184,9 +183,7 @@ class TypeRegistry:
         """
         with self._lock:
             return [
-                doc_type
-                for doc_type in self._types.values()
-                if doc_type.parent_code == parent_code
+                doc_type for doc_type in self._types.values() if doc_type.parent_code == parent_code
             ]
 
     def list_subtypes(self, parent_code: str) -> list[DocumentSubtype]:
@@ -217,11 +214,7 @@ class TypeRegistry:
             Список корневых типов.
         """
         with self._lock:
-            return [
-                doc_type
-                for doc_type in self._types.values()
-                if doc_type.parent_code is None
-            ]
+            return [doc_type for doc_type in self._types.values() if doc_type.parent_code is None]
 
     def unregister(self, code: str) -> bool:
         """Удаляет тип документа из реестра.
