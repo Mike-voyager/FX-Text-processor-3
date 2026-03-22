@@ -12,7 +12,7 @@ Project: ESC/P Text Editor
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Final, Optional
+from typing import Any, Final, Optional, Union
 from uuid import uuid4
 
 from .enums import (
@@ -83,7 +83,7 @@ class ListStyleType(Enum):
     CUSTOM = "custom"  # Custom marker
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class TextMetrics:
     """Cached text measurement data."""
 
@@ -93,7 +93,7 @@ class TextMetrics:
     descent: float
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class RevisionInfo:
     """Track changes information."""
 
@@ -103,17 +103,17 @@ class RevisionInfo:
     change_type: str = "edit"  # edit, insert, delete
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class EmbeddedObject:
     """Embedded object within text run."""
 
     object_type: str  # image, table, chart, etc.
-    data: Any
+    data: Union[bytes, str, None] = None
     width: Optional[float] = None
     height: Optional[float] = None
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class GroupInfo:
     """Information about run grouping and threading."""
 
@@ -126,7 +126,7 @@ class GroupInfo:
     is_group_end: bool = False
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class HighlightRange:
     """Physical highlight/selection range within the run."""
 
@@ -138,7 +138,7 @@ class HighlightRange:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=False, slots=True)
+@dataclass(frozen=True, slots=True)
 class ListMarkerInfo:
     """Information about list styling and numbering."""
 
@@ -406,17 +406,50 @@ class Run:
                 f"list_marker must be ListMarkerInfo or None, got {type(self.list_marker).__name__}"
             )
 
-        # 6. Validate encoding capability
-        try:
-            self.text.encode(self.codepage.python_encoding)
-        except UnicodeEncodeError as exc:
-            logger.error(
-                f"Cannot encode text with {self.codepage.python_encoding}: {exc}",
-                extra={"text_preview": self.text[:50]},
-            )
-            raise ValueError(
-                f"Text contains characters incompatible with {self.codepage.value} encoding"
-            ) from exc
+        # 6. Validate encoding capability (if python_encoding is available)
+        # Note: Not all CodePage values have a direct Python encoding mapping
+        python_encoding = getattr(self.codepage, "python_encoding", None)
+        if python_encoding is not None:
+            try:
+                self.text.encode(python_encoding)
+            except UnicodeEncodeError as exc:
+                logger.error(
+                    f"Cannot encode text with {python_encoding}: {exc}",
+                    extra={"text_preview": self.text[:50]},
+                )
+                raise ValueError(
+                    f"Text contains characters incompatible with {self.codepage.value} encoding"
+                ) from exc
+        else:
+            # Fallback: try common encodings based on codepage value
+            # Many ESC/P codepages use values like "pc866" which map to Python's "cp866"
+            cp_value = self.codepage.value
+            # Map common ESC/P codepage names to Python encoding names
+            encoding_map = {
+                "pc866": "cp866",
+                "pc437": "cp437",
+                "pc850": "cp850",
+                "pc852": "cp852",
+                "pc855": "cp855",
+                "pc857": "cp857",
+                "pc860": "cp860",
+                "pc863": "cp863",
+                "pc865": "cp865",
+                "pc861": "cp861",
+                "pc869": "cp869",
+            }
+            python_enc = encoding_map.get(cp_value)
+            if python_enc:
+                try:
+                    self.text.encode(python_enc)
+                except UnicodeEncodeError as exc:
+                    logger.error(
+                        f"Cannot encode text with {python_enc}: {exc}",
+                        extra={"text_preview": self.text[:50]},
+                    )
+                    raise ValueError(
+                        f"Text contains characters incompatible with {self.codepage.value} encoding"
+                    ) from exc
 
         logger.debug(
             f"Validated Run: len={len(self.text)}, formatting={self._format_summary()}"
@@ -587,12 +620,17 @@ class Run:
         Returns:
             The group ID.
         """
-        if self.group_info is None:
-            self.group_info = GroupInfo()
-
-        self.group_info.group_type = group_type
-        self.group_info.thread_id = thread_id
-        self.group_info.continuation_id = continuation_id
+        # Создаём новый GroupInfo (frozen=True требует создания нового объекта)
+        existing_group_id = self.group_info.group_id if self.group_info else str(uuid4())
+        self.group_info = GroupInfo(
+            group_id=existing_group_id,
+            thread_id=thread_id,
+            continuation_id=continuation_id,
+            group_type=group_type,
+            sequence_number=self.group_info.sequence_number if self.group_info else None,
+            is_group_start=self.group_info.is_group_start if self.group_info else False,
+            is_group_end=self.group_info.is_group_end if self.group_info else False,
+        )
 
         return self.group_info.group_id
 

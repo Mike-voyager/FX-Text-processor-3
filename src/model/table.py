@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Модель таблицы с ячейками, границами, вложенными таблицами, структурными span'ами и layout‑параметрами.
 Table model for advanced editor, providing grid structure, alignment, merging, serialization, layout metrics,
@@ -11,10 +9,13 @@ Project: ESC/P Text Editor
 Version: 3.0 (layout-only model, features from 2.x + roadmap extensions)
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -24,7 +25,13 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Union,
 )
+
+# Импортируем Run и Paragraph из соответствующих модулей
+# вместо дублирования определений
+from src.model.paragraph import Paragraph
+from src.model.run import Run
 
 logger: Final = logging.getLogger(__name__)
 
@@ -127,15 +134,18 @@ class CellBorders:
     bottom: TableBorder = TableBorder.NONE
 
     def is_any_visible(self) -> bool:
-        return any(
-            b != TableBorder.NONE
-            for b in [self.left, self.right, self.top, self.bottom]
-        )
+        return any(b != TableBorder.NONE for b in [self.left, self.right, self.top, self.bottom])
 
 
 # Barcode support
-@dataclass
+@dataclass(frozen=True)
 class BarCode:
+    """Barcode model for table cells.
+
+    Note: Для полной функциональности используйте src.model.barcodegen.Barcode.
+    Это упрощённая модель для таблиц.
+    """
+
     data: str
     type: Literal["Code128", "EAN13", "QR", "PDF417"] = "Code128"
     width_mm: Optional[float] = None
@@ -174,20 +184,6 @@ class ConditionalRule:
     style: CellStyle
 
 
-@dataclass
-class Run:
-    text: str
-    style: Optional[CellStyle] = None
-    barcode: Optional[BarCode] = None
-
-
-@dataclass
-class Paragraph:
-    runs: List[Run]
-    alignment: CellAlignment = CellAlignment.LEFT
-    indent: Optional[int] = 0
-
-
 # =============================================================================
 # CELL AND TABLEMETRICS STRUCTURE
 # =============================================================================
@@ -211,7 +207,7 @@ class Cell:
     formula_enum: Optional[str] = None
     data_type: CellDataType = CellDataType.TEXT
     barcode: Optional[BarCode] = None
-    sort_key: Optional[Any] = None
+    sort_key: Optional[Union[str, int, float]] = None
     padding: Optional[Tuple[int, int, int, int]] = None  # left, top, right, bottom
 
     def copy(self) -> "Cell":
@@ -329,9 +325,7 @@ class Table:
     def get_cell(self, row: int, col: int) -> Cell:
         return self.rows[row][col]
 
-    def merge_cells(
-        self, row: int, col: int, rowspan: int = 1, colspan: int = 1
-    ) -> None:
+    def merge_cells(self, row: int, col: int, rowspan: int = 1, colspan: int = 1) -> None:
         cell = self.get_cell(row, col)
         cell.rowspan = rowspan
         cell.colspan = colspan
@@ -354,9 +348,7 @@ class Table:
 
     def serialize(self, flatten: bool = False) -> dict:
         return {
-            "rows": [
-                [cell.as_dict(flatten=flatten) for cell in row] for row in self.rows
-            ],
+            "rows": [[cell.as_dict(flatten=flatten) for cell in row] for row in self.rows],
             "paper": self.paper.__dict__ if self.paper else None,
             "border": self.border.value,
             "column_sizing": self.column_sizing.value,
@@ -402,9 +394,7 @@ class Table:
         else:
             raise ValueError(f"Unsupported aggregation method: {method}")
 
-    def paginate(
-        self, max_rows_per_page: int, repeat_header: bool = True
-    ) -> List["Table"]:
+    def paginate(self, max_rows_per_page: int, repeat_header: bool = True) -> List["Table"]:
         total_rows = len(self.rows)
         header = self.rows[0] if repeat_header and self.rows else None
         pages = []
@@ -546,15 +536,11 @@ class Table:
                 sort_key=d.get("sort_key"),
                 nested_table=nested_table,
                 paragraph=Paragraph(**d["paragraph"]) if d.get("paragraph") else None,
-                runs=(
-                    [Run(**run) for run in d.get("runs", [])] if d.get("runs") else None
-                ),
+                runs=([Run(**run) for run in d.get("runs", [])] if d.get("runs") else None),
                 padding=d.get("padding"),
             )
 
-        rows: List[List[Cell]] = [
-            [cell_from_dict(cell) for cell in row] for row in data["rows"]
-        ]
+        rows: List[List[Cell]] = [[cell_from_dict(cell) for cell in row] for row in data["rows"]]
         paper = PaperSettings(**data["paper"]) if data.get("paper") else None
         border = TableBorder(data.get("border", "single"))
         column_sizing = ColumnSizingMode(data.get("column_sizing", "auto"))
@@ -587,15 +573,11 @@ class Table:
         ok = all(all(val == 1 for val in row) for row in grid)
         return ok
 
-    def set_padding(
-        self, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0
-    ) -> None:
+    def set_padding(self, left: int = 0, top: int = 0, right: int = 0, bottom: int = 0) -> None:
         for cell in self.get_cells():
             cell.padding = (left, top, right, bottom)
 
-    def add_column(
-        self, index: Optional[int] = None, default_cell: Optional[Cell] = None
-    ) -> None:
+    def add_column(self, index: Optional[int] = None, default_cell: Optional[Cell] = None) -> None:
         if not self.rows:
             raise ValueError("Table is empty, can't add column.")
         if index is None:
@@ -615,17 +597,13 @@ class Table:
 
     def footprint(self) -> Dict[str, Any]:
         cell_count = sum(len(row) for row in self.rows)
-        nested_tables = sum(
-            1 for row in self.rows for cell in row if cell.nested_table is not None
-        )
+        nested_tables = sum(1 for row in self.rows for cell in row if cell.nested_table is not None)
         max_colspan = max(cell.colspan for row in self.rows for cell in row)
         max_rowspan = max(cell.rowspan for row in self.rows for cell in row)
         type_histogram: Dict[str, int] = {}
         style_histogram: Dict[str, int] = {}
         for cell in self.get_cells():
-            type_histogram[cell.data_type.value] = (
-                type_histogram.get(cell.data_type.value, 0) + 1
-            )
+            type_histogram[cell.data_type.value] = type_histogram.get(cell.data_type.value, 0) + 1
             if cell.style:
                 style_str = str(cell.style)
                 style_histogram[style_str] = style_histogram.get(style_str, 0) + 1

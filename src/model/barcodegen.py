@@ -1,43 +1,108 @@
-# RU: Домейн-модель штрихкода с fail-fast валидацией, manifest уровней поддержки/опций, автогенератором и опциональным error recording.
-# EN: Domain barcode/QR/ESC/P model with fail-fast validation, manifest for support/option allowlist, auto-generator, and optional error recording.
+"""
+Модель штрихкода для ESC/P и визуализации.
+
+Domain model для штрихкода/QR/2D кодов без внешних зависимостей.
+Бизнес-логика рендеринга и валидации вынесена в BarcodeService (src/services/barcode_service.py).
+
+Ключевые принципы:
+- Модель содержит только данные (dataclass frozen=True)
+- NO внешних импортов генераторов (BarcodeGenerator, Matrix2DCodeGenerator)
+- NO I/O операций
+- NO бизнес-логики рендеринга
+- Простая валидация данных без вызова внешних сервисов
+
+Module: src/model/barcodegen.py
+"""
+
+from __future__ import annotations
 
 import base64
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any, ClassVar, Dict, Optional, Tuple, Type, Union
-
-from src.barcodegen.barcode_generator import BarcodeGenerator, BarcodeGenError
-from src.barcodegen.matrix2d_generator import (
-    Matrix2DCodeGenerator,
-    Matrix2DCodeGenError,
-)
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .enums import BarcodeType, Matrix2DCodeType
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+# Версия схемы для сериализации (ClassVar, не экземпляр)
+SCHEMA_VERSION: str = "1.0"
+
+
+@dataclass(frozen=True)
 class Barcode:
     """
-    Domain-level dataclass for barcode/QR/2D/ESC/P code with:
-        - Multi-layer validation (syntax, renderer, manifest)
-        - Manifest: support level ("soft"/"hard"), generator, allowed options
-        - Defensive validation: fail fast on invalid type/options
-        - GUI-/API-friendly: errors recordable instead of throwing
-        - Ready for signature/crypto validation and automated API docs
+    Domain-level dataclass для штрихкода/QR/2D/ESC/P кодов.
 
-    Examples (integration):
-        bc = Barcode(type=BarcodeType.EAN13, data="978014300723")
-        ok = bc.validate(record_error=True)
-        if not ok:
-            print(bc.validation_error_message)
-        # API autodocs
-        manifest = Barcode.supported_matrix()
+    Модель содержит ТОЛЬКО данные. Вся бизнес-логика рендеринга
+    и валидации с рендерингом находится в BarcodeService.
+
+    Attributes:
+        type: Тип штрихкода (BarcodeType или Matrix2DCodeType)
+        data: Данные для кодирования
+        caption: Опциональная подпись под штрихкодом
+        options: Опции рендеринга (проверяются в BarcodeService)
+        position: Позиция (x, y) на странице
+        size: Размер (width, height)
+        rotation: Угол поворота в градусах
+        show_label: Показывать ли текстовую подпись
+        foreground: Цвет переднего плана
+        background: Цвет фона
+        gs1_mode: Режим GS1 для 2D кодов
+        border: Настройки рамки
+        padding: Отступы (left, top, right, bottom)
+        opacity: Прозрачность (0.0-1.0)
+        zorder: Z-order для наложения
+
+        # Контекст документа
+        parent_section: ID родительской секции
+        parent_table: ID родительской таблицы
+        anchor_id: ID якоря
+        user_label: Пользовательская метка
+        object_id: Уникальный ID объекта
+        readonly: Флаг только для чтения
+        hidden: Флаг скрытия
+
+        # Динамические данные
+        datasource: Источник данных для автогенерации
+        auto_regenerate_on_save: Авторегенерация при сохранении
+
+        # Метаданные
+        created_at: Время создания
+        updated_at: Время обновления
+        created_by: Автор
+        updated_by: Последний редактор
+
+        # Криптография и подписи
+        is_signature: Является ли цифровой подписью
+        signature_type: Тип подписи
+        signature_payload: Payload подписи (bytes)
+        signer_info: Информация о подписанте
+        signing_datetime: Время подписи
+        certificate_thumbprint: Отпечаток сертификата
+        validation_status: Статус валидации подписи
+        validation_message: Сообщение валидации
+        crypto_metadata: Метаданные криптографии
+
+        metadata: Пользовательские метаданные
+        custom_fields: Кастомные поля
+
+    Example:
+        >>> from src.model.barcodegen import Barcode
+        >>> from src.model.enums import BarcodeType
+        >>> barcode = Barcode(type=BarcodeType.EAN13, data="978014300723")
+        >>> errors = barcode.validate_data()
+        >>> if errors:
+        ...     print("Ошибки валидации:", errors)
+
+    Note:
+        Для рендеринга и валидации с рендерингом используйте BarcodeService:
+        >>> from src.services.barcode_service import BarcodeService
+        >>> ok, error = BarcodeService.validate_with_render(barcode)
     """
 
-    schema_version: ClassVar[str] = "1.0"
-
+    # Основные данные (обязательные поля без значений по умолчанию)
     type: Union[BarcodeType, Matrix2DCodeType]
     data: str
     caption: Optional[str] = None
@@ -54,6 +119,7 @@ class Barcode:
     opacity: Optional[float] = None
     zorder: Optional[int] = None
 
+    # Контекст документа
     parent_section: Optional[str] = None
     parent_table: Optional[str] = None
     anchor_id: Optional[str] = None
@@ -62,17 +128,17 @@ class Barcode:
     readonly: bool = False
     hidden: bool = False
 
+    # Динамические данные
     datasource: Optional[str] = None
     auto_regenerate_on_save: bool = False
 
+    # Метаданные
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
 
-    validation_state: Optional[str] = None
-    validation_error_message: Optional[str] = None
-
+    # Криптография и подписи
     is_signature: bool = False
     signature_type: Optional[str] = None
     signature_payload: Optional[bytes] = None
@@ -86,150 +152,74 @@ class Barcode:
     metadata: Dict[str, Any] = field(default_factory=dict)
     custom_fields: Dict[str, Any] = field(default_factory=dict)
 
-    # ---- Central manifest: levels, allowlist, generators ----
-    _GENERATOR_MANIFEST: ClassVar[Dict[str, Dict[str, Any]]] = {
-        "1d": {
-            "types": BarcodeGenerator.supported_types(),
-            "generator": BarcodeGenerator,
-            "err": BarcodeGenError,
-            "level": "soft",
-            "options_allowlist": {"show_label", "foreground", "background"},
-        },
-        "2d": {
-            "types": Matrix2DCodeGenerator.all_supported_types(),
-            "generator": Matrix2DCodeGenerator,
-            "err": Matrix2DCodeGenError,
-            "level": "soft",
-            "options_allowlist": {"gs1_mode", "caption", "foreground", "background"},
-        },
-        "escp": {
-            "types": set(),  # ESC/P barcode types, to be filled in production
-            "generator": None,  # e.g. ESCBarcodeGenerator
-            "err": None,  # e.g. ESCGenErrorException
-            "level": "hard",
-            "options_allowlist": {"border", "padding", "caption"},
-        },
-    }
+    def validate_data(self) -> List[str]:
+        """Валидирует поля данных без вызова внешних рендереров.
 
-    @classmethod
-    def supported_matrix(cls) -> Dict[str, Dict[str, Any]]:
+        Проверяет корректность типов и значений полей.
+        Для валидации с рендерингом используйте BarcodeService.validate_with_render().
+
+        Returns:
+            Список сообщений об ошибках. Пустой список если валидация успешна.
+
+        Example:
+            >>> barcode = Barcode(type=BarcodeType.EAN13, data="")
+            >>> errors = barcode.validate_data()
+            >>> # ["Data must be a non-empty string"]
         """
-        Returns the manifest: for each supported barcode type,
-        its support level, generator key, allowed options, and other metadata.
-        Used for API/GUI autodocs/checklists.
-        """
-        result: Dict[str, Dict[str, Any]] = {}
-        for key, entry in cls._GENERATOR_MANIFEST.items():
-            for t in entry["types"]:
-                result[str(t)] = {
-                    "layer": key,
-                    "support_level": entry.get("level", "soft"),
-                    "options_allowlist": list(entry.get("options_allowlist", [])),
-                    "generator": entry["generator"],
-                    "err": entry["err"],
-                }
-        return result
+        errors: List[str] = []
 
-    def get_renderer(self) -> Any:
-        """
-        Returns the generator instance for this barcode type.
-        Raises ValueError if not supported anywhere.
-        """
-        btype = self.type
-        for gen_key, entry in self._GENERATOR_MANIFEST.items():
-            if btype in entry["types"]:
-                gen_cls: Type[Any] = entry["generator"]
-                extra: Dict[str, Any] = {}
-                if gen_key == "2d" and hasattr(self, "gs1_mode"):
-                    extra["gs1_mode"] = self.gs1_mode or False
-                return gen_cls(btype, self.data, self.options, **extra)
-        raise ValueError(f"Barcode type {btype} is not supported by any generator.")
+        # Проверка типа
+        if not isinstance(self.type, (BarcodeType, Matrix2DCodeType)):
+            errors.append(f"Invalid type: {self.type}, must be BarcodeType or Matrix2DCodeType")
 
-    def _validate_options(self, allowlist: set[str]) -> None:
-        """Defensive: ensure that options contains only allowlisted keys."""
-        for k in self.options:
-            if k not in allowlist:
-                raise ValueError(
-                    f"Option '{k}' not allowed for barcode type {self.type}"
-                )
+        # Проверка данных
+        if not isinstance(self.data, str) or not self.data.strip():
+            errors.append("Data must be a non-empty string")
 
-    def validate(self, record_error: bool = False) -> bool:
-        """
-        Validates the barcode object:
-        - Syntax/field validation
-        - Option allowlist validation from manifest
-        - Attempt rendering using the proper generator (fail fast, production safe)
-        - If record_error: on error, sets self.validation_error_message instead of raising
+        # Проверка позиции
+        if self.position is not None:
+            if not isinstance(self.position, tuple) or len(self.position) != 2:
+                errors.append(f"Invalid position: {self.position}, must be tuple of 2 ints")
+            elif not all(isinstance(x, int) and x >= 0 for x in self.position):
+                errors.append(f"Invalid position values: {self.position}, must be non-negative ints")
 
-        Returns: True if ok, False if error (when record_error)
-        Raises: ValueError if error and not record_error
-        """
-        logger.info("Validating Barcode: type=%r data=%r", self.type, self.data)
-        try:
-            result = self.supported_matrix().get(str(self.type), None)
-            if not result:
-                raise ValueError(
-                    f"Barcode type {self.type} not found in manifest or not supported."
-                )
-            allowlist: set[str] = set(result["options_allowlist"])
-            self._validate_options(allowlist)
+        # Проверка размера
+        if self.size is not None:
+            if not isinstance(self.size, tuple) or len(self.size) != 2:
+                errors.append(f"Invalid size: {self.size}, must be tuple of 2 ints")
+            elif not all(isinstance(x, int) and x > 0 for x in self.size):
+                errors.append(f"Invalid size values: {self.size}, must be positive ints")
 
-            if not isinstance(self.type, (BarcodeType, Matrix2DCodeType)):
-                raise ValueError(f"Invalid type: {self.type}")
-            if not isinstance(self.data, str) or not self.data.strip():
-                raise ValueError("Data must be a non-empty string")
-            if self.position is not None and (
-                not isinstance(self.position, tuple)
-                or len(self.position) != 2
-                or not all(isinstance(x, int) and x >= 0 for x in self.position)
-            ):
-                raise ValueError(f"Invalid position: {self.position}")
-            if self.size is not None and (
-                not isinstance(self.size, tuple)
-                or len(self.size) != 2
-                or not all(isinstance(x, int) and x > 0 for x in self.size)
-            ):
-                raise ValueError(f"Invalid size: {self.size}")
-            if self.padding is not None and (
-                not isinstance(self.padding, tuple)
-                or len(self.padding) != 4
-                or not all(isinstance(x, int) and x >= 0 for x in self.padding)
-            ):
-                raise ValueError(f"Invalid padding: {self.padding}")
-            if self.opacity is not None and (
-                not isinstance(self.opacity, float) or not (0.0 <= self.opacity <= 1.0)
-            ):
-                raise ValueError(f"Invalid opacity: {self.opacity}")
-            if self.foreground is not None and not isinstance(self.foreground, str):
-                raise ValueError(f"Invalid foreground color: {self.foreground}")
-            if self.background is not None and not isinstance(self.background, str):
-                raise ValueError(f"Invalid background color: {self.background}")
+        # Проверка padding
+        if self.padding is not None:
+            if not isinstance(self.padding, tuple) or len(self.padding) != 4:
+                errors.append(f"Invalid padding: {self.padding}, must be tuple of 4 ints")
+            elif not all(isinstance(x, int) and x >= 0 for x in self.padding):
+                errors.append(f"Invalid padding values: {self.padding}, must be non-negative ints")
 
-            renderer: Any = self.get_renderer()
-            if hasattr(renderer, "validate"):
-                renderer.validate()
-            if hasattr(renderer, "renderimage"):
-                _img: Any = renderer.renderimage(
-                    width=32, height=32, options={"preview": True}
-                )
-                if _img is None:
-                    raise ValueError("Generator failed to return image")
+        # Проверка opacity
+        if self.opacity is not None:
+            if not isinstance(self.opacity, (int, float)):
+                errors.append(f"Invalid opacity type: {self.opacity}, must be number")
+            elif not (0.0 <= float(self.opacity) <= 1.0):
+                errors.append(f"Invalid opacity value: {self.opacity}, must be in range [0.0, 1.0]")
 
-            self.validation_state = "ok"
-            self.validation_error_message = None
-            return True
-        except Exception as ex:
-            msg: str = str(ex)
-            logger.warning("Barcode validation error: %s", msg)
-            self.validation_state = "invalid"
-            self.validation_error_message = msg
-            if record_error:
-                return False
-            raise
+        # Проверка цветов
+        if self.foreground is not None and not isinstance(self.foreground, str):
+            errors.append(f"Invalid foreground color: {self.foreground}, must be string")
+        if self.background is not None and not isinstance(self.background, str):
+            errors.append(f"Invalid background color: {self.background}, must be string")
+
+        # Проверка rotation
+        if self.rotation is not None:
+            if not isinstance(self.rotation, (int, float)):
+                errors.append(f"Invalid rotation type: {self.rotation}, must be number")
+
+        return errors
 
     def to_dict(self) -> Dict[str, Any]:
         dct: Dict[str, Any] = asdict(self)
-        dct["schema_version"] = self.schema_version
+        dct["schema_version"] = SCHEMA_VERSION
         if self.signature_payload is not None:
             dct["signature_payload"] = base64.b64encode(self.signature_payload).decode(
                 "ascii"
@@ -239,10 +229,10 @@ class Barcode:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Barcode":
         d = dict(d)
-        if "schema_version" in d and d["schema_version"] != cls.schema_version:
+        if "schema_version" in d and d["schema_version"] != SCHEMA_VERSION:
             logger.warning(
                 "Schema version mismatch (expected %s, got %s)",
-                cls.schema_version,
+                SCHEMA_VERSION,
                 d["schema_version"],
             )
         if "signature_payload" in d and d["signature_payload"]:

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum, Flag, auto
-from typing import Final, Literal, Optional, Tuple
+from typing import Any, Final, Literal, Optional, Tuple
 
 _logger: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -36,7 +36,42 @@ MIN_MARGIN_INCHES: Final[float] = 0.13  # Per Epson manual, both left/right/top/
 # === DOMAINS ===
 
 
-class FontFamily(str, Enum):
+class StringEnumMixin:
+    """
+    Mixin для str Enum с методом from_string для безопасного парсинга.
+
+    Используется множественное наследование:
+        class MyEnum(StringEnumMixin, str, Enum):
+            VALUE = "value"
+    """
+
+    @classmethod
+    def from_string(cls, value: str) -> Optional[Any]:
+        """
+        Безопасно создаёт enum из строки.
+
+        Args:
+            value: Строковое значение enum
+
+        Returns:
+            Enum значение или None если не найдено
+        """
+        if not isinstance(value, str):
+            return None
+        value_stripped = value.strip()
+        # Сначала пробуем точное совпадение
+        for member in cls:  # type: ignore[attr-defined]
+            if member.value == value_stripped:
+                return member
+        # Затем пробуем case-insensitive
+        value_lower = value_stripped.lower()
+        for member in cls:  # type: ignore[attr-defined]
+            if str(member.value).lower() == value_lower:
+                return member
+        return None
+
+
+class FontFamily(StringEnumMixin, str, Enum):
     USD = "usd"
     HSD = "hsd"
     DRAFT = "draft"
@@ -69,7 +104,7 @@ class FontFamily(str, Enum):
         return names_ru[self] if lang == "ru" else names_en[self]
 
 
-class CharactersPerInch(str, Enum):
+class CharactersPerInch(StringEnumMixin, str, Enum):
     CPI_10 = "10cpi"
     CPI_12 = "12cpi"
     CPI_15 = "15cpi"
@@ -92,7 +127,7 @@ class CharactersPerInch(str, Enum):
         return self.value
 
 
-class PrintQuality(str, Enum):
+class PrintQuality(StringEnumMixin, str, Enum):
     USD = "usd"
     HSD = "hsd"
     DRAFT = "draft"
@@ -102,7 +137,7 @@ class PrintQuality(str, Enum):
         return self.value
 
 
-class LineSpacing(str, Enum):
+class LineSpacing(StringEnumMixin, str, Enum):
     ONE_SIXTH_INCH = "1/6"
     ONE_EIGHTH_INCH = "1/8"
     CUSTOM = "custom"
@@ -111,7 +146,7 @@ class LineSpacing(str, Enum):
         return self.value
 
 
-class CodePage(str, Enum):
+class CodePage(StringEnumMixin, str, Enum):
     PC437 = "pc437"
     PC850 = "pc850"
     PC437_GREEK = "pc437_greek"
@@ -347,7 +382,7 @@ class GraphicsMode(str, Enum):
         return self.value
 
 
-class Alignment(str, Enum):
+class Alignment(StringEnumMixin, str, Enum):
     LEFT = "left"
     CENTER = "center"
     RIGHT = "right"
@@ -367,7 +402,7 @@ class TabAlignment(str, Enum):
         return self.value
 
 
-class PaperType(str, Enum):
+class PaperType(StringEnumMixin, str, Enum):
     CONTINUOUS_TRACTOR = "continuous_tractor"
     SHEET_FEED = "sheet_feed"
     ENVELOPE = "envelope"
@@ -388,7 +423,7 @@ class PaperType(str, Enum):
         return names.get(self.value, {}).get(lang, self.value)
 
 
-class PageSize(str, Enum):
+class PageSize(StringEnumMixin, str, Enum):
     A4 = "a4"
     LETTER = "letter"
     LEGAL = "legal"
@@ -407,7 +442,7 @@ class Color(str, Enum):
         return "Черный" if lang == "ru" else "Black"
 
 
-class Orientation(str, Enum):
+class Orientation(StringEnumMixin, str, Enum):
     PORTRAIT = "portrait"
     LANDSCAPE = "landscape"
 
@@ -466,7 +501,7 @@ class MarginUnits(str, Enum):
         return self.value
 
 
-class PrintDirection(str, Enum):
+class PrintDirection(StringEnumMixin, str, Enum):
     BIDIRECTIONAL = "bidirectional"
     UNIDIRECTIONAL = "unidirectional"
 
@@ -474,7 +509,7 @@ class PrintDirection(str, Enum):
         return self.value
 
 
-class PaperSource(str, Enum):
+class PaperSource(StringEnumMixin, str, Enum):
     AUTO = "auto"
     TRACTOR = "tractor"
     MANUAL_FEED = "manual_feed"

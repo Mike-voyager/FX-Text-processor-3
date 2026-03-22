@@ -47,8 +47,7 @@ def test_barcode_full_fields_1d() -> None:
         updated_at="2025-10-07T15:00:01",
         created_by="userX",
         updated_by="userY",
-        validation_state="valid",
-        validation_error_message=None,
+        # validation_state и validation_error_message удалены - используйте BarcodeService.validate_with_render()
         is_signature=True,
         signature_type="pkcs7",
         signature_payload=b"\xff\x01\x02",
@@ -102,9 +101,13 @@ def test_barcode_str_2d() -> None:
 
 
 def test_barcode_metadata_and_custom_fields() -> None:
-    b = Barcode(type=BarcodeType.CODE93, data="test")
-    b.metadata["foo"] = 123
-    b.custom_fields["bar"] = 456
+    # frozen=True: создаём объект с уже заполненными metadata и custom_fields
+    b = Barcode(
+        type=BarcodeType.CODE93,
+        data="test",
+        metadata={"foo": 123},
+        custom_fields={"bar": 456},
+    )
     assert b.metadata["foo"] == 123
     assert b.custom_fields["bar"] == 456
 
@@ -128,13 +131,40 @@ def test_barcode_serialization_both_types(
 
 
 def test_barcode_signature_logic_status() -> None:
-    b = Barcode(type=Matrix2DCodeType.QR, data="signed-data", is_signature=True)
+    # frozen=True: создаём новый объект с нужными значениями
+    b = Barcode(
+        type=Matrix2DCodeType.QR,
+        data="signed-data",
+        is_signature=True,
+        validation_status="invalid",
+        validation_message="bad signature",
+    )
     assert b.is_signature
-    b.validation_status = "invalid"
-    b.validation_message = "bad signature"
     assert b.validation_status == "invalid"
+    assert b.validation_message == "bad signature"
 
 
-def test_validate_no_exception() -> None:
+def test_validate_data_no_errors() -> None:
+    """Тест валидации данных без ошибок."""
     b = Barcode(type=BarcodeType.EAN13, data="1234567890123")
-    b.validate()  # долен не падать по-умолчанию
+    errors = b.validate_data()
+    assert errors == []
+
+
+def test_validate_data_with_errors() -> None:
+    """Тест валидации данных с ошибками."""
+    # Пустые данные
+    b1 = Barcode(type=BarcodeType.EAN13, data="")
+    errors1 = b1.validate_data()
+    assert len(errors1) > 0
+    assert any("empty" in e.lower() for e in errors1)
+
+    # Неверная позиция
+    b2 = Barcode(type=BarcodeType.EAN13, data="1234567890123", position=(-1, 0))
+    errors2 = b2.validate_data()
+    assert len(errors2) > 0
+
+    # Неверный opacity
+    b3 = Barcode(type=BarcodeType.EAN13, data="1234567890123", opacity=1.5)
+    errors3 = b3.validate_data()
+    assert len(errors3) > 0

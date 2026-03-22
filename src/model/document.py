@@ -33,6 +33,9 @@ from src.model.enums import (
     PrintQuality,
 )
 
+# Импорт Section для реализации add_section
+from src.model.section import Section
+
 # Добавить поля доступа: owner, scope ("private"/"shared"/"system"), shared_with (user_id[])
 # Метод проверки доступа (is_accessible(user_id, role))
 
@@ -45,7 +48,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DocumentMetadata:
     """
     Метаданные свойств документа.
@@ -98,7 +101,7 @@ class DocumentMetadata:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PageSettings:
     """
     Настройки макета страницы для документа.
@@ -173,7 +176,7 @@ class PageSettings:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PrinterSettings:
     """
     Специфичные для принтера настройки для вывода ESC/P.
@@ -293,7 +296,7 @@ class Document:
         self.metadata: DocumentMetadata = metadata or DocumentMetadata()
         self.page_settings: PageSettings = page_settings or PageSettings()
         self.printer_settings: PrinterSettings = printer_settings or PrinterSettings()
-        self.sections: List[Any] = []  # Будет List[Section] при реализации
+        self.sections: List[Section] = []  # Список секций документа
         self.file_path: Optional[Path] = None
         self._is_modified: bool = False
 
@@ -308,19 +311,19 @@ class Document:
     def is_modified(self, value: bool) -> None:
         """Устанавливает состояние изменения документа."""
         self._is_modified = value
-        if value:
-            self.metadata.modified = datetime.now()
+        # Note: DocumentMetadata is frozen=True, so we track modification separately
+        # For persistent storage, use DocumentFormat.save() which updates metadata
 
     def add_section(
         self,
         name: str = "",
         index: Optional[int] = None,
-    ) -> Any:  # Вернёт Section при реализации
+    ) -> Section:
         """
         Добавляет новую секцию в документ.
 
         Аргументы:
-            name: Имя/заголовок секции
+            name: Имя/заголовок секции (не используется, для совместимости)
             index: Позиция вставки (добавляет в конец, если None)
 
         Возвращает:
@@ -328,12 +331,21 @@ class Document:
 
         Вызывает исключения:
             IndexError: Если индекс вне границ
-            NotImplementedError: Класс Section ещё не реализован
         """
-        # TODO: Реализовать, когда класс Section будет готов
-        raise NotImplementedError("Класс Section ещё не реализован")
+        section = Section()
+        if index is not None:
+            if index < 0 or index > len(self.sections):
+                raise IndexError(
+                    f"Индекс секции {index} вне диапазона [0, {len(self.sections)}]"
+                )
+            self.sections.insert(index, section)
+        else:
+            self.sections.append(section)
+        self.is_modified = True
+        logger.debug(f"Добавлена секция, всего секций: {len(self.sections)}")
+        return section
 
-    def remove_section(self, index: int) -> Any:  # Вернёт Section при реализации
+    def remove_section(self, index: int) -> Section:
         """
         Удаляет секцию из документа.
 
@@ -356,7 +368,7 @@ class Document:
         self.is_modified = True
         return section
 
-    def get_section(self, index: int) -> Any:  # Вернёт Section при реализации
+    def get_section(self, index: int) -> Section:
         """
         Получает секцию по индексу.
 
@@ -375,7 +387,7 @@ class Document:
             )
         return self.sections[index]
 
-    def iter_sections(self) -> Iterator[Any]:  # Вернёт Iterator[Section] при реализации
+    def iter_sections(self) -> Iterator[Section]:
         """Итерирует по всем секциям."""
         return iter(self.sections)
 
@@ -386,8 +398,7 @@ class Document:
         Возвращает:
             Весь текстовый контент, соединённый с разделителями секций/параграфов
         """
-        # TODO: Реализовать, когда класс Section будет готов
-        return ""
+        return "\n\n".join(section.get_text() for section in self.sections)
 
     def get_character_count(self) -> int:
         """Получает общее количество символов (без пробелов)."""
@@ -460,68 +471,6 @@ class Document:
         logger.info(f"Загружен документ {doc.id} с {len(doc.sections)} секциями")
         return doc
 
-    def save_to_file(self, file_path: Union[str, Path]) -> None:
-        """
-        Сохраняет документ в файл JSON.
-
-        Аргументы:
-            file_path: Путь к целевому файлу
-
-        Вызывает исключения:
-            IOError: Если файл не может быть записан
-        """
-        import json
-
-        file_path = Path(file_path)
-
-        try:
-            with file_path.open("w", encoding="utf-8") as f:
-                json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
-
-            self.file_path = file_path
-            self._is_modified = False
-            logger.info(f"Документ сохранён в {file_path}")
-
-        except Exception as e:
-            logger.error(f"Не удалось сохранить документ в {file_path}: {e}")
-            raise IOError(f"Невозможно сохранить документ: {e}") from e
-
-    @classmethod
-    def load_from_file(cls, file_path: Union[str, Path]) -> Document:
-        """
-        Загружает документ из файла JSON.
-
-        Аргументы:
-            file_path: Путь к исходному файлу
-
-        Возвращает:
-            Загруженный объект Document
-
-        Вызывает исключения:
-            IOError: Если файл не может быть прочитан
-            ValueError: Если формат файла невалиден
-        """
-        import json
-
-        file_path = Path(file_path)
-
-        try:
-            with file_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            doc = cls.from_dict(data)
-            doc.file_path = file_path
-            logger.info(f"Документ загружен из {file_path}")
-            return doc
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Невалидный формат JSON в {file_path}: {e}")
-            raise ValueError(f"Невалидный формат документа: {e}") from e
-
-        except Exception as e:
-            logger.error(f"Не удалось загрузить документ из {file_path}: {e}")
-            raise IOError(f"Невозможно загрузить документ: {e}") from e
-
     def __repr__(self) -> str:
         """Строковое представление для отладки."""
         return (
@@ -534,7 +483,13 @@ class Document:
         return len(self.sections)
 
 
-# Фабричные функции для общих типов документов
+# NOTE: I/O операции (save/load) вынесены в DocumentFormat (src/documents/format/document_format.py)
+# Используйте:
+#   from src.documents.format.document_format import DocumentFormat
+#   fmt = DocumentFormat()
+#   fmt.save(document, Path("doc.fxsd"))  # Без шифрования
+#   fmt.save(document, Path("doc.fxsd.enc"), encrypt=True, crypto=crypto_service)  # С шифрованием
+#   doc = fmt.load(Path("doc.fxsd"))
 
 
 def create_blank_document(title: str = "Без названия") -> Document:
@@ -547,9 +502,8 @@ def create_blank_document(title: str = "Без названия") -> Document:
     Возвращает:
         Новый пустой Document
     """
-    doc = Document()
-    doc.metadata.title = title
-    # TODO: Добавить секцию, когда класс Section будет готов
+    metadata = DocumentMetadata(title=title)
+    doc = Document(metadata=metadata)
     return doc
 
 
@@ -567,21 +521,27 @@ def create_letter_document(
     Возвращает:
         Document, настроенный для формата письма
     """
-    doc = Document()
-    doc.metadata.title = title
-    doc.metadata.author = author
+    from datetime import datetime
+
+    metadata = DocumentMetadata(
+        title=title,
+        author=author,
+        created=datetime.now(),
+        modified=datetime.now(),
+    )
 
     # Настройки страницы для письма (Letter 8.5" × 11")
-    doc.page_settings.size = PageSize.LETTER
-    doc.page_settings.width_inches = 8.5
-    doc.page_settings.height_inches = 11.0
-    doc.page_settings.margin_left_inches = 1.0
-    doc.page_settings.margin_right_inches = 1.0
-    doc.page_settings.margin_top_inches = 1.0
-    doc.page_settings.margin_bottom_inches = 1.0
+    page_settings = PageSettings(
+        size=PageSize.LETTER,
+        width_inches=8.5,
+        height_inches=11.0,
+        margin_left_inches=1.0,
+        margin_right_inches=1.0,
+        margin_top_inches=1.0,
+        margin_bottom_inches=1.0,
+    )
 
-    # TODO: Добавить секции, когда класс Section будет готов
-
+    doc = Document(metadata=metadata, page_settings=page_settings)
     return doc
 
 
@@ -599,27 +559,42 @@ def create_form_document(
     Возвращает:
         Document, настроенный для печати форм
     """
-    doc = Document()
-    doc.metadata.title = title
+    from datetime import datetime
+
+    metadata = DocumentMetadata(
+        title=title,
+        created=datetime.now(),
+        modified=datetime.now(),
+    )
 
     # Настройки формы
     if continuous:
-        doc.page_settings.size = PageSize.FANFOLD_8_5
-        doc.printer_settings.paper_type = PaperType.CONTINUOUS_TRACTOR
-        doc.printer_settings.paper_source = PaperSource.TRACTOR
+        page_settings = PageSettings(
+            size=PageSize.FANFOLD_8_5,
+            margin_left_inches=0.5,
+            margin_right_inches=0.5,
+            margin_top_inches=0.5,
+            margin_bottom_inches=0.5,
+        )
+        printer_settings = PrinterSettings(
+            paper_type=PaperType.CONTINUOUS_TRACTOR,
+            paper_source=PaperSource.TRACTOR,
+            print_quality=PrintQuality.DRAFT,
+            font_family=FontFamily.DRAFT,
+        )
     else:
-        doc.page_settings.size = PageSize.LETTER
-        doc.printer_settings.paper_type = PaperType.SHEET_FEED
+        page_settings = PageSettings(
+            size=PageSize.LETTER,
+            margin_left_inches=0.5,
+            margin_right_inches=0.5,
+            margin_top_inches=0.5,
+            margin_bottom_inches=0.5,
+        )
+        printer_settings = PrinterSettings(
+            paper_type=PaperType.SHEET_FEED,
+            print_quality=PrintQuality.DRAFT,
+            font_family=FontFamily.DRAFT,
+        )
 
-    doc.page_settings.margin_left_inches = 0.5
-    doc.page_settings.margin_right_inches = 0.5
-    doc.page_settings.margin_top_inches = 0.5
-    doc.page_settings.margin_bottom_inches = 0.5
-
-    # Оптимизация для черновика
-    doc.printer_settings.print_quality = PrintQuality.DRAFT
-    doc.printer_settings.font_family = FontFamily.DRAFT
-
-    # TODO: Добавить секцию, когда класс Section будет готов
-
+    doc = Document(metadata=metadata, page_settings=page_settings, printer_settings=printer_settings)
     return doc

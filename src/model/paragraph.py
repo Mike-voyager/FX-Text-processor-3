@@ -9,22 +9,33 @@
 - Методы копирования, слияния, разбиения, сериализации, валидации, сравнения и представления.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+if TYPE_CHECKING:
+    pass
 
 from src.model.enums import Alignment
 from src.model.run import Run
 
+# Импортируем EmbeddedObject из run.py вместо дублирования
+from src.model.run import EmbeddedObject as RunEmbeddedObject
 
-@dataclass(slots=True)
+
+@dataclass(frozen=True, slots=True)
 class EmbeddedObject:
     """
     Встроенный объект в абзаце — для изображений, UDC, закладок и т. д.
+
+    Note: Это локальный EmbeddedObject для paragraph. Для run-level объектов
+    используйте src.model.run.EmbeddedObject.
     """
 
     obj_type: str
-    data: Any
-    position: int  # Позиция относительно runs
+    data: Union[bytes, str, None] = None
+    position: int = 0  # Позиция относительно runs
     description: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -39,8 +50,8 @@ class EmbeddedObject:
     def from_dict(data: dict) -> "EmbeddedObject":
         return EmbeddedObject(
             obj_type=data["obj_type"],
-            data=data["data"],
-            position=data["position"],
+            data=data.get("data"),
+            position=data.get("position", 0),
             description=data.get("description"),
         )
 
