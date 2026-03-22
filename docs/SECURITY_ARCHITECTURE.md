@@ -1619,9 +1619,9 @@ reference hash should be stored on external media or hardware device
 | Module | Status | Notes |
 |--------|--------|-------|
 | `security/crypto/` | ✅ Complete | v2.3, 46 algorithms, 90%+ test coverage |
-| `security/auth/` | 🚧 Partial | Core logic done, service layer TODO, no full flow yet |
-| `security/audit/` | ✅ Complete |  |
-| `security/blanks/` | ✅ Complete | Security layer only |
+| `security/auth/` | ✅ Complete | 98.67% coverage, 616+ tests, Password + FIDO2/TOTP/Backup Codes MFA |
+| `security/audit/` | ✅ Complete | Hash-chain + HMAC-SHA256, 57 event types, thread-safe |
+| `security/blanks/` | ✅ Complete | 6 lifecycle states, 3 signing modes, offline QR verification |
 | `security/compliance/` | ✅ Complete |  |
 | `security/hardware/` | 🚧 Extended | PIV done, OpenPGP backend in progress |
 | `security/integrity/` | 🚧 In progress |  |

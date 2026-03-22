@@ -48,6 +48,9 @@
    - 6.2 [BlankManager](#62-blankmanager)
    - 6.3 [SessionManager](#63-sessionmanager)
    - 6.4 [ImmutableAuditLog](#64-immutableauditlog)
+   - 6.5 [Auth API](#65-auth-api)
+   - 6.6 [Audit API](#66-audit-api)
+   - 6.7 [Blanks API](#67-blanks-api)
 7. [Printer Adapters (`src/printer/`)](#7-printer-adapters-srcprinter)
 8. [App Context (`src/app_context.py`)](#8-app-context-srcapp_contextpy)
 9. [File Formats & Extensions](#9-file-formats--extensions)
@@ -2140,6 +2143,567 @@ class ChainVerificationResult:
 ```
 
 ---
+
+
+---
+
+### 6.5 Auth API
+
+> **Детальная документация:** см. `SECURITY_ARCHITECTURE.md` → Authentication System
+
+Модуль аутентификации и авторизации. Реализует Zero Trust подход с обязательным MFA для критических операций.
+
+#### Обзор компонентов
+
+| Компонент | Coverage | Описание |
+|-----------|----------|----------|
+| `PasswordHasher` | 97.65% | Argon2id хеширование паролей |
+| `PasswordService` | 100.00% | Управление паролями (создание, проверка, смена) |
+| `SessionManager` | 98.08% | Управление сессиями, JWT токены |
+| `TOTPService` | 96.90% | Time-based OTP (RFC 6238) |
+| `FIDO2Service` | 94.59% | CTAP2/WebAuthn Level 2 |
+| `BackupCodeService` | 100.00% | Резервные коды доступа |
+| `AuthService` | 100.00% | Единая точка входа аутентификации |
+| `SecondFactorManager` | 99.25% | Оркестрация MFA факторов |
+| `PermissionsService` | 100.00% | Права доступа, проверка scopes |
+
+---
+
+#### PasswordHasher
+
+Хеширование паролей с Argon2id. Memory-hard алгоритм, устойчивый к GPU/ASIC атакам.
+
+```python
+from src.security.auth import PasswordHasher
+
+hasher = PasswordHasher(
+    time_cost=3,        # Итерации
+    memory_cost=65536,  # 64 MB
+    parallelism=4,
+    hash_len=32,
+    salt_len=16
+)
+
+# Хеширование
+hashed = hasher.hash("password123")
+
+# Проверка
+is_valid = hasher.verify("password123", hashed)  # True
+```
+
+**Параметры по умолчанию (Standard preset):**
+
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| `time_cost` | 3 | Количество итераций |
+| `memory_cost` | 65536 | 64 MB памяти |
+| `parallelism` | 4 | Потоки |
+| `hash_len` | 32 | Длина хеша (байт) |
+| `salt_len` | 16 | Длина соли (байт) |
+
+---
+
+#### PasswordService
+
+Управление жизненным циклом паролей.
+
+```python
+from src.security.auth import PasswordService
+
+pwd_service = PasswordService(
+    hasher=hasher,
+    audit_log=audit,
+    keystore=keystore
+)
+
+# Создание нового пароля
+result = pwd_service.create_password(
+    user_id="operator",
+    password="SecurePass!23"
+)
+
+# Проверка пароля
+is_valid = pwd_service.verify_password(
+    user_id="operator",
+    password="SecurePass!23"
+)
+
+# Смена пароля (требует MFA)
+pwd_service.change_password(
+    user_id="operator",
+    current_password="SecurePass!23",
+    new_password="NewSecurePass!45",
+    mfa_token=mfa_token
+)
+```
+
+---
+
+#### TOTPService
+
+Time-based One-Time Password по RFC 6238.
+
+```python
+from src.security.auth import TOTPService
+
+totp = TOTPService(
+    secret_length=20,    # 160 бит
+    digits=6,
+    interval=30,         # секунд
+    hash_algorithm="SHA1"  # SHA1/SHA256/SHA512
+)
+
+# Генерация секрета для нового пользователя
+secret = totp.generate_secret()
+qr_uri = totp.get_provisioning_uri(secret, "operator", "FX-Text-Processor")
+
+# Верификация кода
+is_valid = totp.verify(secret, "123456")
+
+# С ограничением попыток
+is_valid = totp.verify_with_rate_limit(
+    secret=secret,
+    code="123456",
+    user_id="operator",
+    max_attempts=5
+)
+```
+
+**Поддерживаемые алгоритмы:**
+
+| Алгоритм | Длина секрета | Примечание |
+|----------|---------------|------------|
+| SHA-1 | 20 байт | Стандартный (RFC 6238) |
+| SHA-256 | 32 байта | Рекомендуется |
+| SHA-512 | 64 байта | Максимальная безопасность |
+
+---
+
+#### FIDO2Service
+
+WebAuthn Level 2 / CTAP2 аутентификация с аппаратными ключами.
+
+```python
+from src.security.auth.second_factor import FIDO2Service
+
+fido2 = FIDO2Service(
+    rp_id="fx-text-processor",
+    rp_name="FX Text Processor 3",
+    audit_log=audit
+)
+
+# Регистрация устройства
+registration = fido2.register_device(
+    user_id="operator",
+    device_name="YubiKey 5 NFC",
+    pin="123456"
+)
+
+# Аутентификация
+assertion = fido2.authenticate(
+    device_id=registration.device_id,
+    challenge=fido2.generate_challenge()
+)
+
+# Проверка assertion
+is_valid = fido2.verify_assertion(
+    device_id=registration.device_id,
+    assertion=assertion
+)
+```
+
+**Поддерживаемые устройства:**
+
+- YubiKey 5 Series (USB-A, USB-C, NFC, Lightning)
+- J3R200 с FIDO2 applet
+- Любые CTAP2-compliant устройства
+
+---
+
+#### BackupCodeService
+
+Резервные коды для восстановления доступа.
+
+```python
+from src.security.auth import BackupCodeService
+
+backup_codes = BackupCodeService(
+    code_length=8,
+    hash_algorithm="SHA256",
+    max_attempts=3
+)
+
+# Генерация кодов (при регистрации)
+codes = backup_codes.generate_codes(count=10)
+
+# Верификация кода (одноразовый)
+is_valid = backup_codes.verify_code(
+    user_id="operator",
+    code="A3B7C9D2"
+)  # Код аннулируется после успешной проверки
+```
+
+---
+
+#### AuthService
+
+Единая точка входа для аутентификации. Координирует PasswordService, SecondFactorManager и SessionManager.
+
+```python
+from src.security.auth import AuthService
+
+auth = AuthService(
+    password_service=pwd_service,
+    session_manager=session_mgr,
+    second_factor_manager=sf_manager,
+    audit_log=audit,
+    keystore=keystore
+)
+
+# Полный процесс аутентификации
+result = auth.authenticate(
+    user_id="operator",
+    password="SecurePass!23"
+)
+
+if result.requires_mfa:
+    # Запросить второй фактор
+    mfa_result = auth.verify_second_factor(
+        user_id="operator",
+        session_id=result.session_id,
+        factor_type="fido2",  # "fido2" | "totp" | "backup_code"
+        factor_value=assertion
+    )
+
+# Разблокировка сессии после MFA
+auth.unlock_session(
+    session_id=result.session_id,
+    mfa_token=mfa_result.token
+)
+```
+
+---
+
+#### SecondFactorManager
+
+Оркестрация MFA факторов.
+
+```python
+from src.security.auth import SecondFactorManager
+
+sf_manager = SecondFactorManager(
+    fido2_service=fido2,
+    totp_service=totp,
+    backup_code_service=backup_codes,
+    audit_log=audit
+)
+
+# Регистрация второго фактора
+sf_manager.register_factor(
+    user_id="operator",
+    factor_type="totp",
+    credential=totp_secret
+)
+
+# Запрос активных факторов
+active_factors = sf_manager.get_active_factors(user_id="operator")
+# ["fido2", "totp", "backup_code"]
+
+# Верификация
+result = sf_manager.verify(
+    user_id="operator",
+    factor_type="totp",
+    code="123456"
+)
+```
+
+---
+
+#### PermissionsService
+
+Управление правами доступа и проверка scopes.
+
+```python
+from src.security.auth import PermissionsService, Permission, Scope
+
+perms = PermissionsService(
+    audit_log=audit,
+    keystore=keystore
+)
+
+# Определение права
+permission = Permission(
+    resource="documents",
+    action="write",
+    conditions={"document_type": "INV"}
+)
+
+# Проверка права
+has_access = perms.check_permission(
+    user_id="operator",
+    permission=permission
+)
+
+# Grant/Revoke
+perms.grant_permission(
+    user_id="operator",
+    permission=permission,
+    granted_by="admin",
+    mfa_token=mfa_token
+)
+```
+
+**Предустановленные scopes:**
+
+| Scope | Права |
+|-------|-------|
+| `documents:read` | Чтение документов |
+| `documents:write` | Создание/редактирование документов |
+| `documents:sign` | Подписание документов |
+| `admin:keys` | Управление ключами |
+| `admin:users` | Управление пользователями |
+
+---
+
+### 6.6 Audit API
+
+> **Модуль:** `src/security/audit/`
+
+Неизменяемый журнал событий с криптографической защитой.
+
+#### AuditEventType
+
+Перечисление типов событий (57 типов в 12 категориях).
+
+```python
+from src.security.audit import AuditEventType
+
+# Категории событий
+app_events = [
+    AuditEventType.APP_STARTED,
+    AuditEventType.APP_LOCKED,
+    AuditEventType.APP_UNLOCKED,
+]
+
+auth_events = [
+    AuditEventType.AUTH_SUCCESS,
+    AuditEventType.AUTH_FAILED,
+    AuditEventType.AUTH_MFA_CHALLENGED,
+]
+
+blank_events = [
+    AuditEventType.BLANK_ISSUED,
+    AuditEventType.BLANK_SIGNED,
+    AuditEventType.BLANK_VERIFIED,
+    AuditEventType.BLANK_VOIDED,
+    AuditEventType.BLANK_SPOILED,
+]
+```
+
+**Полный список категорий:**
+
+| Категория | Типы событий |
+|-----------|--------------|
+| Application | `APP_STARTED`, `APP_LOCKED`, `APP_UNLOCKED`, `INTEGRITY_CHECK_*` |
+| Authentication | `AUTH_SUCCESS`, `AUTH_FAILED`, `AUTH_MFA_CHALLENGED`, `SECOND_FACTOR_*` |
+| Hardware Devices | `DEVICE_PROVISIONED`, `DEVICE_REVOKED`, `DEVICE_OPERATION` |
+| Blanks | `BLANK_ISSUED`, `BLANK_SIGNED`, `BLANK_VERIFIED`, `BLANK_VOIDED`, `BLANK_SPOILED` |
+| Key Management | `KEY_GENERATED`, `KEY_EXPORTED`, `KEY_BACKUP_CREATED`, `PRESET_DOWNGRADED` |
+| Security | `ACCESS_DENIED`, `CONFIG_MODIFIED`, `AUDIT_CHAIN_BROKEN` |
+
+---
+
+#### AuditLog
+
+Основной класс журнала аудита.
+
+```python
+from src.security.audit import AuditLog, AuditEventType
+
+audit = AuditLog(
+    hmac_secret=keystore.get_audit_secret(),
+    log_path=Path("./data/audit.jsonl"),
+    max_events=1000000  # опционально
+)
+
+# Запись события
+audit.log_event(
+    event_type=AuditEventType.AUTH_SUCCESS,
+    user_id="operator",
+    details={"method": "password", "mfa": "totp"}
+)
+
+# Проверка целостности
+result = audit.verify_chain_integrity()
+if not result.is_valid:
+    # Цепочка нарушена — критическая ошибка безопасности
+    handle_security_incident(result.broken_at_index)
+```
+
+**Потокобезопасность:** `AuditLog` использует threading lock для гарантии атомарности записей.
+
+---
+
+### 6.7 Blanks API
+
+> **Модуль:** `src/security/blanks/`
+
+Управление защищёнными бланками строгой отчётности.
+
+#### BlankStatus
+
+Жизненный цикл бланка (6 состояний).
+
+```python
+from src.security.blanks import BlankStatus
+
+# Состояния
+BlankStatus.ISSUED     # Выпущен, готов к заполнению
+BlankStatus.READY     # Заполнен, готов к подписанию
+BlankStatus.SIGNED    # Подписан, готов к печати
+BlankStatus.PRINTED   # Напечатан
+BlankStatus.ARCHIVED  # В архиве (retention: 7 лет по умолчанию)
+BlankStatus.VOIDED    # Аннулирован
+BlankStatus.SPOILED   # Испорчен (физическое повреждение)
+```
+
+**Диаграмма переходов:**
+
+```
+ISSUED ──────────────────────────────────► SPOILED
+  │                                         (physical damage)
+  ▼
+READY ──────────────────────────────────► VOIDED
+  │                                         (max attempts exceeded)
+  ▼
+SIGNED
+  │
+  ▼
+PRINTED
+  │
+  ▼
+ARCHIVED  (retention: 7 years default)
+```
+
+---
+
+#### SigningMode
+
+Режимы подписи бланков.
+
+```python
+from src.security.blanks import SigningMode
+
+# Режимы подписи
+SigningMode.SOFTWARE         # Ed25519 ключ из keystore
+SigningMode.HARDWARE_PIV     # YubiKey PIV slot
+SigningMode.HARDWARE_OPENPGP # OpenPGP card
+```
+
+---
+
+#### ProtectedBlank
+
+Модель защищённого бланка.
+
+```python
+from src.security.blanks import ProtectedBlank
+
+blank = ProtectedBlank(
+    blank_id="550e8400-e29b-41d4-a716-446655440000",
+    series="INV-A",
+    number=42,
+    blank_type="INVOICE",
+    security_preset="standard",
+    signing_mode=SigningMode.SOFTWARE,
+    status=BlankStatus.ISSUED,
+    issued_to="operator",
+    serial_counter=142,  # Monotonic counter
+    public_key=b"...",
+    created_at=datetime.now()
+)
+```
+
+---
+
+#### BlankManager
+
+Управление жизненным циклом бланков.
+
+```python
+from src.security.blanks import BlankManager
+
+manager = BlankManager(
+    audit_log=audit,
+    crypto_service=crypto,
+    hw_manager=hardware_mgr,
+    keystore=keystore
+)
+
+# Выпуск серии бланков
+blanks = manager.issue_blank_series(
+    series="INV-A",
+    count=100,
+    blank_type="INVOICE",
+    signing_mode=SigningMode.SOFTWARE
+)
+
+# Подписание документа на бланке
+signature = manager.sign_blank(
+    blank_id=blanks[0].blank_id,
+    document_content=document_bytes
+)
+
+# Аннулирование бланка
+manager.void_blank(
+    blank_id=blanks[0].blank_id,
+    reason="Утерян"
+)
+
+# Перевод в архив
+manager.archive_blank(
+    blank_id=blanks[0].blank_id
+)
+```
+
+---
+
+#### verify_blank()
+
+Верификация бланка по QR-коду (offline).
+
+```python
+from src.security.blanks import verify_blank
+
+# QR-код содержит все данные для offline верификации
+result = verify_blank(
+    qr_data={
+        "blank_id": "550e8400-...",
+        "series": "INV-A",
+        "number": 42,
+        "content_hash_sha3": "a3f2c5d8...",
+        "signature": "7f3e9a1b...",
+        "public_key": "2c8d4f6a...",
+        "algorithm": "Ed25519"
+    },
+    printed_content=document_bytes
+)
+
+if result.is_valid:
+    print(f"✓ Аутентичный бланк {result.series}-{result.number:04d}")
+else:
+    print(f"⚠ Верификация не пройдена: {result.reason}")
+```
+
+**Поля VerificationResult:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `is_valid` | `bool` | Подпись валидна |
+| `blank_id` | `UUID \| None` | ID бланка |
+| `series` | `str \| None` | Серия бланка |
+| `number` | `int \| None` | Номер в серии |
+| `reason` | `str \| None` | Причина невалидности |
 
 ## 7. Printer Adapters (`src/printer/`)
 
