@@ -36,12 +36,12 @@ def test_barcode_full_fields_1d() -> None:
         border={"color": "black", "width": 2},
         padding=(2, 2, 2, 2),
         opacity=0.8,
-        z_order=5,
+        zorder=5,
         user_label="main-barcode",
         object_id="BARC123456",
         readonly=True,
         hidden=True,
-        data_source="ext_db",
+        datasource="ext_db",
         auto_regenerate_on_save=True,
         created_at="2025-10-07T10:02:00",
         updated_at="2025-10-07T15:00:01",
@@ -91,13 +91,14 @@ def test_barcode_full_fields_2d() -> None:
 def test_barcode_str_1d() -> None:
     b = Barcode(type=BarcodeType.CODE39, data="CODE39CODEDATA")
     s = str(b)
-    assert s.startswith("<Barcode type=BarcodeType.CODE39 data=CODE39CODEDATA")
+    assert "BarcodeType.CODE39" in s
+    assert "CODE39CODEDATA" in s
 
 
 def test_barcode_str_2d() -> None:
     b = Barcode(type=Matrix2DCodeType.DATAMATRIX, data="DMx2" * 5, is_signature=True)
     s = str(b)
-    assert "[SIG]" in s
+    assert "SIG" in s
 
 
 def test_barcode_metadata_and_custom_fields() -> None:

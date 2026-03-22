@@ -6,7 +6,7 @@
 Example:
     >>> from src.documents.printing import BarcodeRenderer
     >>> renderer = BarcodeRenderer()
-    >>> escp_data = renderer.render("123456789012", BarcodeType.EAN13)
+    >>> escp_data = renderer.render("123456789012", ESCPBarcodeType.EAN13)
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from typing import Final
 
 from src.escp.commands.barcode import (
     BarcodeHRI,
-    BarcodeType,
+    ESCPBarcodeType,
 )
 from src.escp.commands.barcode import (
     print_barcode as build_barcode_command,
@@ -36,7 +36,7 @@ class BarcodeRenderer:
 
     Example:
         >>> renderer = BarcodeRenderer()
-        >>> data = renderer.render("123456789012", BarcodeType.EAN13)
+        >>> data = renderer.render("123456789012", ESCPBarcodeType.EAN13)
     """
 
     def __init__(self) -> None:
@@ -46,7 +46,7 @@ class BarcodeRenderer:
     def render(
         self,
         barcode_data: str,
-        barcode_type: BarcodeType,
+        barcode_type: ESCPBarcodeType,
         module_width: int = 2,
         height: int = 50,
         hri: BarcodeHRI = BarcodeHRI.BELOW,
@@ -67,7 +67,7 @@ class BarcodeRenderer:
             ValueError: При невалидных параметрах
 
         Example:
-            >>> data = renderer.render("123456789012", BarcodeType.EAN13)
+            >>> data = renderer.render("123456789012", ESCPBarcodeType.EAN13)
             >>> len(data) > 0
             True
         """
@@ -113,7 +113,7 @@ class BarcodeRenderer:
         Returns:
             ESC/P байты
         """
-        return self.render(data, BarcodeType.EAN13, module_width, height, hri)
+        return self.render(data, ESCPBarcodeType.EAN13, module_width, height, hri)
 
     def render_code128(
         self,
@@ -133,7 +133,7 @@ class BarcodeRenderer:
         Returns:
             ESC/P байты
         """
-        return self.render(data, BarcodeType.CODE128, module_width, height, hri)
+        return self.render(data, ESCPBarcodeType.CODE128, module_width, height, hri)
 
     def render_code39(
         self,
@@ -153,7 +153,7 @@ class BarcodeRenderer:
         Returns:
             ESC/P байты
         """
-        return self.render(data, BarcodeType.CODE39, module_width, height, hri)
+        return self.render(data, ESCPBarcodeType.CODE39, module_width, height, hri)
 
 
 __all__ = ["BarcodeRenderer"]

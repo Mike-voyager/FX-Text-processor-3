@@ -17,7 +17,7 @@ IMPORTANT: Barcode support is a standard feature on all FX-890 models.
 from enum import Enum
 
 __all__ = [
-    "BarcodeType",
+    "ESCPBarcodeType",
     "BarcodeHRI",
     "print_barcode",
 ]
@@ -27,12 +27,15 @@ __all__ = [
 # =============================================================================
 
 
-class BarcodeType(Enum):
+class ESCPBarcodeType(Enum):
     """
-    Barcode symbologies supported by FX-890.
+    Hardware barcode symbologies supported by FX-890 ESC/P.
 
     All types verified against FX-890 User's Guide, Section 8.
     Each value is the type code sent in ESC ( B command.
+
+    Note: This enum is for hardware barcode printing via ESC/P commands.
+          For software barcode rendering (images), use model.ESCPBarcodeType.
 
     Verified: ✅ FX-890 User's Guide, Chapter 8
     """
@@ -193,7 +196,7 @@ class BarcodeHRI(Enum):
 
 
 def print_barcode(
-    barcode_type: BarcodeType,
+    barcode_type: ESCPBarcodeType,
     data: str,
     height: int = 50,
     width: int = 2,
@@ -246,7 +249,7 @@ def print_barcode(
         >>>
         >>> # Print EAN-13 product barcode
         >>> cmd = print_barcode(
-        ...     BarcodeType.EAN13,
+        ...     ESCPBarcodeType.EAN13,
         ...     data="978014300723",  # 12 digits
         ...     height=60,
         ...     width=3,
@@ -256,7 +259,7 @@ def print_barcode(
 
         >>> # Print CODE39 inventory label
         >>> cmd = print_barcode(
-        ...     BarcodeType.CODE39,
+        ...     ESCPBarcodeType.CODE39,
         ...     data="PART-12345",
         ...     height=50,
         ...     width=2,
@@ -266,7 +269,7 @@ def print_barcode(
 
         >>> # Print US ZIP code (POSTNET)
         >>> cmd = print_barcode(
-        ...     BarcodeType.POSTNET,
+        ...     ESCPBarcodeType.POSTNET,
         ...     data="94103",
         ...     height=40,
         ...     width=2,
@@ -320,7 +323,7 @@ RETAIL PRODUCT BARCODES (UPC/EAN):
     >>>
     >>> # UPC-A (North America)
     >>> cmd = print_barcode(
-    ...     BarcodeType.UPCA,
+    ...     ESCPBarcodeType.UPCA,
     ...     "01234567890",  # 11 digits (12th auto-calculated)
     ...     height=60,
     ...     width=3
@@ -329,7 +332,7 @@ RETAIL PRODUCT BARCODES (UPC/EAN):
     >>>
     >>> # EAN-13 (International)
     >>> cmd = print_barcode(
-    ...     BarcodeType.EAN13,
+    ...     ESCPBarcodeType.EAN13,
     ...     "978014300723",  # 12 digits (13th auto-calculated)
     ...     height=60,
     ...     width=3
@@ -338,7 +341,7 @@ RETAIL PRODUCT BARCODES (UPC/EAN):
     >>>
     >>> # EAN-8 (Small products)
     >>> cmd = print_barcode(
-    ...     BarcodeType.EAN8,
+    ...     ESCPBarcodeType.EAN8,
     ...     "1234567",  # 7 digits (8th auto-calculated)
     ...     height=50,
     ...     width=2
@@ -350,7 +353,7 @@ WAREHOUSE & INVENTORY (CODE39):
 
     >>> # Part number with dashes
     >>> cmd = print_barcode(
-    ...     BarcodeType.CODE39,
+    ...     ESCPBarcodeType.CODE39,
     ...     "PART-12345",
     ...     height=80,
     ...     width=3,
@@ -360,7 +363,7 @@ WAREHOUSE & INVENTORY (CODE39):
     >>>
     >>> # Location code
     >>> cmd = print_barcode(
-    ...     BarcodeType.CODE39,
+    ...     ESCPBarcodeType.CODE39,
     ...     "AISLE-A ROW-5",
     ...     height=60,
     ...     width=2
@@ -372,7 +375,7 @@ SHIPPING LABELS (CODABAR, I2OF5):
 
     >>> # FedEx tracking (Codabar)
     >>> cmd = print_barcode(
-    ...     BarcodeType.CODABAR,
+    ...     ESCPBarcodeType.CODABAR,
     ...     "1234567890",
     ...     height=60,
     ...     width=3
@@ -381,7 +384,7 @@ SHIPPING LABELS (CODABAR, I2OF5):
     >>>
     >>> # Container number (Interleaved 2 of 5)
     >>> cmd = print_barcode(
-    ...     BarcodeType.INTERLEAVED_2OF5,
+    ...     ESCPBarcodeType.INTERLEAVED_2OF5,
     ...     "123456",  # MUST be even number of digits
     ...     height=70,
     ...     width=3
@@ -393,7 +396,7 @@ US POSTAL BARCODES (POSTNET):
 
     >>> # 5-digit ZIP
     >>> cmd = print_barcode(
-    ...     BarcodeType.POSTNET,
+    ...     ESCPBarcodeType.POSTNET,
     ...     "94103",
     ...     height=40,
     ...     width=2
@@ -402,7 +405,7 @@ US POSTAL BARCODES (POSTNET):
     >>>
     >>> # ZIP+4
     >>> cmd = print_barcode(
-    ...     BarcodeType.POSTNET,
+    ...     ESCPBarcodeType.POSTNET,
     ...     "941030000",
     ...     height=40,
     ...     width=2
@@ -434,28 +437,28 @@ HRI TEXT POSITIONING:
 
     >>> # No text (barcode only, compact)
     >>> cmd = print_barcode(
-    ...     BarcodeType.CODE39,
+    ...     ESCPBarcodeType.CODE39,
     ...     "ITEM-001",
     ...     hri=BarcodeHRI.NONE
     ... )
     >>>
     >>> # Text below (standard for retail)
     >>> cmd = print_barcode(
-    ...     BarcodeType.UPCA,
+    ...     ESCPBarcodeType.UPCA,
     ...     "01234567890",
     ...     hri=BarcodeHRI.BELOW
     ... )
     >>>
     >>> # Text above (space-constrained bottom)
     >>> cmd = print_barcode(
-    ...     BarcodeType.CODE39,
+    ...     ESCPBarcodeType.CODE39,
     ...     "TOP-LABEL",
     ...     hri=BarcodeHRI.ABOVE
     ... )
     >>>
     >>> # Text both sides (maximum visibility)
     >>> cmd = print_barcode(
-    ...     BarcodeType.EAN13,
+    ...     ESCPBarcodeType.EAN13,
     ...     "978014300723",
     ...     hri=BarcodeHRI.BOTH
     ... )
@@ -479,7 +482,7 @@ DATA VALIDATION BY TYPE:
     >>> # Usage
     >>> data = "01234567890"
     >>> if validate_upca(data):
-    ...     cmd = print_barcode(BarcodeType.UPCA, data)
+    ...     cmd = print_barcode(ESCPBarcodeType.UPCA, data)
     ...     printer.send(cmd)
     ... else:
     ...     print("Invalid UPC-A data")
@@ -493,7 +496,7 @@ COMBINING WITH TEXT:
     >>> printer.send(b"Product: Widget A\r\n")
     >>> printer.send(b"SKU: ")
     >>> printer.send(print_barcode(
-    ...     BarcodeType.CODE39,
+    ...     ESCPBarcodeType.CODE39,
     ...     "WDG-A-001",
     ...     height=50,
     ...     width=2
@@ -515,7 +518,7 @@ TABLE INTEGRATION:
     >>> for name, code in items:
     ...     printer.send(name.encode().ljust(14))
     ...     printer.send(print_barcode(
-    ...         BarcodeType.CODE39,
+    ...         ESCPBarcodeType.CODE39,
     ...         code,
     ...         height=40,
     ...         width=2,
@@ -565,7 +568,7 @@ TROUBLESHOOTING:
        - Data must be ASCII-encodable
 
     3. Test simple barcode first:
-       >>> cmd = print_barcode(BarcodeType.CODE39, "TEST")
+       >>> cmd = print_barcode(ESCPBarcodeType.CODE39, "TEST")
        >>> printer.send(cmd + b"\r\n")
 
     If barcode won't scan:

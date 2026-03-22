@@ -45,10 +45,10 @@ class Barcode:
     position: Optional[Tuple[int, int]] = None
     size: Optional[Tuple[int, int]] = None
     rotation: Optional[float] = None
-    showlabel: bool = True
+    show_label: bool = True
     foreground: Optional[str] = None
     background: Optional[str] = None
-    gs1mode: Optional[bool] = None
+    gs1_mode: Optional[bool] = None
     border: Optional[Dict[str, Any]] = None
     padding: Optional[Tuple[int, int, int, int]] = None
     opacity: Optional[float] = None
@@ -73,8 +73,8 @@ class Barcode:
     validation_state: Optional[str] = None
     validation_error_message: Optional[str] = None
 
-    issignature: bool = False
-    signaturetype: Optional[str] = None
+    is_signature: bool = False
+    signature_type: Optional[str] = None
     signature_payload: Optional[bytes] = None
     signer_info: Optional[str] = None
     signing_datetime: Optional[str] = None
@@ -93,14 +93,14 @@ class Barcode:
             "generator": BarcodeGenerator,
             "err": BarcodeGenError,
             "level": "soft",
-            "options_allowlist": {"showlabel", "foreground", "background"},
+            "options_allowlist": {"show_label", "foreground", "background"},
         },
         "2d": {
             "types": Matrix2DCodeGenerator.all_supported_types(),
             "generator": Matrix2DCodeGenerator,
             "err": Matrix2DCodeGenError,
             "level": "soft",
-            "options_allowlist": {"gs1mode", "caption", "foreground", "background"},
+            "options_allowlist": {"gs1_mode", "caption", "foreground", "background"},
         },
         "escp": {
             "types": set(),  # ESC/P barcode types, to be filled in production
@@ -140,8 +140,8 @@ class Barcode:
             if btype in entry["types"]:
                 gen_cls: Type[Any] = entry["generator"]
                 extra: Dict[str, Any] = {}
-                if gen_key == "2d" and hasattr(self, "gs1mode"):
-                    extra["gs1mode"] = self.gs1mode or False
+                if gen_key == "2d" and hasattr(self, "gs1_mode"):
+                    extra["gs1_mode"] = self.gs1_mode or False
                 return gen_cls(btype, self.data, self.options, **extra)
         raise ValueError(f"Barcode type {btype} is not supported by any generator.")
 
@@ -251,6 +251,6 @@ class Barcode:
         return cls(**d)
 
     def __str__(self) -> str:
-        siginfo: str = "SIG" if self.issignature else ""
+        siginfo: str = "SIG" if self.is_signature else ""
         datashow: str = self.data[:16] + ("..." if len(self.data) > 16 else "")
         return f"Barcode({self.type}, data={datashow}{siginfo})"

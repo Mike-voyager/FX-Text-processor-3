@@ -15,6 +15,10 @@ Example:
 
 from __future__ import annotations
 
+from src.documents.printing.barcode_adapter import (
+    is_hardware_supported,
+    to_escp_type,
+)
 from src.documents.printing.barcode_renderer import BarcodeRenderer
 from src.documents.printing.document_renderer import DocumentRenderer
 from src.documents.printing.paragraph_renderer import ParagraphRenderer
@@ -27,4 +31,6 @@ __all__ = [
     "TableRenderer",
     "RunRenderer",
     "BarcodeRenderer",
+    "to_escp_type",
+    "is_hardware_supported",
 ]

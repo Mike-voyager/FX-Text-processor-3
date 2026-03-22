@@ -53,7 +53,7 @@ Example:
 # Barcode commands
 from src.escp.commands.barcode import (
     BarcodeHRI,
-    BarcodeType,
+    ESCPBarcodeType,
     print_barcode,
 )
 
@@ -241,7 +241,7 @@ __all__ = [
     "print_bit_image",
     "print_raster_graphics",
     # Barcode
-    "BarcodeType",
+    "ESCPBarcodeType",
     "BarcodeHRI",
     "print_barcode",
     # Page control

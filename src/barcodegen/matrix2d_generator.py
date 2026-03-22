@@ -26,15 +26,21 @@ from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
 
 from src.model.enums import Matrix2DCodeType
 
-# Pillow compatibility layer (L -> new Resampling)
-try:
+# Pillow compatibility layer (Resampling enum added in Pillow 9.1.0)
+# Newer versions: use PIL.Image.Resampling.LANCZOS / BOX
+# Older versions: use Image.LANCZOS / Image.BOX (deprecated but still available)
+import sys
+
+if sys.version_info >= (3, 10):
+    # Modern Pillow with Resampling enum
     from PIL.Image import Resampling
 
     RESAMPLE_LANCZOS = Resampling.LANCZOS
     RESAMPLE_BOX = Resampling.BOX
-except ImportError:
-    RESAMPLE_LANCZOS = Image.LANCZOS  # type: ignore[assignment]
-    RESAMPLE_BOX = Image.BOX  # type: ignore[assignment]
+else:
+    # Legacy Pillow compatibility
+    RESAMPLE_LANCZOS = getattr(Image, "LANCZOS", 1)
+    RESAMPLE_BOX = getattr(Image, "BOX", 4)
 
 logger = logging.getLogger(__name__)
 
