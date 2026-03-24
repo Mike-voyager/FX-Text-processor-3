@@ -347,7 +347,7 @@ class TestFormatKeySizes:
 class TestListRecommendedAlgorithms:
     def _make_mock_registry(self, algorithms: dict[str, AlgorithmMetadata]) -> MagicMock:
         registry = MagicMock()
-        registry.list_algorithms.return_value = list(algorithms.keys())
+        registry.list_algorithms.return_value = list(algorithms.values())
         registry.get_metadata.side_effect = lambda name: algorithms[name]
         return registry
 

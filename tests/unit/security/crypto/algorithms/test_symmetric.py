@@ -95,6 +95,18 @@ def aes256ctr() -> AES256CTR:
     return AES256CTR()
 
 
+@pytest.fixture
+def xchacha20() -> "XChaCha20Poly1305":
+    """XChaCha20-Poly1305 cipher instance."""
+    return XChaCha20Poly1305()
+
+
+@pytest.fixture
+def des() -> DES:
+    """DES cipher instance."""
+    return DES()
+
+
 # ==============================================================================
 # TEST SUITE: AES-256-GCM (Reference Implementation)
 # ==============================================================================
@@ -102,6 +114,17 @@ def aes256ctr() -> AES256CTR:
 
 class TestAES256GCM:
     """Test suite for AES-256-GCM cipher."""
+
+    def test_generate_key(self, aes256gcm: AES256GCM) -> None:
+        """Test that generate_key returns correct size."""
+        key = aes256gcm.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 32  # 256 bits
+
+    def test_generate_key_uniqueness(self, aes256gcm: AES256GCM) -> None:
+        """Test that each generate_key call returns unique key."""
+        keys = {aes256gcm.generate_key() for _ in range(100)}
+        assert len(keys) == 100  # All unique
 
     def test_basic_encrypt_decrypt(self, aes256gcm: AES256GCM) -> None:
         """Test basic encryption and decryption."""
@@ -234,6 +257,12 @@ class TestAES256GCM:
 class TestAES128GCM:
     """Test suite for AES-128-GCM cipher."""
 
+    def test_generate_key(self, aes128gcm: AES128GCM) -> None:
+        """Test that generate_key returns correct size."""
+        key = aes128gcm.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 16  # 128 bits
+
     def test_basic_encrypt_decrypt(self, aes128gcm: AES128GCM) -> None:
         """Test basic encryption and decryption."""
         key = os.urandom(16)  # 128-bit key
@@ -264,6 +293,18 @@ class TestAES128GCM:
 
         assert decrypted == plaintext
 
+    def test_decrypt_invalid_key_size(self, aes128gcm: AES128GCM) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(12)
+        with pytest.raises(InvalidKeyError):
+            aes128gcm.decrypt(b"short", nonce, b"ciphertext")
+
+    def test_decrypt_invalid_nonce_size(self, aes128gcm: AES128GCM) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(16)
+        with pytest.raises(InvalidNonceError):
+            aes128gcm.decrypt(key, b"short", b"ciphertext")
+
 
 # ==============================================================================
 # TEST SUITE: ChaCha20-Poly1305
@@ -272,6 +313,12 @@ class TestAES128GCM:
 
 class TestChaCha20Poly1305:
     """Test suite for ChaCha20-Poly1305 cipher."""
+
+    def test_generate_key(self, chacha20: ChaCha20Poly1305) -> None:
+        """Test that generate_key returns correct size."""
+        key = chacha20.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 32  # 256 bits
 
     def test_basic_encrypt_decrypt(self, chacha20: ChaCha20Poly1305) -> None:
         """Test basic encryption and decryption."""
@@ -308,6 +355,18 @@ class TestChaCha20Poly1305:
 
         with pytest.raises(DecryptionFailedError):
             chacha20.decrypt(wrong_key, nonce, ciphertext)
+
+    def test_decrypt_invalid_key_size(self, chacha20: ChaCha20Poly1305) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(12)
+        with pytest.raises(InvalidKeyError):
+            chacha20.decrypt(b"short", nonce, b"ciphertext")
+
+    def test_decrypt_invalid_nonce_size(self, chacha20: ChaCha20Poly1305) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(32)
+        with pytest.raises(InvalidNonceError):
+            chacha20.decrypt(key, b"short", b"ciphertext")
 
 
 # ==============================================================================
@@ -373,6 +432,12 @@ class TestXChaCha20Poly1305:
 class TestAES256SIV:
     """Test suite for AES-256-SIV cipher."""
 
+    def test_generate_key(self, aes256siv: AES256SIV) -> None:
+        """Test that generate_key returns correct size."""
+        key = aes256siv.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 64  # 512 bits (two 256-bit keys)
+
     def test_basic_encrypt_decrypt(self, aes256siv: AES256SIV) -> None:
         """Test basic encryption and decryption."""
         key = os.urandom(64)  # 512-bit key (TWO 256-bit keys!)
@@ -415,6 +480,18 @@ class TestAES256SIV:
 
         assert ct1 != ct2
 
+    def test_decrypt_invalid_key_size(self, aes256siv: AES256SIV) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(16)
+        with pytest.raises(InvalidKeyError):
+            aes256siv.decrypt(b"short", nonce, b"ciphertext")
+
+    def test_decrypt_invalid_nonce_size(self, aes256siv: AES256SIV) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(64)
+        with pytest.raises(InvalidNonceError):
+            aes256siv.decrypt(key, b"short", b"ciphertext")
+
 
 # ==============================================================================
 # TEST SUITE: AES-256-OCB
@@ -423,6 +500,12 @@ class TestAES256SIV:
 
 class TestAES256OCB:
     """Test suite for AES-256-OCB cipher."""
+
+    def test_generate_key(self, aes256ocb: AES256OCB) -> None:
+        """Test that generate_key returns correct size."""
+        key = aes256ocb.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 32  # 256 bits
 
     def test_basic_encrypt_decrypt(self, aes256ocb: AES256OCB) -> None:
         """Test basic encryption and decryption."""
@@ -458,6 +541,18 @@ class TestAES256OCB:
         # Too long (16 bytes)
         with pytest.raises(InvalidNonceError):
             aes256ocb.encrypt(key, plaintext, nonce=os.urandom(16))
+
+    def test_decrypt_invalid_key_size(self, aes256ocb: AES256OCB) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(12)
+        with pytest.raises(InvalidKeyError):
+            aes256ocb.decrypt(b"short", nonce, b"ciphertext")
+
+    def test_decrypt_invalid_nonce_size(self, aes256ocb: AES256OCB) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(32)
+        with pytest.raises(InvalidNonceError):
+            aes256ocb.decrypt(key, b"short", b"ciphertext")
 
 
 # ==============================================================================
@@ -586,6 +681,12 @@ class TestDES:
 class TestAES256CTR:
     """Test suite for AES-256-CTR cipher."""
 
+    def test_generate_key(self, aes256ctr: AES256CTR) -> None:
+        """Test that generate_key returns correct size."""
+        key = aes256ctr.generate_key()
+        assert isinstance(key, bytes)
+        assert len(key) == 32  # 256 bits
+
     def test_basic_encrypt_decrypt(self, aes256ctr: AES256CTR) -> None:
         """Test basic encryption and decryption."""
         key = os.urandom(32)
@@ -615,6 +716,18 @@ class TestAES256CTR:
         """Test that CTR logs warning about HMAC requirement."""
         AES256CTR()
         assert "HMAC" in caplog.text or "NOT AEAD" in caplog.text
+
+    def test_decrypt_invalid_key_size(self, aes256ctr: AES256CTR) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(16)
+        with pytest.raises(InvalidKeyError):
+            aes256ctr.decrypt(b"short", nonce, b"ciphertext")
+
+    def test_decrypt_invalid_nonce_size(self, aes256ctr: AES256CTR) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(32)
+        with pytest.raises(InvalidNonceError):
+            aes256ctr.decrypt(key, b"short", b"ciphertext")
 
 
 # ==============================================================================
@@ -1247,6 +1360,37 @@ class TestCoverageCompleteness:
         with pytest.raises(TypeError):
             aes256gcm.decrypt(key, nonce, "not bytes")  # type: ignore
 
+    def test_type_validation_for_decrypt_key(self, aes256gcm: AES256GCM) -> None:
+        """Test that non-bytes key in decrypt raises TypeError."""
+        nonce = os.urandom(12)
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256gcm.decrypt("not bytes", nonce, b"ciphertext")  # type: ignore
+
+    def test_type_validation_for_decrypt_nonce(self, aes256gcm: AES256GCM) -> None:
+        """Test that non-bytes nonce in decrypt raises TypeError."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256gcm.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_type_validation_for_decrypt_aad(self, aes256gcm: AES256GCM) -> None:
+        """Test that non-bytes AAD in decrypt raises TypeError."""
+        key = os.urandom(32)
+        nonce, ct = aes256gcm.encrypt(key, b"test")
+        with pytest.raises(TypeError):
+            aes256gcm.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    def test_decrypt_invalid_key_size(self, aes256gcm: AES256GCM) -> None:
+        """Test that decrypt with wrong key size raises InvalidKeyError."""
+        nonce = os.urandom(12)
+        with pytest.raises(InvalidKeyError):
+            aes256gcm.decrypt(b"short", nonce, b"ciphertext")  # 5 bytes instead of 32
+
+    def test_decrypt_invalid_nonce_size(self, aes256gcm: AES256GCM) -> None:
+        """Test that decrypt with wrong nonce size raises InvalidNonceError."""
+        key = os.urandom(32)
+        with pytest.raises(InvalidNonceError):
+            aes256gcm.decrypt(key, b"short", b"ciphertext")  # 5 bytes instead of 12
+
 
 # ==============================================================================
 # TEST SUITE: Error Messages Validation
@@ -1327,6 +1471,490 @@ class TestMetadataRegistry:
         assert ALL_METADATA is not None
         assert isinstance(ALL_METADATA, list)
         assert len(ALL_METADATA) == 10  # All 10 ciphers
+
+
+# ==============================================================================
+# TEST SUITE: Type Validation for All Ciphers
+# ==============================================================================
+
+
+class TestTypeValidationAllCiphers:
+    """Type validation tests for all cipher classes.
+
+    These tests ensure type checking works correctly for all ciphers,
+    covering the validation paths that were missing coverage.
+    """
+
+    # === AES-128-GCM ===
+
+    def test_aes128gcm_encrypt_type_validation_key(self, aes128gcm: AES128GCM) -> None:
+        """Test AES-128-GCM raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes128gcm.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_aes128gcm_encrypt_type_validation_plaintext(
+        self, aes128gcm: AES128GCM
+    ) -> None:
+        """Test AES-128-GCM raises TypeError for non-bytes plaintext."""
+        key = os.urandom(16)
+        with pytest.raises(TypeError):
+            aes128gcm.encrypt(key, "not bytes")  # type: ignore
+
+    def test_aes128gcm_encrypt_type_validation_nonce(
+        self, aes128gcm: AES128GCM
+    ) -> None:
+        """Test AES-128-GCM raises TypeError for non-bytes nonce."""
+        key = os.urandom(16)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes128gcm.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_aes128gcm_encrypt_type_validation_aad(self, aes128gcm: AES128GCM) -> None:
+        """Test AES-128-GCM raises TypeError for non-bytes AAD."""
+        key = os.urandom(16)
+        with pytest.raises(TypeError):
+            aes128gcm.encrypt(key, b"test", aad="not bytes")  # type: ignore
+
+    def test_aes128gcm_decrypt_type_validation_key(self, aes128gcm: AES128GCM) -> None:
+        """Test AES-128-GCM decrypt raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes128gcm.decrypt("not bytes", os.urandom(12), b"ciphertext")  # type: ignore
+
+    def test_aes128gcm_decrypt_type_validation_nonce(
+        self, aes128gcm: AES128GCM
+    ) -> None:
+        """Test AES-128-GCM decrypt raises TypeError for non-bytes nonce."""
+        key = os.urandom(16)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes128gcm.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_aes128gcm_decrypt_type_validation_ciphertext(
+        self, aes128gcm: AES128GCM
+    ) -> None:
+        """Test AES-128-GCM decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(16)
+        with pytest.raises(TypeError):
+            aes128gcm.decrypt(key, os.urandom(12), "not bytes")  # type: ignore
+
+    def test_aes128gcm_decrypt_type_validation_aad(self, aes128gcm: AES128GCM) -> None:
+        """Test AES-128-GCM decrypt raises TypeError for non-bytes AAD."""
+        key = os.urandom(16)
+        nonce, ct = aes128gcm.encrypt(key, b"test")
+        with pytest.raises(TypeError):
+            aes128gcm.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    # === ChaCha20-Poly1305 ===
+
+    def test_chacha20_encrypt_type_validation_key(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            chacha20.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_chacha20_encrypt_type_validation_plaintext(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 raises TypeError for non-bytes plaintext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            chacha20.encrypt(key, "not bytes")  # type: ignore
+
+    def test_chacha20_encrypt_type_validation_nonce(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            chacha20.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_chacha20_encrypt_type_validation_aad(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 raises TypeError for non-bytes AAD."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            chacha20.encrypt(key, b"test", aad="not bytes")  # type: ignore
+
+    def test_chacha20_decrypt_type_validation_key(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 decrypt raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            chacha20.decrypt("not bytes", os.urandom(12), b"ciphertext")  # type: ignore
+
+    def test_chacha20_decrypt_type_validation_nonce(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 decrypt raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            chacha20.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_chacha20_decrypt_type_validation_ciphertext(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            chacha20.decrypt(key, os.urandom(12), "not bytes")  # type: ignore
+
+    def test_chacha20_decrypt_type_validation_aad(
+        self, chacha20: ChaCha20Poly1305
+    ) -> None:
+        """Test ChaCha20-Poly1305 decrypt raises TypeError for non-bytes AAD."""
+        key = os.urandom(32)
+        nonce, ct = chacha20.encrypt(key, b"test")
+        with pytest.raises(TypeError):
+            chacha20.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    # === XChaCha20-Poly1305 ===
+
+    def test_xchacha20_encrypt_type_validation_key(
+        self, xchacha20: "XChaCha20Poly1305"
+    ) -> None:
+        """Test XChaCha20-Poly1305 raises TypeError for non-bytes key."""
+        key = os.urandom(32)
+        try:
+            nonce, ct = xchacha20.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("XChaCha20 not available (pycryptodome)")
+        # Test decrypt with wrong key type
+        with pytest.raises((TypeError, InvalidKeyError)):
+            xchacha20.decrypt("not bytes", nonce, ct)  # type: ignore
+
+    def test_xchacha20_encrypt_type_validation_plaintext(
+        self, xchacha20: "XChaCha20Poly1305"
+    ) -> None:
+        """Test XChaCha20-Poly1305 raises TypeError for non-bytes plaintext."""
+        key = os.urandom(32)
+        try:
+            xchacha20.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("XChaCha20 not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            xchacha20.encrypt(key, "not bytes")  # type: ignore
+
+    def test_xchacha20_encrypt_type_validation_nonce(
+        self, xchacha20: "XChaCha20Poly1305"
+    ) -> None:
+        """Test XChaCha20-Poly1305 raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        try:
+            xchacha20.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("XChaCha20 not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidNonceError)):
+            xchacha20.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_xchacha20_decrypt_type_validation_ciphertext(
+        self, xchacha20: "XChaCha20Poly1305"
+    ) -> None:
+        """Test XChaCha20-Poly1305 decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(32)
+        try:
+            xchacha20.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("XChaCha20 not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            xchacha20.decrypt(key, os.urandom(24), "not bytes")  # type: ignore
+
+    def test_xchacha20_decrypt_type_validation_aad(
+        self, xchacha20: "XChaCha20Poly1305"
+    ) -> None:
+        """Test XChaCha20-Poly1305 decrypt raises TypeError for non-bytes AAD."""
+        key = os.urandom(32)
+        try:
+            nonce, ct = xchacha20.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("XChaCha20 not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            xchacha20.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    # === AES-256-SIV ===
+
+    def test_aes256siv_encrypt_type_validation_key(self, aes256siv: AES256SIV) -> None:
+        """Test AES-256-SIV raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256siv.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_aes256siv_encrypt_type_validation_plaintext(
+        self, aes256siv: AES256SIV
+    ) -> None:
+        """Test AES-256-SIV raises TypeError for non-bytes plaintext."""
+        key = os.urandom(64)
+        with pytest.raises(TypeError):
+            aes256siv.encrypt(key, "not bytes")  # type: ignore
+
+    def test_aes256siv_encrypt_type_validation_nonce(
+        self, aes256siv: AES256SIV
+    ) -> None:
+        """Test AES-256-SIV raises TypeError for non-bytes nonce."""
+        key = os.urandom(64)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256siv.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_aes256siv_encrypt_type_validation_aad(self, aes256siv: AES256SIV) -> None:
+        """Test AES-256-SIV raises TypeError for non-bytes AAD."""
+        key = os.urandom(64)
+        with pytest.raises(TypeError):
+            aes256siv.encrypt(key, b"test", aad="not bytes")  # type: ignore
+
+    def test_aes256siv_decrypt_type_validation_key(self, aes256siv: AES256SIV) -> None:
+        """Test AES-256-SIV decrypt raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256siv.decrypt("not bytes", os.urandom(16), b"ciphertext")  # type: ignore
+
+    def test_aes256siv_decrypt_type_validation_nonce(
+        self, aes256siv: AES256SIV
+    ) -> None:
+        """Test AES-256-SIV decrypt raises TypeError for non-bytes nonce."""
+        key = os.urandom(64)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256siv.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_aes256siv_decrypt_type_validation_ciphertext(
+        self, aes256siv: AES256SIV
+    ) -> None:
+        """Test AES-256-SIV decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(64)
+        with pytest.raises(TypeError):
+            aes256siv.decrypt(key, os.urandom(16), "not bytes")  # type: ignore
+
+    def test_aes256siv_decrypt_type_validation_aad(self, aes256siv: AES256SIV) -> None:
+        """Test AES-256-SIV decrypt raises TypeError for non-bytes AAD."""
+        key = os.urandom(64)
+        nonce, ct = aes256siv.encrypt(key, b"test")
+        with pytest.raises(TypeError):
+            aes256siv.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    # === AES-256-OCB ===
+
+    def test_aes256ocb_encrypt_type_validation_key(self, aes256ocb: AES256OCB) -> None:
+        """Test AES-256-OCB raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256ocb.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_aes256ocb_encrypt_type_validation_plaintext(
+        self, aes256ocb: AES256OCB
+    ) -> None:
+        """Test AES-256-OCB raises TypeError for non-bytes plaintext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            aes256ocb.encrypt(key, "not bytes")  # type: ignore
+
+    def test_aes256ocb_encrypt_type_validation_nonce(
+        self, aes256ocb: AES256OCB
+    ) -> None:
+        """Test AES-256-OCB raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256ocb.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_aes256ocb_encrypt_type_validation_aad(self, aes256ocb: AES256OCB) -> None:
+        """Test AES-256-OCB raises TypeError for non-bytes AAD."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            aes256ocb.encrypt(key, b"test", aad="not bytes")  # type: ignore
+
+    def test_aes256ocb_decrypt_type_validation_key(self, aes256ocb: AES256OCB) -> None:
+        """Test AES-256-OCB decrypt raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256ocb.decrypt("not bytes", os.urandom(12), b"ciphertext")  # type: ignore
+
+    def test_aes256ocb_decrypt_type_validation_nonce(
+        self, aes256ocb: AES256OCB
+    ) -> None:
+        """Test AES-256-OCB decrypt raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256ocb.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_aes256ocb_decrypt_type_validation_ciphertext(
+        self, aes256ocb: AES256OCB
+    ) -> None:
+        """Test AES-256-OCB decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            aes256ocb.decrypt(key, os.urandom(12), "not bytes")  # type: ignore
+
+    def test_aes256ocb_decrypt_type_validation_aad(self, aes256ocb: AES256OCB) -> None:
+        """Test AES-256-OCB decrypt raises TypeError for non-bytes AAD."""
+        key = os.urandom(32)
+        nonce, ct = aes256ocb.encrypt(key, b"test")
+        with pytest.raises(TypeError):
+            aes256ocb.decrypt(key, nonce, ct, aad="not bytes")  # type: ignore
+
+    # === TripleDES ===
+
+    def test_tripledes_encrypt_type_validation_key(self, triple_des: TripleDES) -> None:
+        """Test TripleDES raises TypeError for non-bytes key."""
+        try:
+            triple_des.encrypt(os.urandom(24), b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidKeyError)):
+            triple_des.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_tripledes_encrypt_type_validation_plaintext(
+        self, triple_des: TripleDES
+    ) -> None:
+        """Test TripleDES raises TypeError for non-bytes plaintext."""
+        key = os.urandom(24)
+        try:
+            triple_des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            triple_des.encrypt(key, "not bytes")  # type: ignore
+
+    def test_tripledes_encrypt_type_validation_nonce(self, triple_des: TripleDES) -> None:
+        """Test TripleDES raises TypeError for non-bytes nonce/IV."""
+        key = os.urandom(24)
+        try:
+            triple_des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidNonceError)):
+            triple_des.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_tripledes_decrypt_type_validation_key(self, triple_des: TripleDES) -> None:
+        """Test TripleDES decrypt raises TypeError for non-bytes key."""
+        try:
+            triple_des.encrypt(os.urandom(24), b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidKeyError)):
+            triple_des.decrypt("not bytes", os.urandom(8), b"ciphertext")  # type: ignore
+
+    def test_tripledes_decrypt_type_validation_nonce(self, triple_des: TripleDES) -> None:
+        """Test TripleDES decrypt raises TypeError for non-bytes nonce/IV."""
+        key = os.urandom(24)
+        try:
+            triple_des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidNonceError)):
+            triple_des.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_tripledes_decrypt_type_validation_ciphertext(
+        self, triple_des: TripleDES
+    ) -> None:
+        """Test TripleDES decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(24)
+        try:
+            triple_des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("TripleDES not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            triple_des.decrypt(key, os.urandom(8), "not bytes")  # type: ignore
+
+    # === DES ===
+
+    def test_des_encrypt_type_validation_key(self, des: DES) -> None:
+        """Test DES raises TypeError for non-bytes key."""
+        try:
+            des.encrypt(os.urandom(8), b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidKeyError)):
+            des.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_des_encrypt_type_validation_plaintext(self, des: DES) -> None:
+        """Test DES raises TypeError for non-bytes plaintext."""
+        key = os.urandom(8)
+        try:
+            des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            des.encrypt(key, "not bytes")  # type: ignore
+
+    def test_des_encrypt_type_validation_nonce(self, des: DES) -> None:
+        """Test DES raises TypeError for non-bytes nonce/IV."""
+        key = os.urandom(8)
+        try:
+            des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidNonceError)):
+            des.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_des_decrypt_type_validation_key(self, des: DES) -> None:
+        """Test DES decrypt raises TypeError for non-bytes key."""
+        try:
+            des.encrypt(os.urandom(8), b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidKeyError)):
+            des.decrypt("not bytes", os.urandom(8), b"ciphertext")  # type: ignore
+
+    def test_des_decrypt_type_validation_nonce(self, des: DES) -> None:
+        """Test DES decrypt raises TypeError for non-bytes nonce/IV."""
+        key = os.urandom(8)
+        try:
+            des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises((TypeError, InvalidNonceError)):
+            des.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_des_decrypt_type_validation_ciphertext(self, des: DES) -> None:
+        """Test DES decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(8)
+        try:
+            des.encrypt(key, b"test")
+        except RuntimeError:
+            pytest.skip("DES not available (pycryptodome)")
+        with pytest.raises(TypeError):
+            des.decrypt(key, os.urandom(8), "not bytes")  # type: ignore
+
+    # === AES-256-CTR ===
+
+    def test_aes256ctr_encrypt_type_validation_key(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256ctr.encrypt("not bytes", b"test")  # type: ignore
+
+    def test_aes256ctr_encrypt_type_validation_plaintext(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR raises TypeError for non-bytes plaintext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            aes256ctr.encrypt(key, "not bytes")  # type: ignore
+
+    def test_aes256ctr_encrypt_type_validation_nonce(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256ctr.encrypt(key, b"test", nonce="not bytes")  # type: ignore
+
+    def test_aes256ctr_decrypt_type_validation_key(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR decrypt raises TypeError for non-bytes key."""
+        with pytest.raises((TypeError, InvalidKeyError)):
+            aes256ctr.decrypt("not bytes", os.urandom(16), b"ciphertext")  # type: ignore
+
+    def test_aes256ctr_decrypt_type_validation_nonce(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR decrypt raises TypeError for non-bytes nonce."""
+        key = os.urandom(32)
+        with pytest.raises((TypeError, InvalidNonceError)):
+            aes256ctr.decrypt(key, "not bytes", b"ciphertext")  # type: ignore
+
+    def test_aes256ctr_decrypt_type_validation_ciphertext(
+        self, aes256ctr: AES256CTR
+    ) -> None:
+        """Test AES-256-CTR decrypt raises TypeError for non-bytes ciphertext."""
+        key = os.urandom(32)
+        with pytest.raises(TypeError):
+            aes256ctr.decrypt(key, os.urandom(16), "not bytes")  # type: ignore
 
     def test_all_metadata_objects_are_valid(self) -> None:
         """Test that all metadata objects are properly configured."""

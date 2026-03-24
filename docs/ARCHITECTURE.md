@@ -383,47 +383,47 @@ src/
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
-│  User Input  │────▶│  Controller  │────▶│  Service Layer │────▶│    Model    │
-│  (Tkinter)   │     │  (validate)  │     │  (coordinate)  │     │ (dataclass) │
+│  User Input │────▶│  Controller  │────▶│ Service Layer │────▶│    Model    │
+│  (Tkinter)  │     │  (validate)  │     │ (coordinate)  │     │ (dataclass) │
 └─────────────┘     └──────────────┘     └───────────────┘     └──────┬──────┘
-                                                                       │
-                                                                       ▼
+                                                                      │
+                                                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          documents/printing/                                │
 │                                                                             │
 │  document_renderer.py                                                       │
-│    ├── paragraph_renderer.py ──▶ run_renderer.py                           │
+│    ├── paragraph_renderer.py ──▶ run_renderer.py                            │
 │    ├── table_renderer.py                                                    │
 │    └── barcode_renderer.py                                                  │
 │                                                                             │
 │  Каждый renderer импортирует:                                               │
 │    - model/* (для обхода дерева документа)                                  │
-│    - escp/commands/* (для генерации ESC/P байтов)                          │
+│    - escp/commands/* (для генерации ESC/P байтов)                           │
 └──────────────────────────────────┬──────────────────────────────────────────┘
                                    │ bytes
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            escp/commands/                                    │
+│                            escp/commands/                                   │
 │                                                                             │
-│  Чистые функции:  build_bold(on=True) → b'\x1b\x45'                       │
-│                   build_font(font_id) → b'\x1b\x6b\x00'                    │
-│                   build_position(col) → b'\x1b\x24\x00\x01'               │
+│  Чистые функции:  build_bold(on=True) → b'\x1b\x45'                         │
+│                   build_font(font_id) → b'\x1b\x6b\x00'                     │
+│                   build_position(col) → b'\x1b\x24\x00\x01'                 │
 └──────────────────────────────────┬──────────────────────────────────────────┘
                                    │ bytes
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             printer/                                        │
 │                                                                             │
-│  PrinterProtocol.send(data: bytes) → None                                  │
-│    ├── WinAdapter    → Win32 WritePrinter API                              │
-│    ├── CupsAdapter   → CUPS lp/lpr                                         │
-│    └── FileAdapter   → debug file output                                   │
+│  PrinterProtocol.send(data: bytes) → None                                   │
+│    ├── WinAdapter    → Win32 WritePrinter API                               │
+│    ├── CupsAdapter   → CUPS lp/lpr                                          │
+│    └── FileAdapter   → debug file output                                    │
 └──────────────────────────────────┬──────────────────────────────────────────┘
                                    │ raw bytes
                                    ▼
                           ┌─────────────────┐
-                          │ Physical Printer │
-                          │   Epson FX-890   │
+                          │ Physical Printer│
+                          │   Epson FX-890  │
                           └─────────────────┘
 ```
 
@@ -431,34 +431,34 @@ src/
 
 ```
 ┌───────────────┐     ┌───────────────────┐     ┌────────────────────┐
-│  TypeRegistry  │────▶│  form_constructor  │────▶│     Document       │
-│  (тип + схема) │     │  (шаблон → doc)    │     │  (заполненный)     │
+│ TypeRegistry  │────▶│  form_constructor │────▶│     Document       │
+│ (тип + схема) │     │  (шаблон → doc)   │     │  (заполненный)     │
 └───────────────┘     └───────────────────┘     └────────┬───────────┘
                                                           │
                                                           ▼
                                               ┌───────────────────────┐
-                                              │  blanks/blank_manager  │
-                                              │  (sign, assign index)  │
-                                              │  blank_id + full_index │
+                                              │  blanks/blank_manager │
+                                              │  (sign, assign index) │
+                                              │  blank_id + full_index│
                                               └────────┬──────────────┘
                                                        │
                                           ┌────────────┴────────────┐
                                           ▼                         ▼
                                 ┌──────────────────┐    ┌──────────────────┐
-                                │  .fxsblank file   │    │  printing/        │
-                                │  (encrypted store) │    │  (ESC/P render)  │
+                                │ .fxsblank file   │    │  printing/       │
+                                │(encrypted store) │    │  (ESC/P render)  │
                                 └──────────────────┘    └────────┬─────────┘
                                                                   │
                                                                   ▼
                                                         ┌──────────────────┐
-                                                        │  Physical Paper   │
+                                                        │  Physical Paper  │
                                                         │  (with QR code)  │
                                                         └────────┬─────────┘
                                                                   │
                                                                   ▼ scan QR
                                                         ┌──────────────────┐
-                                                        │ blanks/verifier   │
-                                                        │ (offline verify)  │
+                                                        │ blanks/verifier  │
+                                                        │ (offline verify) │
                                                         └──────────────────┘
 ```
 
@@ -2687,9 +2687,9 @@ CloudStorage/FXTextProcessor/
 
 | Модуль | Путь | Статус | Комментарий |
 |--------|------|--------|-------------|
-| Session Lock | `src/security/lock/session_lock.py` | 📋 TODO | Блокировка сессии, auto-lock |
-| Secure Erasure | `src/security/erasure.py` | 📋 TODO | Secure wipe (DoD 5220.22-M) |
-| Monitoring | `src/security/monitoring/` | 📋 TODO | Health checks at startup |
+| Session Lock | `src/security/lock/session_lock.py` | ✅ Done | SessionLockManager, AutoLockService |
+| Secure Erasure | `src/security/erasure.py` | ✅ Done | Secure wipe (DoD 5220.22-M) |
+| Monitoring | `src/security/monitoring/` | ✅ Done | HealthChecker, 6 health checks |
 | Floppy Optimizer | `src/security/crypto/utilities/floppy_optimizer.py` | 📋 TODO | 1.44 MB optimization |
 
 #### Infrastructure модули
@@ -2762,11 +2762,11 @@ CloudStorage/FXTextProcessor/
 | `security/audit/` | ✅ Complete | — | — | Hash chain + HMAC |
 | `security/blanks/` | ✅ Complete | — | — | Lifecycle + signing + verify |
 | `security/compliance/` | ✅ Complete | — | — | GDPR, retention |
-| `security/hardware/` | 🚧 Extended | — | — | PIV done, OpenPGP in progress |
-| `security/integrity/` | 🚧 In Progress | — | — | App hash check |
-| `security/lock/` | 📋 TODO | — | — | Session lock, auto-lock |
-| `security/erasure.py` | 📋 TODO | — | — | Secure wipe |
-| `security/monitoring/` | 📋 TODO | — | — | Health checks |
+| `security/crypto/hardware/` | ✅ Complete | — | — | PIV, OpenPGP backends |
+| `security/integrity/` | ✅ Complete | — | — | App hash check, config signature |
+| `security/lock/` | ✅ Complete | — | — | SessionLockManager, AutoLockService |
+| `security/erasure.py` | ✅ Complete | — | — | Secure wipe, DoD 5220.22-M |
+| `security/monitoring/` | ✅ Complete | — | — | HealthChecker, 6 checks |
 | `documents/types/` | 📋 TODO | — | — | Рефакторинг из form/ |
 | `documents/constructor/` | 📋 TODO | — | — | Рефакторинг из form/ |
 | `documents/format/` | 📋 TODO | — | — | Сериализация |

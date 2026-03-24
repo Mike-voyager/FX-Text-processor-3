@@ -248,7 +248,7 @@ def mock_registry() -> MagicMock:
 
     registry.get_metadata.side_effect = lambda name: _metadata[name]
     registry.create.side_effect = lambda name: _instances[name]
-    registry.list_algorithms.return_value = list(_metadata.keys())
+    registry.list_algorithms.return_value = list(_metadata.values())
     registry.is_registered.side_effect = lambda name: name in _metadata
 
     return registry
@@ -287,6 +287,7 @@ def service(mock_registry: MagicMock, fake_profile_config: MagicMock) -> CryptoS
     svc.profile = CryptoProfile.STANDARD
     svc.config = fake_profile_config
     svc._registry = mock_registry
+    svc._audit_log = None
     return svc
 
 

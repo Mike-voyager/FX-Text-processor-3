@@ -108,10 +108,10 @@ src/
 │   ├── blanks/              # ✅ Blank lifecycle & security layer
 │   ├── compliance/          # ✅ GDPR, retention, anonymization
 │   ├── hardware/            # 🚧 Device registry & backends
-│   ├── integrity/           # 🚧 App hash check, config signature
-│   ├── lock/                # 📋 TODO — session lock, auto-lock
-│   ├── erasure.py           # 📋 TODO — secure wipe (memory, files, clipboard)
-│   └── monitoring/          # 📋 TODO — health checks at startup
+│   ├── integrity/           # ✅ Complete — App hash check, config signature
+│   ├── lock/                # ✅ Complete — SessionLockManager, AutoLockService
+│   ├── erasure.py           # ✅ Complete — secure wipe (memory, files, clipboard)
+│   └── monitoring/          # ✅ Complete — HealthChecker, 6 checks
 │
 ├── documents/               # 🚧 Template engine, blank constructor, renderer
 │   ├── templates/           # Type hierarchy, field schema, inheritance
@@ -166,7 +166,18 @@ security/crypto/
 ├── hardware/                # Hardware crypto operations
 │   └── hardware_crypto.py   # HardwareCryptoManager (PIV, OpenPGP, OTP)
 │
-└── monitoring/              # 📋 TODO — algorithm availability, benchmarks
+├── monitoring/              # Health checks at startup
+│   ├── __init__.py          # Public API
+│   ├── exceptions.py        # HealthCheckError hierarchy
+│   ├── models.py            # HealthCheckStatus, HealthCheckResult, HealthCheckReport
+│   ├── health_checker.py    # HealthChecker registry
+│   └── checks/              # Individual checks
+│       ├── entropy_check.py   # /dev/random entropy
+│       ├── keystore_check.py  # Keystore health
+│       ├── device_check.py     # Hardware devices
+│       ├── algorithm_check.py  # Crypto algorithms
+│       ├── audit_chain_check.py # Audit log integrity
+│       └── config_check.py     # Config signature
 ```
 
 ---
@@ -1307,24 +1318,127 @@ if not checker.verify_config(config_data):
 
 ## Monitoring & Health Checks
 
-> **Status: 📋 TODO** — `src/security/monitoring/`
+> **Status: ✅ Complete** — `src/security/monitoring/`
 
 Runs at application startup and on-demand via Settings → System → Health Check.
 
-### Planned Checks
+### Implemented Checks
 
-| Check | Description |
-|-------|-------------|
-| `entropy_check` | Sufficient entropy in `/dev/random` for key generation |
-| `keystore_health` | Keystore file accessible, not corrupted, HMAC valid |
-| `device_availability` | Which hardware devices are currently connected |
-| `algorithm_availability` | All algorithms in active preset are available (liboqs, pyscard present) |
-| `audit_chain_integrity` | Audit log hash chain is intact |
-| `config_signature_valid` | Config file has not been modified externally |
-| `app_hash_valid` | App binary matches reference hash |
+| Check | Description | Critical |
+|-------|-------------|----------|
+| `EntropyCheck` | Sufficient entropy in `/dev/random` for key generation | Yes |
+| `KeystoreCheck` | Keystore file accessible, not corrupted | Yes |
+| `DeviceCheck` | Which hardware devices are currently connected | No |
+| `AlgorithmCheck` | All algorithms in active preset are available (liboqs, pyscard) | Yes |
+| `AuditChainCheck` | Audit log hash chain is intact | Yes |
+| `ConfigCheck` | Config file has not been modified externally | No |
+
+### Architecture
+
+```python
+from src.security.monitoring import HealthChecker, HealthCheckStatus
+
+# Create health checker
+checker = HealthChecker(version="1.0.0")
+
+# Register checks
+checker.register_function("entropy", entropy_check, critical=True)
+checker.register_function("keystore", keystore_check, critical=True)
+
+# Run all checks
+report = checker.run_all()
+
+# Check results
+if report.is_healthy:
+    print("All checks passed")
+else:
+    for check in report.critical_checks:
+        print(f"Failed: {check.check_name} - {check.message}")
+```
 
 Results displayed in a startup health panel (dismissible). Critical failures
 (keystore corrupted, config tampered) abort startup.
+
+---
+
+## Compliance (GDPR)
+
+> **Status: ✅ Complete** — `src/security/compliance/`
+
+Implements GDPR compliance features for data protection.
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `RetentionPolicyManager` | Manages data retention policies |
+| `PIIAnonymizer` | Anonymizes personal identifiable information |
+| `DataExportService` | Exports data for data subject requests (Art. 20) |
+| `RightToErasureHandler` | Handles deletion requests (Art. 17) |
+
+### Data Categories
+
+```python
+from src.security.compliance import DataCategory, RetentionPolicyManager
+
+# Categories with retention periods
+DataCategory.PUBLIC        # 10 years
+DataCategory.INTERNAL     # 1 year
+DataCategory.PII          # 1 year (anonymize)
+DataCategory.SENSITIVE    # 90 days (delete)
+DataCategory.FINANCIAL   # 7 years (archive, legal requirement)
+DataCategory.CREDENTIALS  # 1 year (delete)
+```
+
+### Retention Policy
+
+```python
+manager = RetentionPolicyManager()
+
+# Find expired records
+expired = manager.find_expired_records(records)
+
+# Apply retention policy
+result = manager.apply_retention(records, dry_run=True)
+```
+
+### PII Anonymization
+
+```python
+from src.security.compliance import PIIAnonymizer
+
+anonymizer = PIIAnonymizer()
+
+# Anonymize data
+data = {"email": "user@example.com", "name": "John Doe"}
+anonymized = anonymizer.anonymize(data)
+# {"email": "a1b2c3d4e5f6g7h8", "name": "Anonymous User"}
+```
+
+### Data Export (Right to Access)
+
+```python
+from src.security.compliance import DataExportService
+
+service = DataExportService(data_provider=get_user_data)
+
+# Export in JSON format
+result = service.export_data(user_id, format="json", anonymize_pii=True)
+```
+
+### Right to Erasure
+
+```python
+from src.security.compliance import RightToErasureHandler
+
+handler = RightToErasureHandler(
+    data_locator=find_user_data,
+    data_deleter=delete_user_data,
+)
+
+# Process erasure request
+result = handler.process_request(user_id, reason="Data subject request")
+```
 
 ---
 
@@ -1619,15 +1733,15 @@ reference hash should be stored on external media or hardware device
 | Module | Status | Notes |
 |--------|--------|-------|
 | `security/crypto/` | ✅ Complete | v2.3, 46 algorithms, 90%+ test coverage |
+| `security/crypto/hardware/` | ✅ Complete | PIV, OpenPGP backends, smart card support |
 | `security/auth/` | ✅ Complete | 98.67% coverage, 616+ tests, Password + FIDO2/TOTP/Backup Codes MFA |
-| `security/audit/` | ✅ Complete | Hash-chain + HMAC-SHA256, 57 event types, thread-safe |
+| `security/audit/` | ✅ Complete | Hash-chain + HMAC-SHA256, 62 event types, thread-safe |
 | `security/blanks/` | ✅ Complete | 6 lifecycle states, 3 signing modes, offline QR verification |
-| `security/compliance/` | ✅ Complete |  |
-| `security/hardware/` | 🚧 Extended | PIV done, OpenPGP backend in progress |
-| `security/integrity/` | 🚧 In progress |  |
-| `security/lock/` | 📋 TODO |  |
-| `security/erasure.py` | 📋 TODO | SecureMemory in crypto/utils.py is done |
-| `security/monitoring/` | 📋 TODO | Scope defined, not implemented |
+| `security/compliance/` | ✅ Complete | GDPR compliance, data retention, PII anonymization, right to erasure |
+| `security/integrity/` | ✅ Complete | App hash check, config signature verification |
+| `security/lock/` | ✅ Complete | SessionLockManager, AutoLockService, platform-specific idle |
+| `security/erasure.py` | ✅ Complete | SecureMemory, wipe_file, wipe_directory, clear_clipboard |
+| `security/monitoring/` | ✅ Complete | HealthChecker, 6 health checks, audit integration |
 | `documents/` | 🚧 In progress |  |
 | `backup/` | 📋 TODO |  |
 | `network/` | 📋 TODO | LAN verifier, opt-in only |

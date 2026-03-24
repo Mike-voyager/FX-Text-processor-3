@@ -57,7 +57,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from src.security.crypto.advanced.hybrid_encryption import (
     HybridPayload,
@@ -84,6 +84,11 @@ from src.security.crypto.service.profiles import (
     get_profile_config,
 )
 
+from src.security.audit import AuditEventType
+
+if TYPE_CHECKING:
+    from src.security.audit import AuditLog
+
 __all__ = [
     "CryptoService",
     "EncryptedDocument",
@@ -92,10 +97,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-# Audit logger (заглушка; будет заменена на src.audit.AuditLogger в Phase 11)
-# TODO: from src.audit import AuditLogger
-_audit_logger = logging.getLogger("audit.crypto")
 
 
 # ==============================================================================
@@ -287,6 +288,7 @@ class CryptoService:
     Attributes:
         profile: Активный профиль конфигурации
         config: ProfileConfig с algorithm IDs для профиля
+        audit_log: Опциональный AuditLog для логирования операций
 
     Example:
         >>> service = CryptoService()  # STANDARD profile by default
@@ -294,13 +296,14 @@ class CryptoService:
         >>> service = CryptoService(profile=CryptoProfile.FLOPPY_BASIC)
     """
 
-    __slots__ = ("profile", "config", "_registry")
+    __slots__ = ("profile", "config", "_registry", "_audit_log")
 
     def __init__(
         self,
         profile: CryptoProfile = CryptoProfile.STANDARD,
         *,
         registry: AlgorithmRegistry | None = None,
+        audit_log: "AuditLog | None" = None,
     ) -> None:
         """
         Инициализировать CryptoService.
@@ -309,6 +312,7 @@ class CryptoService:
             profile: Профиль конфигурации (алгоритмы по умолчанию).
                      По умолчанию CryptoProfile.STANDARD.
             registry: Реестр алгоритмов. Если None — используется singleton.
+            audit_log: Опциональный AuditLog для логирования криптоопераций.
 
         Raises:
             ValueError: Некорректный профиль
@@ -319,12 +323,44 @@ class CryptoService:
         self.profile = profile
         self.config: ProfileConfig = get_profile_config(profile)
         self._registry = registry or AlgorithmRegistry.get_instance()
+        self._audit_log = audit_log
 
         logger.info(
             "CryptoService инициализирован с профилем '%s' (%s)",
             profile.value,
             profile.label(),
         )
+
+    # --------------------------------------------------------------------------
+    # AUDIT LOGGING
+    # --------------------------------------------------------------------------
+
+    def _log_operation(
+        self,
+        event_type: "AuditEventType",
+        algorithm: str,
+        **kwargs: str | int | bool | None,
+    ) -> None:
+        """
+        Логировать криптографическую операцию в audit log.
+
+        Args:
+            event_type: Тип события аудита
+            algorithm: Идентификатор алгоритма
+            **kwargs: Дополнительные параметры операции
+        """
+        audit_log = getattr(self, "_audit_log", None)
+        if audit_log is None:
+            return
+
+        try:
+            details: dict[str, str | int | bool | None] = {
+                "algorithm": algorithm,
+                **kwargs,
+            }
+            audit_log.log_event(event_type, details=details)
+        except Exception as e:
+            logger.warning("Failed to log audit event: %s", e)
 
     # --------------------------------------------------------------------------
     # KEY GENERATION
@@ -364,7 +400,7 @@ class CryptoService:
             raise CryptoError(f"Алгоритм '{algo_id}' не предоставляет key_size в метаданных")
 
         key = os.urandom(key_size)
-        _audit_logger.info("generate_symmetric_key: algorithm=%s key_size=%d", algo_id, key_size)
+        self._log_operation(AuditEventType.CRYPTO_KEY_GENERATED, algo_id, key_size=key_size)
         return key
 
     def generate_keypair(self, algorithm_id: str | None = None) -> tuple[bytes, bytes]:
@@ -400,7 +436,7 @@ class CryptoService:
 
         private_key, public_key = algorithm.generate_keypair()
         pub_hint = public_key[:8].hex() if len(public_key) >= 8 else public_key.hex()
-        _audit_logger.info("generate_keypair: algorithm=%s public_key_hint=%s", algo_id, pub_hint)
+        self._log_operation(AuditEventType.CRYPTO_KEY_GENERATED, algo_id, key_type="asymmetric")
         return private_key, public_key
 
     # --------------------------------------------------------------------------
@@ -455,22 +491,20 @@ class CryptoService:
         try:
             nonce, ciphertext = cipher.encrypt(key, document, aad=aad)
         except Exception as exc:
-            _audit_logger.error(
-                "encrypt_document FAILED: algorithm=%s data_size=%d error=%s",
-                algo_id,
-                len(document),
-                type(exc).__name__,
+            self._log_operation(
+                AuditEventType.CRYPTO_ENCRYPTION, algo_id, success=False, data_size=len(document)
             )
             raise EncryptionError(
                 f"Ошибка шифрования документа алгоритмом '{algo_id}': {exc}",
                 algorithm=algo_id,
             ) from exc
 
-        _audit_logger.info(
-            "encrypt_document: algorithm=%s data_size=%d ciphertext_size=%d",
+        self._log_operation(
+            AuditEventType.CRYPTO_ENCRYPTION,
             algo_id,
-            len(document),
-            len(ciphertext),
+            success=True,
+            data_size=len(document),
+            ciphertext_size=len(ciphertext),
         )
         return EncryptedDocument(
             nonce=nonce,
@@ -517,20 +551,14 @@ class CryptoService:
                 key, encrypted.nonce, encrypted.ciphertext, aad=encrypted.aad
             )
         except Exception as exc:
-            _audit_logger.warning(
-                "decrypt_document FAILED: algorithm=%s error=%s",
-                algo_id,
-                type(exc).__name__,
-            )
+            self._log_operation(AuditEventType.CRYPTO_DECRYPTION, algo_id, success=False)
             raise DecryptionError(
                 "Ошибка расшифровки: неверный ключ или повреждены данные.",
                 algorithm=algo_id,
             ) from exc
 
-        _audit_logger.info(
-            "decrypt_document: algorithm=%s plaintext_size=%d",
-            algo_id,
-            len(plaintext),
+        self._log_operation(
+            AuditEventType.CRYPTO_DECRYPTION, algo_id, success=True, plaintext_size=len(plaintext)
         )
         return plaintext
 
@@ -579,22 +607,20 @@ class CryptoService:
         try:
             signature = signer.sign(private_key, document)
         except Exception as exc:
-            _audit_logger.error(
-                "sign_document FAILED: algorithm=%s data_size=%d error=%s",
-                algo_id,
-                len(document),
-                type(exc).__name__,
+            self._log_operation(
+                AuditEventType.CRYPTO_SIGNING, algo_id, success=False, data_size=len(document)
             )
             raise SignatureError(
                 f"Ошибка создания подписи алгоритмом '{algo_id}': {exc}",
                 algorithm=algo_id,
             ) from exc
 
-        _audit_logger.info(
-            "sign_document: algorithm=%s data_size=%d sig_size=%d",
+        self._log_operation(
+            AuditEventType.CRYPTO_SIGNING,
             algo_id,
-            len(document),
-            len(signature),
+            success=True,
+            data_size=len(document),
+            signature_size=len(signature),
         )
         return SignedDocument(
             signature=signature,
@@ -647,16 +673,14 @@ class CryptoService:
         try:
             result = signer.verify(public_key, document, signature)
         except Exception as exc:
-            _audit_logger.warning(
-                "verify_signature EXCEPTION: algorithm=%s error=%s",
-                algorithm_id,
-                type(exc).__name__,
-            )
+            self._log_operation(AuditEventType.CRYPTO_VERIFICATION, algorithm_id, success=False)
             # Ошибка верификации = подпись недействительна
             logger.debug("Верификация подписи вызвала исключение: %s", exc)
             return False
 
-        _audit_logger.info("verify_signature: algorithm=%s result=%s", algorithm_id, result)
+        self._log_operation(
+            AuditEventType.CRYPTO_VERIFICATION, algorithm_id, success=True, valid=result
+        )
         return bool(result)
 
     # --------------------------------------------------------------------------
@@ -714,7 +738,9 @@ class CryptoService:
         cipher = create_hybrid_cipher(config_name)
         payload = cipher.encrypt_for_recipient(recipient_public_key, document)
 
-        _audit_logger.info("encrypt_hybrid: config=%s data_size=%d", config_name, len(document))
+        self._log_operation(
+            AuditEventType.CRYPTO_ENCRYPTION, config_name, success=True, data_size=len(document)
+        )
         return payload
 
     def decrypt_hybrid(
@@ -756,20 +782,17 @@ class CryptoService:
         try:
             plaintext = cipher.decrypt_from_sender(recipient_private_key, payload)
         except Exception as exc:
-            _audit_logger.warning(
-                "decrypt_hybrid FAILED: config=%s error=%s",
-                payload.config,
-                type(exc).__name__,
-            )
+            self._log_operation(AuditEventType.CRYPTO_DECRYPTION, payload.config, success=False)
             raise DecryptionError(
                 "Ошибка расшифровки гибридного шифра.",
                 algorithm=payload.config,
             ) from exc
 
-        _audit_logger.info(
-            "decrypt_hybrid: config=%s plaintext_size=%d",
+        self._log_operation(
+            AuditEventType.CRYPTO_DECRYPTION,
             payload.config,
-            len(plaintext),
+            success=True,
+            plaintext_size=len(plaintext),
         )
         return plaintext
 
@@ -810,7 +833,7 @@ class CryptoService:
         algo_id = algorithm_id or self.config.hash_algorithm
         hasher: HashProtocol = self._registry.create(algo_id)
         digest = hasher.hash(data)
-        _audit_logger.info("hash_data: algorithm=%s data_size=%d", algo_id, len(data))
+        self._log_operation(AuditEventType.CRYPTO_ENCRYPTION, algo_id, operation="hash", data_size=len(data))
         return digest
 
     # --------------------------------------------------------------------------
@@ -909,17 +932,18 @@ class CryptoService:
         result: dict[str, _AlgorithmInfoDict] = {}
         target_category = _category_map.get(category) if category else None
 
-        for name in self._registry.list_algorithms():
+        for meta in self._registry.list_algorithms():
             try:
-                meta = self._registry.get_metadata(name)
+                # meta уже является AlgorithmMetadata, не нужен get_metadata
+                pass
             except Exception:
-                logger.warning("Не удалось получить метаданные для '%s'", name)
+                logger.warning("Не удалось получить метаданные для '%s'", meta.id)
                 continue
 
             if target_category is not None and meta.category != target_category:
                 continue
 
-            result[name] = {
+            result[meta.id] = {
                 "name": meta.name,
                 "security_level": meta.security_level.value,
                 "floppy_friendly": meta.floppy_friendly.value,

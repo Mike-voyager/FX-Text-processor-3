@@ -365,14 +365,15 @@ def list_recommended_algorithms(
 
     algo_category = _category_map[category]
     registry = AlgorithmRegistry.get_instance()
-    all_names = registry.list_algorithms()
+    all_metas = registry.list_algorithms()
 
     result: list[str] = []
-    for name in all_names:
+    for meta in all_metas:
         try:
-            meta = registry.get_metadata(name)
+            # meta уже является AlgorithmMetadata, не нужен get_metadata
+            pass
         except Exception:
-            logger.warning("Не удалось получить метаданные для '%s'", name)
+            logger.warning("Не удалось получить метаданные для '%s'", meta.id)
             continue
 
         if meta.category != algo_category:
@@ -390,14 +391,14 @@ def list_recommended_algorithms(
         if not include_legacy and meta.status == ImplementationStatus.DEPRECATED:
             continue
 
-        result.append(name)
+        result.append(meta.id)
 
     # Сортировка: stable > experimental, затем по приоритетам
-    def _sort_key(name: str) -> tuple[int, int, int, int, str]:
+    def _sort_key(algo_id: str) -> tuple[int, int, int, int, str]:
         try:
-            meta = registry.get_metadata(name)
+            meta = registry.get_metadata(algo_id)
         except Exception:
-            return (99, 99, 99, 99, name)
+            return (99, 99, 99, 99, algo_id)
 
         # 0 = stable, 1 = experimental, 2 = deprecated
         status_order = {
@@ -426,9 +427,9 @@ def list_recommended_algorithms(
         }.get(meta.security_level, 9)
 
         if floppy_mode:
-            return (status_order, pqc_order, floppy_order, sec_order, name)
+            return (status_order, pqc_order, floppy_order, sec_order, algo_id)
         else:
-            return (status_order, pqc_order, sec_order, floppy_order, name)
+            return (status_order, pqc_order, sec_order, floppy_order, algo_id)
 
     result.sort(key=_sort_key)
     return result
