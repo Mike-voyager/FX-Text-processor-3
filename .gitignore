@@ -150,6 +150,4 @@ temp/
 .crypto_backup_*/
 
 # claude
-.claude
-CLAUDE.md
 docs/plans
