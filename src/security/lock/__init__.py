@@ -1,48 +1,46 @@
-"""
-Модуль блокировки сессии.
+"""Модуль блокировки сессии для FX Text Processor 3.
 
-Обеспечивает мгновенную блокировку и автоматическую блокировку
-по таймауту неактивности с MFA для разблокировки.
+Предоставляет сервисы для автоматической и ручной блокировки сессии
+при бездействии пользователя, при засыпании системы или по требованию.
 
 Components:
-    - SessionLockManager: Управление блокировкой сессии
-    - AutoLockService: Фоновый мониторинг неактивности
+    - LockConfig: Конфигурация блокировки сессии
+    - SessionLockManager: Менеджер блокировки сессии
+    - AutoLockService: Сервис автоматической блокировки по таймауту
 
-Security:
-    - Мгновенная блокировка по горячей клавише или таймауту
-    - Очистка памяти чувствительных данных при блокировке
-    - MFA для разблокировки
-    - Audit-логирование всех событий
-
-Version: 1.0
-Date: March 2026
+Example:
+    >>> from src.security.lock import SessionLockManager, AutoLockService, LockConfig
+    >>> config = LockConfig(auto_lock_minutes=15, require_mfa_to_unlock=True)
+    >>> lock_manager = SessionLockManager(auth_controller, config)
+    >>> auto_lock = AutoLockService(lock_manager)
+    >>> auto_lock.start()
 """
 
 from __future__ import annotations
 
-from src.security.lock.exceptions import (
-    LockError,
-    LockTimeoutError,
-    UnlockError,
-    UnlockMFARequiredError,
+from src.security.lock.auto_lock_service import (
+    AutoLockError,
+    AutoLockService,
 )
-from src.security.lock.models import LockEvent, LockReason, LockState
-from src.security.lock.session_lock import SessionLockManager
-
-__all__: list[str] = [
-    # Exceptions
-    "LockError",
-    "LockTimeoutError",
-    "UnlockError",
-    "UnlockMFARequiredError",
-    # Models
-    "LockState",
-    "LockReason",
-    "LockEvent",
-    # Managers
-    "SessionLockManager",
-]
+from src.security.lock.session_lock_manager import (
+    LockConfig,
+    SessionLockError,
+    SessionLockManager,
+    UnlockResult,
+)
 
 __version__ = "1.0.0"
 __author__ = "Mike Voyager"
-__date__ = "2026-03-23"
+
+__all__ = [
+    # Configuration
+    "LockConfig",
+    # Managers
+    "SessionLockManager",
+    "AutoLockService",
+    # Results
+    "UnlockResult",
+    # Exceptions
+    "SessionLockError",
+    "AutoLockError",
+]

@@ -110,9 +110,7 @@ class BarcodeGenerator:
         options: Optional[BarcodeOptions] = None,
     ) -> None:
         if not isinstance(barcode_type, BarcodeType):
-            raise TypeError(
-                f"barcode_type must be BarcodeType enum, got {type(barcode_type)!r}"
-            )
+            raise TypeError(f"barcode_type must be BarcodeType enum, got {type(barcode_type)!r}")
         self.barcode_type = barcode_type
         self.data = data
         # Исправление: приводим TypedDict к dict для совместимости
@@ -135,9 +133,7 @@ class BarcodeGenerator:
             BarcodeType.GS1128,
         ):
             if not self.data.isdigit():
-                raise BarcodeGenError(
-                    f"{self.barcode_type.name} barcode requires digits only."
-                )
+                raise BarcodeGenError(f"{self.barcode_type.name} barcode requires digits only.")
             if self.barcode_type == BarcodeType.EAN8 and len(self.data) != 8:
                 raise BarcodeGenError("EAN8 must be 8 digits.")
             elif self.barcode_type == BarcodeType.EAN13 and len(self.data) != 13:
@@ -151,9 +147,7 @@ class BarcodeGenerator:
         elif self.barcode_type == BarcodeType.CODE39:
             valid_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.$/+% ")
             if any(c.islower() for c in self.data):
-                raise BarcodeGenError(
-                    "CODE39 supports only uppercase A-Z, 0-9, and -.$/+% chars"
-                )
+                raise BarcodeGenError("CODE39 supports only uppercase A-Z, 0-9, and -.$/+% chars")
             if not all(c in valid_chars for c in self.data):
                 raise BarcodeGenError("CODE39 supports only A-Z, 0-9, and -.$/+% chars")
 
@@ -176,9 +170,7 @@ class BarcodeGenerator:
         elif self.barcode_type == BarcodeType.CODABAR:
             valid_chars = set("0123456789-$:/.+ABCD")
             if not all(c in valid_chars for c in self.data.upper()):
-                raise BarcodeGenError(
-                    "Codabar supports only 0-9, -$:/.+, and start/stop chars A-D"
-                )
+                raise BarcodeGenError("Codabar supports only 0-9, -$:/.+, and start/stop chars A-D")
 
         elif self.barcode_type == BarcodeType.POSTNET and (
             not self.data.isdigit() or len(self.data) not in (5, 9, 11)
@@ -192,9 +184,7 @@ class BarcodeGenerator:
         elif self.barcode_type == BarcodeType.CODE11:
             valid_chars = set("0123456789-")
             if not all(c in valid_chars for c in self.data):
-                raise BarcodeGenError(
-                    "Code11 supports only digits and dash ('-') chars"
-                )
+                raise BarcodeGenError("Code11 supports only digits and dash ('-') chars")
         # Возможны дополнительные проверки для custom типов
 
     def render_image(

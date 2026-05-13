@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/barcodegen/barcode_generator.py
+# hypothesis_version: 6.151.12
+
+[0.2, 120, 144, 400, 131070, '0123456789-', '0123456789-$:/.+ABCD', 'BarcodeGenError', 'BarcodeGenerator', 'BarcodeOptions', 'BarcodeRenderOptions', 'PNG', 'RGB', 'codabar', 'code11', 'code128', 'code39', 'code93', 'dpi', 'ean13', 'ean14', 'ean8', 'font_size', 'gs1128', 'height', 'itf', 'module_width', 'msi', 'pharmacode', 'plessey', 'postnet', 'quiet_zone', 'standard2of5', 'telepen', 'text_distance', 'trioptic', 'upc', 'white', 'width', 'write_text']

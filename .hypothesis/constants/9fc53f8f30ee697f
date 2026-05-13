@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/printing/form_renderer.py
+# hypothesis_version: 6.151.12
+
+[b'\n', b'\r\n', b' ', b'\xb3', b'\xb4', b'\xbf', b'\xc0', b'\xc1', b'\xc2', b'\xc3', b'\xc4', b'\xc5', b'\xd9', b'\xda', 'FormField', 'FormInstance', 'FormRenderer', 'ascii', 'cp866', 'replace']

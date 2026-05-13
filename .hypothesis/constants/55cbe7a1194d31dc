@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/integrity/exceptions.py
+# hypothesis_version: 6.151.12
+
+[', ', '...', '1.0.0', '2026-03-23', ': ', 'ConfigSignatureError', 'IntegrityCheckError', 'IntegrityError', 'actual_hash', 'algorithm', 'app_hash', 'config_path', 'config_signature', 'expected_hash', 'file_path']

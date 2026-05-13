@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/renderers/__init__.py
+# hypothesis_version: 6.151.12
+
+['BarcodeRenderMode', 'FieldPosition', 'FormCanvas', 'FormFieldWidget', 'FormatRange', 'FreeFormDocument', 'FreeFormRenderer', 'HeaderFooterConfig', 'PageData', 'QRCanvasRenderer', 'QRRenderMode', 'RendererFactory', 'SoftwareQRRenderer', 'create_qr_renderer', 'implements']

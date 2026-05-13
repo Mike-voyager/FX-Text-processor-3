@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/printer/windows_adapter.py
+# hypothesis_version: 6.151.12
+
+[128, 256, 1024, 16384, 'Attributes', 'AveragePPM', 'DefaultPriority', 'FX-Document', 'I', 'Priority', 'RAW', 'StartTime', 'Status', 'TEXT', 'UntilTime', 'Windows', '__main__', 'cJobs', 'kernel32.dll', 'pComment', 'pDatatype', 'pDevMode', 'pDocName', 'pDriverName', 'pLocation', 'pOutputFile', 'pParameters', 'pPortName', 'pPrintProcessor', 'pPrinterName', 'pSecurityDescriptor', 'pSepFile', 'pServerName', 'pShareName', 'win32', 'winspool.drv', 'Идёт печать', 'Ошибка принтера', 'Принтер готов', 'Принтер отключён']

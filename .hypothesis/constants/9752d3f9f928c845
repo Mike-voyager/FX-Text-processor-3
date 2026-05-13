@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/erasure.py
+# hypothesis_version: 6.151.12
+
+[b'\x00', b'\xff', 65536, '--clear', '--clipboard', '--delete', '-selection', '/dev/null', '1.0.0', '2026-03-23', ': ', 'BUFFER_SIZE', 'ClipboardClearError', 'DOD_PATTERNS', 'Darwin', 'DirectoryWipeError', 'FileWipeError', 'Linux', 'MemoryWipeError', 'Mike Voyager', 'SecureData', 'SecureEraseError', 'WAYLAND_DISPLAY', 'WIPE_PASSES', 'Windows', '_data', 'clear_clipboard', 'clipboard', 'pbcopy', 'r+b', 'types.TracebackType', 'wipe_directory', 'wipe_file', 'wipe_memory', 'wl-copy', 'xclip', 'xsel']

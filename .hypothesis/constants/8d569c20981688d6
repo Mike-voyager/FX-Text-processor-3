@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/retention_policy.py
+# hypothesis_version: 6.151.12
+
+[365, 2555, 3650, '1.0', '1.0.0', '2026-03-24', 'Archiving record: %s', 'AuditLog', 'DEFAULT_RULES', 'Deleting record: %s', 'Mike Voyager', 'N/A - Public data', 'Policy saved to: %s', 'action', 'actions', 'anonymized', 'archived', 'category', 'created_at', 'credentials_security', 'data_category', 'default', 'default_rule', 'delete', 'deleted', 'description', 'dry_run', 'error', 'errors', 'errors_count', 'expired_count', 'financial_legal', 'id', 'internal_logs', 'legal_basis', 'name', 'pii_standard', 'public_unlimited', 'record_id', 'retention_days', 'reviewed', 'rules', 'sensitive_limited', 'total_records', 'unknown', 'utf-8', 'version']

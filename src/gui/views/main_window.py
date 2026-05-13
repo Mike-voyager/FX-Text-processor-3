@@ -32,12 +32,24 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import messagebox
-from typing import Any, Final, Optional, cast
+from typing import TYPE_CHECKING, Any, Final, Optional, cast
 
+if TYPE_CHECKING:
+    from src.controller.workflow_controller import WorkflowController
+    from src.gui.controllers.barcode_controller import BarcodeController
+    from src.gui.security.mfa_gate import MFAGate
+
+from src.gui.components.sync.window_sync_indicator import (
+    TitleBarSyncDecorator,
+)
+from src.gui.core.commands.text_commands import InsertTextCommand
 from src.gui.core.error_handler import GUIErrorHandler
 from src.gui.core.protocols import ControllerProtocol
-from src.gui.dialogs.health_check_dialog import HealthCheckDialog
-from src.gui.dialogs.window_manager_dialog import WindowManagerDialog
+from src.gui.dialogs.navigation_dialogs import BookmarksDialog, GotoDialog
+from src.gui.dialogs.special_character_dialog import (
+    SpecialCharacterDialog,
+    SpecialCharResult,
+)
 from src.gui.layout.layout_constants import (
     DEFAULT_WINDOW_HEIGHT,
     DEFAULT_WINDOW_WIDTH,
@@ -45,10 +57,17 @@ from src.gui.layout.layout_constants import (
     MIN_WINDOW_WIDTH,
 )
 from src.gui.layout.main_layout import MainLayout
-from src.gui.security.mfa_gate import MFAGate
 from src.gui.security.mode_manager import ModeManager
+from src.gui.security.session_lock_screen import SessionLockScreen
 from src.gui.services.drag_drop_service import DragDropService
-from src.gui.services.notification_service import NotificationService
+from src.gui.services.key_bindings import KeyBindingsService
+from src.gui.services.notification_service import (
+    CATEGORY_SECURITY,
+    CATEGORY_SYSTEM,
+    CATEGORY_WORKFLOW,
+    NotificationPriority,
+    NotificationService,
+)
 from src.gui.services.sync_service import SyncService
 from src.gui.services.toast_service import ToastService
 from src.gui.services.window_manager import WindowManager
@@ -59,17 +78,13 @@ from src.gui.views.document_view import DocumentView
 from src.gui.views.side_bar import SideBar
 from src.gui.views.status_bar import StatusBar
 from src.model.bookmark import BookmarkManager
+from src.model.document import Document
 from src.security.audit import AuditEventType, AuditLog
 from src.security.auth.auth_service import AuthService
 from src.security.auth.session import SessionManager
 from src.security.monitoring.health_checker import HealthChecker
-from src.services.notification_service import (
-    NotificationPriority,
-    NotificationType,
-)
 
 # Phase 4: Dialog imports (lazy loaded in methods to avoid circular imports)
-# from src.gui.dialogs.navigation_dialogs import GotoDialog, BookmarksDialog
 # from src.gui.dialogs.workflow_dialogs import PrefillDialog
 
 # Logger for this module
@@ -79,10 +94,6 @@ logger: logging.Logger = logging.getLogger(__name__)
 APP_NAME: Final[str] = "FX Text Processor 3"
 TITLE_SEPARATOR: Final[str] = " - "
 MODIFIED_INDICATOR: Final[str] = "*"
-
-# Lock overlay colors
-LOCK_OVERLAY_BG: Final[str] = "#2c3e50"
-LOCK_OVERLAY_FG: Final[str] = "#ecf0f1"
 
 
 class MainWindow:
@@ -129,25 +140,50 @@ class MainWindow:
 
     def __init__(
         self,
+        toast_service: Optional[ToastService] = None,
+        window_manager: Optional[WindowManager] = None,
+        sync_service: Optional[SyncService] = None,
+        notification_service: Optional[NotificationService] = None,
+        drag_drop_service: Optional[DragDropService] = None,
+        mode_manager: Optional[ModeManager] = None,
+        workflow_state_manager: Optional[Any] = None,
         controller: Optional[ControllerProtocol] = None,
         audit_log: Optional["AuditLog"] = None,
+        workflow_controller: Optional["WorkflowController"] = None,
+        mfa_gate: Optional["MFAGate"] = None,
     ) -> None:
         """Инициализация MainWindow.
 
         Args:
+            toast_service: Опциональный сервис уведомлений.
+            window_manager: Опциональный менеджер окон.
+            sync_service: Опциональный сервис синхронизации.
+            notification_service: Опциональный сервис нотификаций.
+            drag_drop_service: Опциональный сервис drag-and-drop.
+            mode_manager: Опциональный ModeManager.
+            workflow_state_manager: Опциональный WorkflowStateManager.
             controller: Опциональный контроллер для callbacks.
             audit_log: Опциональный AuditLog для аудита событий.
+            workflow_controller: Контроллер workflow для WorkflowStateManager.
+            mfa_gate: MFA gate для WorkflowStateManager.
 
         Example:
             >>> window = MainWindow(controller=my_controller)
         """
         self._controller: Optional[ControllerProtocol] = controller
+        self._workflow_controller: Optional["WorkflowController"] = workflow_controller
+        self._mfa_gate: Optional["MFAGate"] = mfa_gate
+        self._toast_service: Optional[ToastService] = toast_service
+        self._window_manager: Optional[WindowManager] = window_manager
+        self._sync_service: Optional[SyncService] = sync_service
+        self._notification_service: Optional[NotificationService] = notification_service
+        self._drag_drop_service: Optional[DragDropService] = drag_drop_service
+        self._mode_manager: Optional[ModeManager] = mode_manager
+        self._workflow_state_manager: Optional[Any] = workflow_state_manager
         self._root: Optional[tk.Tk] = None
-        self._toast_service: Optional[ToastService] = None
-        self._notification_service: Optional[NotificationService] = None
-        self._sync_service: Optional[SyncService] = None
-        self._drag_drop_service: Optional[DragDropService] = None
         self._audit_log: Optional["AuditLog"] = audit_log
+        # Barcode controller
+        self._barcode_controller: Optional[BarcodeController] = None
 
         # Component references
         self._menubar: Optional[tk.Menu] = None
@@ -158,9 +194,20 @@ class MainWindow:
         self._document_view: Optional[DocumentView] = None
         self._statusbar: Optional[StatusBar] = None
 
-        # Lock overlay
-        self._lock_overlay: Optional[tk.Frame] = None
-        self._lock_frame: Optional[tk.Frame] = None
+        # Multi-window support: DocumentView for new windows (Toplevel instances)
+        self._new_window_doc_views: dict[str, Any] = {}
+
+        # Multi-window support: stores DocumentView for new Toplevel windows
+        # Key: window_id from WindowManager, Value: DocumentView instance
+        self._new_window_document_views: dict[str, Any] = {}
+
+        # Session lock screen (Toplevel)
+        self._session_lock_screen: Optional[SessionLockScreen] = None
+
+        # Auto-lock
+        self._auto_lock_timer_id: Optional[str] = None
+        self._auto_lock_minutes: int = 15  # Default 15 min
+        self._last_activity_time: float = 0.0
 
         # State
         self._is_initialized: bool = False
@@ -168,10 +215,8 @@ class MainWindow:
         self._current_title: str = ""
         self._is_modified: bool = False
 
-        # Phase 3: Security UI components (initialized in initialize())
-        self._mode_manager: Optional[ModeManager] = None
         self._auth_overlay: Optional[AuthOverlay] = None
-        self._health_check_dialog: Optional[HealthCheckDialog] = None
+        self._health_check_dialog: Optional[Any] = None
         self._mode_var: Optional[tk.StringVar] = None
         self._health_checker: Optional[HealthChecker] = None
 
@@ -189,16 +234,21 @@ class MainWindow:
         self._workflow_simple_mode: bool = False
         self._workflow_simple_var: Optional[tk.BooleanVar] = None
 
-        # Window Manager for multi-window support
-        self._window_manager: Optional[WindowManager] = None
         self._main_window_id: Optional[str] = None
 
         # Session Manager for authentication
         self._session_manager: Optional[SessionManager] = None
         self._current_session_id: Optional[str] = None
 
+        # Auth services for session lock (injected from AppController)
+        self._password_service: Optional[Any] = None
+        self._mfa_manager: Optional[Any] = None
+
         # New window counter for multi-window support
         self._new_window_counter: int = 0
+
+        # KeyBindingsService
+        self._key_bindings: Optional[KeyBindingsService] = None
 
     def initialize(self) -> None:
         """Инициализирует UI компоненты окна.
@@ -226,38 +276,20 @@ class MainWindow:
         self._root.geometry(f"{DEFAULT_WINDOW_WIDTH}x{DEFAULT_WINDOW_HEIGHT}")
         self._root.minsize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 
+        # Wire DI-injected services that need root or each other
+        if self._window_manager is not None:
+            self._main_window_id = self._window_manager.register_window(
+                self._root, APP_NAME, is_modal=False
+            )
+            self._window_manager.set_main_window_id(self._main_window_id)
+        # ToastService has no set_root method (root is set via constructor)
+        # SyncService, NotificationService, DragDropService, ModeManager,
+        # WorkflowStateManager already have their dependencies externally.
+
         # Configure grid
         self._root.rowconfigure(2, weight=1)  # Main content expands (row 2 after toolbar)
         self._root.columnconfigure(0, weight=1)
 
-        # Initialize ToastService
-        self._toast_service = ToastService(self._root)
-
-        # Initialize WindowManager
-        self._window_manager = WindowManager(self._root)
-
-        # Register main window
-        self._main_window_id = self._window_manager.register_window(
-            self._root, APP_NAME, is_modal=False
-        )
-        self._window_manager.set_main_window_id(self._main_window_id)
-
-        # Phase 7: Initialize SyncService for inter-window synchronization
-        self._sync_service = SyncService(self._window_manager)
-
-        # Phase 7: Initialize NotificationService with WindowManager integration
-        self._notification_service = NotificationService(self._root, self._window_manager)
-
-        # Phase 7: Initialize DragDropService with sync support
-        self._drag_drop_service = DragDropService(
-            self._root, self._window_manager, self._sync_service
-        )
-
-        # Phase 3: Initialize ModeManager and mode_var
-        self._mode_manager = ModeManager(
-            health_checker=self._health_checker,
-            auth_service=self._get_auth_service(),
-        )
         self._mode_var = tk.StringVar(value="normal")
 
         # Create menu bar
@@ -275,7 +307,7 @@ class MainWindow:
         # Configure window close handler
         self._root.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
-        self._is_initialized = True
+        self._key_bindings = KeyBindingsService()
 
         # Show welcome toast
         self._show_welcome_toast()
@@ -285,6 +317,15 @@ class MainWindow:
 
         # Check session and show AuthWindow if needed
         self._check_session_and_auth()
+
+        # Initialize auto-lock timer
+        import time
+
+        self._last_activity_time = time.time()
+        self._bind_activity_events()
+        self._schedule_auto_lock_check()
+
+        self._is_initialized = True
 
     def run(self) -> None:
         """Запускает главный цикл обработки событий.
@@ -329,16 +370,29 @@ class MainWindow:
         # Close all toast notifications
         if self._toast_service is not None:
             self._toast_service.close_all()
+            self._toast_service = None
 
         # Cleanup NotificationService
         if self._notification_service is not None:
             self._notification_service.dismiss_all()
             self._notification_service = None
 
-        # Destroy lock overlay if present
-        if self._lock_overlay is not None:
-            self._lock_overlay.destroy()
-            self._lock_overlay = None
+        # Destroy session lock screen if present
+        if self._session_lock_screen is not None:
+            try:
+                self._session_lock_screen.wipe_credentials()
+                self._session_lock_screen.destroy()
+            except (tk.TclError, AttributeError, RuntimeError) as e:
+                logger.debug("Session lock screen cleanup error (non-critical): %s", e)
+            self._session_lock_screen = None
+
+        # Cancel auto-lock timer
+        if self._auto_lock_timer_id is not None and self._root is not None:
+            try:
+                self._root.after_cancel(self._auto_lock_timer_id)
+            except (tk.TclError, ValueError) as e:
+                logger.debug("Auto-lock timer cancel error (non-critical): %s", e)
+            self._auto_lock_timer_id = None
 
         # Unregister main window from WindowManager
         if self._window_manager is not None and self._main_window_id is not None:
@@ -407,14 +461,14 @@ class MainWindow:
         if self._notification_service is None:
             raise RuntimeError("MainWindow не инициализирован")
 
-        # Map category to NotificationType
-        type_mapping = {
-            "info": NotificationType.INFO,
-            "success": NotificationType.SUCCESS,
-            "warning": NotificationType.WARNING,
-            "error": NotificationType.ERROR,
+        # Map category to GUI NotificationService category
+        category_mapping = {
+            "info": CATEGORY_SYSTEM,
+            "success": CATEGORY_WORKFLOW,
+            "warning": CATEGORY_SYSTEM,
+            "error": CATEGORY_SECURITY,
         }
-        notif_type = type_mapping.get(category.lower(), NotificationType.INFO)
+        notif_category = category_mapping.get(category.lower(), CATEGORY_SYSTEM)
 
         # Map NotificationPriority to ToastLevel for toast display
         toast_mapping = {
@@ -425,19 +479,18 @@ class MainWindow:
         }
         toast_level = toast_mapping.get(priority, ToastLevel.INFO)
 
-        # Show via NotificationService
-        result = self._notification_service.show(
-            title=category.capitalize(),
+        # Show via NotificationService (GUI version returns UUID string)
+        notification_id = self._notification_service.notify(
             message=message,
-            type=notif_type,
+            category=notif_category,
             priority=priority,
         )
 
         # Also show toast for immediate visual feedback
-        if self._toast_service is not None and result.success:
+        if self._toast_service is not None:
             self._toast_service.show(message, toast_level)
 
-        return str(result.notification_id) if result.notification_id else ""
+        return notification_id
 
     def get_root(self) -> Optional[tk.Tk]:
         """Возвращает корневое окно Tkinter.
@@ -486,6 +539,14 @@ class MainWindow:
 
         self._cardfile_tabbar.add_tab(document_id=doc_id, title=title_str, mode=mode)
 
+        # Update tab indicators based on document state
+        is_encrypted = getattr(document, "is_encrypted", False)
+        is_readonly = getattr(document, "is_readonly", False)
+        is_modified = getattr(document, "is_modified", False)
+        self._cardfile_tabbar.set_tab_encrypted(doc_id, bool(is_encrypted))
+        self._cardfile_tabbar.set_tab_readonly(doc_id, bool(is_readonly))
+        self._cardfile_tabbar.set_tab_modified(doc_id, bool(is_modified))
+
     def remove_document(self, doc_id: str) -> None:
         """Удаляет документ из UI (вкладку).
 
@@ -496,6 +557,44 @@ class MainWindow:
             return
 
         self._cardfile_tabbar.close_tab(doc_id)
+
+    def set_document_modified(self, doc_id: str, modified: bool) -> None:
+        """Устанавливает индикатор изменений для вкладки документа.
+
+        Args:
+            doc_id: Идентификатор документа.
+            modified: True если документ изменён.
+        """
+        if self._cardfile_tabbar is None:
+            return
+
+        self._cardfile_tabbar.set_tab_modified(doc_id, modified)
+
+    def set_title(self, title: str, modified: bool = False) -> None:
+        """Устанавливает заголовок окна с индикатором изменений.
+
+        Сохраняет «чистый» заголовок для последующего использования
+        TitleBarSyncDecorator.
+
+        Args:
+            title: Базовый заголовок (имя документа).
+            modified: True если документ изменён (префикс "*").
+        """
+        self._current_title = title
+        prefix = MODIFIED_INDICATOR if modified else ""
+        full_title = f"{prefix}{title}{TITLE_SEPARATOR}{APP_NAME}"
+        if self._root is not None:
+            self._root.title(full_title)
+
+    def update_window_sync_status(self, status: str) -> None:
+        """Обновляет глобальный индикатор синхронизации в заголовке окна.
+
+        Args:
+            status: Статус из :class:`SyncStatus`.
+        """
+        if self._root is None:
+            return
+        TitleBarSyncDecorator.update_title(self._root, status)
 
     def set_document(self, document: Any) -> None:
         """Устанавливает текущий документ для отображения.
@@ -586,14 +685,17 @@ class MainWindow:
         wrapped = DocumentWrapper(document)
         self._document_view.set_document(wrapped)
 
-    def lock_session(self) -> None:
+    def lock_session(self, trigger: str = "manual") -> None:
         """Блокирует сессию (screen lock).
 
         Security:
-            - Скрывает DocumentView
-            - Показывает lock overlay с запросом аутентификации
-            - Вызывает wipe_sensitive_data() для очистки
-            - Закрывает все вспомогательные окна через WindowManager
+            - Закрывает все auxiliary windows через WindowManager
+            - Wipe sensitive data
+            - Hide DocumentView
+            - Создаёт полноэкранный SessionLockScreen
+
+        Args:
+            trigger: Причина блокировки ("manual", "auto", etc.).
 
         Example:
             >>> window.lock_session()  # Session locked
@@ -614,8 +716,20 @@ class MainWindow:
         if self._document_view is not None:
             self._document_view.hide_content()
 
-        # Show lock overlay
-        self._show_lock_overlay()
+        # Create and show fullscreen lock screen
+        from datetime import datetime
+
+        now = datetime.now()
+        self._session_lock_screen = SessionLockScreen(
+            parent=self._root,
+            on_unlock=self._on_unlock_attempt,
+            locked_at=now,
+            trigger=trigger,
+            auto_lock_minutes=self._auto_lock_minutes,
+            password_service=self._password_service,
+            mfa_manager=self._mfa_manager,
+        )
+        self._session_lock_screen.show()
 
         # Show notification
         if self._toast_service is not None:
@@ -627,18 +741,16 @@ class MainWindow:
             if user_id:
                 try:
                     self._audit_log.log_event(
-                        AuditEventType.SESSION_LOCKED, details={"user_id": user_id}
+                        AuditEventType.SESSION_LOCKED,
+                        details={"user_id": user_id, "trigger": trigger},
                     )
                 except Exception as e:
-                    logger.error("Failed to log session lock: %s", e)
+                    logging.exception("Failed to log session lock: %s", e)
 
     def unlock_session(self) -> None:
         """Разблокирует сессию.
 
         Восстанавливает отображение документа после аутентификации.
-
-        Raises:
-            RuntimeError: Если сессия не была заблокирована.
 
         Example:
             >>> # After successful authentication
@@ -649,8 +761,14 @@ class MainWindow:
 
         self._is_locked = False
 
-        # Hide lock overlay
-        self._hide_lock_overlay()
+        # Destroy lock screen
+        if self._session_lock_screen is not None:
+            try:
+                self._session_lock_screen.wipe_credentials()
+                self._session_lock_screen.destroy()
+            except (tk.TclError, AttributeError, RuntimeError) as e:
+                logger.debug("Session lock screen cleanup error (non-critical): %s", e)
+            self._session_lock_screen = None
 
         # Restore document content
         if self._document_view is not None:
@@ -669,7 +787,7 @@ class MainWindow:
                         AuditEventType.APP_UNLOCKED, details={"user_id": user_id}
                     )
                 except Exception as e:
-                    logger.error("Failed to log session unlock: %s", e)
+                    logging.exception("Failed to log session unlock: %s", e)
 
     # =============================================================================
     # PHASE 3: SECURITY UI METHODS
@@ -710,7 +828,7 @@ class MainWindow:
         """Обновляет UI после аутентификации."""
         if self._root is not None:
             self._root.title(f"{APP_NAME} - User: {user_id}")
-        if self._toast_service:
+        if self._toast_service is not None:
             self._toast_service.show(f"Добро пожаловать, {user_id}!", ToastLevel.SUCCESS)
 
     def _run_startup_health_check(self) -> None:
@@ -750,7 +868,7 @@ class MainWindow:
                         ToastLevel.SUCCESS,
                     )
 
-        except Exception as exc:
+        except (KeyError, AttributeError, tk.TclError) as exc:
             # Log error and disable Special Mode on error
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -764,42 +882,36 @@ class MainWindow:
         """Обработчик входа в Special Mode.
 
         Flow:
-        1. Проверить can_enter_special()
-        2. Если нельзя:
-           - Показать HealthCheckDialog
-           - Return
+        1. Показать SecurityHealthCheckDialog
+        2. Если не пройден — return
         3. Показать AuthOverlay
         4. При успехе auth:
            - Переключить режим
            - Обновить StatusBar
            - Обновить Menu
         """
-        if self._mode_manager is None:
+        if self._mode_manager is None or self._root is None:
             return
 
-        # Step 1: Check if can enter Special Mode
-        can_enter, reason = self._mode_manager.can_enter_special()
+        # Step 1: Show SecurityHealthCheckDialog
+        from src.gui.dialogs.security_health_check_dialog import (
+            SecurityHealthCheckDialog,
+        )
 
-        if not can_enter:
-            # Step 2: Show HealthCheckDialog
-            if self._root is not None:
-                self._health_check_dialog = HealthCheckDialog(
-                    parent=self._root,  # type: ignore[arg-type]
-                    health_checker=self._health_checker,
+        dialog = SecurityHealthCheckDialog(
+            parent=cast(tk.Widget, self._root),
+            health_checker=self._health_checker,
+        )
+        passed = dialog.show()
+        if not passed:
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Special Mode entry cancelled",
+                    ToastLevel.INFO,
                 )
-                self._health_check_dialog.show()
-
-                # Check if user wants to retry after fixing issues
-                if self._health_check_dialog.has_critical_failures():
-                    if self._toast_service is not None:
-                        self._toast_service.show(
-                            "⚠️ Critical failures detected. Special Mode unavailable.",
-                            ToastLevel.WARNING,
-                        )
-                    return
             return
 
-        # Step 3: Show AuthOverlay
+        # Step 2: Show AuthOverlay
         self._show_auth_overlay()
 
     def _on_mode_normal(self) -> None:
@@ -850,8 +962,10 @@ class MainWindow:
         if self._health_checker is None:
             self._health_checker = HealthChecker(version="3.0.0")
 
+        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+
         self._health_check_dialog = HealthCheckDialog(
-            parent=self._root,  # type: ignore[arg-type]
+            parent=self._root,
             health_checker=self._health_checker,
         )
         self._health_check_dialog.show()
@@ -958,11 +1072,14 @@ class MainWindow:
                     result = auth_service()
                     if isinstance(result, AuthService):
                         return result
-            except Exception as _exc:
+            except (AttributeError, KeyError, tk.TclError) as _exc:
                 # Log error but continue - AuthOverlay will handle gracefully
                 self._error_handler.handle_silent(
                     _exc,
-                    {"operation": "_get_auth_service", "controller": "get_auth_service"},
+                    {
+                        "operation": "_get_auth_service",
+                        "controller": "get_auth_service",
+                    },
                 )
 
         # Return None - AuthOverlay will handle gracefully
@@ -983,7 +1100,7 @@ class MainWindow:
                 # Try the controller itself if it has verify methods
                 if hasattr(self._controller, "verify_totp"):
                     return self._controller
-            except Exception as e:
+            except (AttributeError, KeyError, tk.TclError) as e:
                 logger.debug("Failed to get auth controller: %s", e)
         return None
 
@@ -999,7 +1116,7 @@ class MainWindow:
                 user_id = auth_controller.get_current_user()
                 if isinstance(user_id, str):
                     return user_id
-            except Exception as e:
+            except (AttributeError, KeyError, tk.TclError) as e:
                 logger.debug("Failed to get current user: %s", e)
         return None
 
@@ -1074,13 +1191,26 @@ class MainWindow:
         edit_menu.add_command(label="Prefill from Previous", command=self._on_prefill)
         self._menubar.add_cascade(label="Edit", menu=edit_menu)
 
+        # Format menu
+        format_menu = tk.Menu(self._menubar, tearoff=0)
+        format_menu.add_command(
+            label="Page Setup...",
+            command=self._on_page_setup,
+            accelerator="Ctrl+Shift+P",
+        )
+        self._menubar.add_cascade(label="Format", menu=format_menu)
+
         # Insert menu
         insert_menu = tk.Menu(self._menubar, tearoff=0)
         insert_menu.add_command(
-            label="📊 Barcode...", command=self._on_insert_barcode, accelerator="Ctrl+Shift+B"
+            label="📊 Barcode...",
+            command=self._on_insert_barcode,
+            accelerator="Ctrl+Shift+B",
         )
         insert_menu.add_command(
-            label="🔳 QR Code...", command=self._on_insert_qr, accelerator="Ctrl+Shift+Q"
+            label="🔳 QR Code...",
+            command=self._on_insert_qr,
+            accelerator="Ctrl+Shift+Q",
         )
         insert_menu.add_separator()
         insert_menu.add_command(label="Special Character...", command=self._on_insert_special)
@@ -1096,6 +1226,9 @@ class MainWindow:
             label="Zoom Out", command=self._on_view_zoom_out, accelerator="Ctrl+-"
         )
         view_menu.add_command(label="Reset Zoom", command=self._on_view_zoom_reset)
+        view_menu.add_separator()
+        view_menu.add_command(label="Go To...", command=self._on_goto, accelerator="Ctrl+G")
+        view_menu.add_command(label="Bookmarks", command=self._on_bookmarks, accelerator="Ctrl+B")
         view_menu.add_separator()
         # Barcode Render Mode submenu (Phase 6)
         self._barcode_render_menu = tk.Menu(view_menu, tearoff=0)
@@ -1138,7 +1271,8 @@ class MainWindow:
         notifications_menu = tk.Menu(self._menubar, tearoff=0)
         notifications_menu.add_command(label="История", command=self._on_view_notifications)
         notifications_menu.add_command(
-            label="Отметить все прочитанными", command=self._on_notifications_mark_all_read
+            label="Отметить все прочитанными",
+            command=self._on_notifications_mark_all_read,
         )
         self._menubar.add_cascade(label="Уведомления", menu=notifications_menu)
 
@@ -1156,7 +1290,12 @@ class MainWindow:
             label="Профиль безопасности", command=self._on_security_crypto_profile
         )
         security_menu.add_command(
-            label="Настройки автоблокировки", command=self._on_security_auto_lock_settings
+            label="Настройки автоблокировки",
+            command=self._on_security_auto_lock_settings,
+        )
+        security_menu.add_separator()
+        security_menu.add_command(
+            label="Integrity Check...", command=self._on_security_integrity_check
         )
         self._menubar.add_cascade(label="Security", menu=security_menu)
 
@@ -1211,13 +1350,15 @@ class MainWindow:
         help_menu.add_command(label="About", command=self._on_help_about)
         self._menubar.add_cascade(label="Help", menu=help_menu)
 
-        # Bind keyboard shortcuts
-        self._bind_shortcuts()
+        # Bind keyboard shortcuts via KeyBindingsService
+        self._setup_key_bindings()
 
     def _on_window_manager(self) -> None:
         """Open Window Manager dialog."""
         if self._window_manager is None or self._sync_service is None or self._root is None:
             return
+
+        from src.gui.dialogs.window_manager_dialog import WindowManagerDialog
 
         dialog = WindowManagerDialog(
             parent=self._root,
@@ -1285,7 +1426,20 @@ class MainWindow:
         )
 
     def _setup_new_window_ui(self, window: tk.Toplevel, window_id: str) -> None:
-        """Setup basic UI for new window."""
+        """Настраивает базовый UI для нового окна с интегрированным DocumentView.
+
+        Создаёт структуру меню и основной контент area с полноценным
+        DocumentView для редактирования документов в новом окне.
+
+        Args:
+            window: Корневой Toplevel для нового окна.
+            window_id: Уникальный ID окна из WindowManager.
+
+        Note:
+            Использует None для statusbar, так как новые окна не имеют
+            StatusBar. DocumentView корректно обрабатывает отсутствие
+            statusbar благодаря optional parameter в конструкторе.
+        """
         # Menu bar
         menubar = tk.Menu(window)
         window.config(menu=menubar)
@@ -1300,18 +1454,24 @@ class MainWindow:
         menubar.add_cascade(label="Window", menu=window_menu)
         window_menu.add_command(label="Window Manager...", command=self._on_window_manager)
 
-        # Main content area (placeholder for DocumentView)
+        # Main content area with DocumentView
         content_frame = tk.Frame(window, bg="#f8f9fa")
         content_frame.pack(fill=tk.BOTH, expand=True)
 
-        placeholder = tk.Label(
-            content_frame,
-            text="Document View\n(Phase 8-9)",
-            bg="#f8f9fa",
-            fg="#666666",
-            font=("Helvetica", 14),
+        # Create document view with StatusBar reference (None for new window context)
+        # Store in both window._document_view (dynamic attribute) and registry for type safety
+        doc_view = DocumentView(
+            widget_id="document_view",
+            controller=self._controller,
+            on_paper_setup=self._on_paper_setup,
+            statusbar=None,
         )
-        placeholder.pack(expand=True)
+
+        # Store in registry with window_id as key
+        self._new_window_doc_views[window_id] = doc_view
+
+        doc_view.mount(content_frame)
+        doc_view.widget.pack(fill=tk.BOTH, expand=True)
 
         # Status bar
         status_bar = tk.Label(
@@ -1327,12 +1487,31 @@ class MainWindow:
         window.bind("<Control-w>", lambda e: window.destroy())
 
     def _on_new_window_close(self, window_id: str, window: tk.Toplevel) -> None:
-        """Handle new window close."""
+        """Handle new window close.
+
+        Security:
+            - Очищает sensitive данные из DocumentView
+            - Unregisters window от WindowManager
+            - Broadcasts closure event through SyncService
+        """
         try:
             if self._window_manager is not None:
                 self._window_manager.unregister_window(window_id)
         except KeyError:
             pass
+
+        # Wipe sensitive data from window's DocumentView before destruction
+        # Get from registry by window_id for type safety
+        doc_view = self._new_window_doc_views.get(window_id)
+        if doc_view is not None:
+            try:
+                doc_view.wipe_sensitive_data()
+            except (tk.TclError, AttributeError, RuntimeError) as e:
+                logger.debug(
+                    "Failed to wipe DocumentView for window %s (non-critical): %s",
+                    window_id,
+                    e,
+                )
 
         # Broadcast window list changed
         if self._sync_service is not None:
@@ -1381,34 +1560,45 @@ class MainWindow:
                 ),
             )
 
-    def _bind_shortcuts(self) -> None:
-        """Привязывает клавиатурные shortcuts."""
-        if self._root is None:
+    def _setup_key_bindings(self) -> None:
+        """Настраивает клавиатурные shortcuts через KeyBindingsService."""
+        if self._root is None or self._key_bindings is None:
             return
 
-        # File shortcuts
-        self._root.bind("<Control-n>", lambda e: self._on_file_new())
-        self._root.bind("<Control-o>", lambda e: self._on_file_open())
-        self._root.bind("<Control-s>", lambda e: self._on_file_save())
-        self._root.bind("<Control-p>", lambda e: self._on_file_print())
+        # File
+        self._key_bindings.register("Ctrl+N", self._on_file_new)
+        self._key_bindings.register("Ctrl+O", self._on_file_open)
+        self._key_bindings.register("Ctrl+S", self._on_file_save)
+        self._key_bindings.register("Ctrl+P", self._on_file_print)
 
-        # Edit shortcuts
-        self._root.bind("<Control-z>", lambda e: self._on_edit_undo())
-        self._root.bind("<Control-y>", lambda e: self._on_edit_redo())
-        self._root.bind("<Control-f>", lambda e: self._on_edit_find())
+        # Edit
+        self._key_bindings.register("Ctrl+Z", self._on_edit_undo)
+        self._key_bindings.register("Ctrl+Y", self._on_edit_redo)
+        self._key_bindings.register("Ctrl+X", self._on_edit_cut)
+        self._key_bindings.register("Ctrl+C", self._on_edit_copy)
+        self._key_bindings.register("Ctrl+V", self._on_edit_paste)
+        self._key_bindings.register("Ctrl+F", self._on_edit_find)
 
-        # View shortcuts
-        self._root.bind("<Control-plus>", lambda e: self._on_view_zoom_in())
-        self._root.bind("<Control-minus>", lambda e: self._on_view_zoom_out())
-        self._root.bind("<Control-0>", lambda e: self._on_view_zoom_reset())
+        # View / Zoom
+        self._key_bindings.register("Ctrl++", self._on_view_zoom_in)
+        self._key_bindings.register("Ctrl+-", self._on_view_zoom_out)
+        self._key_bindings.register("Ctrl+0", self._on_view_zoom_reset)
 
-        # Navigation shortcuts (Phase 4)
-        self._root.bind("<Control-g>", lambda e: self._on_goto())
-        self._root.bind("<Control-b>", lambda e: self._on_bookmarks())
+        # Navigation
+        self._key_bindings.register("Ctrl+G", self._on_goto)
+        self._key_bindings.register("Ctrl+B", self._on_bookmarks)
 
-        # Insert shortcuts (Phase 6)
-        self._root.bind("<Control-Shift-B>", lambda e: self._on_insert_barcode())
-        self._root.bind("<Control-Shift-Q>", lambda e: self._on_insert_qr())
+        # Insert (Phase 6)
+        self._key_bindings.register("Ctrl+Shift+B", self._on_insert_barcode)
+        self._key_bindings.register("Ctrl+Shift+Q", self._on_insert_qr)
+
+        # Глобальный обработчик для dispatch
+        self._root.bind_all("<Key>", self._on_key_event)
+
+    def _on_key_event(self, event: tk.Event) -> None:
+        """Прокси-обработчик tk.Key для KeyBindingsService.dispatch()."""
+        if self._key_bindings is not None:
+            self._key_bindings.dispatch(event)
 
     def _create_main_layout(self) -> None:
         """Создаёт основной layout с SideBar, Content и StatusBar."""
@@ -1433,7 +1623,7 @@ class MainWindow:
             on_tree_select=self._on_tree_item_selected,
             sync_service=self._sync_service,
         )
-        self._sidebar.mount(self._root)
+        self._sidebar.mount(cast(tk.Widget, self._root))
         self._main_layout.set_sidebar(self._sidebar.widget)
 
         # Create content area (frame with TabBar + DocumentView)
@@ -1448,318 +1638,106 @@ class MainWindow:
             on_new_tab=self._on_new_tab,
             on_tab_close=self._on_tab_close,
             on_tab_activate=self._on_tab_activate,
+            sync_service=self._sync_service,
         )
         self._cardfile_tabbar.mount(content_frame)
         self._cardfile_tabbar.widget.grid(row=0, column=0, sticky="ew")
 
-        # Create document view
-        self._document_view = DocumentView(
-            widget_id="document_view",
-            controller=self._controller,
-        )
-        self._document_view.mount(content_frame)
-        self._document_view.widget.grid(row=1, column=0, sticky="nsew")
-
-        self._main_layout.set_content(content_frame)
-
-        # Create and set status bar
+        # Create and set status bar FIRST (so DocumentView can reference it)
         self._statusbar = StatusBar(
             widget_id="statusbar",
             controller=self._controller,
             mode_callback=self._on_statusbar_mode_click,
+            paper_callback=self._on_page_setup,
         )
         self._statusbar.mount(self._root)
         self._main_layout.set_statusbar(self._statusbar.widget)
 
-    def _show_lock_overlay(self) -> None:
-        """Показывает overlay блокировки сессии.
+        # Create document view with StatusBar reference
+        self._document_view = DocumentView(
+            widget_id="document_view",
+            controller=self._controller,
+            on_paper_setup=self._on_paper_setup,
+            statusbar=self._statusbar,
+        )
+        self._document_view.mount(content_frame)
+        self._document_view.widget.grid(row=1, column=0, sticky="nsew")
+        # Set workflow state manager
+        self._document_view.set_workflow_state_manager(self._workflow_state_manager)
 
-        UI_SPEC 9.2: Session Lock Screen
-        - Background: #2c3e50 (dark blue-gray)
-        - Center panel with:
-          - Lock icon
-          - Title: "Сеанс заблокирован"
-          - Time of lock
-          - Duration since lock
-          - MFA method selection
-          - Input field (adaptive based on method)
-          - Unlock button
-        - Countdown timer for auto-lock
+        # Initialize BarcodeController (lazy import to avoid circular import)
+        from src.gui.controllers.barcode_controller import BarcodeController
+
+        self._barcode_controller = BarcodeController(
+            parent=cast(tk.Widget, self._root),
+            view=self._document_view,
+        )
+
+        # Create initial empty document so the text area is visible on startup
+        self._initialize_empty_document()
+
+        self._main_layout.set_content(content_frame)
+
+    def _initialize_empty_document(self) -> None:
+        """Создаёт начальный пустой документ и отображает его в DocumentView.
+
+        Вызывается в конце initialize() чтобы область редактирования
+        была видна сразу после запуска приложения, а не пустым placeholder.
         """
-        if self._root is None:
+        if self._document_view is None:
             return
 
-        from datetime import datetime
+        # Use a proper model Document; set_document() handles the DocumentWrapper
+        # that provides DocumentProtocol (str id, mode, get_content, get_cpi).
+        self.set_document(Document())
 
-        # Store lock time
-        self._lock_time: datetime = datetime.now()
+    def _on_unlock_attempt(self, password: str, mfa_token: str, method: str) -> bool:
+        """Callback для проверки credentials при разблокировке.
 
-        # Create overlay frame covering entire window
-        self._lock_overlay = tk.Frame(
-            self._root,
-            bg=LOCK_OVERLAY_BG,
-        )
-        self._lock_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self._lock_overlay.lift()
-
-        # Center panel with fixed width for consistent appearance
-        self._lock_frame = tk.Frame(
-            self._lock_overlay,
-            bg=LOCK_OVERLAY_BG,
-            width=400,
-            height=500,
-        )
-        self._lock_frame.place(relx=0.5, rely=0.5, anchor="center")
-        self._lock_frame.pack_propagate(False)
-
-        # Lock icon (emoji)
-        lock_label = tk.Label(
-            self._lock_frame,
-            text="🔒",
-            font=("TkDefaultFont", 72),
-            bg=LOCK_OVERLAY_BG,
-            fg=LOCK_OVERLAY_FG,
-        )
-        lock_label.pack(pady=(20, 10))
-
-        # Title
-        title_label = tk.Label(
-            self._lock_frame,
-            text="Сеанс заблокирован",
-            font=("TkDefaultFont", 16, "bold"),
-            bg=LOCK_OVERLAY_BG,
-            fg=LOCK_OVERLAY_FG,
-        )
-        title_label.pack(pady=(0, 10))
-
-        # Time of lock
-        time_str = self._lock_time.strftime("%H:%M:%S")
-        self._lock_time_label = tk.Label(
-            self._lock_frame,
-            text=f"Время блокировки: {time_str}",
-            font=("TkDefaultFont", 10),
-            bg=LOCK_OVERLAY_BG,
-            fg="#bdc3c7",
-        )
-        self._lock_time_label.pack(pady=(0, 5))
-
-        # Duration since lock (will be updated)
-        self._lock_duration_label = tk.Label(
-            self._lock_frame,
-            text="Продолжительность: 00:00",
-            font=("TkDefaultFont", 10),
-            bg=LOCK_OVERLAY_BG,
-            fg="#bdc3c7",
-        )
-        self._lock_duration_label.pack(pady=(0, 15))
-
-        # Separator
-        separator = tk.Frame(self._lock_frame, height=1, bg="#34495e")
-        separator.pack(fill=tk.X, padx=30, pady=10)
-
-        # MFA Method selection label
-        method_label = tk.Label(
-            self._lock_frame,
-            text="Способ разблокировки:",
-            font=("TkDefaultFont", 11),
-            bg=LOCK_OVERLAY_BG,
-            fg=LOCK_OVERLAY_FG,
-        )
-        method_label.pack(anchor=tk.W, padx=30, pady=(10, 5))
-
-        # MFA Method selection frame
-        self._mfa_method_var = tk.StringVar(value="password")
-        self._mfa_method_frame = tk.Frame(self._lock_frame, bg=LOCK_OVERLAY_BG)
-        self._mfa_method_frame.pack(fill=tk.X, padx=30, pady=5)
-
-        # Password option
-        self._create_mfa_radio(
-            parent=self._mfa_method_frame,
-            value="password",
-            text="🔑 Пароль",
-        )
-
-        # FIDO2 option
-        self._create_mfa_radio(
-            parent=self._mfa_method_frame,
-            value="fido2",
-            text="🔐 FIDO2 ключ",
-        )
-
-        # TOTP option
-        self._create_mfa_radio(
-            parent=self._mfa_method_frame,
-            value="totp",
-            text="📱 TOTP код",
-        )
-
-        # Backup code option
-        self._create_mfa_radio(
-            parent=self._mfa_method_frame,
-            value="backup_code",
-            text="📝 Резервный код",
-        )
-
-        # Input frame
-        self._mfa_input_frame = tk.Frame(self._lock_frame, bg=LOCK_OVERLAY_BG)
-        self._mfa_input_frame.pack(fill=tk.X, padx=30, pady=10)
-
-        # Input field label
-        self._mfa_input_label = tk.Label(
-            self._mfa_input_frame,
-            text="Пароль:",
-            font=("TkDefaultFont", 10),
-            bg=LOCK_OVERLAY_BG,
-            fg=LOCK_OVERLAY_FG,
-            width=15,
-            anchor=tk.E,
-        )
-        self._mfa_input_label.pack(side=tk.LEFT, padx=(0, 10))
-
-        # Input field (adaptive based on method)
-        self._mfa_input_var = tk.StringVar()
-        self._mfa_input_entry = tk.Entry(
-            self._mfa_input_frame,
-            textvariable=self._mfa_input_var,
-            font=("TkDefaultFont", 12),
-            width=20,
-            show="*",
-        )
-        self._mfa_input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        # Bind method change to update input field
-        self._mfa_method_var.trace_add("write", self._on_mfa_method_changed)
-
-        # Error message label
-        self._lock_error_label = tk.Label(
-            self._lock_frame,
-            text="",
-            font=("TkDefaultFont", 10),
-            bg=LOCK_OVERLAY_BG,
-            fg="#e74c3c",
-            wraplength=340,
-        )
-        self._lock_error_label.pack(pady=5)
-
-        # Unlock button
-        self._unlock_btn = tk.Button(
-            self._lock_frame,
-            text="🔓 Разблокировать",
-            font=("TkDefaultFont", 12),
-            command=self._on_unlock_clicked,
-            width=20,
-            bg="#27ae60",
-            fg="white",
-            activebackground="#2ecc71",
-            activeforeground="white",
-        )
-        self._unlock_btn.pack(pady=15)
-
-        # Auto-lock countdown (if configured)
-        self._auto_lock_countdown_label = tk.Label(
-            self._lock_frame,
-            text="",
-            font=("TkDefaultFont", 9),
-            bg=LOCK_OVERLAY_BG,
-            fg="#95a5a6",
-        )
-        self._auto_lock_countdown_label.pack(pady=(5, 0))
-
-        # Start duration update timer
-        self._update_lock_duration()
-
-        # Set focus to input field
-        self._mfa_input_entry.focus_set()
-
-    def _create_mfa_radio(self, parent: tk.Widget, value: str, text: str) -> None:
-        """Создаёт радиокнопку для выбора MFA метода.
+        Security:
+            - НЕ логирует password/token.
+            - Использует AuthController для верификации.
 
         Args:
-            parent: Родительский виджет.
-            value: Значение радиокнопки.
-            text: Текст радиокнопки.
+            password: Введённый пароль.
+            mfa_token: Введённый MFA токен.
+            method: Выбранный метод MFA ("totp", "backup", "fido2").
+
+        Returns:
+            True если аутентификация успешна.
         """
-        radio = tk.Radiobutton(
-            parent,
-            text=text,
-            variable=self._mfa_method_var,
-            value=value,
-            font=("TkDefaultFont", 10),
-            bg=LOCK_OVERLAY_BG,
-            fg=LOCK_OVERLAY_FG,
-            selectcolor="#34495e",
-            activebackground=LOCK_OVERLAY_BG,
-            activeforeground=LOCK_OVERLAY_FG,
-        )
-        radio.pack(anchor=tk.W, pady=2)
+        auth_controller = self._get_auth_controller()
+        user_id = self._get_current_user_id()
 
-    def _on_mfa_method_changed(self, *args: Any) -> None:
-        """Обрабатывает изменение метода MFA.
+        if auth_controller is None or user_id is None:
+            return False
 
-        Адаптирует поле ввода в зависимости от выбранного метода.
-        """
-        if not hasattr(self, '_mfa_method_var'):
-            return
+        try:
+            # Verify password
+            if not hasattr(auth_controller, "verify_password"):
+                return False
+            if not bool(auth_controller.verify_password(user_id, password)):
+                return False
 
-        method = self._mfa_method_var.get()
-
-        # Update input label based on method
-        labels: dict[str, str] = {
-            "password": "Пароль:",
-            "fido2": "PIN (опционально):",
-            "totp": "TOTP код:",
-            "backup_code": "Резервный код:",
-        }
-
-        if self._mfa_input_label is not None:
-            self._mfa_input_label.config(text=labels.get(method, "Код:"))
-
-        # Update input field show/hide
-        if self._mfa_input_entry is not None:
-            if method == "password":
-                self._mfa_input_entry.config(show="*")
+            # Verify MFA based on method
+            if method == "totp":
+                if not hasattr(auth_controller, "verify_totp"):
+                    return False
+                return bool(auth_controller.verify_totp(user_id, mfa_token))
+            elif method == "backup":
+                if not hasattr(auth_controller, "verify_backup_code"):
+                    return False
+                return bool(auth_controller.verify_backup_code(user_id, mfa_token))
+            elif method == "fido2":
+                if hasattr(auth_controller, "verify_fido2"):
+                    return bool(auth_controller.verify_fido2(user_id, ""))
+                return False
             else:
-                self._mfa_input_entry.config(show="")
+                return False
 
-        # Clear input and error
-        if self._mfa_input_var is not None:
-            self._mfa_input_var.set("")
-
-        if self._lock_error_label is not None:
-            self._lock_error_label.config(text="")
-
-    def _update_lock_duration(self) -> None:
-        """Обновляет отображение продолжительности блокировки."""
-        if not self._is_locked or self._lock_overlay is None:
-            return
-
-        from datetime import datetime
-
-        if hasattr(self, '_lock_time') and self._lock_time is not None:
-            duration = datetime.now() - self._lock_time
-            minutes, seconds = divmod(int(duration.total_seconds()), 60)
-            hours, minutes = divmod(minutes, 60)
-
-            if hours > 0:
-                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-            else:
-                duration_str = f"{minutes:02d}:{seconds:02d}"
-
-            if self._lock_duration_label is not None:
-                self._lock_duration_label.config(
-                    text=f"Продолжительность: {duration_str}"
-                )
-
-        # Schedule next update (every second)
-        if self._lock_overlay is not None:
-            self._lock_overlay.after(1000, self._update_lock_duration)
-
-    def _hide_lock_overlay(self) -> None:
-        """Скрывает overlay блокировки."""
-        if self._lock_overlay is not None:
-            self._lock_overlay.destroy()
-            self._lock_overlay = None
-            self._lock_frame = None
+        except (AttributeError, ValueError, TypeError, RuntimeError):
+            # Don't expose internal details
+            return False
 
     def _wipe_sensitive_data(self) -> None:
         """Очищает sensitive данные из памяти.
@@ -1797,174 +1775,60 @@ class MainWindow:
         else:
             self.destroy()
 
-    def _on_unlock_clicked(self) -> None:
-        """Обработчик клика по кнопке разблокировки с MFA.
+    def _schedule_auto_lock_check(self) -> None:
+        """Планирует проверку неактивности для автоматической блокировки.
 
-        Security:
-            - Требует MFA верификацию перед разблокировкой
-            - Использует выбранный метод из UI_SPEC 9.2
-            - Интеграция с AuthController для реальной проверки
-            - CRITICAL-001: Не разблокирует без валидного MFA
+        Вызывается периодически (каждую минуту) через after().
+        Если время неактивности превышает auto_lock_minutes —
+        вызывает lock_session(trigger="auto").
         """
-        if not self._is_locked:
+        if self._root is None:
             return
 
-        # Get selected MFA method and input
-        if not hasattr(self, '_mfa_method_var') or self._mfa_method_var is None:
-            if self._toast_service is not None:
-                self._toast_service.show(
-                    "UI ошибка: не выбран метод MFA",
-                    ToastLevel.ERROR,
-                )
+        if self._is_locked:
+            # Don't schedule next check if already locked
             return
 
-        selected_method = self._mfa_method_var.get()
-        credential = self._mfa_input_var.get() if hasattr(self, '_mfa_input_var') else ""
+        import time
 
-        # Validate input
-        if not credential.strip() and selected_method != "fido2":
-            if self._lock_error_label is not None:
-                self._lock_error_label.config(text="Введите учётные данные для разблокировки")
+        elapsed = time.time() - self._last_activity_time
+        inactive_minutes = int(elapsed / 60)
+
+        if inactive_minutes >= self._auto_lock_minutes and self._auto_lock_minutes > 0:
+            self.lock_session(trigger="auto")
             return
 
-        # Get auth controller and user ID
-        auth_controller = self._get_auth_controller()
-        user_id = self._get_current_user_id()
+        # Schedule next check in 60 seconds
+        self._auto_lock_timer_id = str(self._root.after(60000, self._schedule_auto_lock_check))
 
-        if auth_controller is None or user_id is None:
-            # If no auth configured, show error (security requirement)
-            if self._lock_error_label is not None:
-                self._lock_error_label.config(text="Система аутентификации недоступна")
+    def _reset_activity_timer(self, _event: Any) -> None:
+        """Сбрасывает таймер неактивности при любом событии.
+
+        Args:
+            _event: Событие Tkinter (не используется).
+        """
+        import time
+
+        self._last_activity_time = time.time()
+
+    def _bind_activity_events(self) -> None:
+        """Привязывает обработчики событий активности к root.
+
+        Сбрасывает таймер неактивности при любом key/mouse event.
+        """
+        if self._root is None:
             return
 
-        # Disable unlock button during verification
-        if self._unlock_btn is not None:
-            self._unlock_btn.config(state=tk.DISABLED, text="Проверка...")
-
-        try:
-            # Attempt verification with selected method
-            verified = False
-            error_message = ""
-
-            if selected_method == "password":
-                # Use password verification via auth_controller
-                verified = self._verify_password(auth_controller, user_id, credential)
-                if not verified:
-                    error_message = "Неверный пароль"
-            elif selected_method == "fido2":
-                # FIDO2 verification
-                verified = self._verify_fido2(auth_controller, user_id, credential)
-                if not verified:
-                    error_message = "FIDO2 верификация не удалась"
-            elif selected_method == "totp":
-                # TOTP verification
-                verified = self._verify_totp(auth_controller, user_id, credential)
-                if not verified:
-                    error_message = "Неверный TOTP код"
-            elif selected_method == "backup_code":
-                # Backup code verification
-                verified = self._verify_backup_code(auth_controller, user_id, credential)
-                if not verified:
-                    error_message = "Неверный резервный код"
-
-            if verified:
-                logger.info("MFA verified via %s, unlocking session for user %s", selected_method, user_id)
-                self.unlock_session()
-            else:
-                logger.warning("MFA verification failed via %s for user %s", selected_method, user_id)
-                if self._lock_error_label is not None:
-                    self._lock_error_label.config(text=error_message)
-                # Clear input for security
-                if self._mfa_input_var is not None:
-                    self._mfa_input_var.set("")
-
-        except Exception as e:
-            logger.error("MFA challenge failed: %s", e)
-            if self._lock_error_label is not None:
-                self._lock_error_label.config(text="Ошибка аутентификации")
-        finally:
-            # Re-enable unlock button
-            if self._unlock_btn is not None:
-                self._unlock_btn.config(state=tk.NORMAL, text="🔓 Разблокировать")
-
-    def _verify_password(self, auth_controller: Any, user_id: str, password: str) -> bool:
-        """Проверяет пароль.
-
-        Args:
-            auth_controller: Контроллер аутентификации.
-            user_id: ID пользователя.
-            password: Пароль для проверки.
-
-        Returns:
-            True если пароль верный.
-        """
-        try:
-            if hasattr(auth_controller, 'verify_password'):
-                return bool(auth_controller.verify_password(user_id, password))
-            return False
-        except Exception as e:
-            logger.error("Password verification failed: %s", e)
-            return False
-
-    def _verify_fido2(self, auth_controller: Any, user_id: str, pin: str) -> bool:
-        """Проверяет FIDO2 ключ.
-
-        Args:
-            auth_controller: Контроллер аутентификации.
-            user_id: ID пользователя.
-            pin: PIN для FIDO2 (опционально).
-
-        Returns:
-            True если FIDO2 верификация прошла.
-        """
-        try:
-            if hasattr(auth_controller, 'verify_fido2'):
-                return bool(auth_controller.verify_fido2(user_id, pin))
-            # Fallback: try generic verify method
-            if hasattr(auth_controller, 'verify_mfa'):
-                return bool(auth_controller.verify_mfa(user_id, "fido2", ""))
-            return False
-        except Exception as e:
-            logger.error("FIDO2 verification failed: %s", e)
-            return False
-
-    def _verify_totp(self, auth_controller: Any, user_id: str, code: str) -> bool:
-        """Проверяет TOTP код.
-
-        Args:
-            auth_controller: Контроллер аутентификации.
-            user_id: ID пользователя.
-            code: TOTP код.
-
-        Returns:
-            True если код верный.
-        """
-        try:
-            if hasattr(auth_controller, 'verify_totp'):
-                return bool(auth_controller.verify_totp(user_id, code))
-            return False
-        except Exception as e:
-            logger.error("TOTP verification failed: %s", e)
-            return False
-
-    def _verify_backup_code(self, auth_controller: Any, user_id: str, code: str) -> bool:
-        """Проверяет резервный код.
-
-        Args:
-            auth_controller: Контроллер аутентификации.
-            user_id: ID пользователя.
-            code: Резервный код.
-
-        Returns:
-            True если код верный.
-        """
-        try:
-            if hasattr(auth_controller, 'verify_backup_code'):
-                return bool(auth_controller.verify_backup_code(user_id, code))
-            return False
-        except Exception as e:
-            logger.error("Backup code verification failed: %s", e)
-            return False
+        events = [
+            "<Key>",
+            "<KeyRelease>",
+            "<Button>",
+            "<ButtonRelease>",
+            "<Motion>",
+            "<MouseWheel>",
+        ]
+        for event in events:
+            self._root.bind(event, self._reset_activity_timer)
 
     def _show_welcome_toast(self) -> None:
         """Показывает приветственное уведомление."""
@@ -1981,97 +1845,117 @@ class MainWindow:
     def _on_document_convert_to_special(self) -> None:
         """Callback: File → Convert to Special Mode.
 
-        Конвертирует документ в Special Mode (защищённый режим).
-        Требует успешного Health Check и MFA верификации.
-
-        Flow:
-        1. Проверить can_enter_special() через ModeManager
-        2. Если Health Check не пройден — показать HealthCheckDialog
-        3. Показать AuthOverlay для MFA верификации
-        4. При успехе — обновить UI и установить Special Mode
+        Конвертирует документ в Special Mode.
+        Требует ConfirmDialog, MFA через MFAGate и обновления индикатора вкладки.
         """
-        if self._mode_manager is None:
+        if self._mode_manager is None or self._root is None:
             return
 
-        can_enter, reason = self._mode_manager.can_enter_special()
-
-        if not can_enter:
-            if reason == "health_check_failed":
-                self._show_health_check_dialog_for_special_mode()
-            elif reason == "disabled":
-                messagebox.showwarning(
-                    "Special Mode недоступен",
-                    "Special Mode отключён из-за проблем безопасности.\n"
-                    "Запустите Tools → Health Check для диагностики.",
-                    parent=self._root,
-                )
-            elif reason == "already_special":
-                messagebox.showinfo(
-                    "Special Mode",
-                    "Документ уже в Special Mode.",
-                    parent=self._root,
-                )
-            else:
-                messagebox.showwarning(
-                    "Special Mode",
-                    f"Невозможно войти в Special Mode: {reason}",
-                    parent=self._root,
-                )
+        if self._mode_manager.is_special():
+            logger.info("Document already in Special Mode")
+            if self._toast_service is not None:
+                self._toast_service.show("Документ уже в Special Mode", ToastLevel.INFO)
             return
 
-        self._show_auth_overlay()
+        response = messagebox.askyesno(
+            "Convert to Special Mode",
+            "Convert to Special Mode? This requires MFA.",
+            parent=self._root,
+        )
+        if not response:
+            return
+
+        self._run_conversion_with_mfa("special")
 
     def _on_document_convert_to_normal(self) -> None:
         """Callback: File → Convert to Normal Mode.
 
         Конвертирует документ из Special Mode в Normal Mode.
-        Требует подтверждения пользователя.
-
-        Flow:
-        1. Проверить что currently в Special Mode
-        2. Показать диалог подтверждения с предупреждением
-        3. При подтверждении — сохранить копию (опционально) и выйти в Normal Mode
+        Требует ConfirmDialog, MFA через MFAGate и обновления индикатора вкладки.
         """
-        if self._mode_manager is None:
+        if self._mode_manager is None or self._root is None:
             return
 
-        current_mode = self._mode_manager.get_current_mode()
-        if current_mode != ModeManager.MODE_SPECIAL:
-            messagebox.showinfo(
-                "Normal Mode",
-                "Документ уже в Normal Mode.",
+        if not self._mode_manager.is_special():
+            logger.info("Document already in Normal Mode")
+            if self._toast_service is not None:
+                self._toast_service.show("Документ уже в Normal Mode", ToastLevel.INFO)
+            return
+
+        response = messagebox.askyesno(
+            "Convert to Normal Mode",
+            "Convert to Normal Mode? This requires MFA.",
+            parent=self._root,
+        )
+        if not response:
+            return
+
+        self._run_conversion_with_mfa("normal")
+
+    def _run_conversion_with_mfa(self, target_mode: str) -> None:
+        """Выполняет MFA challenge и конвертацию документа.
+
+        Args:
+            target_mode: Целевой режим ('special' или 'normal').
+        """
+        if self._root is None:
+            return
+
+        auth_controller = self._get_auth_controller()
+        if auth_controller is None:
+            messagebox.showerror(
+                "Ошибка аутентификации",
+                "Auth controller не доступен.",
                 parent=self._root,
             )
             return
 
-        response = messagebox.askyesnocancel(
-            "Конвертация в Normal Mode",
-            "⚠️ ВНИМАНИЕ: Документ выйдет из защищённого режима.\n\n"
-            "В Special Mode документ защищён от несанкционированного доступа.\n"
-            "Продолжить?",
-            icon="warning",
-            parent=self._root,
+        from src.gui.security.mfa_gate import MFAGate
+
+        gate = MFAGate(auth_service=auth_controller, audit_log=self._audit_log)
+        result = gate.execute(
+            parent=cast(tk.Widget, self._root),
+            operation=lambda: self._perform_document_conversion(target_mode),
+            operation_name=f"Convert to {target_mode.capitalize()} Mode",
+            requires_mfa=True,
         )
-
-        if response is None:
-            return
-
-        if response:
+        if result is None:
             if self._toast_service is not None:
-                self._toast_service.show(
-                    "Создание резервной копии...",
-                    ToastLevel.INFO,
-                )
+                self._toast_service.show("MFA верификация отменена", ToastLevel.INFO)
 
-        success = self._mode_manager.exit_special(confirm=False)
+    def _perform_document_conversion(self, target_mode: str) -> bool:
+        """Выполняет конвертацию документа и обновляет UI.
 
-        if success:
-            self._update_mode_ui("normal")
-            if self._toast_service is not None:
-                self._toast_service.show(
-                    "Документ конвертирован в Normal Mode",
-                    ToastLevel.SUCCESS,
-                )
+        Args:
+            target_mode: Целевой режим ('special' или 'normal').
+
+        Returns:
+            True при успехе.
+        """
+        if self._controller is not None:
+            try:
+                self._controller.dispatch("document_convert", mode=target_mode)
+            except Exception as exc:
+                logger.error("Document conversion dispatch failed: %s", exc)
+
+        # Update tab indicator
+        if self._cardfile_tabbar is not None:
+            active_tab = self._cardfile_tabbar.get_active_tab()
+            if active_tab is not None:
+                self._cardfile_tabbar.set_tab_special(active_tab, target_mode == "special")
+
+        # Update global mode UI
+        self._update_mode_ui(target_mode)
+
+        if self._toast_service is not None:
+            msg = (
+                "Документ конвертирован в Special Mode"
+                if target_mode == "special"
+                else "Документ конвертирован в Normal Mode"
+            )
+            self._toast_service.show(msg, ToastLevel.SUCCESS)
+
+        return True
 
     def _show_health_check_dialog_for_special_mode(self) -> None:
         """Показывает HealthCheckDialog для Special Mode."""
@@ -2080,6 +1964,8 @@ class MainWindow:
 
         if self._health_checker is None:
             self._health_checker = HealthChecker(version="3.0.0")
+
+        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
 
         self._health_check_dialog = HealthCheckDialog(
             parent=self._root,
@@ -2121,6 +2007,22 @@ class MainWindow:
             self._controller.dispatch("file_print")
         elif self._toast_service is not None:
             self._toast_service.show("Печать документа", ToastLevel.INFO)
+
+    def _on_page_setup(self) -> None:
+        """Callback: Format -> Page Setup (и double-click на Paper в StatusBar)."""
+        self._on_paper_setup()
+
+    def _on_paper_setup(self) -> None:
+        """Callback: открытие диалога настройки бумаги из PaperToolbar.
+
+        Передаётся в DocumentView как on_paper_setup callback.
+        """
+        from src.gui.dialogs.paper_setup import PaperSetupDialog
+
+        if self._root is None:
+            return
+        dialog = PaperSetupDialog(parent=self._root)
+        dialog.show()
 
     def _on_edit_undo(self) -> None:
         """Callback: Edit -> Undo."""
@@ -2180,19 +2082,54 @@ class MainWindow:
         if self._controller is not None:
             self._controller.dispatch("view_zoom_reset")
 
+    def set_workflow_state_manager(self, manager: Any) -> None:
+        """Устанавливает WorkflowStateManager для интеграции с Simple Mode.
+
+        Args:
+            manager: Экземпляр WorkflowStateManager или совместимый объект.
+        """
+        self._workflow_state_manager = manager
+
+    def set_password_service(self, password_service: Any) -> None:
+        """Устанавливает сервис паролей для session lock.
+
+        Args:
+            password_service: PasswordService или совместимый объект.
+        """
+        self._password_service = password_service
+
+    def set_mfa_manager(self, mfa_manager: Any) -> None:
+        """Устанавливает MFA-менеджер для session lock.
+
+        Args:
+            mfa_manager: SecondFactorManager или совместимый объект.
+        """
+        self._mfa_manager = mfa_manager
+
     def _on_view_workflow_simple_mode(self) -> None:
         """Callback: View -> Approval Workflow -> Simple Mode.
 
         Переключает между упрощённым (DRAFT ↔ SIGNED) и полным workflow.
+        Обновляет StatusBar timeline и синхронизирует WorkflowStateManager.
         """
         if self._workflow_simple_var is not None:
-            self._workflow_simple_mode = self._workflow_simple_var.get()
+            simple = self._workflow_simple_var.get()
+            self._workflow_simple_mode = simple
 
-            # Dispatch event to controller to update workflow indicator
+            # Синхронизируем WorkflowStateManager
+            if self._workflow_state_manager is not None:
+                if hasattr(self._workflow_state_manager, "set_simple_mode"):
+                    self._workflow_state_manager.set_simple_mode(simple)
+
+            # Обновляем StatusBar timeline если visible
+            if self._statusbar is not None:
+                self._statusbar.set_simple_mode(simple)
+
+            # Dispatch event to controller
             if self._controller is not None:
                 self._controller.dispatch(
                     "workflow_mode_changed",
-                    simple_mode=self._workflow_simple_mode,
+                    simple_mode=simple,
                 )
 
             # Show toast notification
@@ -2245,7 +2182,7 @@ class MainWindow:
             lines.append(f"\n... и ещё {count - 10} уведомлений")
 
         message = "\n".join(lines)
-        messagebox.showinfo("История уведомлений", message, parent=self._root)
+        messagebox.showinfo("История уведомлений", message, parent=self._root)  # type: ignore[arg-type]
 
     def _on_notifications_mark_all_read(self) -> None:
         """Callback: Уведомления → Отметить все прочитанными."""
@@ -2302,7 +2239,6 @@ class MainWindow:
         )
         from src.security.crypto.service.profiles import CryptoProfile
 
-        # TODO: Get current profile from service
         dialog = CryptoProfileDialog(
             parent=self._root,
             current_profile=CryptoProfile.STANDARD,
@@ -2326,7 +2262,6 @@ class MainWindow:
         )
         from src.security.lock.session_lock_manager import LockConfig
 
-        # TODO: Get current config from service
         config = LockConfig(auto_lock_minutes=15)
         dialog = AutoLockSettingsDialog(
             parent=self._root,
@@ -2339,6 +2274,47 @@ class MainWindow:
                     f"Таймаут: {result.config.auto_lock_minutes} мин",
                     ToastLevel.SUCCESS,
                 )
+
+    def _on_security_integrity_check(self) -> None:
+        """Проверка целостности приложения.
+
+        Создаёт экземпляры AppIntegrityChecker и ConfigIntegrityChecker
+        и отображает IntegrityDialog с результатами.
+        """
+        from src.gui.dialogs.integrity_dialog import (
+            IntegrityDialog,  # lazy: avoid circular import
+        )
+
+        if self._root is None:
+            return
+
+        from pathlib import Path
+
+        from src.security.integrity import AppIntegrityChecker, ConfigIntegrityChecker
+
+        # Стандартные пути (могут отсутствовать в dev-режиме)
+        app_checker: Optional[AppIntegrityChecker] = None
+        config_checker: Optional[ConfigIntegrityChecker] = None
+        try:
+            reference_path = Path(".app-hash")
+            if reference_path.exists():
+                app_checker = AppIntegrityChecker(reference_path)
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
+            logger.debug("App integrity check skipped (dev mode): %s", e)
+
+        try:
+            config_path = Path("config.fxsconfig")
+            if config_path.exists():
+                config_checker = ConfigIntegrityChecker(config_path)
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
+            logger.debug("Config integrity check skipped (dev mode): %s", e)
+
+        dialog = IntegrityDialog(
+            parent=self._root,
+            app_checker=app_checker,
+            config_checker=config_checker,
+        )
+        dialog.show()
 
     def _on_help_about(self) -> None:
         """Callback: Help -> About."""
@@ -2430,7 +2406,7 @@ class MainWindow:
         if self._root is None or self._document_view is None:
             return
 
-        from src.gui.dialogs.navigation_dialogs import BookmarkItem, GotoDialog
+        from src.gui.dialogs.navigation_dialogs import BookmarkItem
 
         # Get document info
         total_pages = self._document_view.get_total_pages()
@@ -2486,8 +2462,6 @@ class MainWindow:
             return
 
         from uuid import UUID
-
-        from src.gui.dialogs.navigation_dialogs import BookmarksDialog
 
         # Ensure bookmark manager exists
         if self._bookmark_manager is None:
@@ -2639,7 +2613,7 @@ class MainWindow:
         """Обработчик изменения режима рендеринга штрих-кодов (View → Barcode Render Mode)."""
         mode = self._barcode_render_var.get() if self._barcode_render_var else "placeholder"
         logger.info(f"Barcode render mode changed to: {mode}")
-        if self._toast_service:
+        if self._toast_service is not None:
             self._toast_service.show(
                 f"Режим рендеринга штрих-кодов: {'Реальный' if mode == 'real' else 'Placeholder'}",
                 ToastLevel.INFO,
@@ -2666,7 +2640,7 @@ class MainWindow:
             window_names.append(f"{marker} {w.title} {status}")
 
         message = "Открытые окна:\n" + "\n".join(window_names)
-        messagebox.showinfo("Список окон", message, parent=self._root)
+        messagebox.showinfo("Список окон", message, parent=self._root)  # type: ignore[arg-type]
 
     def _on_window_minimize_all(self) -> None:
         """Callback: View → Window → Свернуть все.
@@ -2695,48 +2669,78 @@ class MainWindow:
     def _on_insert_barcode(self) -> None:
         """Handler для вставки штрих-кода (Insert → Barcode).
 
-        Phase 6: Открывает диалог выбора типа штрих-кода.
+        Открывает диалог выбора типа штрих-кода и вставляет выбранный штрих-код в документ.
         """
         logger.info("Insert Barcode menu triggered")
-        # TODO: Integrate with BarcodeController in Phase 6
-        messagebox.showinfo(
-            "Вставка штрих-кода",
-            "📊 Диалог выбора штрих-кода\n\n"
-            "Будет реализовано в Phase 6:\n"
-            "- Выбор типа (CODE128, EAN13, etc)\n"
-            "- Режим Hardware/Software\n"
-            "- Предпросмотр",
-            parent=self._root,
-        )
+        if self._root is None or self._barcode_controller is None:
+            return
+        self._barcode_controller.show_barcode_dialog()
 
     def _on_insert_qr(self) -> None:
         """Handler для вставки QR-кода (Insert → QR Code).
 
-        Phase 6: Открывает диалог настроек QR.
+        Открывает диалог QR-кода и вставляет QR-код в документ.
         """
         logger.info("Insert QR menu triggered")
-        # TODO: Integrate with BarcodeController in Phase 6
-        messagebox.showinfo(
-            "Вставка QR-кода",
-            "🔳 Диалог настроек QR\n\n"
-            "Будет реализовано в Phase 6:\n"
-            "- Настройка уровня коррекции\n"
-            "- Выбор версии QR\n"
-            "- Предпросмотр и экспорт",
-            parent=self._root,
-        )
+        if self._root is None or self._barcode_controller is None:
+            return
+        self._barcode_controller.show_qr_dialog()
 
     def _on_insert_special(self) -> None:
         """Handler для вставки спецсимвола (Insert → Special Character).
 
-        Phase 6: Placeholder для будущей реализации.
+        Открывает диалог выбора специального символа и вставляет
+        выбранный символ в текущую позицию курсора.
         """
         logger.info("Insert Special Character menu triggered")
-        messagebox.showinfo(
-            "Специальные символы",
-            "Вставка специальных символов ESC/P\n\nБудет реализовано в следующей версии.",
-            parent=self._root,
-        )
+
+        if self._root is None or self._document_view is None:
+            return
+
+        renderer = self._document_view._free_form_renderer
+        if renderer is None:
+            logger.warning("Special character insertion not available: FreeForm renderer missing")
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Вставка спецсимволов доступна только в режиме FreeForm",
+                    ToastLevel.WARNING,
+                )
+            return
+
+        dialog = SpecialCharacterDialog(parent=cast(tk.Widget, self._root))
+        result: Optional[SpecialCharResult] = dialog.show()
+
+        if result is None:
+            return
+
+        try:
+            line, col = renderer.get_cursor_position()
+        except Exception as e:
+            logger.error("Failed to get cursor position: %s", e)
+            messagebox.showerror(
+                "Ошибка",
+                "Не удалось определить позицию курсора.",
+                parent=self._root,
+            )
+            return
+
+        try:
+            assert renderer._tk_text is not None
+            assert renderer._command_stack is not None
+
+            position = f"{line}.{col - 1}"
+            cmd = InsertTextCommand(renderer._tk_text, result.char, position)
+            renderer._command_stack.execute(cmd)
+
+            if self._toast_service is not None:
+                self._toast_service.show("Символ вставлен", ToastLevel.SUCCESS)
+        except Exception as e:
+            logger.error("Error inserting special character: %s", e)
+            messagebox.showerror(
+                "Ошибка",
+                f"Не удалось вставить символ: {str(e)}",
+                parent=self._root,
+            )
 
     # =============================================================================
     # NOTIFICATION SERVICE CALLBACKS
@@ -2837,6 +2841,4 @@ class MainWindow:
 __all__: list[str] = [
     "MainWindow",
     "APP_NAME",
-    "LOCK_OVERLAY_BG",
-    "LOCK_OVERLAY_FG",
 ]

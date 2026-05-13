@@ -167,10 +167,7 @@ class RightToErasureHandler:
 
             # 2. Фильтруем по типам данных если указано
             if data_types:
-                data_records = [
-                    r for r in data_records
-                    if r.get("data_type") in data_types
-                ]
+                data_records = [r for r in data_records if r.get("data_type") in data_types]
 
             # 3. Проверяем возможность удаления
             if not force:
@@ -287,9 +284,7 @@ class RightToErasureHandler:
         deleted_count = 0
 
         # Извлекаем ID записей
-        record_ids: List[str] = [
-            str(r.get("id")) for r in data_records if r.get("id") is not None
-        ]
+        record_ids: List[str] = [str(r.get("id")) for r in data_records if r.get("id") is not None]
 
         if not record_ids:
             return 0, ["No record IDs found"]
@@ -308,6 +303,7 @@ class RightToErasureHandler:
             if file_path:
                 try:
                     from src.security.erasure import wipe_file
+
                     wipe_file(Path(file_path))
                 except Exception as e:
                     errors.append(f"Failed to wipe {file_path}: {e}")
@@ -406,9 +402,9 @@ class RightToErasureHandler:
 
             if remaining:
                 result["is_complete"] = False
-                result["remaining_categories"] = list(set(
-                    r.get("category", "unknown") for r in remaining
-                ))
+                result["remaining_categories"] = list(
+                    set(r.get("category", "unknown") for r in remaining)
+                )
 
         return result
 

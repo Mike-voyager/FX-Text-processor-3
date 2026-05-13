@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/printer/printer_protocol.py
+# hypothesis_version: 6.151.12
+
+['FX-Document', 'cancelled', 'completed', 'copies', 'error', 'failed', 'idle', 'offline', 'paused', 'pending', 'printing', 'processing', 'unknown']

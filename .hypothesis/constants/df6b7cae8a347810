@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/graphics.py
+# hypothesis_version: 6.151.12
+
+[b'\x1b*', b'\x1b.', b'K', b'L', b'Y', b'Z', 120, 240, 255, 32767, '120 DPI high-speed', '120 DPI horizontal', '240 DPI horizontal', '60 DPI horizontal', 'GraphicsMode', 'print_bit_image']

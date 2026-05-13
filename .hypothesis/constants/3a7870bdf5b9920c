@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/factories/theme_factory.py
+# hypothesis_version: 6.151.12
+
+['#00AA00', '#555555', '#CC0000', '#FFFFFF', 'ThemeColors', 'accent', 'bd', 'bg', 'configure', 'create_themed_button', 'danger', 'default', 'fg', 'get_theme_colors', 'ghost', 'highlightthickness', 'primary', 'relief', 'secondary', 'success', 'text']

@@ -26,9 +26,10 @@ try:
             ctx = get_app_context()
             if hasattr(ctx, "crypto_service"):
                 return ctx.crypto_service
-        except Exception:  # pragma: no cover
-            _logger.debug("Failed to get crypto_service from app_context, using default")
-        # Fallback for tests or pre-initialization
+        except (RuntimeError, AttributeError) as e:
+            _logger.debug(
+                "Failed to get crypto_service from app_context, using default: %s", e
+            )
         return _default_crypto_service
 
     def derive_key_argon2id(password: bytes, salt: bytes, length: int) -> bytes:
@@ -36,17 +37,17 @@ try:
         crypto_service = _get_crypto_service_impl()
         return crypto_service.derive_key(password, salt, key_length=length)
 
-except Exception:  # pragma: no cover
+except (ImportError, RuntimeError) as e:
 
-    def _get_crypto_service_impl_fallback() -> Any:
-        raise RuntimeError("_get_crypto_service_impl is not available")
+        def _get_crypto_service_impl_fallback() -> Any:
+            raise RuntimeError("_get_crypto_service_impl is not available")
 
-    def derive_key_argon2id_fallback(password: bytes, salt: bytes, length: int) -> bytes:  # noqa: ARG001
-        raise RuntimeError("derive_key_argon2id is not available")
+        def derive_key_argon2id_fallback(password: bytes, salt: bytes, length: int) -> bytes:  # noqa: ARG001
+            raise RuntimeError("derive_key_argon2id is not available")
 
-    # Assign fallback implementations
-    _get_crypto_service_impl = _get_crypto_service_impl_fallback
-    derive_key_argon2id = derive_key_argon2id_fallback
+        # Assign fallback implementations
+        _get_crypto_service_impl = _get_crypto_service_impl_fallback
+        derive_key_argon2id = derive_key_argon2id_fallback
 
 
 # Public alias for backward compatibility
@@ -110,7 +111,7 @@ def issue_backup_codes_for_user(
                     int(state.get("ttl_seconds", ttlsec)) if "ttl_seconds" in state else ttlsec
                 ),
             )
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, KeyError, AttributeError) as exc:
             _logger.error(
                 "Issue backup codes failed: user=%s err=%s",
                 user_id,
@@ -136,7 +137,7 @@ def validate_backup_code_for_user(user_id: str, code: str) -> bool:
             ok: bool = bool(mgr.verify_factor(user_id, "backupcode", credential=code))
             _logger.debug("Backup code validate: user=%s ok=%s", user_id, ok)
             return ok
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, KeyError, AttributeError) as exc:
             _logger.warning(
                 "Validate backup code failed: user=%s err=%s",
                 user_id,
@@ -157,7 +158,7 @@ def remove_backup_codes_for_user(user_id: str) -> None:
             mgr = get_app_context().mfa_manager
             mgr.remove_factor(user_id, "backupcode")
             _logger.warning("Backup codes removed: user=%s", user_id)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, KeyError, AttributeError) as exc:
             _logger.error(
                 "Remove backup codes failed: user=%s err=%s",
                 user_id,
@@ -189,7 +190,7 @@ def get_backup_codes_status(user_id: str) -> BackupCodeStatus:
                 ttl_seconds=cast(Optional[int], state.get("ttl_seconds")),
                 audit=cast(List[Any], state.get("audit", [])),
             )
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, KeyError, AttributeError) as exc:
             _logger.error(
                 "Get backup codes status failed: user=%s err=%s",
                 user_id,
@@ -211,7 +212,7 @@ def get_backup_codes_audit(user_id: str) -> List[Any]:
             audit = cast(List[Any], state.get("audit", []))
             _logger.debug("Backup code audit requested: user=%s size=%d", user_id, len(audit))
             return audit
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, KeyError, AttributeError) as exc:
             _logger.error(
                 "Get backup codes audit failed: user=%s err=%s",
                 user_id,

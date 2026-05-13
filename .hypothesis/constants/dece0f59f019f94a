@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/paper_visualization.py
+# hypothesis_version: 6.151.12
+
+[3.78, 114, 162, 229, 324, 595, 842, '#333333', '#90EE90', '#9370DB', '#999999', '#B8860B', '#E6E6FA', '#FF6B6B', '#FFD700', '#FFE4E1', '#FFFACD', '#cccccc', '#e0e0e0', '#f0f0f0', 'Arial', 'C4', 'C5', 'CodepageStatusWidget', 'DL', 'DOUBLE_HEIGHT_COLOR', 'ENVELOPE_COLOR', 'ERROR_STATUS_COLOR', 'GUTTER_WIDTH_PX', 'LineProperties', 'PAPER_BORDER_COLOR', 'PC866: OK', 'PERFORATION_COLOR', 'VALID_STATUS_COLOR', 'WARN_STATUS_COLOR', 'all', 'bold', 'envelope_overlay', 'error', 'gray25', 'green', 'ok', 'paper_border', 'perforation_bottom', 'perforation_left', 'perforation_right', 'perforation_top', 'red', 'warning', 'white', '⚠', '✓', '✗']

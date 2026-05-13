@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/integrity_dialog.py
+# hypothesis_version: 6.151.12
+
+[100, 340, 400, 420, 500, '#333333', '10', '20', 'Checker not provided', 'Checks completed', 'Close', 'Helvetica', 'Integrity Check', 'IntegrityDialog', 'Preparing checks...', 'Progress', 'Results', 'Unknown error', 'Verifying binary...', 'bold', 'determinate', 'dialog_bg', 'error', 'info', 'nw', 'success', 'text_primary', 'value', 'w', '🔐 Integrity Check']

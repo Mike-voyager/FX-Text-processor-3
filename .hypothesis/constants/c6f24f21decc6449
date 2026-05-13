@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/excel_importer.py
+# hypothesis_version: 6.151.12
+
+['+', '1', ';', 'A', 'B', 'C', 'D', 'E', 'F', 'Fields', 'FormField', 'FormTemplate', 'G', 'H', 'Meta', 'Metadata', 'No', 'Yes', 'default_value', 'field_id', 'field_type', 'fields', 'height', 'label', 'max_length', 'meta', 'metadata', 'options', 'pos_x', 'pos_y', 'required', 'series', 'subtype', 'true', 'type', 'type_code', 'validation_pattern', 'width', 'y', 'yes', 'Поля', 'д', 'да']

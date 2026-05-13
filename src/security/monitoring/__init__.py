@@ -37,7 +37,7 @@ from src.security.monitoring.exceptions import (
     HealthCheckError,
     KeystoreCheckError,
 )
-from src.security.monitoring.health_checker import HealthChecker, HealthCheck
+from src.security.monitoring.health_checker import HealthCheck, HealthChecker
 from src.security.monitoring.models import (
     HealthCheckReport,
     HealthCheckResult,

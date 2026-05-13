@@ -12,16 +12,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 
 if TYPE_CHECKING:
     pass
 
-from src.model.enums import Alignment
+from src.model.enums import Alignment, CharSize, FontFamily, PrintQuality
 from src.model.run import Run
-
-# Импортируем EmbeddedObject из run.py вместо дублирования
-from src.model.run import EmbeddedObject as RunEmbeddedObject
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +35,7 @@ class EmbeddedObject:
     position: int = 0  # Позиция относительно runs
     description: Optional[str] = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "obj_type": self.obj_type,
             "data": self.data,
@@ -47,7 +44,7 @@ class EmbeddedObject:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "EmbeddedObject":
+    def from_dict(data: Dict[str, Any]) -> "EmbeddedObject":
         return EmbeddedObject(
             obj_type=data["obj_type"],
             data=data.get("data"),
@@ -60,13 +57,46 @@ class EmbeddedObject:
 class Paragraph:
     """
     Абзац текста с форматированием, табуляцией, списками и поддержкой вложенных объектов.
+
+    Attributes:
+        runs: Список Run'ов с текстом и форматированием
+        alignment: Выравнивание параграфа (Span-уровень)
+        indent: Отступ параграфа
+        spacing: Межстрочный интервал как множитель (1.0, 1.5, 2.0)
+        tabstops: Позиции табуляторов
+
+        # Line-уровень (ESC/P LineStyle)
+        quality: Качество печати (Draft/NLQ)
+        font_family: Шрифт (Draft/Roman/Sans Serif - только для NLQ)
+        char_size: Размер символа (Normal/Double-width/Double-height)
+        line_spacing: Межстрочный интервал в n/216 дюйма (None = использовать PageSettings)
+
+        # Списки и маркеры
+        bullet: Символ маркера списка
+        numbering: Номер в нумерованном списке
+        list_level: Уровень вложенности списка
+        marker_style: Стиль маркера
+
+        # Вложенные объекты и метаданные
+        embedded: Встроенные объекты
+        bookmarks: Закладки в параграфе
+        user_data: Пользовательские данные
     """
 
     runs: List[Run] = field(default_factory=list)
     alignment: Alignment = Alignment.LEFT
+    first_line_indent: float = 0.0
+    left_indent: float = 0.0
+    right_indent: float = 0.0
     indent: float = 0.0
     spacing: float = 1.0
     tabstops: List[float] = field(default_factory=list)
+
+    # Line-уровень (ESC/P LineStyle) - НОВЫЕ ПОЛЯ
+    quality: PrintQuality = PrintQuality.DRAFT
+    font_family: FontFamily = FontFamily.DRAFT
+    char_size: CharSize = CharSize.NORMAL
+    line_spacing: Optional[int] = None  # n/216 дюйма, None = использовать PageSettings
 
     bullet: Optional[str] = None
     numbering: Optional[int] = None
@@ -135,6 +165,16 @@ class Paragraph:
         # Проверка базовых enum-типов и структуры
         if not isinstance(self.alignment, Alignment):
             raise TypeError("alignment должен быть Alignment")
+        if not isinstance(self.quality, PrintQuality):
+            raise TypeError("quality должен быть PrintQuality")
+        if not isinstance(self.font_family, FontFamily):
+            raise TypeError("font_family должен быть FontFamily")
+        if not isinstance(self.char_size, CharSize):
+            raise TypeError("char_size должен быть CharSize")
+        if self.line_spacing is not None and not (
+            isinstance(self.line_spacing, int) and 0 < self.line_spacing <= 255
+        ):
+            raise ValueError("line_spacing должен быть int 1-255 или None")
         if self.numbering is not None and not (
             isinstance(self.numbering, int) and self.numbering >= 0
         ):
@@ -150,9 +190,17 @@ class Paragraph:
         return Paragraph(
             runs=[r.copy() for r in self.runs],
             alignment=self.alignment,
+            first_line_indent=self.first_line_indent,
+            left_indent=self.left_indent,
+            right_indent=self.right_indent,
             indent=self.indent,
             spacing=self.spacing,
             tabstops=list(self.tabstops),
+            # LineStyle fields
+            quality=self.quality,
+            font_family=self.font_family,
+            char_size=self.char_size,
+            line_spacing=self.line_spacing,
             bullet=self.bullet,
             numbering=self.numbering,
             list_level=self.list_level,
@@ -162,13 +210,21 @@ class Paragraph:
             user_data=dict(self.user_data),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "runs": [run.to_dict() for run in self.runs],
             "alignment": self.alignment.value,
+            "first_line_indent": self.first_line_indent,
+            "left_indent": self.left_indent,
+            "right_indent": self.right_indent,
             "indent": self.indent,
             "spacing": self.spacing,
             "tabstops": self.tabstops,
+            # LineStyle fields
+            "quality": self.quality.value,
+            "font_family": self.font_family.value,
+            "char_size": self.char_size.value,
+            "line_spacing": self.line_spacing,
             "bullet": self.bullet,
             "numbering": self.numbering,
             "list_level": self.list_level,
@@ -187,13 +243,35 @@ class Paragraph:
         return total
 
     @staticmethod
-    def from_dict(data: dict) -> "Paragraph":
+    def from_dict(data: Dict[str, Any]) -> "Paragraph":
+        # Helper to safely get enum values
+        from src.model.enums import StringEnumMixin
+
+        def get_enum_value(enum_class: Type[StringEnumMixin], value: Any, default: Any) -> Any:
+            if value is None:
+                return default
+            if isinstance(value, enum_class):
+                return value
+            try:
+                result = enum_class.from_string(value)
+                return result if result is not None else default
+            except (ValueError, TypeError):
+                return default
+
         return Paragraph(
             runs=[Run.from_dict(r) for r in data.get("runs", [])],
-            alignment=Alignment(data.get("alignment", "left")),
+            alignment=get_enum_value(Alignment, data.get("alignment"), Alignment.LEFT),
+            first_line_indent=float(data.get("first_line_indent", 0.0)),
+            left_indent=float(data.get("left_indent", 0.0)),
+            right_indent=float(data.get("right_indent", 0.0)),
             indent=float(data.get("indent", 0.0)),
             spacing=float(data.get("spacing", 1.0)),
             tabstops=list(data.get("tabstops", [])),
+            # LineStyle fields
+            quality=get_enum_value(PrintQuality, data.get("quality"), PrintQuality.DRAFT),
+            font_family=get_enum_value(FontFamily, data.get("font_family"), FontFamily.DRAFT),
+            char_size=get_enum_value(CharSize, data.get("char_size"), CharSize.NORMAL),
+            line_spacing=data.get("line_spacing"),
             bullet=data.get("bullet"),
             numbering=data.get("numbering"),
             list_level=data.get("list_level", 0),
@@ -213,5 +291,7 @@ class Paragraph:
         return (
             f"Paragraph(runs={len(self.runs)}, align={self.alignment.name}, "
             f"indent={self.indent:.2f}, bullet={self.bullet!r}, num={self.numbering}, "
-            f"level={self.list_level}, embedded={len(self.embedded)}, text='{title}...')"
+            f"level={self.list_level}, embedded={len(self.embedded)}, "
+            f"quality={self.quality.value}, font={self.font_family.value}, "
+            f"size={self.char_size.value}, text='{title}...')"
         )

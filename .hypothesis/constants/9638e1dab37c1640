@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/advanced/group_encryption.py
+# hypothesis_version: 6.151.12
+
+[b'group-encryption-v1', 256, "Created group '%s'", "Deleted group '%s'", 'Group', 'GroupKeyManager', 'GroupMember', 'aes-256-gcm', 'ciphertext', 'ephemeral_public_key', 'hkdf_salt', 'nonce', 'x25519']

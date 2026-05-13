@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/find_replace_service.py
+# hypothesis_version: 6.151.12
+
+['Document', 'FindReplaceService', 'Match', 'Paragraph', 'ReplaceResult', 'SearchDirection', 'SearchOptions', 'SearchResult', 'SearchScope', 'backward', 'document', 'forward', 'get_text', 'runs', 'section', 'selection', 'text', 'wrapped', 'Ошибка замены: %s', 'Пустой шаблон поиска']

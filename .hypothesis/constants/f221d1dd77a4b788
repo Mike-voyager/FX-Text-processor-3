@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/composite/main_toolbar.py
+# hypothesis_version: 6.151.12
+
+['<Control-n>', '<Control-o>', '<Control-p>', '<Control-s>', 'Ctrl+N', 'Ctrl+O', 'Ctrl+P', 'Ctrl+S', 'MainToolbar', 'file_new', 'file_open', 'file_print', 'file_save', 'new', 'open', 'print', 'save', '💾 Save', '📂 Open', '📝 New', '🖨️ Print']

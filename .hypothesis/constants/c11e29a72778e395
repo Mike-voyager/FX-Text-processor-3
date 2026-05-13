@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/free_form/toolbar.py
+# hypothesis_version: 6.151.12
+
+['#666666', '10', '12', '15', '17', '20', 'B', 'CPI:', 'Courier', 'Font:', 'FreeFormToolbar', 'I', 'U', 'bold', 'clear_active_formats', 'disabled', 'freeform_cpi_changed', 'italic', 'normal', 'set_cpi', 'set_enabled', 'set_font', 'state', 'subscript', 'superscript', 'toggle_format', 'underline', 'write', 'x²', 'x₂', 'Ж', 'К', 'Ч']

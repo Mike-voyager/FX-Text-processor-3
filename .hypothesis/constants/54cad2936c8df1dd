@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/protocols.py
+# hypothesis_version: 6.151.12
+
+['ModeContext', 'ModeSwitchEvent', 'ModeToolbarProtocol', 'document', 'mode_switched', 'new_mode', 'new_renderer_id', 'old_mode', 'old_renderer_id', 'time']

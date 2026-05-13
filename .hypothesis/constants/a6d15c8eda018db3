@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/integrity/models.py
+# hypothesis_version: 6.151.12
+
+['...', '1.0.0', '2026-03-23', '<нет хеша>', 'Ed25519', 'IntegrityCheckResult', 'actual_hash', 'details', 'error_message', 'expected_hash', 'metadata', 'reason', 'signature_algorithm', 'signer_key_id', 'tampered', 'timestamp', 'valid', 'warnings']

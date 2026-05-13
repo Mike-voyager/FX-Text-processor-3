@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/calculated_widget.py
+# hypothesis_version: 6.151.12
+
+['#f0f0f0', ',', '=', 'CalculatedWidget', 'Courier', '\\1', '\\{([^}]*)\\}', '\\{([a-zA-Z_]\\w*)\\}', '__import__', 'compile', 'dir', 'eval', 'exec', 'getattr', 'globals', 'hasattr', 'locals', 'open', 'setattr', 'type', 'vars']

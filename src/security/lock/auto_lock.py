@@ -20,10 +20,8 @@ import logging
 import platform
 import subprocess
 import threading
-import time
 import types
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from src.security.lock.models import LockConfig, LockReason

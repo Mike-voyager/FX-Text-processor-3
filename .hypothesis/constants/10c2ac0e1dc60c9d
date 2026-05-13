@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/renderers/form_canvas.py
+# hypothesis_version: 6.151.12
+
+[0.1, 0.5, 1.0, 2.0, 25.4, 120, 200, 500, '#000000', '#2980b9', '#2c3e50', '#3498db', '#c0c0c0', '#e0e0e0', '#e74c3c', '#e8f4f8', '#ffebee', '#ffeeee', '#ffffff', '<B1-Motion>', '<Button-1>', '<ButtonRelease-1>', '<Control-Button-4>', '<Control-Button-5>', '<Control-MouseWheel>', '<Leave>', '<Motion>', 'Arial', 'FieldPosition', 'FormCanvas', 'FormFieldWidget', 'Required: Yes', 'all', 'canvas_objects', 'error', 'field_id', 'highlight', 'in_margin', 'ok', 'out_of_bounds', 'overlap', 'rect', 'red', 'start_col', 'start_row', 'start_x', 'start_y', 'text', '⚠']

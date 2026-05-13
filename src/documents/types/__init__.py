@@ -1,46 +1,81 @@
-"""Document types module - type registry, schemas, and indexing.
+"""Модуль типов документов и индексации для FX Text Processor 3.
 
-Provides:
-- TypeRegistry: Singleton registry for document types
-- DocumentType, DocumentSubtype: Document type definitions
-- IndexTemplate, IndexSegmentDef: Index structure definitions
-- TypeSchema, FieldDefinition: Field schema definitions
-- SegmentType, FieldType: Enumerations for types and fields
+Предоставляет иерархическую систему типов документов с составными индексами
+в формате DVN-44-K53-IX, реестр типов (TypeRegistry) и шаблоны полей.
+
+Example:
+    >>> from src.documents.types import TypeRegistry, DocumentType, Subtype, Series
+    >>> registry = TypeRegistry.get_instance()
+    >>> doc_type = registry.get_type("DVN")
+    >>> print(doc_type.name)
+    Verbal Note
+    >>> index = registry.generate_index("DVN", "44", "K53")
+    >>> print(index)
+    DVN-44-K53-I
+
+Architecture:
+    - DocumentType: Корневой тип документа (DVN, INV)
+    - Subtype: Подтип (44, 45)
+    - Series: Серия (K53, K54)
+    - TypeRegistry: Singleton реестр всех типов (thread-safe)
+    - IndexTemplate: Шаблон полей для типа документа
+
+Thread Safety:
+    TypeRegistry thread-safe благодаря RLock.
 """
 
-from src.documents.types.document_type import DocumentSubtype, DocumentType
-from src.documents.types.index_formatter import (
-    format_index,
-    int_to_roman,
-    parse_index,
-    roman_to_int,
+from __future__ import annotations
+
+from src.documents.types.document_type import (
+    DocumentType,
+    Series,
+    Subtype,
 )
 from src.documents.types.index_template import (
-    IndexSegmentDef,
+    FieldType,
     IndexTemplate,
-    SegmentType,
+    TemplateField,
+    ValidationRule,
 )
-from src.documents.types.inheritance import resolve_schema
-from src.documents.types.registry import TypeRegistry
+from src.documents.types.type_registry import (
+    IndexComponents,
+    RegistryError,
+    TypeRegistry,
+    TypeRegistryError,
+    UnknownTypeError,
+)
 from src.documents.types.type_schema import (
     FieldDefinition,
-    FieldType,
+    OverflowBehavior,
     TypeSchema,
 )
+from src.documents.types.type_schema import (
+    FieldType as TypeSchemaFieldType,
+)
+
+__version__ = "1.0.0"
+__author__ = "Mike Voyager"
 
 __all__ = [
-    "TypeRegistry",
+    # Document Type Hierarchy
     "DocumentType",
-    "DocumentSubtype",
+    "Subtype",
+    "Series",
+    # Index Template
     "IndexTemplate",
-    "IndexSegmentDef",
-    "SegmentType",
+    "TemplateField",
+    "FieldType",
+    "ValidationRule",
+    # Type Schema
     "TypeSchema",
     "FieldDefinition",
-    "FieldType",
-    "format_index",
-    "parse_index",
-    "int_to_roman",
-    "roman_to_int",
-    "resolve_schema",
+    "TypeSchemaFieldType",  # Alias for FieldType from type_schema
+    "OverflowBehavior",
+    # Registry
+    "TypeRegistry",
+    "IndexComponents",
+    # Exceptions
+    "RegistryError",
+    "TypeRegistryError",
+    "UnknownTypeError",
 ]

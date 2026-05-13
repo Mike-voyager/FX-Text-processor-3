@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/shading.py
+# hypothesis_version: 6.151.12
+
+[176, 177, 178, 219, 'SHADE_DARK', 'SHADE_LIGHT', 'SHADE_LIST', 'SHADE_MEDIUM', 'SHADE_SOLID', 'get_shade_byte']

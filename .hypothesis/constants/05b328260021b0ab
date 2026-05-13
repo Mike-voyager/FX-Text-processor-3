@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/blanks/manager.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', '2026-03-22', 'AuditEventType', 'AuditLogProtocol', 'BlankManager', 'BlankManagerError', 'BlankNotFoundError', 'BlankStatusError', 'BlankStorageProtocol', 'BlankValidationError', 'Mike Voyager', 'blank_id', 'blank_type', 'metadata', 'number', 'reason', 'security_preset', 'series', 'signing_mode', 'spoil_reason', 'void_reason']

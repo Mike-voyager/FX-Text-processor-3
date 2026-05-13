@@ -7,30 +7,21 @@ Example:
     >>> from src.documents.printing import DocumentRenderer
     >>> from src.model.document import Document
     >>> doc = Document(title="Test")
-    >>> renderer = DocumentRenderer(codepage=CodePage.PC866)
+    >>> renderer = DocumentRenderer()
     >>> escp_data = renderer.render(doc)
-    >>> with open("output.escp", "wb") as f:
-    ...     f.write(escp_data)
 """
 
 from __future__ import annotations
 
-from src.documents.printing.barcode_adapter import (
-    is_hardware_supported,
-    to_escp_type,
-)
-from src.documents.printing.barcode_renderer import BarcodeRenderer
-from src.documents.printing.document_renderer import DocumentRenderer
-from src.documents.printing.paragraph_renderer import ParagraphRenderer
-from src.documents.printing.run_renderer import RunRenderer
-from src.documents.printing.table_renderer import TableRenderer
+from src.documents.printing.document_renderer import DocumentRenderer, RenderSettings
+from src.documents.printing.form_renderer import FormField, FormInstance, FormRenderer
+from src.documents.printing.text_renderer import TextRenderer
 
 __all__ = [
     "DocumentRenderer",
-    "ParagraphRenderer",
-    "TableRenderer",
-    "RunRenderer",
-    "BarcodeRenderer",
-    "to_escp_type",
-    "is_hardware_supported",
+    "RenderSettings",
+    "TextRenderer",
+    "FormRenderer",
+    "FormInstance",
+    "FormField",
 ]

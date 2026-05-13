@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/core/registry.py
+# hypothesis_version: 6.151.12
+
+[', ', '1.0', 'April 2026', 'WidgetCategory', 'WidgetComplexity', 'WidgetMetadata', 'WidgetProtocol', 'WidgetRegistry', 'WidgetRegistryEntry', '__name__', 'author', 'by_category', 'by_complexity', 'category', 'complexity', 'composite', 'compound', 'container', 'custom', 'description', 'dialog', 'display', 'extra', 'input', 'menu', 'primitive', 'requires_mfa', 'requires_mfa_count', 'supported_events', 'toolbar', 'total', 'version', 'Ввод данных', 'Диалог', 'Комплексный', 'Контейнер', 'Меню', 'Отображение', 'Панель инструментов', 'Пользовательский', 'Примитив', 'Составной']

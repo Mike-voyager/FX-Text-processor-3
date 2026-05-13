@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/auth_window.py
+# hypothesis_version: 6.151.12
+
+['*', '<Escape>', '<Return>', 'AuthWindow', 'Backup Codes', 'Cancel', 'Courier', 'FIDO2 Security Key', 'FX Text Processor 3', 'Login', 'MFASelection', 'Method:', 'Password + FIDO2', 'Password + TOTP', 'Password:', 'Username:', 'WM_DELETE_WINDOW', 'backup_code', 'bold', 'demo-user', 'fido2', 'hand2', 'has_backup_codes', 'has_fido2', 'has_totp', 'login', 'totp', 'write', 'Введите пароль', 'Неверный пароль', '👁', '🙈']

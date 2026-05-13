@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/service/profiles.py
+# hypothesis_version: 6.151.12
+
+[65536, 262144, '1.0.0', '2026-02-17', '3des-ede3', 'CryptoProfile', 'Ed25519', 'Ed448', 'ML-DSA-65', 'ML-DSA-87', 'Mike Voyager', 'PROFILES', 'ProfileConfig', 'RSA-OAEP-2048', 'RSA-OAEP-3072', 'RSA-OAEP-4096', 'RSA-PSS-2048', 'aes-128-gcm', 'aes-256-gcm', 'aes-256-gcm-siv', 'argon2id', 'asymmetric', 'blake2s', 'chacha20-poly1305', 'floppy_aggressive', 'floppy_basic', 'get_profile_config', 'hash', 'kdf', 'kex', 'legacy', 'list_profiles', 'ml-kem-1024', 'ml-kem-768', 'paranoid', 'pbkdf2-sha256', 'pqc_paranoid', 'pqc_standard', 'sha256', 'sha3-256', 'sha3-512', 'signing', 'standard', 'symmetric', 'x25519', 'x448', 'Дискета (базовый)', 'Параноидальный', 'Стандартный']

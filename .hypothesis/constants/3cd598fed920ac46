@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/service/crypto_service.py
+# hypothesis_version: 6.151.12
+
+[1474560, '1.0.0', '2026-02-17', 'AuditEventType', 'AuditLog | None', 'CryptoService', 'EncryptedDocument', 'HybridPayload', 'Mike Voyager', 'SignedDocument', '_audit_log', '_registry', 'aad', 'algorithm', 'algorithm_id', 'asymmetric', 'ciphertext', 'classical_standard', 'config', 'description_ru', 'encrypted', 'floppy_fits', 'floppy_friendly', 'hash', 'is_aead', 'is_post_quantum', 'kdf', 'kex', 'name', 'nonce', 'plaintext', 'profile', 'public_key_hint', 'security_level', 'signature', 'signing', 'status', 'symmetric', 'total']

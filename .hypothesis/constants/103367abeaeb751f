@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/services/key_bindings.py
+# hypothesis_version: 6.151.12
+
+[128, '+', '-', 'Alt', 'Alt_L', 'Alt_R', 'Caps_Lock', 'Cleared scope=%s', 'Cmd', 'Command', 'Command_L', 'Command_R', 'Control', 'Control_L', 'Control_R', 'Ctrl', 'F', 'KP_Add', 'KP_Subtract', 'KeyBindingsService', 'Meta_L', 'Meta_R', 'Num_Lock', 'Shift', 'Shift_L', 'Shift_R', '_initialized', 'alt', 'cmd', 'ctrl', 'f', 'global', 'minus', 'plus', 'shift', 'Клавиша не указана']

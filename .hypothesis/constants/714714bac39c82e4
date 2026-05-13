@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/blanks/verification.py
+# hypothesis_version: 6.151.12
+
+['1.0', '1.0.0', '1.1', '2026-03-22', 'AuditLogProtocol', 'BlankVerifier', 'Mike Voyager', 'VerificationError', 'algorithm', 'blank_id', 'computed', 'error', 'expected', 'number', 'preset', 'reason', 'series', 'signature_invalid', 'utf-8', 'verify_blank']

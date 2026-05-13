@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/factories/dialog_factory.py
+# hypothesis_version: 6.151.12
+
+['create_choice_dialog', 'create_error_dialog', 'create_input_dialog', 'create_wait_dialog']

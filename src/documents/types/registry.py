@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from threading import Lock
 from typing import Iterator
 
-from src.documents.types.document_type import DocumentSubtype, DocumentType
+from src.documents.types.document_type import DocumentType, Subtype
 
 
 @dataclass
@@ -32,7 +32,7 @@ class TypeRegistry:
 
     # Internal storage
     _types: dict[str, DocumentType] = field(default_factory=dict)
-    _subtypes: dict[str, list[DocumentSubtype]] = field(default_factory=dict)
+    _subtypes: dict[str, list[Subtype]] = field(default_factory=dict)
     _initialized: bool = field(default=False, init=False)
 
     def __new__(cls) -> "TypeRegistry":
@@ -102,8 +102,8 @@ class TypeRegistry:
     def register_subtype(
         self,
         parent_code: str,
-        subtype: DocumentSubtype,
-    ) -> DocumentSubtype:
+        subtype: Subtype,
+    ) -> Subtype:
         """Регистрирует подтип для существующего типа документа.
 
         Args:
@@ -186,8 +186,8 @@ class TypeRegistry:
                 doc_type for doc_type in self._types.values() if doc_type.parent_code == parent_code
             ]
 
-    def list_subtypes(self, parent_code: str) -> list[DocumentSubtype]:
-        """Возвращает все подтипы (DocumentSubtype) для родительского типа.
+    def list_subtypes(self, parent_code: str) -> list[Subtype]:
+        """Возвращает все подтипы (Subtype) для родительского типа.
 
         Args:
             parent_code: Код родительского типа.

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/form_validator.py
+# hypothesis_version: 6.151.12
+
+[' in ', '!=', '%d.%m.%Y', '\'"', '(', ')', ',', '.', '; ', '<', '<=', '==', '>', '>=', 'conditional_required', 'date_after_maximum', 'date_before_minimum', 'error', 'info', 'invalid_date_format', 'invalid_email_format', 'invalid_option', 'invalid_phone_format', 'max_length', 'max_length_exceeded', 'max_value', 'metadata', 'min_value', 'number_format', 'pattern', 'pattern_mismatch', 'required', 'required_field_empty', 'schema_version', 'type_check', 'value_above_maximum', 'value_below_minimum', 'warning']

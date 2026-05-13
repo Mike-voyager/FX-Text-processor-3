@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/lock/auto_lock_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, 5.0, 60.0, 600.0, 'Auto-lock failed: %s', 'AutoLockService', 'AutoLockTimer', 'SessionLockManager', 'locking', 'paused', 'running', 'stopped', 'Сервис уже запущен']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/mode_toggle.py
+# hypothesis_version: 6.151.12
+
+[120, 300, '#00AA00', '#333333', '#666666', '#FFA500', '#FFFFFF', '<B1-Motion>', '<Button-1>', '<ButtonRelease-1>', '<Double-Button-1>', '<Enter>', '<Leave>', 'MFA не пройдена', 'MFAGate', 'MFAResult', 'MODE_CAPABILITIES', 'Mode', 'ModeCapabilities', 'ModeToggle', 'Segoe UI', 'backup_code', 'bold', 'can_enter_special', 'enter_special', 'enter_special_mode', 'ew', 'exit_special', 'hand2', 'normal', 'operator', 'password', 'special', 'totp', 'w', 'warning', 'Аудит журнал', 'Доступ запрещён', 'Доступно', 'Нормальный', 'Нормальный режим', 'Отладка печати', 'Ошибка MFA', 'Подтверждение', 'Подтверждение входа', 'Специальный', 'Специальный режим', 'Управление шаблонами', 'Экспорт в PDF']

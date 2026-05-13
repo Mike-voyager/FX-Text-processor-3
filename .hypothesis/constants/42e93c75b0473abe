@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/workflow_manager.py
+# hypothesis_version: 6.151.12
+
+['ROLE_ACTIONS', 'STATE_ACTIONS', 'WorkflowManager', 'approve', 'approved', 'archive', 'archived', 'draft', 'editor', 'fill_fields', 'filled', 'operator', 'print', 'printed', 'reject', 'rejected', 'save_draft', 'sign', 'signatory', 'signed', 'supervisor', 'switch_role', 'switch_to_editor', 'switch_to_operator', 'switch_to_signatory', 'switch_to_supervisor', 'validate', 'validated', 'view_comments']

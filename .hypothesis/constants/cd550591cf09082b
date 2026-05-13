@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/special_effects.py
+# hypothesis_version: 6.151.12
+
+[b'\x1bS\x00', b'\x1bS\x01', b'\x1bT', 'ESC_SUBSCRIPT_ON', 'ESC_SUPERSCRIPT_ON', 'ESC_SUPER_SUB_OFF']

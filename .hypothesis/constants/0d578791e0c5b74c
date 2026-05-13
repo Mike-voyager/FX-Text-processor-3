@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/totp_service.py
+# hypothesis_version: 6.151.12
+
+[120, 127, '****', '-', 'FX Text Processor', 'M', 'PNG', 'QRCode', '_factors', 'action', 'argon2_params', 'audit', 'black', 'border', 'box_size', 'created_at', 'crypto_service', 'default', 'digits', 'error_correction', 'fail', 'failed', 'image/png', 'interval', 'issuer', 'kdf', 'kdf_configured', 'last_qr', 'last_try', 'lock_seconds', 'lock_until', 'max_fails', 'mfa_manager', 'min_interval', 'pepper', 'pepper_configured', 'qr', 'qr_mime', 'qr_min_interval', 'rate', 'rate_limit', 'remove', 'result', 'secret', 'setup', 'state', 'success', 'totp', 'ts', 'uri', 'username', 'utf-8', 'valid_window', 'verify', 'white']

@@ -218,7 +218,9 @@ class BarcodeService:
         return str(level) if level else "unknown"
 
     @classmethod
-    def get_allowed_options(cls, barcode_type: Union["BarcodeType", "Matrix2DCodeType"]) -> list[str]:
+    def get_allowed_options(
+        cls, barcode_type: Union["BarcodeType", "Matrix2DCodeType"]
+    ) -> list[str]:
         """Возвращает список разрешённых опций для типа штрихкода.
 
         Args:

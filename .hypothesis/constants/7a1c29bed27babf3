@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/renderers/factory.py
+# hypothesis_version: 6.151.12
+
+['RendererFactory', 'can_handle', 'command_stack', 'controller', 'create_editor', 'create_toolbar', 'display_document', 'get_content', 'get_editor_state', 'hide_content', 'mfa_gate', 'mode_manager', 'render', 'restore_content', 'widget_id', 'wipe_sensitive_data', 'workflow_manager']

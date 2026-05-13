@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/find_replace_dialog.py
+# hypothesis_version: 6.151.12
+
+[350, 500, 600, 800, '#27ae60', '#3498db', '#7f8c8d', '#e74c3c', '#f39c12', '#f8f9fa', '#fff3cd', '.', '1.0', 'Arial', 'Cancel', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Direction:', 'Down', 'Enter search term', 'Find:', 'FindReplaceDialog', 'Match case', 'Options', 'Regular expressions', 'Replace:', 'Up', 'Whole words only', '\\b', 'bold', 'down', 'found', 'italic', 'up', 'winfo_height', 'winfo_rootx', 'winfo_rooty', 'winfo_width', '⚠️ Enter search term', '❌ Not found', '🔄 Replace', '🔄 Replace All', '🔍 Find Next', '🔍 Find and Replace']

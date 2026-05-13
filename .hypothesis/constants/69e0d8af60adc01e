@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/document_lock_service.py
+# hypothesis_version: 6.151.12
+
+[300, '.lock', 'DocumentLockService', 'LOCK_EXTENSION', 'LOCK_TIMEOUT_SECONDS', 'LockInfo', 'LockResult', 'file_path', 'hostname', 'lock_file_path', 'locked_at', 'owner_id', 'owner_name', 'pid']

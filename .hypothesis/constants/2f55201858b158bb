@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/validation_result.py
+# hypothesis_version: 6.151.12
+
+['cross_field_errors', 'custom', 'error_count', 'field_errors', 'field_id', 'has_blocking_errors', 'info', 'is_valid', 'lenient', 'message', 'policy', 'rule', 'severity', 'strict', 'warnings']

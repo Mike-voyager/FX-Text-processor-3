@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/inline_multi_line_field.py
+# hypothesis_version: 6.151.12
+
+['1.0', '<FocusIn>', '<FocusOut>', '<KeyRelease>', 'Courier', 'InlineMultiLineField', 'black', 'disabled', 'gray']

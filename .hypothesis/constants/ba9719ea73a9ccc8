@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/calendar_dialog.py
+# hypothesis_version: 6.151.12
+
+[1900, 2100, '#3daee9', '#e0e0e0', '300x320', 'CalendarDialog', 'MONTH_NAMES', 'TkDefaultFont', 'WEEKDAYS', 'black', 'bold', 'white', 'Август', 'Апрель', 'Вс', 'Вт', 'Выберите дату', 'Год:', 'Декабрь', 'Июль', 'Июнь', 'Май', 'Март', 'Месяц:', 'Ноябрь', 'Обновить', 'Октябрь', 'Отмена', 'Пн', 'Пт', 'Сб', 'Сегодня', 'Сентябрь', 'Ср', 'Февраль', 'Чт', 'Январь']

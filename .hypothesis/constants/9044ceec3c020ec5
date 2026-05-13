@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/controllers/document_controller.py
+# hypothesis_version: 6.151.12
+
+['Print job submitted', 'document_controller', 'editor', 'field_id', 'form', 'message', 'modified', 'on_field_changed', 'on_print', 'on_redo', 'on_save', 'on_text_changed', 'on_undo', 'status_bar', 'text', 'value', 'Документ сохранён', 'Печать документа', 'Печать запущена', 'Сохранение документа']

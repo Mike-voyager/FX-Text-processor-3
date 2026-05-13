@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/hardware/openpgp_backend.py
+# hypothesis_version: 6.151.12
+
+[110, 127, 128, 129, 130, 131, 134, 136, 146, 154, 158, 164, 166, 182, 184, 193, 194, 195, 196, 202, 218, 219, 255, 2048, 3072, 4096, 25536, 27010, 27011, 27264, 32585, 36864, 65520, '1.0.0', '2026-03-02', '2B060104019755010501', '2B06010401DA470F01', '>BHHB', '>H', 'D276000124', 'Ed25519', 'GET DATA 0x6E', 'Mike Voyager', 'OPENPGP_AID', 'OpenPGPAlgorithm', 'OpenPGPBackend', 'OpenPGPCardInfo', 'OpenPGPPublicKeys', 'OpenPGPSlot', 'PSO:CDS', 'PSO:DEC', 'RSA-2048', 'RSA-3072', 'RSA-4096', 'Unknown', 'X25519', 'auth', 'card_id', 'encrypt', 'openpgp', 'operation', 'sign', 'slot', 'sw', 'utf-8']

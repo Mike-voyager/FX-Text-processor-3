@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/barcode_dialog.py
+# hypothesis_version: 6.151.12
+
+[25.0, 50.0, 100, 175, 200, 225, 300, 380, 400, 450, 500, 550, ' 📠', '#333333', '10', '10-200 мм', '15', '150', '20', '200', '300', '450x350', '5-100 мм', '600', '<<ListboxSelect>>', '<Double-1>', 'Above', 'Below', 'Both', 'Codabar', 'Code 128', 'Code 39', 'DPI:', 'EAN-13', 'EAN-8', 'FX-890 ESC/P', 'Helvetica', 'ITF-14', 'None', 'UPC-A', 'bold', 'cancel', 'dialog_bg', 'ew', 'info', 'readonly', 'software', 'success', 'switch', 'text_secondary', 'w', 'warning', 'Варианты действий', 'Внимание', 'Высота (мм):', 'Не показывать', 'Обнаружен конфликт', 'Отмена', 'Предпросмотр', 'Продолжить', 'Режим генерации', 'Сверху', 'Сверху и снизу', 'Снизу', 'Тип штрих-кода', 'Ширина (мм):', 'точек/дюйм', '⚠️', '⛔ Отменить вставку', '✓ Вставить', '✗ Отмена', '👁️ Предпросмотр', '📊 Вставка штрих-кода', '📠 Hardware (ESC/P)', '🖼️ Software (PNG)']

@@ -1,169 +1,607 @@
-"""Field builder for visual editor.
+"""Field builder - Builder pattern for form fields.
 
 Provides:
-- FieldBuilder: Constructs field widgets for visual editor
-- FieldPosition: Positioning information for fields
-- OverflowBehavior: How to handle text overflow
+- FieldPosition: Data class for field positioning
+- FieldBuilder: Builder class for constructing FormField objects
+
+Example:
+    >>> from src.documents.constructor.field_builder import FieldBuilder
+    >>> from src.documents.types.type_schema import FieldType
+    >>> field = (FieldBuilder()
+    ...     .with_id("customer_name")
+    ...     .with_type(FieldType.TEXT_INPUT)
+    ...     .with_label("Customer Name")
+    ...     .with_position(x=10, y=5, width=40, height=1)
+    ...     .with_validation(pattern=r"^[A-Za-z ]+$")
+    ...     .build())
 """
 
-from dataclasses import dataclass
-from typing import Any
+from __future__ import annotations
 
-from src.documents.types.type_schema import FieldDefinition, OverflowBehavior
+import logging
+from dataclasses import dataclass, field
+from datetime import date
+from typing import TYPE_CHECKING, Any, Self
+
+if TYPE_CHECKING:
+    from src.documents.constructor.table_schema import TableSchema
+    from src.documents.types.type_schema import FieldDefinition, FieldType
+
+# Re-export OverflowBehavior from type_schema for API compatibility
+from src.documents.types.type_schema import OverflowBehavior
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class FieldPosition:
-    """Позиция поля в документе.
+    """Позиция и размеры поля на форме.
+
+    Координаты и размеры в символах/строках ESC/P:
+    - x: Горизонтальная позиция (символы слева, 0 = левый край)
+    - y: Вертикальная позиция (строки сверху, 0 = верх)
+    - width: Ширина поля в символах
+    - height: Высота поля в строках
+    - page: Номер страницы (для многостраничных форм)
 
     Attributes:
-        x_column: Позиция X в символах ESC/P.
-        y_row: Позиция Y в строках ESC/P.
-        width_chars: Ширина в символах (None = auto).
-        height_rows: Высота в строках (по умолчанию 1).
-        overflow_behavior: Поведение при переполнении.
+        x: Горизонтальная позиция в символах.
+        y: Вертикальная позиция в строках.
+        width: Ширина в символах.
+        height: Высота в строках.
+        page: Номер страницы (по умолчанию 0).
     """
 
-    x_column: int
-    y_row: int
-    width_chars: int | None = None
-    height_rows: int = 1
-    overflow_behavior: OverflowBehavior = OverflowBehavior.TRUNCATE
+    x: int
+    y: int
+    width: int
+    height: int = 1
+    page: int = 0
+
+    def __post_init__(self) -> None:
+        """Валидация позиции."""
+        if self.x < 0:
+            raise ValueError(f"x must be >= 0, got {self.x}")
+        if self.y < 0:
+            raise ValueError(f"y must be >= 0, got {self.y}")
+        if self.width < 1:
+            raise ValueError(f"width must be >= 1, got {self.width}")
+        if self.height < 1:
+            raise ValueError(f"height must be >= 1, got {self.height}")
+        if self.page < 0:
+            raise ValueError(f"page must be >= 0, got {self.page}")
+
+    @property
+    def end_x(self) -> int:
+        """Конечная X координата (не включая)."""
+        return self.x + self.width
+
+    @property
+    def end_y(self) -> int:
+        """Конечная Y координата (не включая)."""
+        return self.y + self.height
+
+    def intersects(self, other: FieldPosition) -> bool:
+        """Проверяет пересечение с другой позицией.
+
+        Args:
+            other: Другая позиция для проверки.
+
+        Returns:
+            True если позиции пересекаются.
+        """
+        if self.page != other.page:
+            return False
+        return (
+            self.x < other.end_x
+            and self.end_x > other.x
+            and self.y < other.end_y
+            and self.end_y > other.y
+        )
+
+
+@dataclass
+class FormField:
+    """Поле формы с полной конфигурацией.
+
+    Этот класс используется FieldBuilder для построения
+    полей форм. Может быть конвертирован в FieldDefinition.
+
+    Attributes:
+        field_id: Уникальный идентификатор поля.
+        field_type: Тип поля.
+        label: Метка поля.
+        label_i18n: Локализованные метки.
+        required: Обязательность заполнения.
+        readonly: Только для чтения.
+        position: Позиция на форме.
+        default_value: Значение по умолчанию.
+        validation_pattern: Regex паттерн валидации.
+        max_length: Максимальная длина.
+        min_value: Минимальное числовое значение.
+        max_value: Максимальное числовое значение.
+        min_date: Минимальная дата.
+        max_date: Максимальная дата.
+        options: Допустимые значения для выбора.
+        help_text: Подсказка (tooltip).
+        placeholder: Placeholder для пустого поля.
+        tab_index: Порядок при Tab навигации.
+        table_schema: Схема для табличных полей.
+        cross_field_rules: Правила кросс-полевой валидации.
+        required_if: Условная обязательность.
+        visibility_condition: Условие видимости.
+        enabled_condition: Условие активности.
+        input_mask: Маска ввода.
+        autocomplete_source: Источник автодополнения.
+        escp_variable: Связь с ESC/P переменной.
+    """
+
+    # Основные атрибуты
+    field_id: str = ""
+    field_type: "FieldType | None" = None
+    label: str = ""
+    label_i18n: dict[str, str] = field(default_factory=dict)
+
+    # Поведение
+    required: bool = False
+    readonly: bool = False
+
+    # Позиционирование
+    position: FieldPosition | None = None
+
+    # Значения
+    default_value: Any = None
+
+    # Валидация
+    validation_pattern: str | None = None
+    max_length: int | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    min_date: date | None = None
+    max_date: date | None = None
+    options: tuple[str, ...] | None = None
+
+    # UX
+    help_text: str | None = None
+    placeholder: str | None = None
+    tab_index: int | None = None
+    input_mask: str | None = None
+
+    # Специальные
+    table_schema: "TableSchema | None" = None
+    cross_field_rules: tuple[str, ...] = field(default_factory=tuple)
+    required_if: str | None = None
+    visibility_condition: str | None = None
+    enabled_condition: str | None = None
+    read_only_condition: str | None = None
+    autocomplete_source: str | None = None
+    escp_variable: str | None = None
+
+    def validate(self) -> list[str]:
+        """Валидирует конфигурацию поля.
+
+        Returns:
+            Список ошибок (пустой если валидно).
+        """
+        errors: list[str] = []
+
+        if not self.field_id:
+            errors.append("field_id is required")
+
+        if self.field_type is None:
+            errors.append("field_type is required")
+
+        if not self.label:
+            errors.append("label is required")
+
+        if self.max_length is not None and self.max_length < 1:
+            errors.append("max_length must be >= 1")
+
+        if self.min_value is not None and self.max_value is not None:
+            if self.min_value > self.max_value:
+                errors.append("min_value must be <= max_value")
+
+        if self.min_date is not None and self.max_date is not None:
+            if self.min_date > self.max_date:
+                errors.append("min_date must be <= max_date")
+
+        return errors
+
+    def to_field_definition(self) -> "FieldDefinition":
+        """Конвертирует в FieldDefinition для TypeSchema.
+
+        Returns:
+            Экземпляр FieldDefinition.
+
+        Raises:
+            ValueError: Если конфигурация невалидна.
+        """
+        from src.documents.types.type_schema import FieldDefinition
+
+        errors = self.validate()
+        if errors:
+            raise ValueError(f"Invalid field configuration: {', '.join(errors)}")
+
+        return FieldDefinition(
+            field_id=self.field_id,
+            field_type=self.field_type,  # type: ignore[arg-type]
+            label=self.label,
+            label_i18n=self.label_i18n,
+            required=self.required,
+            readonly=self.readonly,
+            default_value=self.default_value,
+            validation_pattern=self.validation_pattern,
+            max_length=self.max_length,
+            options=self.options,
+            escp_variable=self.escp_variable,
+            inherited_from=None,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            min_date=self.min_date,
+            max_date=self.max_date,
+            required_if=self.required_if,
+            cross_field_rules=self.cross_field_rules,
+            visibility_condition=self.visibility_condition,
+            read_only_condition=self.read_only_condition,
+            enabled_condition=self.enabled_condition,
+            tab_index=self.tab_index,
+            input_mask=self.input_mask,
+            placeholder=self.placeholder,
+            autocomplete_source=self.autocomplete_source,
+            help_text=self.help_text,
+            table_schema=self.table_schema,
+        )
 
 
 class FieldBuilder:
-    """Построитель полей для визуального редактора.
+    """Builder для конструирования полей форм.
 
-    Создаёт объекты полей с позиционированием и значениями.
+    Реализует паттерн Builder для пошагового создания
+    полей форм с проверкой валидности.
+
+    Example:
+        >>> builder = FieldBuilder()
+        >>> field = (builder
+        ...     .with_id("amount")
+        ...     .with_type(FieldType.CURRENCY)
+        ...     .with_label("Amount")
+        ...     .with_position(x=10, y=5, width=15, height=1)
+        ...     .with_validation(min_val=0.01)
+        ...     .with_default(0.0)
+        ...     .build())
     """
 
     def __init__(self) -> None:
-        """Инициализирует построитель полей."""
-        self._counter = 0
+        """Инициализирует пустой builder."""
+        self._field = FormField()
 
-    def build_field(
-        self,
-        field_def: FieldDefinition,
-        position: FieldPosition,
-        value: Any = None,
-    ) -> dict[str, Any]:
-        """Создаёт объект поля для редактора.
+    def with_id(self, field_id: str) -> Self:
+        """Устанавливает идентификатор поля.
 
         Args:
-            field_def: Определение поля из схемы.
-            position: Позиция поля в документе.
-            value: Значение поля (по умолчанию - из default_value).
+            field_id: Уникальный идентификатор поля.
 
         Returns:
-            Словарь с данными поля для редактора.
+            Self для chaining.
+
+        Raises:
+            ValueError: Если field_id пустой.
         """
-        self._counter += 1
+        if not field_id or not isinstance(field_id, str):
+            raise ValueError("field_id must be non-empty string")
+        self._field.field_id = field_id
+        return self
 
-        return {
-            "id": f"field_{self._counter}",
-            "field_id": field_def.field_id,
-            "field_type": field_def.field_type.value,
-            "label": field_def.label,
-            "label_i18n": field_def.label_i18n,
-            "required": field_def.required,
-            "value": value if value is not None else field_def.default_value,
-            "position": {
-                "x": position.x_column,
-                "y": position.y_row,
-                "width": position.width_chars,
-                "height": position.height_rows,
-                "overflow": position.overflow_behavior.value,
-            },
-            "validation": [field_def.validation_pattern] if field_def.validation_pattern else [],
-            "validation_rules": {
-                "min_value": field_def.min_value,
-                "max_value": field_def.max_value,
-                "min_date": field_def.min_date.isoformat() if field_def.min_date else None,
-                "max_date": field_def.max_date.isoformat() if field_def.max_date else None,
-                "required_if": field_def.required_if,
-                "cross_field_rules": list(field_def.cross_field_rules),
-            },
-            "ux": {
-                "tab_index": field_def.tab_index,
-                "input_mask": field_def.input_mask,
-                "placeholder": field_def.placeholder,
-                "autocomplete_source": field_def.autocomplete_source,
-                "help_text": field_def.help_text,
-                "visibility_condition": field_def.visibility_condition,
-                "read_only_condition": field_def.read_only_condition,
-                "enabled_condition": field_def.enabled_condition,
-            },
-        }
-
-    def build_fields_from_schema(
-        self,
-        fields: list[FieldDefinition],
-        start_x: int = 0,
-        start_y: int = 0,
-        row_height: int = 1,
-    ) -> list[dict[str, Any]]:
-        """Создаёт список полей из схемы с авто-позиционированием.
+    def with_type(self, field_type: "FieldType") -> Self:
+        """Устанавливает тип поля.
 
         Args:
-            fields: Список определений полей.
-            start_x: Начальная позиция X.
-            start_y: Начальная позиция Y.
-            row_height: Высота строки в строках.
+            field_type: Тип из FieldType enum.
 
         Returns:
-            Список объектов полей.
+            Self для chaining.
         """
-        result: list[dict[str, Any]] = []
-        current_x = start_x
-        current_y = start_y
+        self._field.field_type = field_type
+        return self
 
-        for field_def in fields:
-            position = FieldPosition(
-                x_column=current_x,
-                y_row=current_y,
-                height_rows=row_height,
-            )
-
-            field_obj = self.build_field(field_def, position)
-            result.append(field_obj)
-
-            # Переход к следующей строке
-            current_y += row_height
-
-        return result
-
-    def calculate_field_bounds(
-        self,
-        field_def: FieldDefinition,
-        value: str,
-        font_width: float = 10.0,
-    ) -> tuple[int, int]:
-        """Вычисляет размеры поля на основе содержимого.
+    def with_label(self, label: str, **i18n_labels: str) -> Self:
+        """Устанавливает метку поля.
 
         Args:
-            field_def: Определение поля.
-            value: Значение поля.
-            font_width: Ширина символа в пикселях.
+            label: Метка на русском языке.
+            **i18n_labels: Дополнительные локализации {lang: label}.
 
         Returns:
-            Кортеж (width_chars, height_rows).
+            Self для chaining.
         """
-        if not value:
-            return (20, 1)  # Минимальный размер
+        self._field.label = label
+        self._field.label_i18n = i18n_labels
+        return self
 
-        text_length = len(str(value))
-        width = text_length  # Примерно 1 символ = 1 колонка
+    def with_position(self, x: int, y: int, width: int, height: int = 1, page: int = 0) -> Self:
+        """Устанавливает позицию и размеры поля.
 
-        # Оцениваем высоту (перенос по словам)
-        max_width = 80  # Максимум символов в строке
-        height = (text_length // max_width) + 1
+        Args:
+            x: Горизонтальная позиция в символах.
+            y: Вертикальная позиция в строках.
+            width: Ширина в символах.
+            height: Высота в строках (по умолчанию 1).
+            page: Номер страницы (по умолчанию 0).
 
-        return (min(width, 80), max(height, 1))
+        Returns:
+            Self для chaining.
+        """
+        self._field.position = FieldPosition(x=x, y=y, width=width, height=height, page=page)
+        return self
 
+    def with_position_obj(self, position: FieldPosition) -> Self:
+        """Устанавливает позицию из объекта FieldPosition.
 
-# Export OverflowBehavior from here for convenience
-__all__ = [
-    "FieldBuilder",
-    "FieldPosition",
-    "OverflowBehavior",  # Re-export for convenience
-]
+        Args:
+            position: Объект позиции.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.position = position
+        return self
+
+    def with_required(self, required: bool = True) -> Self:
+        """Устанавливает обязательность поля.
+
+        Args:
+            required: True если поле обязательное.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.required = required
+        return self
+
+    def with_readonly(self, readonly: bool = True) -> Self:
+        """Устанавливает режим только чтения.
+
+        Args:
+            readonly: True если поле только для чтения.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.readonly = readonly
+        return self
+
+    def with_default(self, value: Any) -> Self:
+        """Устанавливает значение по умолчанию.
+
+        Args:
+            value: Значение по умолчанию.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.default_value = value
+        return self
+
+    def with_validation(
+        self,
+        pattern: str | None = None,
+        min_val: float | None = None,
+        max_val: float | None = None,
+        min_date: date | None = None,
+        max_date: date | None = None,
+    ) -> Self:
+        """Устанавливает правила валидации.
+
+        Args:
+            pattern: Regex паттерн для проверки.
+            min_val: Минимальное числовое значение.
+            max_val: Максимальное числовое значение.
+            min_date: Минимальная дата.
+            max_date: Максимальная дата.
+
+        Returns:
+            Self для chaining.
+        """
+        if pattern is not None:
+            self._field.validation_pattern = pattern
+        if min_val is not None:
+            self._field.min_value = min_val
+        if max_val is not None:
+            self._field.max_value = max_val
+        if min_date is not None:
+            self._field.min_date = min_date
+        if max_date is not None:
+            self._field.max_date = max_date
+        return self
+
+    def with_max_length(self, max_length: int) -> Self:
+        """Устанавливает максимальную длину.
+
+        Args:
+            max_length: Максимальное количество символов.
+
+        Returns:
+            Self для chaining.
+        """
+        if max_length < 1:
+            raise ValueError("max_length must be >= 1")
+        self._field.max_length = max_length
+        return self
+
+    def with_options(self, *options: str) -> Self:
+        """Устанавливает список допустимых значений.
+
+        Args:
+            *options: Допустимые значения.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.options = options
+        return self
+
+    def with_help_text(self, text: str) -> Self:
+        """Устанавливает подсказку (tooltip).
+
+        Args:
+            text: Текст подсказки.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.help_text = text
+        return self
+
+    def with_placeholder(self, text: str) -> Self:
+        """Устанавливает placeholder.
+
+        Args:
+            text: Текст placeholder.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.placeholder = text
+        return self
+
+    def with_tab_index(self, index: int) -> Self:
+        """Устанавливает порядок Tab навигации.
+
+        Args:
+            index: Порядковый номер (0-based).
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.tab_index = index
+        return self
+
+    def with_input_mask(self, mask: str) -> Self:
+        """Устанавливает маску ввода.
+
+        Args:
+            mask: Маска (например, "(999) 999-99-99" для телефона).
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.input_mask = mask
+        return self
+
+    def with_table_schema(self, schema: "TableSchema") -> Self:
+        """Устанавливает схему для табличного поля.
+
+        Args:
+            schema: Схема таблицы.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.table_schema = schema
+        return self
+
+    def with_cross_field_rules(self, *rules: str) -> Self:
+        """Устанавливает правила кросс-полевой валидации.
+
+        Args:
+            *rules: Правила валидации (например, "amount > discount").
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.cross_field_rules = rules
+        return self
+
+    def with_required_if(self, condition: str) -> Self:
+        """Устанавливает условную обязательность.
+
+        Args:
+            condition: Условие (например, "doc_type == 'invoice'").
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.required_if = condition
+        return self
+
+    def with_visibility(self, condition: str) -> Self:
+        """Устанавливает условие видимости.
+
+        Args:
+            condition: Условие видимости.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.visibility_condition = condition
+        return self
+
+    def with_enabled_condition(self, condition: str) -> Self:
+        """Устанавливает условие активности.
+
+        Args:
+            condition: Условие активности.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.enabled_condition = condition
+        return self
+
+    def with_escp_variable(self, variable_name: str) -> Self:
+        """Устанавливает связь с ESC/P переменной.
+
+        Args:
+            variable_name: Имя ESC/P переменной.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.escp_variable = variable_name
+        return self
+
+    def with_autocomplete(self, source: str) -> Self:
+        """Устанавливает источник автодополнения.
+
+        Args:
+            source: Источник данных (например, "clients" или URL).
+
+        Returns:
+            Self для chaining.
+        """
+        self._field.autocomplete_source = source
+        return self
+
+    def build(self) -> FormField:
+        """Собирает и возвращает готовое поле.
+
+        Returns:
+            Сконфигурированное FormField.
+
+        Raises:
+            ValueError: Если конфигурация невалидна.
+        """
+        errors = self._field.validate()
+        if errors:
+            raise ValueError(f"Field validation failed: {'; '.join(errors)}")
+        return self._field
+
+    def build_field_definition(self) -> "FieldDefinition":
+        """Собирает и возвращает FieldDefinition.
+
+        Returns:
+            Сконфигурированный FieldDefinition.
+
+        Raises:
+            ValueError: Если конфигурация невалидна.
+        """
+        return self.build().to_field_definition()
+
+    def reset(self) -> Self:
+        """Сбрасывает builder для создания нового поля.
+
+        Returns:
+            Self для chaining.
+        """
+        self._field = FormField()
+        return self

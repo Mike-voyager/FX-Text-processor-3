@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/converters/template_to_designer.py
+# hypothesis_version: 6.151.12
+
+['Exception ignored', 'TEXT_INPUT', 'col', 'default_value', 'field_type', 'height', 'help_text', 'label', 'label_i18n', 'max_date', 'max_length', 'max_value', 'min_date', 'min_value', 'options', 'page', 'pages', 'placeholder', 'position', 'profile_name', 'readonly', 'required', 'required_if', 'row', 'tab_index', 'validation_pattern', 'width']

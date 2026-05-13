@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/base_dialog.py
+# hypothesis_version: 6.151.12
+
+[300, 400, 600, 800, '<Escape>', 'WM_DELETE_WINDOW', 'winfo_height', 'winfo_rootx', 'winfo_rooty', 'winfo_width']

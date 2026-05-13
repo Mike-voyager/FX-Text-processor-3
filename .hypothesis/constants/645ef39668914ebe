@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/controller/print_controller.py
+# hypothesis_version: 6.151.12
+
+['-', './output', '.escp', 'A4 (210×297 мм)', 'BlankManagerProtocol', 'BlankNotReadyError', 'CharactersPerInch', 'Document', 'ExportError', 'Letter (8.5×11 дюйм)', 'PageRange', 'PaperType', 'PrintController', 'PrintControllerError', 'PrintJob', 'PrintPreviewData', 'PrintQuality', 'PrintServiceProtocol', 'PrintSettings', 'PrinterInfo', 'RenderError', 'Unknown', 'a4', 'all', 'auto', 'characters_per_inch', 'completed', 'copies', 'cups', 'draft', 'envelope', 'file', 'get_line_count', 'get_text_content', 'letter', 'lines_per_page', 'nlq', 'page_settings', 'pending', 'print_quality', 'printer_settings', 'ready', 'sections', 'set_cpi', 'set_page_settings', 'set_quality', 'status', 'title', 'tractor', 'value', 'win32', 'Без названия', 'Все', 'Конверт', 'Принтер не выбран', 'Черновик (Draft)', 'все']

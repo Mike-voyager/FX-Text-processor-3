@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/document_transfer_dialog.py
+# hypothesis_version: 6.151.12
+
+[350, 400, 500, '#212529', '#2ecc71', '#856404', '#dee2e6', '#e74c3c', '#e9ecef', '#f39c12', '#f8f9fa', '#fff3cd', 'COLOR_ERROR', 'COLOR_SUCCESS', 'COLOR_WARNING', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Helvetica', 'PARANOID', 'backup_code', 'bold', 'can_transfer', 'ew', 'gray', 'italic', 'readonly', 'totp', 'transfer_document', 'values', 'w', 'В:', 'Из:', 'Исходное окно', 'Нет доступных окон', 'Отмена', 'Ошибка', 'Перенести', 'Перенос документа', 'Целевое окно']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/integrity/app_integrity.py
+# hypothesis_version: 6.151.12
+
+[65536, '1.0.0', '2026-03-23', 'AppHashRegistry', 'AppIntegrityChecker', 'BLAKE2b', 'HASH_BUFFER_SIZE', 'SHA-256', 'SHA-512', 'SHA3-256', 'SHA3-512', '_algorithm', '_app_path', '_reference_path', 'algorithm', 'file_path', 'frozen', 'rb', 'reference_file', 'supported', 'sys_argv', 'sys_executable', 'utf-8']

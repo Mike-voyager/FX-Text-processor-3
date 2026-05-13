@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/factories/__init__.py
+# hypothesis_version: 6.151.12
+
+['ThemeColors', 'create_button', 'create_choice_dialog', 'create_combobox', 'create_entry', 'create_error_dialog', 'create_frame', 'create_input_dialog', 'create_label', 'create_labeled_frame', 'create_padded_frame', 'create_progressbar', 'create_scrollbar', 'create_separator', 'create_spacer', 'create_themed_button', 'create_treeview', 'create_wait_dialog', 'get_theme_colors', 'pack_form_row', 'pack_toolbar']

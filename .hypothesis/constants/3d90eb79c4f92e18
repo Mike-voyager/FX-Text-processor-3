@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/command_history_service.py
+# hypothesis_version: 6.151.12
+
+[100, 1000, 'CombinedTextCommand', 'CommandHistory', 'CommandProtocol', 'CommandT', 'HistoryResult', 'TextEditCommand', 'WordCommandGrouper', '_', 'delete', 'insert', 'История не найдена', 'Нечего отменять', 'Нечего повторять', 'Очищены все истории', 'Текстовая операция']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/excel_import_widget.py
+# hypothesis_version: 6.151.12
+
+[400, '*.*', '*.csv', '*.xlsx *.xls', ', ', '.csv', '.xls', '.xlsx', 'All files', 'Apply', 'CSV files', 'Excel files', 'ExcelImportWidget', 'TkDefaultFont', 'bold', 'disabled', 'gray', 'green', 'normal', 'readonly', 'utf-8', 'Доступные колонки:', 'Ошибка', 'Предупреждение', 'Сопоставление:', '📥 Import from Excel']

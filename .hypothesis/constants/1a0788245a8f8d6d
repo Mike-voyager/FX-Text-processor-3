@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/navigation_dialogs.py
+# hypothesis_version: 6.151.12
+
+[100, 150, 200, 250, 300, 350, 400, 450, 9999, '#28a745', '#3498db', '#dc3545', '#f8f9fa', '% документа', '10', '20', '50%', '500x450', '<Double-1>', 'Bookmark removed: %s', 'Bookmark updated: %s', 'Goto error: %s', 'Helvetica', '_line_var', 'action', 'bold', 'browse', 'center', 'close', 'description', 'goto', 'gray', 'headings', 'line', 'name', 'page', 'w', 'write', 'Внимание', 'Выберите закладку', 'Выберите закладку:', 'Добавить', 'Закладки', 'Закрыть', 'Конец', 'Название', 'Название:', 'Начало', 'Новая закладка', 'Номер страницы:', 'Номер строки:', 'Описание', 'Отмена', 'Ошибка', 'Перейти', 'Перейти к', 'Перейти к позиции', 'Подтверждение', 'Позиция в документе:', 'Редактировать', 'Страница', 'Строка', 'Текущая', 'Удалить']

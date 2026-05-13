@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/core/events.py
+# hypothesis_version: 6.151.12
+
+['1.0', 'ActionEvent', 'April 2026', 'BaseEvent', 'FocusGainedEvent', 'FocusLostEvent', 'MountEvent', 'UnmountEvent', 'ValueChangedEvent']

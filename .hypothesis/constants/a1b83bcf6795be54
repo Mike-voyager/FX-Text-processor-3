@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/line_spacing.py
+# hypothesis_version: 6.151.12
+
+[b'\x1b0', b'\x1b1', b'\x1b2', b'\x1b3', b'\x1bA', 255, 'ESC_LINE_SPACING_1_6', 'ESC_LINE_SPACING_1_8']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/blanks/signer.py
+# hypothesis_version: 6.151.12
+
+[156, '1.0.0', '2026-03-22', 'AuditEventType', 'AuditLogProtocol', 'BlankSigner', 'KeystoreProtocol', 'Mike Voyager', 'SigningError', 'VerificationError', 'algorithm', 'blank_id', 'create_qr_data', 'device_id', 'error', 'number', 'series', 'signing_mode', 'utf-8']

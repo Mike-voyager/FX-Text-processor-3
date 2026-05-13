@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/role_switch_dialog.py
+# hypothesis_version: 6.151.12
+
+[350, 380, 400, 450, ' 🔒', '#3498db', '#856404', '#95a5a6', '#e7f3ff', '#f8f9fa', '#fff3cd', 'Helvetica', 'RoleSwitchDialog', 'WorkflowRole', 'bold', 'gray', 'value', 'w', 'white', 'write', 'Выберите новую роль', 'Информация', 'Отмена', 'Применить', 'Смена роли', 'Текущая роль', '👤']

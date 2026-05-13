@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/factories/widget_factory.py
+# hypothesis_version: 6.151.12
+
+['bg', 'command', 'create_button', 'create_combobox', 'create_entry', 'create_frame', 'create_label', 'create_progressbar', 'create_scrollbar', 'create_separator', 'create_spacer', 'create_treeview', 'fg', 'font', 'horizontal', 'insertbackground', 'selectbackground', 'selectforeground', 'style', 'text', 'values', 'vertical', 'width']

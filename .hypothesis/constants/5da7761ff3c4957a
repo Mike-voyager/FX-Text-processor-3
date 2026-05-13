@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/grid_canvas.py
+# hypothesis_version: 6.151.12
+
+[0.5, 1.0, 2.0, '#2980b9', '#a0a0a0', '#d0d0d0', '#e8f4f8', '#ffffff', ', ', '<B1-Motion>', '<Button-1>', '<ButtonRelease-1>', 'Arial', 'DEFAULT_CELL_HEIGHT', 'DEFAULT_CELL_WIDTH', 'DEFAULT_ZOOM', 'ESCPGridCanvas', 'FieldInfo', 'MAX_ZOOM', 'MIN_ZOOM', 'bold', 'current', 'field', 'field_id', 'nw', 'rect_id', 'red', 'start_x', 'start_x1', 'start_x2', 'start_y', 'start_y1', 'start_y2', 'yellow', 'Перекрытие полей', '⚠ Fields overlap']

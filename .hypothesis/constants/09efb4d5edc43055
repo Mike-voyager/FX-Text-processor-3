@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/exceptions.py
+# hypothesis_version: 6.151.12
+
+[', ', '1.0.0', '2026-03-24', 'Anonymization error', 'AnonymizationError', 'ComplianceError', 'Data export error', 'DataExportError', 'Erasure error', 'ErasureError', 'Mike Voyager', 'RetentionError', 'data_category', 'data_type', 'export_format', 'field_name', 'field_type', 'policy_name', 'reason', 'record_count']

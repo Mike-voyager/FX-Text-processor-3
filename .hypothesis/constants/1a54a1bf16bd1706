@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/factories/layout_factory.py
+# hypothesis_version: 6.151.12
+
+['<Configure>', 'bg', 'create_labeled_frame', 'create_padded_frame', 'fg', 'font', 'pack_form_row', 'pack_toolbar', 'padx', 'pady', 'side', 'text']

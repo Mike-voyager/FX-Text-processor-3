@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/free_form/renderer.py
+# hypothesis_version: 6.151.12
+
+['#666666', '#d4edda', '#e8e8e8', '#ff6b6b', '.', '1.0', '<ButtonRelease-1>', '<KeyRelease>', 'DOUBLE_HEIGHT_MARKER', 'DOUBLE_HEIGHT_TAG', 'FreeFormModeRenderer', 'INVALID_CHAR_TAG', 'ROW_MARKER_TAG', 'SHADOW_ROW_BG_COLOR', 'Segoe UI', 'apply_cpi', 'apply_format', 'double_height', 'double_height_marker', 'double_height_row', 'double_wh', 'get_content', 'invalid_char', 'render', 'set_content', 'shadow_row', 'tag', '📏']

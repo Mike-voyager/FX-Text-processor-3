@@ -27,19 +27,26 @@ Date: April 2026
 
 from __future__ import annotations
 
+__version__ = "2.0"
+__author__ = "FX Text Processor Team"
+__date__ = "April 2026"
+
 import logging
 import tkinter as tk
-from typing import Any, Final, Optional, Protocol, cast, runtime_checkable
+from typing import Any, Callable, Final, Optional, Protocol, cast, runtime_checkable
 
+from src.documents.constructor.form_status import FormStatus
 from src.documents.printing.document_renderer import DocumentRenderer
 from src.documents.types.document_type import DocumentMode
-from src.gui.commands.command_stack import CommandStack
 from src.gui.components.base.widget import BaseWidget
 from src.gui.components.escp_preview_widget import ESCPPreviewWidget
 from src.gui.components.format_toolbar import FormatToolbar
 from src.gui.components.navigator import Navigator
 from src.gui.components.paper_toolbar import PaperConfig, PaperToolbar
+from src.gui.components.paper_visualization import CodepageStatusWidget
 from src.gui.components.ruler import Ruler
+from src.gui.core.commands.command import Command
+from src.gui.core.commands.command_stack import CommandStack
 from src.gui.form_designer.designer_tab import DesignerTab
 from src.gui.layout.layout_constants import PADDING_LARGE, PADDING_NORMAL
 from src.gui.renderers.factory import RendererFactory
@@ -49,9 +56,26 @@ from src.gui.renderers.structured_form_renderer import (
     StructuredFormDocument,
     StructuredFormRenderer,
 )
+from src.gui.themes import ThemeRegistry
 from src.services.clipboard_service import ClipboardService, PyperclipBackend
 
 logger = logging.getLogger(__name__)
+
+
+def _theme_color(key: str) -> str:
+    """Возвращает цвет из текущей темы.
+
+    Args:
+        key: Идентификатор цвета.
+
+    Returns:
+        Цвет в формате HEX.
+    """
+    try:
+        return ThemeRegistry.get_instance().get_current().get_color(key)
+    except (AttributeError, KeyError):
+        return "#f5f5f5"
+
 
 # Placeholder icon (document emoji)
 PLACEHOLDER_ICON: Final[str] = "📄"
@@ -141,17 +165,27 @@ class DocumentView(BaseWidget):
         self,
         widget_id: str = "document_view",
         controller: Optional[Any] = None,
+        on_paper_setup: Optional[Callable[[], None]] = None,
+        statusbar: Optional[Any] = None,
     ) -> None:
         """Инициализация DocumentView.
 
         Args:
             widget_id: Уникальный идентификатор виджета (default: "document_view").
             controller: Опциональная ссылка на контроллер для callbacks.
+            on_paper_setup: Callback для открытия диалога настройки бумаги.
+            statusbar: Опциональная ссылка на StatusBar для workflow обновлений.
 
         Example:
             >>> doc_view = DocumentView(controller=my_controller)
         """
         super().__init__(widget_id=widget_id, controller=controller)
+
+        # Callback для настройки бумаги
+        self._on_paper_setup: Optional[Callable[[], None]] = on_paper_setup
+
+        # StatusBar reference for workflow timeline updates
+        self._statusbar: Optional[Any] = statusbar
 
         # Document state
         self._current_document: Optional[DocumentProtocol] = None
@@ -184,6 +218,9 @@ class DocumentView(BaseWidget):
         self._renderer: Optional[DocumentRendererProtocol[Any, Any]] = None
         self._renderer_factory: RendererFactory = RendererFactory()
 
+        # Phase 4: Workflow state manager for toolbar integration
+        self._workflow_state_manager: Optional[Any] = None
+
         # Mode state for protocol compliance
         self._mode: Optional[DocumentMode] = None
 
@@ -211,6 +248,14 @@ class DocumentView(BaseWidget):
         self._tk_toolbar_frame: Optional[tk.Frame] = None
         self._tk_renderer_frame: Optional[tk.Frame] = None
         self._tk_navigator_frame: Optional[tk.Frame] = None
+        self._tk_field_palette_frame: Optional[tk.Frame] = None
+        self._tk_codepage_status_frame: Optional[tk.Frame] = None
+
+        # Codepage status widget
+        self._codepage_status: Optional[CodepageStatusWidget] = None
+
+        # Saved document state for mode switching
+        self._saved_state: dict[str, Any] = {}
 
     @property
     def _free_form_renderer(self) -> Optional[FreeFormRenderer]:
@@ -384,6 +429,14 @@ class DocumentView(BaseWidget):
         doc_id = getattr(document, "id", str(id(document)))
         sanitized_id = self._sanitize_document_id(doc_id)
 
+        # Wipe previous document if switching to a different one
+        if (
+            self._current_document is not None
+            and self._current_document_id is not None
+            and self._current_document_id != sanitized_id
+        ):
+            self.wipe_sensitive_data()
+
         self._current_document = document
         self._current_document_id = sanitized_id
 
@@ -409,12 +462,15 @@ class DocumentView(BaseWidget):
             self._render_free_form_document(document)
         elif mode == DocumentMode.STRUCTURED_FORM:
             self._render_structured_document(document)
+            # Sync StatusBar with document workflow status if available
+            self._sync_statusbar_workflow_from_document(document)
 
     def switch_mode(self, mode: DocumentMode) -> None:
         """Переключает режим отображения документа.
 
         Использует Strategy Pattern через RendererFactory для создания
-        и переключения между рендерерами. Настраивает UI под режим.
+        и переключения между рендерерами. Настраивает UI под режим
+        через renderer.create_toolbar() и renderer.create_editor().
 
         Args:
             mode: Режим документа (FREE_FORM или STRUCTURED_FORM).
@@ -423,8 +479,8 @@ class DocumentView(BaseWidget):
             >>> doc_view.switch_mode(DocumentMode.FREE_FORM)
             >>> doc_view.switch_mode(DocumentMode.STRUCTURED_FORM)
         """
-        if self._current_mode == mode:
-            return  # Already in this mode
+        if self._current_mode == mode and self._current_renderer is not None:
+            return  # Already in this mode with active renderer
 
         # Save current state before switching
         self._save_current_state()
@@ -436,20 +492,102 @@ class DocumentView(BaseWidget):
         self._current_mode = mode
         self._mode = mode
 
-        # Create new renderer via _create_renderer_for_mode
+        # Create new renderer via factory
         self._renderer = self._create_renderer_for_mode(mode)
         self._current_renderer = self._renderer
+
+        # Rebuild UI using renderer-based Strategy Pattern
+        self._rebuild_ui()
 
         # Render current document if available
         if self._current_document is not None:
             self._render_current_document()
 
-        # Setup UI for the new mode
-        self._setup_mode_specific_ui()
-
         # Notify controller
         if self._controller is not None:
             self._controller.dispatch("document_mode_changed", mode=mode)
+
+        # Update StatusBar workflow visibility
+        if self._statusbar is not None:
+            self._statusbar.set_document_mode(mode)
+            # For structured form, try to sync current workflow status
+            if mode == DocumentMode.STRUCTURED_FORM:
+                self._sync_statusbar_workflow()
+
+    def _rebuild_ui(self) -> None:
+        """Перестраивает UI для текущего рендерера.
+
+        Strategy Pattern: вызывает renderer.create_toolbar() и
+        renderer.create_editor() для создания mode-specific UI.
+        Очищает предыдущий toolbar перед созданием нового.
+
+        Mode-specific visibility:
+            - FREE_FORM: FormatToolbar visible, WorkflowToolbar hidden
+            - STRUCTURED_FORM: WorkflowToolbar visible, FormatToolbar hidden
+            - Ruler visible для обоих режимов
+        """
+        if self._current_renderer is None:
+            return
+
+        # Clear toolbar frame
+        if self._tk_toolbar_frame is not None:
+            for child in self._tk_toolbar_frame.winfo_children():
+                child.destroy()
+            self._format_toolbar = None
+
+            toolbar_widget: Optional[tk.Widget] = None
+
+            if self._current_mode == DocumentMode.FREE_FORM:
+                # FREE_FORM: создаём FormatToolbar
+                self._format_toolbar = FormatToolbar(
+                    widget_id="format_toolbar",
+                    on_cpi_change=self._on_cpi_changed,
+                    on_format_toggle=self._on_format_toggled,
+                )
+                toolbar_widget = self._format_toolbar.mount(self._tk_toolbar_frame)
+                toolbar_widget.pack(fill=tk.BOTH, expand=True)
+            elif self._current_mode == DocumentMode.STRUCTURED_FORM:
+                # STRUCTURED_FORM: создаём WorkflowToolbar через renderer
+                if hasattr(self._current_renderer, "create_toolbar"):
+                    toolbar_widget = self._current_renderer.create_toolbar(
+                        self._tk_toolbar_frame,
+                    )
+                    if toolbar_widget is not None:
+                        toolbar_widget.pack(fill=tk.BOTH, expand=True)
+
+        # Renderer frame: factory уже смонтировала renderer,
+        # поэтому вызываем renderer.show() для отображения вместо manual pack.
+        if self._tk_renderer_frame is not None:
+            if hasattr(self._current_renderer, "create_editor"):
+                self._current_renderer.create_editor(
+                    self._tk_renderer_frame,
+                )
+            if hasattr(self._current_renderer, "show"):
+                self._current_renderer.show()
+
+        # Setup renderer callbacks
+        if hasattr(self._current_renderer, "set_on_text_change_callback"):
+            self._current_renderer.set_on_text_change_callback(
+                self._on_text_changed,
+            )
+        if hasattr(self._current_renderer, "set_on_field_change_callback"):
+            self._current_renderer.set_on_field_change_callback(
+                self._on_field_changed,
+            )
+        if hasattr(self._current_renderer, "set_on_cursor_move_callback"):
+            self._current_renderer.set_on_cursor_move_callback(
+                self._on_cursor_moved,
+            )
+
+        # Ensure Ruler is visible for both modes
+        self._show_ruler(True)
+
+        # Show navigator only for FREE_FORM (structured has own navigation)
+        if self._tk_navigator_frame is not None:
+            if self._current_mode == DocumentMode.FREE_FORM:
+                self._tk_navigator_frame.pack(fill=tk.X, side=tk.BOTTOM)
+            else:
+                self._tk_navigator_frame.pack_forget()
 
     def _cleanup_current_renderer(self) -> None:
         """Очищает текущий рендерер перед переключением."""
@@ -457,7 +595,7 @@ class DocumentView(BaseWidget):
             try:
                 self._current_renderer.wipe_sensitive_data()
                 self._current_renderer.unmount()
-            except Exception as e:
+            except (AttributeError, RuntimeError) as e:
                 logger.debug("Renderer cleanup error (non-critical): %s", e)
             self._current_renderer = None
             self._renderer = None
@@ -482,22 +620,203 @@ class DocumentView(BaseWidget):
             parent=self._tk_renderer_frame,
             controller=self._controller,
             command_stack=self._command_stack,
+            workflow_state_manager=self._workflow_state_manager,
         )
 
         # Set document if available
         if self._current_document is not None and hasattr(renderer, "set_document"):
             renderer.set_document(self._current_document)
 
+        # Wire WorkflowToolbar callbacks to WorkflowStateManager if available
+        if (
+            mode == DocumentMode.STRUCTURED_FORM
+            and self._workflow_state_manager is not None
+            and hasattr(renderer, "_workflow_toolbar")
+        ):
+            toolbar = getattr(renderer, "_workflow_toolbar", None)
+            if toolbar is not None:
+                toolbar.on_action(self._on_workflow_action)
+
         return renderer  # type: ignore[no-any-return]
 
+    def _on_workflow_action(self, action: str) -> None:
+        """Обработчик действий WorkflowToolbar, связанный с WorkflowStateManager.
+
+        Args:
+            action: Имя действия workflow.
+        """
+        if self._workflow_state_manager is None:
+            logger.debug("Workflow action %s ignored: no state manager", action)
+            # Still update StatusBar for role/status changes that don't require state manager
+            self._update_statusbar_for_action(action)
+            return
+        # Dispatch to workflow state manager if it supports direct action mapping,
+        # otherwise fall back to controller dispatch.
+        try:
+            if hasattr(self._workflow_state_manager, "request_transition_by_action"):
+                from uuid import UUID
+
+                doc_id = self._current_document_id
+                if doc_id:
+                    self._workflow_state_manager.request_transition_by_action(
+                        UUID(doc_id) if isinstance(doc_id, str) else doc_id,
+                        action,
+                    )
+            elif self._controller is not None:
+                self._controller.dispatch("workflow_action", workflow_action=action)
+            # Update StatusBar timeline and role after workflow action
+            self._update_statusbar_for_action(action)
+        except (ValueError, AttributeError, RuntimeError) as e:
+            logger.warning("Workflow action %s failed: %s", action, e)
+
+    def _update_statusbar_for_action(self, action: str) -> None:
+        """Обновляет StatusBar timeline и role badge на основе workflow действия.
+
+        Args:
+            action: Имя действия workflow.
+        """
+        if self._statusbar is None:
+            return
+
+        # Map action names to FormStatus
+        action_to_status: dict[str, FormStatus] = {
+            "save_draft": FormStatus.DRAFT,
+            "fill_fields": FormStatus.DRAFT,
+            "submit_for_validation": FormStatus.FILLED,
+            "validate": FormStatus.VALIDATED,
+            "approve": FormStatus.APPROVED,
+            "sign": FormStatus.SIGNED,
+            "print": FormStatus.PRINTED,
+            "archive": FormStatus.ARCHIVED,
+            "reject": FormStatus.REJECTED,
+        }
+
+        if action in action_to_status:
+            status = action_to_status[action]
+            self._statusbar.set_workflow_status(status)
+            self._statusbar.set_workflow_timeline(status)
+
+        # Map role switch actions to WorkflowRole
+        from src.gui.workflow.role_badge import WorkflowRole
+
+        action_to_role: dict[str, WorkflowRole] = {
+            "switch_to_operator": WorkflowRole.OPERATOR,
+            "switch_to_editor": WorkflowRole.EDITOR,
+            "switch_to_supervisor": WorkflowRole.SUPERVISOR,
+            "switch_to_signatory": WorkflowRole.SIGNATORY,
+        }
+
+        if action in action_to_role:
+            self._statusbar.set_role_badge(action_to_role[action])
+
+    def _sync_statusbar_workflow(self) -> None:
+        """Синхронизирует StatusBar workflow indicators с текущим состоянием."""
+        if self._statusbar is None:
+            return
+        if self._current_mode != DocumentMode.STRUCTURED_FORM:
+            return
+
+        # Try to get status from workflow state manager or current document
+        if self._current_document is not None:
+            self._sync_statusbar_workflow_from_document(self._current_document)
+        elif self._workflow_state_manager is not None and self._current_document_id:
+            try:
+                if hasattr(self._workflow_state_manager, "workflow_controller"):
+                    wc = self._workflow_state_manager.workflow_controller
+                    from uuid import UUID
+
+                    doc_uuid = (
+                        UUID(self._current_document_id)
+                        if isinstance(self._current_document_id, str)
+                        else self._current_document_id
+                    )
+                    if hasattr(wc, "get_current_state"):
+                        status = wc.get_current_state(doc_uuid)
+                        self._statusbar.set_workflow_status(status)
+                        self._statusbar.set_workflow_timeline(status)
+                    if hasattr(wc, "current_role"):
+                        role = wc.current_role
+                        self._statusbar.set_role_badge(role)
+            except Exception as e:
+                logger.debug("Failed to sync StatusBar workflow: %s", e)
+
+    def _sync_statusbar_workflow_from_document(self, document: DocumentProtocol) -> None:
+        """Синхронизирует StatusBar с workflow статусом документа.
+
+        Args:
+            document: Документ для получения статуса.
+        """
+        if self._statusbar is None:
+            return
+
+        # Try to extract status from document
+        status_attr = getattr(document, "status", None)
+        if status_attr is not None:
+            try:
+                if isinstance(status_attr, FormStatus):
+                    status = status_attr
+                elif isinstance(status_attr, str):
+                    status = FormStatus(status_attr)
+                else:
+                    return
+                self._statusbar.set_workflow_status(status)
+                self._statusbar.set_workflow_timeline(status)
+            except (ValueError, TypeError):
+                logger.debug("Document status not a valid FormStatus: %s", status_attr)
+
+        # Try to extract role from document
+        role_attr = getattr(document, "role", None)
+        if role_attr is not None:
+            try:
+                from src.gui.workflow.role_badge import WorkflowRole
+
+                if isinstance(role_attr, WorkflowRole):
+                    self._statusbar.set_role_badge(role_attr)
+                elif isinstance(role_attr, str):
+                    self._statusbar.set_role_badge(WorkflowRole(role_attr))
+            except (ValueError, TypeError):
+                logger.debug("Document role not a valid WorkflowRole: %s", role_attr)
+
+    def set_workflow_state_manager(self, manager: Any) -> None:
+        """Устанавливает WorkflowStateManager для интеграции с WorkflowToolbar.
+
+        Args:
+            manager: Экземпляр WorkflowStateManager или совместимый объект.
+        """
+        self._workflow_state_manager = manager
+
     def _save_current_state(self) -> None:
-        """Сохраняет состояние текущего документа перед переключением режима."""
-        # Currently a placeholder - state is managed by CommandStack
-        # Future: save scroll position, cursor position, selection
-        pass
+        """Сохраняет состояние текущего документа перед переключением режима.
+
+        Сохраняет позицию скролла, позицию курсора и выделение
+        из текстового виджета текущего рендерера в ``self._saved_state``.
+        """
+        self._saved_state.clear()
+        renderer: Any = self._current_renderer
+        if renderer is None:
+            return
+        text_widget: Optional[tk.Text] = None
+        if hasattr(renderer, "_tk_text"):
+            text_widget = cast(Optional[tk.Text], getattr(renderer, "_tk_text", None))
+        if text_widget is not None:
+            try:
+                self._saved_state["yview"] = text_widget.yview()
+                self._saved_state["xview"] = text_widget.xview()
+                self._saved_state["cursor"] = str(text_widget.index(tk.INSERT))
+                try:
+                    sel_start = str(text_widget.index(tk.SEL_FIRST))
+                    sel_end = str(text_widget.index(tk.SEL_LAST))
+                    self._saved_state["selection"] = (sel_start, sel_end)
+                except tk.TclError:
+                    self._saved_state["selection"] = None
+            except tk.TclError as e:
+                logger.debug("Сохранение состояния прервано: %s", e)
 
     def _setup_mode_specific_ui(self) -> None:
         """Настраивает UI в зависимости от режима.
+
+        .. deprecated::
+            Используйте _rebuild_ui() для renderer-based UI creation.
 
         Configure UI components based on document mode:
         - FREE_FORM: format toolbar visible, ruler visible, field palette hidden
@@ -506,11 +825,11 @@ class DocumentView(BaseWidget):
         if self._mode == DocumentMode.FREE_FORM:
             self._show_format_toolbar(True)
             self._show_ruler(True)
-            self._show_field_palette(False)
+            self._set_field_palette_visible(False)
         elif self._mode == DocumentMode.STRUCTURED_FORM:
-            self._show_format_toolbar(False)
+            self._show_format_toolbar(True)  # WorkflowToolbar в этом фрейме
             self._show_ruler(True)
-            self._show_field_palette(True)
+            self._set_field_palette_visible(True)
 
     def _show_format_toolbar(self, show: bool) -> None:
         """Показывает или скрывает панель форматирования.
@@ -518,7 +837,7 @@ class DocumentView(BaseWidget):
         Args:
             show: True для показа, False для скрытия.
         """
-        if self._format_toolbar is None or self._tk_toolbar_frame is None:
+        if self._tk_toolbar_frame is None:
             return
 
         if show:
@@ -540,19 +859,18 @@ class DocumentView(BaseWidget):
         else:
             self._tk_ruler_frame.pack_forget()
 
-    def _show_field_palette(self, show: bool) -> None:
+    def _set_field_palette_visible(self, show: bool) -> None:
         """Показывает или скрывает палитру полей формы.
 
         Args:
             show: True для показа, False для скрытия.
-
-        Note:
-            Field palette is currently managed by StructuredFormRenderer.
-            This method is a placeholder for future centralized UI management.
         """
-        # Field palette is currently part of StructuredFormRenderer
-        # Future: implement centralized field palette in DocumentView
-        pass
+        if self._tk_field_palette_frame is None:
+            return
+        if show:
+            self._tk_field_palette_frame.pack(fill=tk.Y, side=tk.RIGHT)
+        else:
+            self._tk_field_palette_frame.pack_forget()
 
     def set_renderer(self, renderer: DocumentRendererProtocol[Any, Any]) -> None:
         """Устанавливает renderer с проверкой протокола.
@@ -631,7 +949,7 @@ class DocumentView(BaseWidget):
 
         self._tk_mode_tabs_frame = tk.Frame(
             self._tk_content_frame,
-            bg="#f0f0f0",
+            bg=_theme_color("bg"),
             height=28,
         )
         self._tk_mode_tabs_frame.pack(fill=tk.X, side=tk.TOP)
@@ -642,7 +960,7 @@ class DocumentView(BaseWidget):
             self._tk_mode_tabs_frame,
             text="📄 Document",
             relief=tk.SUNKEN,
-            bg="#d0e0f0",
+            bg=_theme_color("accent"),
             command=self.switch_to_document_mode,
         )
         doc_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -653,7 +971,7 @@ class DocumentView(BaseWidget):
             self._tk_mode_tabs_frame,
             text="🎨 Designer",
             relief=tk.RAISED,
-            bg="#f0f0f0",
+            bg=_theme_color("bg"),
             command=self.switch_to_designer_mode,
         )
         designer_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -664,7 +982,7 @@ class DocumentView(BaseWidget):
             self._tk_mode_tabs_frame,
             text="👁 Preview",
             relief=tk.RAISED,
-            bg="#f0f0f0",
+            bg=_theme_color("bg"),
             command=self.switch_to_preview_mode,
         )
         preview_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -759,9 +1077,9 @@ class DocumentView(BaseWidget):
         """
         for tab_name, btn in self._mode_tab_buttons.items():
             if tab_name == active_tab:
-                btn.config(relief=tk.SUNKEN, bg="#d0e0f0")
+                btn.config(relief=tk.SUNKEN, bg=_theme_color("accent"))
             else:
-                btn.config(relief=tk.RAISED, bg="#f0f0f0")
+                btn.config(relief=tk.RAISED, bg=_theme_color("bg"))
 
     def _get_current_document(self) -> Optional[Any]:
         """Возвращает текущий документ.
@@ -830,11 +1148,7 @@ class DocumentView(BaseWidget):
         free_form_doc = FreeFormDocument(content=content, cpi=cpi)
         self._current_renderer.render(free_form_doc)
 
-        # Update toolbar CPI
-        if self._format_toolbar is not None:
-            self._format_toolbar.set_cpi(cpi)
-
-        # Update ruler
+        # Update ruler CPI (backward compat)
         if self._ruler is not None:
             self._ruler.set_cpi(cpi)
 
@@ -888,36 +1202,101 @@ class DocumentView(BaseWidget):
         # Show placeholder
         self.show_placeholder(DEFAULT_PLACEHOLDER_MESSAGE)
 
+    def hide_content(self) -> None:
+        """Скрывает содержимое редактора (session lock). Делегирует рендереру.
+
+        Устанавливает флаг скрытия и вызывает hide_content()
+        на текущем рендерере.
+        """
+        self._content_hidden = True
+        if self._current_renderer is not None:
+            self._current_renderer.hide_content()
+        if self._tk_message_label is not None:
+            try:
+                self._hidden_content_backup = self._tk_message_label.cget("text")
+            except tk.TclError:
+                self._hidden_content_backup = DEFAULT_PLACEHOLDER_MESSAGE
+        else:
+            self._hidden_content_backup = DEFAULT_PLACEHOLDER_MESSAGE
+
+    def restore_content(self) -> None:
+        """Восстанавливает содержимое редактора (session unlock).
+
+        Сбрасывает флаг скрытия и вызывает restore_content()
+        на текущем рендерере.
+        """
+        self._content_hidden = False
+        self._hidden_content_backup = None
+        if self._current_renderer is not None:
+            self._current_renderer.restore_content()
+
+    def _clear_internal_references(self) -> None:
+        """Очищает внутренние ссылки на данные документа.
+
+        Security: используется wipe_sensitive_data.
+        """
+        self._current_document = None
+        self._current_document_id = None
+        self._hidden_content_backup = None
+
+    def wipe_sensitive_data(self) -> None:
+        """Очищает sensitive данные из редактора и внутренних ссылок.
+
+        Делегирует очистку текущему рендереру и очищает
+        внутренние ссылки на документ.
+        """
+        self._clear_internal_references()
+        if self._current_renderer is not None:
+            self._current_renderer.wipe_sensitive_data()
+        self.show_placeholder(DEFAULT_PLACEHOLDER_MESSAGE)
+
     # =====================================================================
     # UNDO/REDO METHODS
     # =====================================================================
 
+    def execute_command(self, cmd: Command) -> None:
+        """Выполняет команду через Controller (Вариант B слоения).
+
+        Проксирует вызов в controller.execute_command() если доступен,
+        иначе выполняет напрямую через внутренний CommandStack.
+
+        Args:
+            cmd: Команда для выполнения.
+
+        Example:
+            >>> doc_view.execute_command(InsertTextCommand(widget, "Hello", "1.0"))
+        """
+        if self._controller is not None and hasattr(self._controller, "execute_command"):
+            self._controller.execute_command(cmd)
+        else:
+            self._command_stack.execute(cmd)
+
     def undo(self) -> None:
         """Отменяет последнее действие.
 
-        Вызывает CommandStack.undo() для отмены последней команды.
-
-        Raises:
-            RuntimeError: Если нет команд для отмены.
+        Вызывает controller.on_undo() если доступен, иначе
+        напрямую CommandStack.undo().
 
         Example:
             >>> doc_view.undo()
         """
-        if self._command_stack.can_undo():
+        if self._controller is not None and hasattr(self._controller, "on_undo"):
+            self._controller.on_undo()
+        elif self._command_stack.can_undo():
             self._command_stack.undo()
 
     def redo(self) -> None:
         """Повторяет отменённое действие.
 
-        Вызывает CommandStack.redo() для повтора последней отменённой команды.
-
-        Raises:
-            RuntimeError: Если нет команд для повтора.
+        Вызывает controller.on_redo() если доступен, иначе
+        напрямую CommandStack.redo().
 
         Example:
             >>> doc_view.redo()
         """
-        if self._command_stack.can_redo():
+        if self._controller is not None and hasattr(self._controller, "on_redo"):
+            self._controller.on_redo()
+        elif self._command_stack.can_redo():
             self._command_stack.redo()
 
     def can_undo(self) -> bool:
@@ -957,110 +1336,81 @@ class DocumentView(BaseWidget):
         return self._command_stack.get_redo_description()
 
     # =====================================================================
-    # SECURITY METHODS
+    # BARCODE / QR INSERTION (BarcodeViewProtocol)
     # =====================================================================
 
-    def wipe_sensitive_data(self) -> None:
-        """Очищает sensitive данные из памяти.
+    def insert_barcode_at_cursor(
+        self,
+        barcode_type: str,
+        data: str,
+        mode: str,
+        settings: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """Вставляет штрих-код в позицию курсора через текущий рендерер.
 
-        Security-critical метод для принудительной очистки
-        всех sensitive полей перед закрытием или при блокировке.
+        Проксирует вызов к текущему рендереру, если он поддерживает метод
+        insert_barcode_at_cursor. Иначе возвращает False.
 
-        Note:
-            Очищает внутренние ссылки, но не гарантирует
-            полное удаление из памяти Python (зависит от GC).
+        Args:
+            barcode_type: Тип штрих-кода.
+            data: Данные для кодирования.
+            mode: Режим ("hardware"/"software").
+            settings: Дополнительные настройки.
 
-        Example:
-            >>> doc_view.wipe_sensitive_data()
-            >>> # Все sensitive поля очищены
+        Returns:
+            True если вставка успешна.
         """
-        # Clear document references
-        self._current_document = None
-        self._current_document_id = None
+        renderer: Any = self._current_renderer
+        if renderer is not None and hasattr(renderer, "insert_barcode_at_cursor"):
+            result: Any = renderer.insert_barcode_at_cursor(
+                barcode_type=barcode_type,
+                data=data,
+                mode=mode,
+                settings=settings,
+            )
+            return bool(result)
+        return False
 
-        # Clear any cached content
-        self._hidden_content_backup = None
+    def insert_qr_at_cursor(
+        self,
+        data: str,
+        settings: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """Вставляет QR-код в позицию курсора через текущий рендерер.
 
-        # Wipe renderer content
-        if self._current_renderer is not None:
-            self._current_renderer.wipe_sensitive_data()
+        Проксирует вызов к текущему рендереру, если он поддерживает метод
+        insert_qr_at_cursor. Иначе возвращает False.
 
-        # Clear command history (may contain sensitive text)
-        self._command_stack.clear()
+        Args:
+            data: Данные для кодирования.
+            settings: Дополнительные настройки.
 
-        # Force placeholder
-        self._placeholder_visible = True
-        if self._tk_message_label is not None:
-            self._tk_message_label.config(text=DEFAULT_PLACEHOLDER_MESSAGE)
-
-    def hide_content(self) -> None:
-        """Скрывает контент для session lock.
-
-        Используется при блокировке сессии (screen lock)
-        для скрытия sensitive содержимого документа.
-
-        Note:
-            Сохраняет состояние для restore_content().
-
-        Example:
-            >>> doc_view.hide_content()  # Session locked
-            >>> # Показывает placeholder или blank screen
+        Returns:
+            True если вставка успешна.
         """
-        self._content_hidden = True
+        renderer: Any = self._current_renderer
+        if renderer is not None and hasattr(renderer, "insert_qr_at_cursor"):
+            result: Any = renderer.insert_qr_at_cursor(
+                data=data,
+                settings=settings,
+            )
+            return bool(result)
+        return False
 
-        # Save current placeholder message
-        if self._tk_message_label is not None:
-            self._hidden_content_backup = self._tk_message_label.cget("text")
-            self._tk_message_label.config(text="🔒 Session Locked")
+    def get_cursor_position(self) -> tuple[int, int]:
+        """Возвращает текущую позицию курсора.
 
-        # Hide all renderers and components
-        if self._tk_content_frame is not None:
-            self._tk_content_frame.pack_forget()
+        Проксирует вызов к текущему рендереру, если он поддерживает метод
+        get_cursor_position. Иначе возвращает (1, 1).
 
-        # Show placeholder frame
-        if self._tk_placeholder_frame is not None:
-            self._tk_placeholder_frame.pack(fill="both", expand=True)
-
-        # Hide renderer content
-        if self._current_renderer is not None:
-            self._current_renderer.hide_content()
-
-    def restore_content(self) -> None:
-        """Восстанавливает контент после session unlock.
-
-        Восстанавливает состояние View после разблокировки сессии.
-
-        Raises:
-            RuntimeError: Если hide_content() не был вызван.
-
-        Example:
-            >>> doc_view.restore_content()  # Session unlocked
-            >>> # Восстанавливает отображение документа
+        Returns:
+            Кортеж (line, column) в 1-based координатах.
         """
-        if not self._content_hidden:
-            return  # Nothing to restore
-
-        self._content_hidden = False
-
-        # Hide placeholder frame
-        if self._tk_placeholder_frame is not None:
-            self._tk_placeholder_frame.pack_forget()
-
-        # Show content frame
-        if self._tk_content_frame is not None:
-            self._tk_content_frame.pack(fill="both", expand=True)
-
-        # Restore placeholder message
-        if self._tk_message_label is not None:
-            if self._hidden_content_backup:
-                self._tk_message_label.config(text=self._hidden_content_backup)
-                self._hidden_content_backup = None
-            else:
-                self._tk_message_label.config(text=DEFAULT_PLACEHOLDER_MESSAGE)
-
-        # Restore renderer content
-        if self._current_renderer is not None:
-            self._current_renderer.restore_content()
+        renderer: Any = self._current_renderer
+        if renderer is not None and hasattr(renderer, "get_cursor_position"):
+            result: Any = renderer.get_cursor_position()
+            return cast(tuple[int, int], result)
+        return (1, 1)
 
     # =====================================================================
     # MENU BAR CALLBACKS
@@ -1072,11 +1422,7 @@ class DocumentView(BaseWidget):
         Example:
             >>> menu.add_command(label="Undo", command=doc_view.on_edit_undo)
         """
-        try:
-            self.undo()
-        except RuntimeError:
-            # No commands to undo - ignore
-            pass
+        self.undo()
 
     def on_edit_redo(self) -> None:
         """Callback для Edit → Redo.
@@ -1084,11 +1430,7 @@ class DocumentView(BaseWidget):
         Example:
             >>> menu.add_command(label="Redo", command=doc_view.on_edit_redo)
         """
-        try:
-            self.redo()
-        except RuntimeError:
-            # No commands to redo - ignore
-            pass
+        self.redo()
 
     def on_edit_cut(self) -> None:
         """Callback для Edit → Cut.
@@ -1159,8 +1501,13 @@ class DocumentView(BaseWidget):
         Args:
             cpi: Новое значение CPI.
         """
-        if self._free_form_renderer is not None:
-            self._free_form_renderer.apply_cpi(cpi)
+        # Forward to current renderer if it supports CPI
+        if (
+            self._current_renderer is not None
+            and self._current_mode == DocumentMode.FREE_FORM
+            and hasattr(self._current_renderer, "apply_cpi")
+        ):
+            self._current_renderer.apply_cpi(cpi)
 
         if self._ruler is not None:
             self._ruler.set_cpi(cpi)
@@ -1176,25 +1523,32 @@ class DocumentView(BaseWidget):
             format_type: Тип форматирования (bold, italic, etc.).
             active: True если формат активирован.
         """
-        if self._free_form_renderer is None:
+        if self._current_renderer is None:
             return
 
-        # Get current selection or cursor position
-        selection = self._free_form_renderer.get_selection()
+        if (
+            self._current_mode == DocumentMode.FREE_FORM
+            and hasattr(self._current_renderer, "get_selection")
+            and hasattr(self._current_renderer, "apply_format")
+            and hasattr(self._current_renderer, "remove_format")
+            and hasattr(self._current_renderer, "get_cursor_position")
+        ):
+            # Get current selection or cursor position
+            selection = self._current_renderer.get_selection()
 
-        if selection is not None:
-            start, end = selection
-            if active:
-                self._free_form_renderer.apply_format(format_type, start, end)
+            if selection is not None:
+                start, end = selection
+                if active:
+                    self._current_renderer.apply_format(format_type, start, end)
+                else:
+                    self._current_renderer.remove_format(format_type, start, end)
             else:
-                self._free_form_renderer.remove_format(format_type, start, end)
-        else:
-            # No selection - apply to word under cursor (simplified)
-            line, col = self._free_form_renderer.get_cursor_position()
-            start = f"{line}.{col - 1}"
-            end = f"{line}.{col}"
-            if active:
-                self._free_form_renderer.apply_format(format_type, start, end)
+                # No selection - apply to word under cursor (simplified)
+                line, col = self._current_renderer.get_cursor_position()
+                start = f"{line}.{col - 1}"
+                end = f"{line}.{col}"
+                if active:
+                    self._current_renderer.apply_format(format_type, start, end)
 
         # Propagate to controller
         if self._controller is not None:
@@ -1215,9 +1569,38 @@ class DocumentView(BaseWidget):
         if self._navigator is not None:
             self._navigator.set_total_lines(lines)
 
+        # Update codepage status
+        if self._codepage_status is not None:
+            self._codepage_status.validate_text(text)
+
         # Propagate to controller
         if self._controller is not None:
             self._controller.dispatch("text_changed", text=text)
+            # Notify tab bar that document is modified
+            if self._current_document_id is not None:
+                self._controller.dispatch(
+                    "document_modified",
+                    document_id=self._current_document_id,
+                    modified=True,
+                )
+
+    def _on_field_changed(self, field_id: str, value: Any) -> None:
+        """Обработчик изменения поля из StructuredFormRenderer.
+
+        Args:
+            field_id: Идентификатор изменённого поля.
+            value: Новое значение поля.
+        """
+        # Propagate to controller
+        if self._controller is not None:
+            self._controller.dispatch("field_changed", field_id=field_id, value=value)
+            # Notify tab bar that document is modified
+            if self._current_document_id is not None:
+                self._controller.dispatch(
+                    "document_modified",
+                    document_id=self._current_document_id,
+                    modified=True,
+                )
 
     def _on_cursor_moved(self, line: int, column: int) -> None:
         """Обработчик движения курсора из FreeFormRenderer.
@@ -1229,6 +1612,15 @@ class DocumentView(BaseWidget):
         # Update navigator position
         if self._navigator is not None:
             self._navigator.set_position(line, column)
+
+            # Обратная связь double-height: подсвечиваем shadow row
+            if (
+                self._current_renderer is not None
+                and self._current_mode == DocumentMode.FREE_FORM
+                and hasattr(self._current_renderer, "is_line_double_height")
+            ):
+                is_dh = self._current_renderer.is_line_double_height(line)
+                self._navigator.set_double_height_indicator(is_dh)
 
         # Propagate to controller
         if self._controller is not None:
@@ -1316,12 +1708,12 @@ class DocumentView(BaseWidget):
             Созданный корневой Frame DocumentView.
         """
         # Root frame
-        self._tk_frame = tk.Frame(parent, bg=PLACEHOLDER_BG)
+        self._tk_frame = tk.Frame(parent, bg=_theme_color("bg"))
 
         # Placeholder frame (shown when no document)
         self._tk_placeholder_frame = tk.Frame(
             self._tk_frame,
-            bg=PLACEHOLDER_BG,
+            bg=_theme_color("bg"),
         )
 
         # Icon label (large document emoji)
@@ -1329,8 +1721,8 @@ class DocumentView(BaseWidget):
             self._tk_placeholder_frame,
             text=PLACEHOLDER_ICON,
             font=("TkDefaultFont", PLACEHOLDER_ICON_SIZE),
-            bg=PLACEHOLDER_BG,
-            fg=PLACEHOLDER_FG,
+            bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
         )
         self._tk_icon_label.pack(pady=(PADDING_LARGE * 4, PADDING_NORMAL))
 
@@ -1339,20 +1731,22 @@ class DocumentView(BaseWidget):
             self._tk_placeholder_frame,
             text=DEFAULT_PLACEHOLDER_MESSAGE,
             font=("TkDefaultFont", 12),
-            bg=PLACEHOLDER_BG,
-            fg=PLACEHOLDER_FG,
+            bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
         )
         self._tk_message_label.pack(pady=PADDING_NORMAL)
 
         # Content frame (shown when document is open)
-        self._tk_content_frame = tk.Frame(self._tk_frame, bg="white")
+        self._tk_content_frame = tk.Frame(self._tk_frame, bg=_theme_color("bg"))
 
-        # Create Phase 2 components
+        # Create Phase 2 components (mode-agnostic)
         self._create_paper_toolbar(self._tk_content_frame)
         self._create_ruler(self._tk_content_frame)
-        self._create_format_toolbar(self._tk_content_frame)
-        self._create_free_form_renderer(self._tk_content_frame)
+        self._create_empty_toolbar_frame(self._tk_content_frame)
+        self._create_empty_renderer_frame(self._tk_content_frame)
+        self._create_field_palette_frame(self._tk_content_frame)
         self._create_navigator(self._tk_content_frame)
+        self._create_codepage_status(self._tk_content_frame)
 
         # Create Phase 5 mode tabs
         self._create_mode_tabs()
@@ -1365,16 +1759,33 @@ class DocumentView(BaseWidget):
 
         return self._tk_frame
 
+    def _create_empty_toolbar_frame(self, parent: tk.Frame) -> None:
+        """Создаёт пустой фрейм для toolbar (renderer-based creation).
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        self._tk_toolbar_frame = tk.Frame(parent, height=35, bg=_theme_color("bg"))
+
+    def _create_empty_renderer_frame(self, parent: tk.Frame) -> None:
+        """Создаёт пустой фрейм для renderer (renderer-based creation).
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        self._tk_renderer_frame = tk.Frame(parent, bg=_theme_color("bg"))
+
     def _create_paper_toolbar(self, parent: tk.Frame) -> None:
         """Создаёт PaperToolbar компонент.
 
         Args:
             parent: Родительский фрейм.
         """
-        self._tk_paper_toolbar_frame = tk.Frame(parent, height=30, bg="#e8e8e8")
+        self._tk_paper_toolbar_frame = tk.Frame(parent, height=30, bg=_theme_color("bg"))
         self._paper_toolbar = PaperToolbar(
             widget_id="paper_toolbar",
             controller=self._controller,
+            on_setup_clicked=self._on_paper_setup,
             initial_config=PaperConfig(),
         )
         toolbar_widget = self._paper_toolbar.mount(self._tk_paper_toolbar_frame)
@@ -1386,7 +1797,7 @@ class DocumentView(BaseWidget):
         Args:
             parent: Родительский фрейм.
         """
-        self._tk_ruler_frame = tk.Frame(parent, height=25, bg="#f0f0f0")
+        self._tk_ruler_frame = tk.Frame(parent, height=25, bg=_theme_color("bg"))
         self._ruler = Ruler(
             widget_id="doc_ruler",
             controller=self._controller,
@@ -1398,12 +1809,15 @@ class DocumentView(BaseWidget):
         ruler_widget.pack(fill=tk.BOTH, expand=True)
 
     def _create_format_toolbar(self, parent: tk.Frame) -> None:
-        """Создаёт FormatToolbar компонент.
+        """Создаёт FormatToolbar компонент (backward compatibility).
+
+        .. deprecated::
+            Используйте renderer.create_toolbar() через _rebuild_ui().
 
         Args:
             parent: Родительский фрейм.
         """
-        self._tk_toolbar_frame = tk.Frame(parent, height=35, bg="#f5f5f5")
+        self._tk_toolbar_frame = tk.Frame(parent, height=35, bg=_theme_color("bg"))
         self._format_toolbar = FormatToolbar(
             widget_id="format_toolbar",
             on_cpi_change=self._on_cpi_changed,
@@ -1415,10 +1829,13 @@ class DocumentView(BaseWidget):
     def _create_free_form_renderer(self, parent: tk.Frame) -> None:
         """Создаёт FreeFormRenderer компонент (Phase 4 Strategy Pattern).
 
+        .. deprecated::
+            Используйте renderer.create_editor() через _rebuild_ui().
+
         Args:
             parent: Родительский фрейм.
         """
-        self._tk_renderer_frame = tk.Frame(parent, bg="white")
+        self._tk_renderer_frame = tk.Frame(parent, bg=_theme_color("bg"))
 
         # Use RendererFactory for Strategy Pattern
         self._current_renderer = self._renderer_factory.create(
@@ -1436,13 +1853,21 @@ class DocumentView(BaseWidget):
         if hasattr(self._current_renderer, "set_on_cursor_move_callback"):
             self._current_renderer.set_on_cursor_move_callback(self._on_cursor_moved)
 
+    def _create_field_palette_frame(self, parent: tk.Frame) -> None:
+        """Создаёт фрейм для палитры полей формы.
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        self._tk_field_palette_frame = tk.Frame(parent, width=180, bg=_theme_color("bg"))
+
     def _create_navigator(self, parent: tk.Frame) -> None:
         """Создаёт Navigator компонент.
 
         Args:
             parent: Родительский фрейм.
         """
-        self._tk_navigator_frame = tk.Frame(parent, height=28, bg="#f5f5f5")
+        self._tk_navigator_frame = tk.Frame(parent, height=28, bg=_theme_color("bg"))
         self._navigator = Navigator(
             widget_id="doc_navigator",
             controller=self._controller,
@@ -1453,8 +1878,25 @@ class DocumentView(BaseWidget):
             initial_column=1,
             initial_total_lines=1,
         )
+        # Обратная связь double-height: подсветка shadow row в Text widget
+        if self._current_renderer is not None and hasattr(self._current_renderer, "highlight_line"):
+            self._navigator.set_on_highlight_line_callback(self._current_renderer.highlight_line)
         navigator_widget = self._navigator.mount(self._tk_navigator_frame)
         navigator_widget.pack(fill=tk.BOTH, expand=True)
+
+    def _create_codepage_status(self, parent: tk.Frame) -> None:
+        """Создаёт CodepageStatusWidget.
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        self._tk_codepage_status_frame = tk.Frame(parent, height=24, bg=_theme_color("bg"))
+        self._codepage_status = CodepageStatusWidget(
+            widget_id="codepage_status",
+            controller=self._controller,
+        )
+        status_widget = self._codepage_status.mount(self._tk_codepage_status_frame)
+        status_widget.pack(fill=tk.X, expand=False)
 
     def _layout_content_frame(self) -> None:
         """Располагает компоненты в content frame."""
@@ -1473,14 +1915,25 @@ class DocumentView(BaseWidget):
         if self._tk_renderer_frame is not None:
             self._tk_renderer_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
 
+        if self._tk_field_palette_frame is not None:
+            self._tk_field_palette_frame.pack(fill=tk.Y, side=tk.RIGHT)
+            self._tk_field_palette_frame.pack_propagate(False)
+
+        if self._tk_codepage_status_frame is not None:
+            self._tk_codepage_status_frame.pack(fill=tk.X, side=tk.BOTTOM)
+            self._tk_codepage_status_frame.pack_propagate(False)
+
         if self._tk_navigator_frame is not None:
             self._tk_navigator_frame.pack(fill=tk.X, side=tk.BOTTOM)
             self._tk_navigator_frame.pack_propagate(False)
 
     def _setup_bindings(self) -> None:
         """Настраивает event bindings для Tkinter виджета."""
-        # Keyboard shortcuts for undo/redo
         if self._tk_frame is not None:
+            # Intercept built-in tk.Text <<Undo>> / <<Redo>> events
+            self._tk_frame.bind("<<Undo>>", lambda e: (self.on_edit_undo(), "break")[1])  # type: ignore[func-returns-value]
+            self._tk_frame.bind("<<Redo>>", lambda e: (self.on_edit_redo(), "break")[1])  # type: ignore[func-returns-value]
+            # Keyboard shortcuts for undo/redo
             self._tk_frame.bind("<Control-z>", lambda e: self.on_edit_undo())
             self._tk_frame.bind("<Control-y>", lambda e: self.on_edit_redo())
             self._tk_frame.bind("<Control-Shift-Z>", lambda e: self.on_edit_redo())
@@ -1512,6 +1965,10 @@ class DocumentView(BaseWidget):
             self._navigator.unmount()
             self._navigator = None
 
+        if self._codepage_status is not None:
+            self._codepage_status.unmount()
+            self._codepage_status = None
+
         if self._designer_tab is not None:
             self._designer_tab.unmount()
             self._designer_tab = None
@@ -1526,12 +1983,15 @@ class DocumentView(BaseWidget):
         self._tk_toolbar_frame = None
         self._tk_renderer_frame = None
         self._tk_navigator_frame = None
+        self._tk_field_palette_frame = None
+        self._tk_codepage_status_frame = None
         self._tk_frame = None
 
         # Clear state
         self._current_document = None
         self._current_document_id = None
         self._hidden_content_backup = None
+        self._saved_state.clear()
 
         # Clear command stack
         self._command_stack.clear()

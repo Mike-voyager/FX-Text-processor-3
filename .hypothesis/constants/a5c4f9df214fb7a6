@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/printer/printer_manager.py
+# hypothesis_version: 6.151.12
+
+[100, './output', ':', 'AdapterInfo', 'CUPS not available', 'Darwin', 'FX-Document', 'Linux', 'PrintError', 'PrinterManager', 'PrinterManagerError', 'PrinterNotFoundError', 'Windows', 'cups', 'file', 'win32']

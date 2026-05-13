@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/variable_parser.py
+# hypothesis_version: 6.151.12
+
+[b'\n', b'\x0c', b'\x1b@', 'LINE_FEED', 'PAGE_BREAK', 'RESET_PRINTER', 'latin-1', '{{', '}}']

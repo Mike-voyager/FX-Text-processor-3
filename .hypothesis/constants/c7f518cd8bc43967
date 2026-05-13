@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/services/__init__.py
+# hypothesis_version: 6.151.12
+
+['CATEGORY_SECURITY', 'CATEGORY_SYNC', 'CATEGORY_SYSTEM', 'CATEGORY_WORKFLOW', 'ConflictResolution', 'DATA_BOOKMARK_CHANGE', 'DATA_DOCUMENT_UPDATE', 'DATA_MODE_CHANGE', 'DATA_SIDEBAR_STATE', 'DATA_TYPE_DOCUMENT', 'DATA_TYPE_FIELD', 'DATA_TYPE_TEMPLATE', 'DATA_TYPE_TEXT', 'DragData', 'DragDropService', 'DropOperation', 'DropTarget', 'KeyBindingsService', 'Notification', 'NotificationPriority', 'NotificationService', 'SyncMessage', 'SyncService', 'ToastService', 'WindowInfo', 'WindowManager']

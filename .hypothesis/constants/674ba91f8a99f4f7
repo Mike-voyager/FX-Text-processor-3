@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/health_check_dialog.py
+# hypothesis_version: 6.151.12
+
+[0.0, 0.1, 1.0, 100, 400, 460, 500, 600, 800, '  Details:', '!', '#27ae60', '#3498db', '#7f8c8d', '#e74c3c', '#f39c12', '-', '500x400', '=', 'Algorithm Library', 'Arial', 'Audit Chain', 'COLOR_CRITICAL', 'COLOR_NEUTRAL', 'COLOR_PASS', 'COLOR_RUNNING', 'COLOR_WARNING', 'Cancel', 'Cancelled by user', 'Close', 'Config Check', 'DETAILED RESULTS:', 'END OF REPORT', 'Entropy Check', 'Hardware Devices', 'Health Check Details', 'HealthCheckDialog', 'HealthChecker', 'Keystore Check', 'Passed', 'Progress: 0%', 'Running...', 'SUMMARY:', 'Warning', 'algorithms', 'audit', 'bold', 'config', 'critical', 'determinate', 'entropy', 'frame', 'hardware', 'icon', 'keystore', 'message', 'name', 'passed', 'pending', 'running', 'warning', 'winfo_height', 'winfo_rootx', 'winfo_rooty', 'winfo_width', '█', '░', '○', '✓', '✗', '🔄', '🔄 Re-run', '🔍 Details']

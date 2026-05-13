@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/printing/text_renderer.py
+# hypothesis_version: 6.151.12
+
+[b'\n', b'\r\n', 8.5, 'CharacterStyle', 'TextRenderer', 'ascii', 'cp866', 'replace', 'text']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/transition_dialog.py
+# hypothesis_version: 6.151.12
+
+[200, 350, 400, 450, 500, '#333333', '#721c24', '#856404', '#95a5a6', '#dc3545', '#f8d7da', '#f8f9fa', '#ffc107', '#fff3cd', '0 / 200', '<Return>', 'ARCHIVE', 'FormStatus', 'Helvetica', 'TransitionDialog', '_confirm_entry', '_reason_counter', '_reason_var', 'archived', 'bold', 'confirmed', 'e', 'gray', 'reason', 'requires_mfa', 'value', 'w', 'white', 'write', 'Отмена', 'Ошибка', 'Ошибка подтверждения', 'Переход состояния', 'Подтвердить', 'Причина перехода', '➜']

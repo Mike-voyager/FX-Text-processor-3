@@ -1,54 +1,64 @@
-"""Модуль форматов сериализации документов.
+"""Модуль сериализации и форматирования документов FX Text Processor 3.
 
-Предоставляет:
-- DocumentFormat: Сериализация/десериализация .fxsd и .fxsd.enc
-- TemplateFormat: Сериализация/десериализация .fxstpl
-- FormatMigration: Миграция между версиями формата
-- JSON Schema: Валидация документов и шаблонов
+Этот модуль предоставляет инструменты для:
+- Сериализации/десериализации документов в форматы .fxsd и .fxsd.enc
+- Сериализации шаблонов форм в формат .fxstpl с подписью
+- Миграции между версиями форматов документов
 
-Example:
-    >>> from src.documents.format import DocumentFormat
-    >>> from src.model.document import Document
-    >>> doc = Document(title="Test")
-    >>> fmt = DocumentFormat()
-    >>> fmt.save(doc, Path("test.fxsd"))
-    >>> loaded = fmt.load(Path("test.fxsd"))
+Примеры:
+    >>> from src.documents.format import DocumentSerializer, TemplateSerializer
+    >>>
+    >>> # Сериализация документа
+    >>> serializer = DocumentSerializer()
+    >>> data = serializer.serialize(doc)
+    >>>
+    >>> # Сохранение с шифрованием
+    >>> serializer.encrypt_and_save(doc, Path("doc.fxsd.enc"), password="secret")
+    >>>
+    >>> # Работа с шаблонами
+    >>> tpl = TemplateSerializer()
+    >>> template_data = tpl.serialize_template(template, sign=True, private_key=key)
+
+См. также:
+    - document_format.py: DocumentSerializer, DocumentFile
+    - template_format.py: TemplateSerializer
+    - migration.py: MigrationManager
+
+Version: 1.0.0
+Date: April 5, 2026
 """
 
 from src.documents.format.document_format import (
-    DocumentFormat,
-    DocumentFormatHeader,
-)
-from src.documents.format.document_format import (
-    FormatError as DocumentFormatError,
+    DocumentFile,
+    DocumentSerializer,
+    FormatError,
+    SecurityPreset,
 )
 from src.documents.format.migration import (
-    DocumentMigrator,
-    FormatMigration,
-    MigrationChain,
-    MigrationResult,
-    MigrationStep,
-    TemplateMigrator,
+    MigrationError,
+    MigrationManager,
+    VersionInfo,
 )
 from src.documents.format.template_format import (
-    FormatError as TemplateFormatError,
-)
-from src.documents.format.template_format import (
-    TemplateFormat,
-    TemplateFormatHeader,
+    TemplateError,
+    TemplateSerializer,
 )
 
 __all__ = [
-    "DocumentFormat",
-    "DocumentFormatHeader",
-    "DocumentFormatError",
-    "DocumentMigrator",
-    "FormatMigration",
-    "MigrationChain",
-    "MigrationResult",
-    "MigrationStep",
-    "TemplateFormat",
-    "TemplateFormatHeader",
-    "TemplateFormatError",
-    "TemplateMigrator",
+    # Document serialization
+    "DocumentSerializer",
+    "DocumentFile",
+    "FormatError",
+    # Template serialization
+    "TemplateSerializer",
+    "TemplateError",
+    # Migration
+    "MigrationManager",
+    "VersionInfo",
+    "MigrationError",
+    # Security presets
+    "SecurityPreset",
 ]
+
+__version__ = "1.0.0"
+__author__ = "Mike Voyager"

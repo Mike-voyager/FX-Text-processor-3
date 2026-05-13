@@ -11,11 +11,12 @@ Version: 3.0 (layout-only model, features from 2.x + roadmap extensions)
 
 from __future__ import annotations
 
+import ast
 import logging
+import operator
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -34,6 +35,81 @@ from src.model.paragraph import Paragraph
 from src.model.run import Run
 
 logger: Final = logging.getLogger(__name__)
+
+# =============================================================================
+# SAFE FORMULA EVALUATION (NO eval())
+# =============================================================================
+
+SAFE_OPERATORS: Final[dict[type, Any]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+
+
+def evaluate_formula(formula: str, context: dict[str, Any]) -> Any:
+    """Безопасная оценка формулы без использования eval().
+
+    Args:
+        formula: Строка с формулой
+        context: Словарь с переменными для подстановки
+
+    Returns:
+        Результат вычисления
+
+    Raises:
+        ValueError: Если синтаксис некорректен или оператор не поддерживается
+        NameError: Если переменная не найдена в контексте
+    """
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except SyntaxError as e:
+        raise ValueError(f"Invalid formula syntax: {formula}") from e
+
+    def _eval_node(node: ast.AST) -> Any:
+        if isinstance(node, ast.Num):  # type: ignore[attr-defined]
+            return node.n
+        elif isinstance(node, ast.Constant):
+            return node.value
+        elif isinstance(node, ast.Name):
+            if node.id in context:
+                return context[node.id]
+            raise NameError(f"Undefined variable: {node.id}")
+        elif isinstance(node, ast.BinOp):
+            op_type = type(node.op)
+            if op_type not in SAFE_OPERATORS:
+                raise ValueError(f"Unsupported binary operator: {op_type.__name__}")
+            return SAFE_OPERATORS[op_type](_eval_node(node.left), _eval_node(node.right))
+        elif isinstance(node, ast.UnaryOp):
+            op_type = type(node.op)
+            if op_type not in SAFE_OPERATORS:
+                raise ValueError(f"Unsupported unary operator: {op_type.__name__}")
+            return SAFE_OPERATORS[op_type](_eval_node(node.operand))
+        elif isinstance(node, ast.Compare):
+            left = _eval_node(node.left)
+            for op, comparator in zip(node.ops, node.comparators):
+                op_type = type(op)
+                if op_type not in SAFE_OPERATORS:
+                    raise ValueError(f"Unsupported comparison: {op_type.__name__}")
+                right = _eval_node(comparator)
+                if not SAFE_OPERATORS[op_type](left, right):
+                    return False
+                left = right
+            return True
+        else:
+            raise ValueError(f"Unsupported AST node: {type(node).__name__}")
+
+    return _eval_node(tree.body)
+
 
 # =============================================================================
 # CONSTANTS, PAPER SETTINGS
@@ -506,7 +582,9 @@ class Table:
             conditional_rules = (
                 [
                     ConditionalRule(
-                        condition=lambda x: eval(rule["condition"]),
+                        condition=lambda x, cond=rule["condition"]: evaluate_formula(
+                            cond, {"x": x}
+                        ),
                         style=CellStyle(**rule["style"]),
                     )
                     for rule in d.get("conditional_rules", [])

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/format/json_schema/validator.py
+# hypothesis_version: 6.151.12
+
+['$id', '$schema', '1.0', '@', 'FX Super Document', 'FX Super Template', 'SchemaRegistry', 'SchemaValidator', 'ValidationError', 'ValidationResult', 'array', 'author', 'boolean', 'checkbox', 'created', 'date-time', 'date_input', 'deprecated_fields', 'description', 'document', 'document_v1.0', 'document_v1.0.json', 'dropdown', 'email', 'enum', 'error', 'fields', 'format', 'format_version', 'fx-document-v1.0', 'fx-template-v1.0', 'generator', 'integer', 'items', 'metadata', 'modified', 'null', 'number', 'number_input', 'object', 'phone', 'properties', 'r', 'required', 'sections', 'string', 'template', 'template_v1.0', 'template_v1.0.json', 'text_input', 'title', 'type', 'utf-8', 'version', 'warning']

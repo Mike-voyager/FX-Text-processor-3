@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/format_toolbar.py
+# hypothesis_version: 6.151.12
+
+['#f9ab00', '10', '12', '15', '17', '20', '<<ComboboxSelected>>', 'B', 'CPI:', 'FormatToolbar', 'I', 'S', 'TkDefaultFont', 'U', 'active', 'bold', 'disabled', 'format_toolbar', 'gray60', 'italic', 'normal', 'readonly', 'strikethrough', 'subscript', 'superscript', 'underline', 'x²', 'x₂', '📊 Barcode', '🔧 Исправить', '🔳 QR']

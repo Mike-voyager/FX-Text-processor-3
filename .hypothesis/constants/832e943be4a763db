@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/builtin/invoice.py
+# hypothesis_version: 6.151.12
+
+['-', '1.0', '1234567890', 'Buyer', 'Buyer TIN', 'Date', 'INV', 'INV-001', 'Invoice number', 'Items and services', 'Notes', 'Number', 'Payment details', 'Series', 'Signature', 'Stamp', 'Subtotal', 'Supplier', 'Supplier TIN', 'Total', 'Type', 'VAT', '[A-Z]{1,3}', '[IVXLCDM]+', '^.{1,200}$', '^.{1,50}$', '^\\d{10}|\\d{12}$', 'buyer', 'buyer_inn', 'date', 'en', 'invoice_number', 'items_table', 'notes', 'payment_details', 'seq', 'series', 'signature', 'stamp', 'subtotal', 'supplier', 'supplier_inn', 'total', 'type', 'vat', 'Дата', 'ИНН покупателя', 'ИНН поставщика', 'Итого', 'НДС', 'Номер', 'Номер счёта', 'Печать', 'Платёжные реквизиты', 'Подпись', 'Покупатель', 'Поставщик', 'Примечание', 'Серия', 'Сумма без НДС', 'Счёт', 'Тип', 'Товары и услуги']

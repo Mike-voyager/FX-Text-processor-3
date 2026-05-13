@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/layout/layout_constants.py
+# hypothesis_version: 6.151.12
+
+[0.15, 0.2, 0.4, 150, 250, 768, 800, 1024, 1280, 'flat']

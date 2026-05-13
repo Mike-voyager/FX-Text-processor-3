@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/index_template.py
+# hypothesis_version: 6.151.12
+
+[0.0, 100, 400, 500, 900, 1000, 3999, ',', '-', '1.0', 'BARCODE', 'C', 'CD', 'CM', 'CONTAINS', 'CURRENCY', 'CUSTOM', 'D', 'DATE', 'DROPDOWN', 'EMAIL', 'ENDS_WITH', 'EQUALS', 'Empty roman numeral', 'GREATER_EQUAL', 'GREATER_THAN', 'I', 'IN_LIST', 'IV', 'IX', 'L', 'LESS_EQUAL', 'LESS_THAN', 'M', 'MATCHES', 'MULTILINE', 'NOT_EMPTY', 'NOT_EQUALS', 'NUMBER', 'PERCENT', 'PHONE', 'QR', 'SIGNATURE', 'STAMP', 'STARTS_WITH', 'TABLE', 'TEXT', 'V', 'X', 'XC', 'XL', 'custom', 'default_value', 'description', 'error_code', 'error_message', 'field_id', 'field_type', 'fields', 'help_text', 'max_length', 'max_value', 'min_value', 'name', 'operator', 'options', 'order', 'placeholder', 'required', 'root', 'rule_id', 'sequence', 'series', 'subtype', 'type_code', 'validation_pattern', 'validation_rules', 'value', 'version']

@@ -9,19 +9,19 @@ Module Structure:
     commands/
     ├── __init__.py             # This file (public API exports)
     ├── text_formatting.py      # Bold, italic, underline, strike
-    ├── fonts.py                # Font selection, CPI, typeface
+    ├── fonts.py                # Font selection, CPI, typeface, Master Select
     ├── sizing.py               # Double-width/height, condensed
     ├── positioning.py          # Horizontal/vertical positioning
     ├── line_spacing.py         # Line feed, custom spacing
-    ├── print_quality.py        # Draft/LQ/NLQ modes
+    ├── print_quality.py        # Draft/LQ/NLQ modes, draft speeds
     ├── graphics.py             # Bit-image and raster graphics
     ├── barcode.py              # Barcode generation
-    ├── page_control.py         # Margins, page length, tabs
-    ├── hardware.py             # Printer control, reset, beep
+    ├── page_control.py         # Margins, page length, tabs, skip over perf
+    ├── hardware.py             # Printer control, reset, beep, unidirectional
     ├── charset.py              # Character tables, international sets
     └── special_effects.py      # Superscript, subscript, proportional
 
-Version: 1.0
+Version: 2.0
 Target Printer: Epson FX-890 (9-pin dot matrix)
 ESC/P Version: Standard ESC/P (not ESC/P2)
 Character Set: PC866 (Cyrillic) primary, with dynamic switching
@@ -32,6 +32,8 @@ Compatibility Notes:
     - Monochrome only (black & white)
     - 9-pin print head (400M character life)
     - Supports both draft and NLQ (Near Letter Quality)
+    - Draft speeds: Normal (~419 cps), High (~471 cps), Ultra (~566 cps)
+    - NLQ speed: ~104 cps (10 CPI)
 
 Usage:
     >>> from src.escp.commands import ESC_BOLD_ON, ESC_BOLD_OFF
@@ -70,13 +72,23 @@ from src.escp.commands.fonts import (
     ESC_10CPI,
     ESC_12CPI,
     ESC_15CPI,
-    ESC_FONT_DRAFT,
     ESC_FONT_ROMAN,
     ESC_FONT_SANS_SERIF,
+    ESC_MASTER_SELECT,
     ESC_PROPORTIONAL_OFF,
     ESC_PROPORTIONAL_ON,
+    MASTER_12_CPI,
+    MASTER_BOLD,
+    MASTER_CONDENSED,
+    MASTER_DOUBLE_STRIKE,
+    MASTER_DOUBLE_WIDTH,
+    MASTER_ITALIC,
+    MASTER_PROPORTIONAL,
+    MASTER_UNDERLINE,
+    master_select,
     set_character_spacing,
     set_cpi,
+    set_extra_spacing,
 )
 
 # Graphics commands
@@ -89,9 +101,14 @@ from src.escp.commands.graphics import (
 # Hardware control commands
 from src.escp.commands.hardware import (
     ESC_BEEP,
+    ESC_CUT_SHEET_EJECT,
     ESC_INIT_PRINTER,
     ESC_OFFLINE,
     ESC_ONLINE,
+    ESC_TEAR_OFF,
+    ESC_UNIDIRECTIONAL_OFF,
+    ESC_UNIDIRECTIONAL_ON,
+    set_unidirectional,
 )
 
 # Line spacing commands
@@ -105,12 +122,17 @@ from src.escp.commands.line_spacing import (
 
 # Page control commands
 from src.escp.commands.page_control import (
+    ESC_SKIP_OVER_PERFORATION_OFF,
     cancel_horizontal_tabs,
+    cancel_skip_over_perforation,
     cancel_vertical_tabs,
     set_horizontal_tabs,
     set_left_margin,
+    set_margins_360,
     set_page_length,
     set_right_margin,
+    set_skip_over_perforation,
+    set_unit,
     set_vertical_tabs,
 )
 
@@ -130,9 +152,13 @@ from src.escp.commands.positioning import (
 # Print quality commands
 from src.escp.commands.print_quality import (
     ESC_DRAFT_MODE,
+    ESC_DRAFT_SPEED_HIGH,
+    ESC_DRAFT_SPEED_NORMAL,
+    ESC_DRAFT_SPEED_ULTRA,
     ESC_LQ_MODE,
     ESC_SELECT_DRAFT,
     ESC_SELECT_LQ,
+    set_draft_speed,
 )
 
 # Shading commands
@@ -189,7 +215,6 @@ __all__ = [
     "ESC_DOUBLE_STRIKE_ON",
     "ESC_DOUBLE_STRIKE_OFF",
     # Fonts
-    "ESC_FONT_DRAFT",
     "ESC_FONT_ROMAN",
     "ESC_FONT_SANS_SERIF",
     "ESC_10CPI",
@@ -197,8 +222,19 @@ __all__ = [
     "ESC_15CPI",
     "ESC_PROPORTIONAL_ON",
     "ESC_PROPORTIONAL_OFF",
+    "ESC_MASTER_SELECT",
+    "MASTER_12_CPI",
+    "MASTER_PROPORTIONAL",
+    "MASTER_CONDENSED",
+    "MASTER_BOLD",
+    "MASTER_DOUBLE_STRIKE",
+    "MASTER_DOUBLE_WIDTH",
+    "MASTER_ITALIC",
+    "MASTER_UNDERLINE",
     "set_cpi",
     "set_character_spacing",
+    "set_extra_spacing",
+    "master_select",
     # Shading
     "SHADE_LIGHT",
     "SHADE_MEDIUM",
@@ -236,6 +272,10 @@ __all__ = [
     "ESC_LQ_MODE",
     "ESC_SELECT_LQ",
     "ESC_SELECT_DRAFT",
+    "ESC_DRAFT_SPEED_NORMAL",
+    "ESC_DRAFT_SPEED_HIGH",
+    "ESC_DRAFT_SPEED_ULTRA",
+    "set_draft_speed",
     # Graphics
     "GraphicsMode",
     "print_bit_image",
@@ -252,11 +292,21 @@ __all__ = [
     "set_vertical_tabs",
     "cancel_horizontal_tabs",
     "cancel_vertical_tabs",
+    "set_margins_360",
+    "set_skip_over_perforation",
+    "cancel_skip_over_perforation",
+    "ESC_SKIP_OVER_PERFORATION_OFF",
+    "set_unit",
     # Hardware
     "ESC_INIT_PRINTER",
     "ESC_BEEP",
     "ESC_ONLINE",
     "ESC_OFFLINE",
+    "ESC_UNIDIRECTIONAL_ON",
+    "ESC_UNIDIRECTIONAL_OFF",
+    "ESC_CUT_SHEET_EJECT",
+    "ESC_TEAR_OFF",
+    "set_unidirectional",
     # Charset
     "CharacterTable",
     "InternationalCharset",

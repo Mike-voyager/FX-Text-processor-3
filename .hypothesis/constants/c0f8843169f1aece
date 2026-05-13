@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/renderers/barcode_canvas_renderer.py
+# hypothesis_version: 6.151.12
+
+[0.7, 300, '#333333', '#6c757d', '#856404', '#adb5bd', '#e9ecef', '#ffc107', '#fff3cd', '...', '64', '65', '69', '73', '??', 'CODABAR', 'CODE128', 'CODE39', 'Courier', 'EAN13', 'EAN8', 'Generation failed', 'Helvetica', 'ITF', 'UPC', 'barcode_item', 'barcode_placeholder', 'bold', 'dpi', 'font_size', 'hardware', 'module_height', 'placeholder', 'quiet_zone', 'software', 'text_distance', 'write_text']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/fido2_service.py
+# hypothesis_version: 6.151.12
+
+['Missing signature', 'audit', 'credential_id', 'crypto_service', 'export_factor_state', 'fido2', 'public_key', 'signature', 'utf-8', '|']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/printing/table_renderer.py
+# hypothesis_version: 6.151.12
+
+[b'\t', b'\n', b' ', b'\xb3', b'\xb4', b'\xba', b'\xbf', b'\xc0', b'\xc1', b'\xc2', b'\xc3', b'\xc4', b'\xc5', b'\xcd', b'\xd9', b'\xda', 'TableRenderer', 'cp866', 'double_horizontal', 'double_vertical', 'replace', 'single_bottom_left', 'single_bottom_right', 'single_cross', 'single_horizontal', 'single_t_down', 'single_t_left', 'single_t_right', 'single_t_up', 'single_top_left', 'single_top_right', 'single_vertical', 'space']

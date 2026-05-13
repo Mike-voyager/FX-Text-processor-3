@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/field_comment_widget.py
+# hypothesis_version: 6.151.12
+
+[120, 350, 400, 450, 500, '#27ae60', '#2c3e50', '#2ecc71', '#3498db', '#7f8c8d', '#95a5a6', '#bdc3c7', '#e74c3c', '#ecf0f1', '#f39c12', '%d.%m.%Y', '%d.%m.%Y %H:%M', '1.0', '450x500', '<Button-1>', '<Configure>', '<MouseWheel>', '?', 'Comment', 'FieldCommentWidget', 'Role', 'Severity', 'TkDefaultFont', 'WM_DELETE_WINDOW', 'all', 'black', 'bold', 'editor', 'error', 'hand2', 'info', 'italic', 'operator', 'signatory', 'supervisor', 'units', 'warning', 'white', 'Важность:', 'Добавить', 'Добавить комментарий', 'Закрыть', 'Не разрешено', 'Нет комментариев', 'Оператор', 'Подписант', 'Пустой комментарий', 'Разрешить', 'Редактор', 'Супервизор', '⚠️', '💬', '🚨']

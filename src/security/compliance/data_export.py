@@ -105,7 +105,8 @@ class DataExportService:
             # Фильтруем по категориям
             if categories:
                 raw_data = [
-                    record for record in raw_data
+                    record
+                    for record in raw_data
                     if DataCategory(record.get("category", "internal")) in categories
                 ]
 
@@ -212,7 +213,9 @@ class DataExportService:
                     "metadata": result.get("metadata", {}),
                     "data": result["data"],
                 }
-                path.write_text(json.dumps(full_data, indent=2, ensure_ascii=False), encoding="utf-8")
+                path.write_text(
+                    json.dumps(full_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
             else:
                 path.write_text(str(serialized), encoding="utf-8")
 

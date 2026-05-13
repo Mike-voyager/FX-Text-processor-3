@@ -66,6 +66,7 @@ class FormStatus(str, Enum):
     DRAFT = "draft"
     FILLED = "filled"
     VALIDATED = "validated"
+    APPROVED = "approved"
     SIGNED = "signed"
     PRINTED = "printed"
     ARCHIVED = "archived"
@@ -113,8 +114,9 @@ class FormStatus(str, Enum):
 _ALLOWED_TRANSITIONS: Final[dict[FormStatus, list[FormStatus]]] = {
     FormStatus.DRAFT: [FormStatus.FILLED, FormStatus.REJECTED],
     FormStatus.FILLED: [FormStatus.VALIDATED, FormStatus.DRAFT, FormStatus.REJECTED],
-    FormStatus.VALIDATED: [FormStatus.SIGNED, FormStatus.FILLED, FormStatus.REJECTED],
-    FormStatus.SIGNED: [FormStatus.PRINTED, FormStatus.VALIDATED],
+    FormStatus.VALIDATED: [FormStatus.APPROVED, FormStatus.FILLED, FormStatus.REJECTED],
+    FormStatus.APPROVED: [FormStatus.SIGNED, FormStatus.VALIDATED, FormStatus.REJECTED],
+    FormStatus.SIGNED: [FormStatus.PRINTED, FormStatus.APPROVED],
     FormStatus.PRINTED: [FormStatus.ARCHIVED, FormStatus.SIGNED],
     FormStatus.ARCHIVED: [],  # Терминальное состояние
     FormStatus.REJECTED: [FormStatus.DRAFT],  # Возврат на доработку
@@ -123,11 +125,13 @@ _ALLOWED_TRANSITIONS: Final[dict[FormStatus, list[FormStatus]]] = {
 # Состояния, требующие MFA для перехода
 _MFA_REQUIRED_TRANSITIONS: Final[set[tuple[FormStatus, FormStatus]]] = {
     (FormStatus.FILLED, FormStatus.VALIDATED),
-    (FormStatus.VALIDATED, FormStatus.SIGNED),
+    (FormStatus.VALIDATED, FormStatus.APPROVED),
+    (FormStatus.APPROVED, FormStatus.SIGNED),
     (FormStatus.SIGNED, FormStatus.PRINTED),
     (FormStatus.PRINTED, FormStatus.ARCHIVED),
     (FormStatus.VALIDATED, FormStatus.FILLED),  # Откат валидации
-    (FormStatus.SIGNED, FormStatus.VALIDATED),  # Откат подписи
+    (FormStatus.APPROVED, FormStatus.VALIDATED),  # Откат утверждения
+    (FormStatus.SIGNED, FormStatus.APPROVED),  # Откат подписи
 }
 
 

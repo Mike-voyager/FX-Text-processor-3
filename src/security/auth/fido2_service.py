@@ -14,7 +14,6 @@ from typing import Any, Dict, List, cast
 
 from src.app_context import get_app_context
 
-# KDF import; callers/tests may monkeypatch derive_key_argon2id on this module
 try:
     from src.security.crypto.service.crypto_service import CryptoService
     from src.security.crypto.service.profiles import CryptoProfile
@@ -27,8 +26,10 @@ try:
             ctx = get_app_context()
             if hasattr(ctx, "crypto_service"):
                 return ctx.crypto_service
-        except Exception:  # pragma: no cover
-            _logger.debug("Failed to get crypto_service from app_context, using default")
+        except (RuntimeError, AttributeError) as e:
+            _logger.debug(
+                "Failed to get crypto_service from app_context, using default: %s", e
+            )
         # Fallback for tests or pre-initialization
         return _default_crypto_service
 
@@ -37,12 +38,14 @@ try:
         crypto_service = _get_crypto_service_impl()
         return crypto_service.derive_key(password, salt, key_length=length)
 
-except Exception:  # pragma: no cover
+except (ImportError, RuntimeError) as e:
 
     def _get_crypto_service_impl_fallback() -> Any:
         raise RuntimeError("_get_crypto_service_impl is not available")
 
-    def derive_key_argon2id_fallback(password: bytes, salt: bytes, length: int) -> bytes:  # noqa: ARG001
+    def derive_key_argon2id_fallback(
+        password: bytes, salt: bytes, length: int
+    ) -> bytes:  # noqa: ARG001
         raise RuntimeError("derive_key_argon2id is not available")
 
     # Assign fallback implementations

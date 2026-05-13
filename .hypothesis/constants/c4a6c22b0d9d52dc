@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/paragraph_dialog.py
+# hypothesis_version: 6.151.12
+
+[340, 400, '1/6', '1/8', 'OK', 'both', 'center', 'ew', 'justify', 'left', 'readonly', 'right', 'w', 'Выравнивание:', 'До (mm):', 'Левый (chars):', 'Настройка абзаца', 'Отмена', 'Отступы', 'После (mm):', 'Правый (chars):', 'Пробелы']

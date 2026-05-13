@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/form_validator.py
+# hypothesis_version: 6.151.12
+
+[' in ', '!=', '%d.%m.%Y', '\'"', '(', ')', ',', '.', '; ', '<', '<=', '==', '>', '>=', 'RU', '\\d{10}|\\d{12}', 'amount', 'conditional_required', 'contract_type', 'country', 'currency', 'date_after_maximum', 'date_before_minimum', 'email', 'end_date', 'error', 'info', 'inn', 'invalid_date_format', 'invalid_email_format', 'invalid_inn_format', 'invalid_option', 'invalid_phone_format', 'lease', 'lease_term', 'max_length', 'max_length_exceeded', 'max_value', 'metadata', 'min_value', 'number_format', 'pattern', 'pattern_mismatch', 'phone', 'required', 'required_field_empty', 'schema_version', 'start_date', 'type_check', 'value_above_maximum', 'value_below_minimum', 'vat_applicable', 'vat_rate', 'warning']

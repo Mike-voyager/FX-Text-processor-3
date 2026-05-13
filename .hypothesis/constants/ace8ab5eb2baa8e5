@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/positioning.py
+# hypothesis_version: 6.151.12
+
+[b'\x08', b'\t', b'\n', b'\x0b', b'\x0c', b'\r', b'\r\n', b'\x1b$', b'\x1b(V\x02\x00', b'\x1bJ', b'\x1b\\', b'\x1bj', -32768, 255, 32767, 'BS', 'CR', 'CRLF', 'FF', 'HT', 'LF', 'VT']

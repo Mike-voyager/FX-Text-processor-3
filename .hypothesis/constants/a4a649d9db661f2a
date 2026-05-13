@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/navigator.py
+# hypothesis_version: 6.151.12
+
+[500, 999999, '#0078d4', '#155724', '#333333', '#cccccc', '#d4edda', '#f5f5f5', '2H', '<KP_Enter>', '<Return>', 'Go', 'Go to line:', 'Lines:', 'MAX_LINE_NUMBER', 'NAVIGATOR_HEIGHT', 'Navigator', 'Segoe UI', '^\\d+$', 'bold', 'navigator_goto_end', 'navigator_goto_line', 'navigator_goto_start', 'red', 'Переход к строке: %d', '⏭', '⏮']

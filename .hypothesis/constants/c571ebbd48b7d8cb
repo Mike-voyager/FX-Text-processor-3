@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/hardware/apdu_transport.py
+# hypothesis_version: 6.151.12
+
+[129, 132, 164, 192, 202, 218, 255, 256, 25344, 25536, 26368, 27010, 27011, 27264, 27266, 27270, 27272, 27904, 28160, 28416, 36864, 65520, 'A000000308', 'A0000005272101', 'ANY', 'D276000124', 'T0', 'T1', 'aid', 'command_chain', 'connected', 'disconnected', 'operation', 'pin_ref', 'sw', 'tag', 'utf-8']

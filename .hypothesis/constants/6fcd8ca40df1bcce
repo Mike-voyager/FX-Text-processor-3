@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/password_service.py
+# hypothesis_version: 6.151.12
+
+[180, 'Account locked', 'No password set', 'Password expired', 'PasswordService', 'User not found', 'Verification error', '__TEMP__', 'admin_id', 'attempts', 'avg_failed_attempts', 'details', 'event', 'hasher_rejected', 'issues', 'length<8', 'locked_accounts', 'no_digit', 'no_lowercase', 'no_special', 'no_uppercase', 'password_changed', 'password_created', 'password_reset', 'reason', 'system', 'time', 'total_users', 'user_id', 'user_unlocked', 'valid', 'weak_password']

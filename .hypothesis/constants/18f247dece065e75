@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/workflow_toolbar.py
+# hypothesis_version: 6.151.12
+
+[1.1, 255, '#', '#3498db', '<Enter>', '<Leave>', 'FormStatus', 'WorkflowToolbar', '_BUTTON_CONFIG', '_lighten_color', 'approve', 'archive', 'border', 'button_primary', 'error', 'fill_fields', 'hand2', 'pack', 'print', 'reject', 'save_draft', 'sign', 'success', 'switch_role', 'switch_to_editor', 'switch_to_operator', 'switch_to_signatory', 'switch_to_supervisor', 'text', 'theme_key', 'validate', 'view_comments', 'warning', 'white', '✅ Validate', '✍️ Sign', '❌ Reject', '👁 View Comments', '👍 Approve', '💾 Save Draft', '📝 Fill Fields', '📤 Submit', '📦 Archive', '🔀 Switch Role', '🔀 Switch to Editor', '🔀 Switch to Operator', '🖨 Print']

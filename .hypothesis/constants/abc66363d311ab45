@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/export_service.py
+# hypothesis_version: 6.151.12
+
+[10.0, 100, '.escp', '.escps', '.html', '.json', '.pdf', '.txt', 'A4', 'BatchExportResult', 'CryptoService', 'Document', 'ExportCallback', 'ExportFormat', 'ExportOptions', 'ExportResult', 'ExportService', 'ExportStatus', 'RendererProtocol', 'cancelled', 'completed', 'document', 'escp', 'escps', 'failed', 'html', 'id', 'in_progress', 'include_styles', 'json', 'medium', 'metadata', 'page_settings', 'pdf', 'pending', 'printer_settings', 'sections', 'txt', 'utf-8', 'Ошибка callback: %s']

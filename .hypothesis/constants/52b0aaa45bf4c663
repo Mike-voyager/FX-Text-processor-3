@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/format/__init__.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', 'DocumentFile', 'DocumentSerializer', 'FormatError', 'MigrationError', 'MigrationManager', 'Mike Voyager', 'SecurityPreset', 'TemplateError', 'TemplateSerializer', 'VersionInfo']

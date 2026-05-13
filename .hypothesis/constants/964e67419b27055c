@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/code_service.py
+# hypothesis_version: 6.151.12
+
+[3600, 'Invalid backup code', 'Invalid user_id', 'audit', 'backup/user/', 'backupcode', 'codes', 'consumed', 'crypto_service', 'export_factor_state', 'remaining', 'ttl_seconds', 'utf-8', '|']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/__init__.py
+# hypothesis_version: 6.151.12
+
+['AddCommentDialog', 'BackupCodeDisplay', 'BackupCodesDialog', 'BarcodeMode', 'BarcodeSettings', 'BarcodeSettingsPanel', 'BarcodeTypeSelector', 'BookmarkItem', 'BookmarksDialog', 'CommentData', 'CryptoProfileDialog', 'ExportResult', 'FIDO2SetupDialog', 'FindReplaceDialog', 'GotoDialog', 'HealthCheckDialog', 'ImportResult', 'IntegrityDialog', 'OpenFileDialog', 'OptimizationOptions', 'PaperProfileDialog', 'PaperSetupDialog', 'PrefillDialog', 'PrefillMatch', 'PrintDialog', 'QRCodeResult', 'QRCodeSettings', 'QRCodeSettingsDialog', 'RejectDialog', 'RoleSwitchDialog', 'STATUS_EMOJIS', 'STATUS_TO_TAG', 'SaveChangesDialog', 'SaveFileDialog', 'TOTPSetupDialog', 'TemplateExportDialog', 'TemplateImportDialog', 'TemplatePreviewPanel', 'TransitionDialog', 'TrustChainDialog']

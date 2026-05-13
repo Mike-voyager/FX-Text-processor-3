@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/themes/high_contrast.py
+# hypothesis_version: 6.151.12
+
+['#000000', '#00FF00', '#FF0000', '#FFA500', '#FFFF00', '#FFFFFF', 'Courier New', 'HIGH_CONTRAST_THEME', 'THEME', 'high_contrast']

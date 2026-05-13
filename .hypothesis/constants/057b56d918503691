@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/blanks/models.py
+# hypothesis_version: 6.151.12
+
+['1.0', '1.0.0', '2026-03-22', 'BlankStatus', 'Mike Voyager', 'ProtectedBlank', 'QRVerificationData', 'SigningMode', 'VALID_TRANSITIONS', 'VerificationResult', 'algorithm', 'archived', 'blank_id', 'blank_type', 'certificate_id', 'content_hash_sha3', 'created_at', 'display_id', 'format_version', 'hardware_openpgp', 'hardware_piv', 'issued', 'issued_to', 'metadata', 'number', 'preset', 'printed', 'printed_at', 'public_key', 'ready', 'security_preset', 'serial_counter', 'series', 'signature', 'signature_algorithm', 'signing_device_id', 'signing_mode', 'software', 'spoiled', 'status', 'updated_at', 'voided', 'warnings']

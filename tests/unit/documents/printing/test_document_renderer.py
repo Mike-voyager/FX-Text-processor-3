@@ -128,6 +128,7 @@ class TestRenderSection:
         renderer = DocumentRenderer()
         section = MagicMock()
         section.break_type = None
+        section.page_settings = None
         section.paragraphs = []
 
         result = renderer._render_section(section)
@@ -139,6 +140,7 @@ class TestRenderSection:
         renderer = DocumentRenderer(options=opts)
         section = MagicMock()
         section.break_type = "page"
+        section.page_settings = None
         section.paragraphs = []
 
         result = renderer._render_section(section)
@@ -150,10 +152,48 @@ class TestRenderSection:
         renderer = DocumentRenderer(options=opts)
         section = MagicMock()
         section.break_type = "page"
+        section.page_settings = None
         section.paragraphs = []
 
         result = renderer._render_section(section)
         assert b"\x0c" not in result
+
+    def test_render_section_with_page_settings(self) -> None:
+        """Рендеринг секции с настройками страницы."""
+        from src.model.section import Margins, PageSettings
+
+        renderer = DocumentRenderer()
+        margins = Margins(left=1.0, right=1.0, top=1.0, bottom=1.0)
+        page_settings = PageSettings(width=8.5, height=11.0, margins=margins)
+        section = MagicMock()
+        section.break_type = None
+        section.page_settings = page_settings
+        section.paragraphs = []
+
+        result = renderer._render_section(section)
+        assert isinstance(result, bytes)
+
+
+class TestRenderSectionWithCPI:
+    """Тесты рендеринга секций с разными CPI."""
+
+    def test_render_section_with_12_cpi(self) -> None:
+        """Рендеринг секции с 12 CPI из printer_settings."""
+        from src.model.enums import CharactersPerInch
+
+        # Мок документа с printer_settings
+        doc = MagicMock()
+        doc.printer_settings = MagicMock()
+        doc.printer_settings.characters_per_inch = CharactersPerInch.CPI_12
+
+        renderer = DocumentRenderer()
+        section = MagicMock()
+        section.break_type = None
+        section.page_settings = None
+        section.paragraphs = []
+
+        result = renderer._render_section(section, document=doc)
+        assert isinstance(result, bytes)
 
 
 class TestRenderFinalize:
@@ -212,6 +252,7 @@ class TestRenderSectionWithTable:
         renderer = DocumentRenderer()
         section = MagicMock()
         section.break_type = None
+        section.page_settings = None
 
         # Мок таблицы
         mock_table = MagicMock()

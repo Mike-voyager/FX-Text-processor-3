@@ -8,19 +8,21 @@
 - Режим работы (Normal/Special)
 - MFA статус
 - ПреSET безопасности
-- Workflow статус
+- Workflow Timeline strip (только STRUCTURED_FORM)
+- Role Badge (только STRUCTURED_FORM)
 - Номер страницы
 - Масштаб
 - Индикатор уведомлений [n] с Toast Panel
 
 Layout адаптируется автоматически:
-- Single row при width >= 1024
-- Double row при width < 1024
+- Single row при width >= 1024:
+  Ln 12, Col 45 │ 12 CPI │ PC866 │ Tractor │ 🔒 Standard │ Page 2/5 │ 100% │ [3]
+- Double row при width < 1024:
+  Строка 1: Ln 12, Col 45 │ Page 2/5 │ 🔒 Standard │ [3]
+  Строка 2: 12 CPI │ PC866 │ Tractor │ 100%
 
-Toast Panel:
-- Показывается при hover на индикаторе [n]
-- Отображает последние 5 уведомлений
-- Auto-hide через 3 секунды после mouse leave
+Workflow Timeline (UI_SPEC §7.5, только STRUCTURED_FORM):
+[DRAFT ✓] ──▶ [FILLED ●] ──▶ [VALIDATED ○] ──▶ [APPROVED ○] ──▶ [SIGNED ○]
 
 Example:
     >>> statusbar = StatusBar(parent_frame)
@@ -28,12 +30,14 @@ Example:
     >>> statusbar.set_mode_indicator("normal")
     >>> statusbar.set_mfa_indicator("active", "FIDO2")
     >>> statusbar.set_security_preset("Standard")
-    >>> statusbar.set_workflow_status(FormStatus.DRAFT)
+    >>> statusbar.set_document_mode(DocumentMode.STRUCTURED_FORM)
+    >>> statusbar.set_workflow_timeline(FormStatus.DRAFT)
+    >>> statusbar.set_role_badge(WorkflowRole.OPERATOR)
     >>> statusbar.set_notification_count(3)
     >>> statusbar.show_toast_panel()
 
-Version: 1.3
-Date: April 2026
+Version: 1.4
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -41,13 +45,16 @@ from __future__ import annotations
 import tkinter as tk
 from typing import TYPE_CHECKING, Any, Callable, Final, Optional
 
+from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
+from src.gui.dialogs.paper_setup import PaperSetupDialog
 from src.gui.layout.layout_constants import (
     MIN_WINDOW_WIDTH,
     PADDING_NORMAL,
     PADDING_SMALL,
     STATUSBAR_HEIGHT,
 )
+from src.gui.themes import ThemeRegistry
 from src.gui.workflow.role_badge import RoleBadge, WorkflowRole
 from src.gui.workflow.workflow_indicator import WorkflowIndicator
 
@@ -55,66 +62,74 @@ if TYPE_CHECKING:
     from src.documents.constructor.form_status import FormStatus
     from src.gui.services.notification_service import Notification, NotificationService
 
-# Security preset colors (name -> (bg, fg))
-SECURITY_PRESET_COLORS: Final[dict[str, tuple[str, str]]] = {
-    "Legacy": ("#ffcccc", "#cc0000"),  # Light red bg, dark red fg
-    "Standard": ("#ffffcc", "#cc9900"),  # Light yellow bg, dark yellow fg
-    "Paranoid": ("#ccffcc", "#006600"),  # Light green bg, dark green fg
-    "PQC": ("#e6ccff", "#6600cc"),  # Light purple bg, dark purple fg
-}
 
-# Default color for unknown preset
-DEFAULT_SECURITY_COLOR: Final[tuple[str, str]] = ("#cccccc", "#333333")
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
-# Modified indicator color
-MODIFIED_COLOR: Final[str] = "#ff8c00"  # Dark orange
-
-# Default colors
 DEFAULT_BG: Final[str] = "#f0f0f0"
 DEFAULT_FG: Final[str] = "#333333"
 
-# Mode indicator colors
-MODE_NORMAL_BG: Final[str] = "#ccffcc"  # Light green
-MODE_NORMAL_FG: Final[str] = "#006600"  # Dark green
-MODE_SPECIAL_BG: Final[str] = "#ffcccc"  # Light red
-MODE_SPECIAL_FG: Final[str] = "#cc0000"  # Dark red
+# Separator (static, not theme-dependent)
+SEPARATOR_CHAR: Final[str] = "│"
+SEPARATOR_COLOR: Final[str] = "#888888"
 
-# MFA indicator colors
-MFA_ACTIVE_BG: Final[str] = "#ccffcc"  # Light green
-MFA_ACTIVE_FG: Final[str] = "#006600"  # Dark green
-MFA_REQUIRED_BG: Final[str] = "#ffffcc"  # Light yellow
-MFA_REQUIRED_FG: Final[str] = "#cc9900"  # Dark yellow
-MFA_NONE_BG: Final[str] = "#cccccc"  # Light gray
-MFA_NONE_FG: Final[str] = "#333333"  # Dark gray
-
-# Notification indicator colors
-NOTIFICATION_ACTIVE_COLOR: Final[str] = "#ff8c00"  # Dark orange (when n > 0)
-NOTIFICATION_INACTIVE_COLOR: Final[str] = "#999999"  # Gray (when n = 0)
-
-# Workflow Timeline colors (static, not theme-dependent)
-TIMELINE_COLORS: Final[dict[str, str]] = {
-    "draft": "#95a5a6",  # Gray
-    "filled": "#3498db",  # Blue
-    "validated": "#f39c12",  # Yellow
-    "approved": "#e67e22",  # Orange
-    "signed": "#27ae60",  # Green
+# Security preset colors (name -> (bg, fg))
+SECURITY_PRESET_COLORS: Final[dict[str, tuple[str, str]]] = {
+    "Legacy": ("#ffcccc", "#cc0000"),
+    "Standard": ("#ffffcc", "#cc9900"),
+    "Paranoid": ("#ccffcc", "#006600"),
+    "PQC": ("#e6ccff", "#6600cc"),
 }
 
-# Timeline markers
+DEFAULT_SECURITY_COLOR: Final[tuple[str, str]] = ("#cccccc", "#333333")
+MODIFIED_COLOR: Final[str] = "#ff8c00"
+
+MODE_NORMAL_BG: Final[str] = "#ccffcc"
+MODE_NORMAL_FG: Final[str] = "#006600"
+MODE_SPECIAL_BG: Final[str] = "#ffcccc"
+MODE_SPECIAL_FG: Final[str] = "#cc0000"
+
+MFA_ACTIVE_BG: Final[str] = "#ccffcc"
+MFA_ACTIVE_FG: Final[str] = "#006600"
+MFA_REQUIRED_BG: Final[str] = "#ffffcc"
+MFA_REQUIRED_FG: Final[str] = "#cc9900"
+MFA_NONE_BG: Final[str] = "#cccccc"
+MFA_NONE_FG: Final[str] = "#333333"
+
+NOTIFICATION_ACTIVE_COLOR: Final[str] = "#ff8c00"
+NOTIFICATION_INACTIVE_COLOR: Final[str] = "#999999"
+
+# Workflow Timeline colors (static)
+TIMELINE_COLORS: Final[dict[str, str]] = {
+    "draft": "#95a5a6",
+    "filled": "#3498db",
+    "validated": "#f39c12",
+    "approved": "#e67e22",
+    "signed": "#27ae60",
+}
+
+TIMELINE_STATUSES: Final[list[str]] = [
+    "draft",
+    "filled",
+    "validated",
+    "approved",
+    "signed",
+]
+
+TIMELINE_DONE_MARKER: Final[str] = "✓"
 TIMELINE_CURRENT_MARKER: Final[str] = "●"
-TIMELINE_NEXT_MARKER: Final[str] = "○──▶"
+TIMELINE_FUTURE_MARKER: Final[str] = "○"
 TIMELINE_ARROW: Final[str] = "──▶"
-TIMELINE_SEPARATOR: Final[str] = " "
 
 # Role badge colors (static, not theme-dependent)
 ROLE_BADGE_COLORS: Final[dict[WorkflowRole, str]] = {
-    WorkflowRole.OPERATOR: "#3498db",  # Blue
-    WorkflowRole.EDITOR: "#2ecc71",  # Green
-    WorkflowRole.SUPERVISOR: "#f39c12",  # Orange
-    WorkflowRole.SIGNATORY: "#e74c3c",  # Red
+    WorkflowRole.OPERATOR: "#3498db",
+    WorkflowRole.EDITOR: "#2ecc71",
+    WorkflowRole.SUPERVISOR: "#f39c12",
+    WorkflowRole.SIGNATORY: "#e74c3c",
 }
 
-# Role badge icons
 ROLE_BADGE_ICONS: Final[dict[WorkflowRole, str]] = {
     WorkflowRole.OPERATOR: "🔵",
     WorkflowRole.EDITOR: "🟢",
@@ -124,18 +139,33 @@ ROLE_BADGE_ICONS: Final[dict[WorkflowRole, str]] = {
 
 # Toast Panel settings
 TOAST_PANEL_WIDTH: Final[int] = 280
-TOAST_PANEL_MAX_ITEMS: Final[int] = 5
-TOAST_PANEL_AUTO_HIDE_MS: Final[int] = 3000  # 3 seconds
+TOAST_PANEL_MAX_ITEMS: Final[int] = 6  # Increased to match spec (up to 6 messages)
+TOAST_PANEL_AUTO_HIDE_MS: Final[int] = 30000  # Increased to 30 seconds as per spec
 TOAST_PANEL_BG: Final[str] = "#ffffff"
 TOAST_PANEL_BORDER_COLOR: Final[str] = "#cccccc"
 TOAST_PANEL_HEADER_BG: Final[str] = "#f5f5f5"
 
 
+def _theme_color(key: str) -> str:
+    """Возвращает цвет из текущей темы.
+
+    Args:
+        key: Идентификатор цвета.
+
+    Returns:
+        Цвет в формате HEX.
+    """
+    try:
+        return ThemeRegistry.get_instance().get_current().get_color(key)
+    except (AttributeError, KeyError, RuntimeError):
+        return DEFAULT_BG if key == "bg" else DEFAULT_FG
+
+
 class ToastPanel:
     """Панель уведомлений для отображения при hover.
 
-    Показывает список последних уведомлений с иконками приоритета.
-    Auto-hide через 3 секунд после mouse leave.
+    Показывает список последних уведомлений с иконками приоритета и временной меткой.
+    Auto-hide через 30 секунд после mouse leave.
 
     Attributes:
         _parent: Родительское окно для позиционирования.
@@ -150,15 +180,13 @@ class ToastPanel:
         >>> panel.hide()
     """
 
-    # Icon mapping for priorities
     _PRIORITY_ICONS: Final[dict[str, str]] = {
-        "CRITICAL": "🔴",
+        "CRITICAL": "❌",
         "HIGH": "⚠️",
-        "NORMAL": "ℹ️",
-        "LOW": "✓",
+        "NORMAL": "✅",
+        "LOW": "💾",
     }
 
-    # Category icons
     _CATEGORY_ICONS: Final[dict[str, str]] = {
         "security": "🔒",
         "workflow": "📝",
@@ -177,6 +205,22 @@ class ToastPanel:
         self._items_frame: Optional[tk.Frame] = None
         self._is_visible: bool = False
         self._notifications: list[Notification] = []
+        self._on_pin_all: Optional[Callable[[], None]] = None
+        self._on_clear: Optional[Callable[[], None]] = None
+
+    def set_callbacks(
+        self,
+        on_pin_all: Optional[Callable[[], None]] = None,
+        on_clear: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """Устанавливает callback для действий панели.
+
+        Args:
+            on_pin_all: Callback при нажатии "📌" (отметить все прочитанными).
+            on_clear: Callback при нажатии "🗑️" (очистить историю).
+        """
+        self._on_pin_all = on_pin_all
+        self._on_clear = on_clear
 
     def show_near_widget(self, widget: tk.Widget) -> None:
         """Показывает панель рядом с указанным виджетом.
@@ -187,19 +231,13 @@ class ToastPanel:
         if self._window is not None:
             self.hide()
 
-        # Create Toplevel window
         self._window = tk.Toplevel(self._parent)
-        self._window.overrideredirect(True)  # No decorations
+        self._window.overrideredirect(True)
         self._window.attributes("-topmost", True)
         self._window.configure(bg=TOAST_PANEL_BORDER_COLOR)
 
-        # Position near the widget
         self._position_near(widget)
-
-        # Create UI
         self._create_ui()
-
-        # Update content
         self._update_content()
 
         self._is_visible = True
@@ -213,16 +251,13 @@ class ToastPanel:
         if self._window is None:
             return
 
-        # Get widget position
         widget_x = widget.winfo_rootx()
         widget_y = widget.winfo_rooty()
         widget_height = widget.winfo_height()
 
-        # Position above the widget
         x = widget_x - TOAST_PANEL_WIDTH + widget.winfo_width()
-        y = widget_y - 150  # Approximate height
+        y = widget_y - 150
 
-        # Ensure minimum positions
         if x < 0:
             x = 0
         if y < 0:
@@ -235,7 +270,6 @@ class ToastPanel:
         if self._window is None:
             return
 
-        # Main frame with border
         main_frame = tk.Frame(
             self._window,
             bg=TOAST_PANEL_BORDER_COLOR,
@@ -243,34 +277,56 @@ class ToastPanel:
         )
         main_frame.pack(fill="both", expand=True)
 
-        # Header
         header_frame = tk.Frame(
             main_frame,
-            bg=TOAST_PANEL_HEADER_BG,
+            bg=_theme_color("bg"),
             padx=PADDING_SMALL,
             pady=PADDING_SMALL,
         )
         header_frame.pack(fill="x", side="top")
 
         count = len(self._notifications)
-        header_text = f"🔔 Уведомления ({count})"
+        header_text = f"Notifications [{count}]"
         header_label = tk.Label(
             header_frame,
             text=header_text,
-            bg=TOAST_PANEL_HEADER_BG,
+            bg=_theme_color("bg"),
             fg="#333333",
             font=("TkDefaultFont", 10, "bold"),
         )
         header_label.pack(side="left")
 
-        # Separator line
+        btn_frame = tk.Frame(header_frame, bg=_theme_color("bg"))
+        btn_frame.pack(side="right")
+
+        pin_all_btn = tk.Label(
+            btn_frame,
+            text="[📌 Pin all]",
+            bg=_theme_color("bg"),
+            fg="#333333",
+            font=("TkDefaultFont", 9),
+            cursor="hand2",
+        )
+        pin_all_btn.pack(side="left", padx=(0, PADDING_SMALL))
+        pin_all_btn.bind("<Button-1>", lambda _: self._invoke_pin_all())
+
+        clear_btn = tk.Label(
+            btn_frame,
+            text="[🗑️ Clear]",
+            bg=_theme_color("bg"),
+            fg="#333333",
+            font=("TkDefaultFont", 9),
+            cursor="hand2",
+        )
+        clear_btn.pack(side="left")
+        clear_btn.bind("<Button-1>", lambda _: self._invoke_clear())
+
         separator = tk.Frame(main_frame, height=1, bg="#cccccc")
         separator.pack(fill="x", side="top")
 
-        # Items container
         self._items_frame = tk.Frame(
             main_frame,
-            bg=TOAST_PANEL_BG,
+            bg=_theme_color("bg"),
             padx=PADDING_SMALL,
             pady=PADDING_SMALL,
         )
@@ -281,28 +337,25 @@ class ToastPanel:
         if self._items_frame is None:
             return
 
-        # Clear existing items
         for widget in self._items_frame.winfo_children():
             widget.destroy()
 
         if not self._notifications:
-            # No notifications message
             no_data_label = tk.Label(
                 self._items_frame,
                 text="Нет уведомлений",
-                bg=TOAST_PANEL_BG,
+                bg=_theme_color("bg"),
                 fg="#999999",
                 font=("TkDefaultFont", 9),
             )
             no_data_label.pack(pady=PADDING_NORMAL)
             return
 
-        # Show up to MAX_ITEMS notifications
         for notification in self._notifications[:TOAST_PANEL_MAX_ITEMS]:
             self._create_notification_row(notification)
 
     def _create_notification_row(self, notification: Notification) -> None:
-        """Создаёт строку уведомления.
+        """Создаёт строку уведомления с иконкой приоритета и временной меткой.
 
         Args:
             notification: Данные уведомления.
@@ -310,42 +363,54 @@ class ToastPanel:
         if self._items_frame is None:
             return
 
-        # Get icon based on priority
-        priority_name = notification.priority.name
-        icon = self._PRIORITY_ICONS.get(priority_name, "ℹ️")
+        priority_name = notification.priority.name.lower()
+        icon = self._PRIORITY_ICONS.get(priority_name, "💾")
 
-        # Create row frame
+        # Format timestamp
+        import time
+
+        timestamp = time.strftime("%H:%M", time.localtime(notification.created_at))
+
         row_frame = tk.Frame(
             self._items_frame,
-            bg=TOAST_PANEL_BG,
+            bg=_theme_color("bg"),
             padx=2,
             pady=2,
         )
         row_frame.pack(fill="x", side="top")
 
-        # Icon label
         icon_label = tk.Label(
             row_frame,
             text=icon,
-            bg=TOAST_PANEL_BG,
+            bg=_theme_color("bg"),
             fg="#333333",
             font=("TkDefaultFont", 10),
             width=2,
         )
         icon_label.pack(side="left")
 
-        # Message label
         message_label = tk.Label(
             row_frame,
             text=notification.message,
-            bg=TOAST_PANEL_BG,
+            bg=_theme_color("bg"),
             fg="#333333",
             font=("TkDefaultFont", 9),
             anchor="w",
             justify="left",
-            wraplength=TOAST_PANEL_WIDTH - 50,
+            wraplength=TOAST_PANEL_WIDTH - 80,
         )
         message_label.pack(side="left", fill="x", expand=True)
+
+        time_label = tk.Label(
+            row_frame,
+            text=timestamp,
+            bg=_theme_color("bg"),
+            fg="#999999",
+            font=("TkDefaultFont", 8),
+            width=6,
+            anchor="e",
+        )
+        time_label.pack(side="right", padx=(2, 0))
 
     def update_notifications(self, notifications: list[Notification]) -> None:
         """Обновляет список уведомлений.
@@ -356,6 +421,16 @@ class ToastPanel:
         self._notifications = notifications
         if self._is_visible:
             self._update_content()
+
+    def _invoke_pin_all(self) -> None:
+        """Вызывает callback 'Pin all' если установлен."""
+        if self._on_pin_all is not None:
+            self._on_pin_all()
+
+    def _invoke_clear(self) -> None:
+        """Вызывает callback 'Clear' если установлен."""
+        if self._on_clear is not None:
+            self._on_clear()
 
     def hide(self) -> None:
         """Скрывает панель."""
@@ -387,9 +462,9 @@ class StatusBar(BaseWidget):
         on_mode_indicator_click: Callback для клика на индикаторе режима.
         on_workflow_click: Callback для клика на индикаторе workflow.
 
-    Example:
-        >>> def open_paper_dialog():
-        ...     PaperSetupDialog().show()
+      Example:
+          >>> def open_paper_dialog(parent_frame):
+          ...     PaperSetupDialog(parent=parent_frame).show()
         >>> def switch_mode():
         ...     print("Switching mode...")
         >>> def open_timeline():
@@ -404,7 +479,8 @@ class StatusBar(BaseWidget):
         >>> statusbar.set_cursor_position(1, 1)
         >>> statusbar.set_mode_indicator("normal")
         >>> statusbar.set_mfa_indicator("active", "FIDO2")
-        >>> statusbar.set_workflow_status(FormStatus.DRAFT)
+        >>> statusbar.set_document_mode(DocumentMode.STRUCTURED_FORM)
+        >>> statusbar.set_workflow_timeline(FormStatus.DRAFT)
     """
 
     def __init__(
@@ -423,13 +499,6 @@ class StatusBar(BaseWidget):
             paper_callback: Callback для double-click на индикаторе бумаги.
             mode_callback: Callback для double-click на индикаторе режима.
             workflow_callback: Callback для клика на индикаторе workflow.
-
-        Example:
-            >>> statusbar = StatusBar(
-            ...     paper_callback=lambda: print("Paper!"),
-            ...     mode_callback=lambda: print("Mode!"),
-            ...     workflow_callback=lambda: print("Timeline!"),
-            ... )
         """
         super().__init__(widget_id=widget_id, controller=controller)
         self._paper_callback: Optional[Callable[[], None]] = paper_callback
@@ -451,8 +520,9 @@ class StatusBar(BaseWidget):
         self._page_total: int = 1
         self._zoom: int = 100
         self._workflow_status: Optional["FormStatus"] = None
+        self._document_mode: Optional[DocumentMode] = None
 
-        # Widget references (initialized in _create_tk_widget)
+        # Widget references
         self._tk_frame: Optional[tk.Frame] = None
         self._tk_inner_frame: Optional[tk.Frame] = None
         self._tk_cursor_label: Optional[tk.Label] = None
@@ -464,14 +534,18 @@ class StatusBar(BaseWidget):
         self._tk_security_label: Optional[tk.Label] = None
         self._tk_page_label: Optional[tk.Label] = None
         self._tk_zoom_label: Optional[tk.Label] = None
-        self._tk_notification_label: Optional[tk.Label] = None  # [n] indicator
+        self._tk_notification_label: Optional[tk.Label] = None
         self._workflow_indicator: Optional[WorkflowIndicator] = None
-        self._separator_labels: list[tk.Label] = []  # Separator labels
+        self._separator_labels: list[tk.Label] = []
 
         # Workflow Timeline widget
         self._workflow_timeline_frame: Optional[tk.Frame] = None
         self._workflow_timeline_label: Optional[tk.Label] = None
         self._current_workflow_status: Optional[str] = None
+
+        # Simple Mode flag for timeline filtering
+        self._simple_mode: bool = False
+        self._timeline_statuses: list[str] = list(TIMELINE_STATUSES)
 
         # Role Badge widget
         self._role_badge: Optional[RoleBadge] = None
@@ -479,11 +553,12 @@ class StatusBar(BaseWidget):
 
         # Layout mode
         self._is_double_row: bool = False
+        self._row2_frame: Optional[tk.Frame] = None
 
         # Notification count
         self._notification_count: int = 0
 
-        # Toast Panel for notifications
+        # Toast Panel
         self._toast_panel: Optional[ToastPanel] = None
         self._notification_service: Optional["NotificationService"] = None
         self._hide_after_id: Optional[str] = None
@@ -506,12 +581,12 @@ class StatusBar(BaseWidget):
     def show(self) -> None:
         """Показывает компонент."""
         if self._tk_frame is not None:
-            self._tk_frame.pack()
+            self._tk_frame.grid()
 
     def hide(self) -> None:
         """Скрывает компонент."""
         if self._tk_frame is not None:
-            self._tk_frame.pack_forget()
+            self._tk_frame.grid_remove()
 
     def is_visible(self) -> bool:
         """Проверяет видимость компонента.
@@ -523,16 +598,16 @@ class StatusBar(BaseWidget):
             return False
         return self._tk_frame.winfo_viewable() == 1
 
+    # ------------------------------------------------------------------
+    # Public setters
+    # ------------------------------------------------------------------
+
     def set_cursor_position(self, line: int, column: int) -> None:
         """Устанавливает позицию курсора.
 
         Args:
             line: Номер строки (1-based).
             column: Номер колонки (1-based).
-
-        Example:
-            >>> statusbar.set_cursor_position(10, 25)
-            >>> # Отображает: "Ln 10, Col 25"
         """
         self._line = max(1, line)
         self._column = max(1, column)
@@ -543,10 +618,6 @@ class StatusBar(BaseWidget):
 
         Args:
             modified: True если документ был изменён.
-
-        Example:
-            >>> statusbar.set_modified(True)
-            >>> # Индикатор курсора становится оранжевым
         """
         self._modified = modified
         self._update_cursor_label()
@@ -556,10 +627,6 @@ class StatusBar(BaseWidget):
 
         Args:
             preset_name: Имя пресета (Legacy, Standard, Paranoid, PQC).
-
-        Example:
-            >>> statusbar.set_security_preset("Paranoid")
-            >>> # Индикатор зелёный с замком
         """
         self._security_preset = preset_name
         self._update_security_label()
@@ -570,10 +637,6 @@ class StatusBar(BaseWidget):
         Args:
             current: Текущая страница (1-based).
             total: Общее количество страниц.
-
-        Example:
-            >>> statusbar.set_page_info(2, 5)
-            >>> # Отображает: "Page 2/5"
         """
         self._page_current = max(1, current)
         self._page_total = max(1, total)
@@ -584,10 +647,6 @@ class StatusBar(BaseWidget):
 
         Args:
             cpi: Количество символов на дюйм.
-
-        Example:
-            >>> statusbar.set_cpi(12)
-            >>> # Отображает: "12 CPI"
         """
         self._cpi = max(1, cpi)
         self._update_cpi_label()
@@ -597,10 +656,6 @@ class StatusBar(BaseWidget):
 
         Args:
             codepage: Название кодовой страницы (например, "PC866").
-
-        Example:
-            >>> statusbar.set_codepage("UTF-8")
-            >>> # Отображает: "UTF-8"
         """
         self._codepage = codepage
         self._update_codepage_label()
@@ -610,10 +665,6 @@ class StatusBar(BaseWidget):
 
         Args:
             paper: Формат бумаги (например, "A4", "Letter").
-
-        Example:
-            >>> statusbar.set_paper("Letter")
-            >>> # Отображает: "Letter"
         """
         self._paper = paper
         self._update_paper_label()
@@ -623,27 +674,15 @@ class StatusBar(BaseWidget):
 
         Args:
             zoom: Процент масштаба (10-500).
-
-        Example:
-            >>> statusbar.set_zoom(150)
-            >>> # Отображает: "150%"
         """
         self._zoom = max(10, min(500, zoom))
         self._update_zoom_label()
-
-    # Mode indicator methods
 
     def set_mode_indicator(self, mode: str) -> None:
         """Устанавливает индикатор режима.
 
         Args:
             mode: "normal" (🟢) или "special" (🔴)
-
-        Example:
-            >>> statusbar.set_mode_indicator("normal")
-            >>> # Отображает: "🟢 Normal"
-            >>> statusbar.set_mode_indicator("special")
-            >>> # Отображает: "🔴 Special"
         """
         self._mode = mode.lower()
         self._update_mode_label()
@@ -654,11 +693,6 @@ class StatusBar(BaseWidget):
 
         Returns:
             Текущий режим ("normal" или "special").
-
-        Example:
-            >>> statusbar.set_mode_indicator("normal")
-            >>> statusbar.get_mode_indicator()
-            'normal'
         """
         return self._mode
 
@@ -667,16 +701,9 @@ class StatusBar(BaseWidget):
 
         Args:
             callback: Функция, вызываемая при double-click на индикаторе режима.
-
-        Example:
-            >>> def switch_mode():
-            ...     print("Mode switched")
-            >>> statusbar.on_mode_indicator_click(switch_mode)
         """
         self._mode_callback = callback
         self._setup_mode_bindings()
-
-    # MFA indicator methods
 
     def set_mfa_indicator(
         self,
@@ -688,14 +715,6 @@ class StatusBar(BaseWidget):
         Args:
             status: "active" (🔒), "required" (⚠️), или "none" (✓)
             method: "FIDO2", "TOTP", "Backup", или None
-
-        Example:
-            >>> statusbar.set_mfa_indicator("active", "FIDO2")
-            >>> # Отображает: "🔒 FIDO2"
-            >>> statusbar.set_mfa_indicator("required")
-            >>> # Отображает: "⚠️ MFA"
-            >>> statusbar.set_mfa_indicator("none")
-            >>> # Отображает: "✓"
         """
         self._mfa_status = status.lower()
         self._mfa_method = method
@@ -707,26 +726,14 @@ class StatusBar(BaseWidget):
 
         Returns:
             Текущий статус MFA ("active", "required", или "none").
-
-        Example:
-            >>> statusbar.set_mfa_indicator("active", "FIDO2")
-            >>> statusbar.get_mfa_status()
-            'active'
         """
         return self._mfa_status
-
-    # Workflow indicator methods
 
     def set_workflow_status(self, status: "FormStatus") -> None:
         """Устанавливает индикатор workflow статуса.
 
         Args:
             status: Текущий статус документа (FormStatus).
-
-        Example:
-            >>> from src.documents.constructor.form_status import FormStatus
-            >>> statusbar.set_workflow_status(FormStatus.FILLED)
-            >>> # Отображает: синяя точка + "Заполнена"
         """
         self._workflow_status = status
         if self._workflow_indicator is not None:
@@ -745,18 +752,30 @@ class StatusBar(BaseWidget):
     def set_workflow_timeline(self, status: "FormStatus") -> None:
         """Устанавливает workflow timeline индикатор.
 
-        Отображает визуальную шкалу: DRAFT ●──▶ FILLED ○──▶ VALIDATED ○──▶ APPROVED ○──▶ SIGNED ○
-        Текущий статус выделен цветом ●, пройденные ─▶, будущие ○──▶.
+        Отображает визуальную шкалу: [DRAFT ✓] ──▶ [FILLED ●] ──▶ ...
+        Текущий статус выделен ●, пройденные ✓, будущие ○.
 
         Args:
             status: Текущий статус документа (FormStatus).
-
-        Example:
-            >>> from src.documents.constructor.form_status import FormStatus
-            >>> statusbar.set_workflow_timeline(FormStatus.FILLED)
-            >>> # Отображает: [DRAFT ●──▶ FILLED ●──▶ VALIDATED ○──▶ APPROVED ○──▶ SIGNED ○]
         """
         self._current_workflow_status = status.value
+        self._update_workflow_timeline()
+
+    def set_simple_mode(self, enabled: bool) -> None:
+        """Устанавливает Simple Mode для timeline.
+
+        В Simple Mode timeline показывает только ['draft', 'signed'].
+
+        Args:
+            enabled: True для включения Simple Mode.
+        """
+        if self._simple_mode == enabled:
+            return
+        self._simple_mode = enabled
+        if enabled:
+            self._timeline_statuses = ["draft", "signed"]
+        else:
+            self._timeline_statuses = list(TIMELINE_STATUSES)
         self._update_workflow_timeline()
 
     def set_role_badge(self, role: WorkflowRole) -> None:
@@ -767,14 +786,94 @@ class StatusBar(BaseWidget):
 
         Args:
             role: Текущая роль пользователя.
-
-        Example:
-            >>> from src.gui.workflow.role_badge import WorkflowRole
-            >>> statusbar.set_role_badge(WorkflowRole.OPERATOR)
-            >>> # Отображает: 🔵 OPERATOR (синий)
         """
         self._current_role = role
         self._update_role_badge()
+
+    def set_document_mode(self, mode: DocumentMode) -> None:
+        """Устанавливает режим документа для управления видимостью workflow-виджетов.
+
+        Workflow Timeline strip и RoleBadge показываются только при
+        DocumentMode.STRUCTURED_FORM.
+
+        Args:
+            mode: Режим документа (FREE_FORM или STRUCTURED_FORM).
+
+        Example:
+            >>> from src.documents.types.document_type import DocumentMode
+            >>> statusbar.set_document_mode(DocumentMode.STRUCTURED_FORM)
+        """
+        self._document_mode = mode
+        self._apply_layout()
+
+    def get_document_mode(self) -> Optional[DocumentMode]:
+        """Возвращает текущий режим документа.
+
+        Returns:
+            Режим документа или None если не установлен.
+        """
+        return self._document_mode
+
+    def set_notification_count(self, count: int) -> None:
+        """Устанавливает количество уведомлений.
+
+        Args:
+            count: Количество непрочитанных уведомлений.
+        """
+        self._notification_count = max(0, count)
+        self._update_notification_label()
+
+    def show_toast_panel(self) -> None:
+        """Показывает Toast Panel с уведомлениями."""
+        if self._tk_notification_label is None:
+            return
+
+        if self._hide_after_id is not None:
+            if self._tk_frame is not None:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            self._hide_after_id = None
+
+        if self._toast_panel is None and self._tk_frame is not None:
+            self._toast_panel = ToastPanel(self._tk_frame)
+            self._toast_panel.set_callbacks(
+                on_pin_all=self._pin_all_notifications,
+                on_clear=self._clear_notifications,
+            )
+
+        if self._toast_panel is not None:
+            self._toast_panel.show_near_widget(self._tk_notification_label)
+            if self._notification_service is not None:
+                notifications = self._notification_service.get_history(unread_only=True)
+                self._toast_panel.update_notifications(notifications)
+
+        self._toast_panel_visible = True
+
+    def hide_toast_panel(self) -> None:
+        """Скрывает Toast Panel."""
+        if self._hide_after_id is not None:
+            if self._tk_frame is not None:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            self._hide_after_id = None
+
+        if self._toast_panel is not None:
+            self._toast_panel.hide()
+
+        self._toast_panel_visible = False
+
+    def set_notification_service(self, service: "NotificationService") -> None:
+        """Устанавливает NotificationService для интеграции.
+
+        Args:
+            service: Сервис уведомлений.
+        """
+        self._notification_service = service
+        service.register_badge_callback(self._on_notification_count_changed)
+        initial_count = service.get_unread_count()
+        self.set_notification_count(initial_count)
+
+    # ------------------------------------------------------------------
+    # Tk widget creation
+    # ------------------------------------------------------------------
 
     def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
         """Создаёт фактический Tkinter виджет.
@@ -785,32 +884,25 @@ class StatusBar(BaseWidget):
         Returns:
             Созданный корневой Frame StatusBar.
         """
-        # Root frame
         self._tk_frame = tk.Frame(
             parent,
             height=STATUSBAR_HEIGHT,
-            bg=DEFAULT_BG,
+            bg=_theme_color("bg"),
             relief="sunken",
             bd=1,
         )
         self._tk_frame.pack_propagate(False)
 
-        # Inner frame for content
-        self._tk_inner_frame = tk.Frame(self._tk_frame, bg=DEFAULT_BG)
+        self._tk_inner_frame = tk.Frame(self._tk_frame, bg=_theme_color("bg"))
         self._tk_inner_frame.pack(fill="both", expand=True, padx=PADDING_SMALL)
 
-        # Create all indicator labels
-        # Left side indicators
         self._tk_cursor_label = self._create_indicator(self._tk_inner_frame, "Ln 1, Col 1")
         self._tk_cpi_label = self._create_indicator(self._tk_inner_frame, "10 CPI")
         self._tk_codepage_label = self._create_indicator(self._tk_inner_frame, "PC866")
         self._tk_paper_label = self._create_indicator(self._tk_inner_frame, "A4")
-
-        # Mode and MFA indicators (new)
         self._tk_mode_label = self._create_indicator(self._tk_inner_frame, "🟢 Normal")
         self._tk_mfa_label = self._create_indicator(self._tk_inner_frame, "✓")
 
-        # Workflow indicator (new) - создан через отдельный компонент
         if self._workflow_status is not None:
             self._workflow_indicator = WorkflowIndicator(
                 parent=self._tk_inner_frame,
@@ -819,13 +911,12 @@ class StatusBar(BaseWidget):
             )
             self._workflow_indicator.mount(self._tk_inner_frame)
 
-        # Workflow Timeline widget
-        self._workflow_timeline_frame = tk.Frame(self._tk_inner_frame, bg=DEFAULT_BG)
+        self._workflow_timeline_frame = tk.Frame(self._tk_inner_frame, bg=_theme_color("bg"))
         self._workflow_timeline_label = tk.Label(
             self._workflow_timeline_frame,
             text="",
-            bg=DEFAULT_BG,
-            fg=DEFAULT_FG,
+            bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
             font=("TkDefaultFont", 9),
         )
         self._workflow_timeline_label.pack(side=tk.LEFT)
@@ -835,38 +926,27 @@ class StatusBar(BaseWidget):
         self._workflow_timeline_frame.config(cursor="hand2")
         self._workflow_timeline_label.config(cursor="hand2")
 
-        # Role Badge widget
         self._role_badge = RoleBadge(
             parent=self._tk_inner_frame,
             current_role=self._current_role,
         )
         self._role_badge.mount(self._tk_inner_frame)
 
-        # Right side indicators
         self._tk_security_label = self._create_indicator(self._tk_inner_frame, "🔒 Standard")
         self._tk_page_label = self._create_indicator(self._tk_inner_frame, "Page 1/1")
         self._tk_zoom_label = self._create_indicator(self._tk_inner_frame, "100%")
-
-        # Notification indicator [n]
         self._tk_notification_label = self._create_indicator(self._tk_inner_frame, "")
         self._update_notification_label()
 
-        # Create separator labels
         self._create_separators()
-
-        # Setup bindings
         self._setup_bindings()
-
-        # Initial layout
         self._apply_layout()
 
-        # Initial updates
         self._update_mode_label()
         self._update_mfa_label()
         self._update_mode_tooltip()
         self._update_mfa_tooltip()
 
-        # Bind to resize events
         self._tk_frame.bind("<Configure>", self._on_configure)
 
         return self._tk_frame
@@ -888,12 +968,30 @@ class StatusBar(BaseWidget):
         label = tk.Label(
             parent,
             text=initial_text,
-            bg=DEFAULT_BG,
-            fg=DEFAULT_FG,
+            bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
             font=("TkDefaultFont", 9),
             padx=PADDING_SMALL,
         )
         return label
+
+    def _create_separators(self) -> None:
+        """Создаёт разделительные метки │ между индикаторами.
+
+        Цвет разделителей фиксирован и не зависит от темы (UI_SPEC §7.4).
+        """
+        if self._tk_inner_frame is None:
+            return
+
+        for _ in range(12):
+            sep = tk.Label(
+                self._tk_inner_frame,
+                text=SEPARATOR_CHAR,
+                bg=_theme_color("bg"),
+                fg=SEPARATOR_COLOR,
+                font=("TkDefaultFont", 9),
+            )
+            self._separator_labels.append(sep)
 
     def _setup_bindings(self) -> None:
         """Настраивает event bindings для Tkinter виджета."""
@@ -928,45 +1026,41 @@ class StatusBar(BaseWidget):
         self._tk_inner_frame = None
         self._tk_frame = None
 
-        # Cleanup separator labels
         self._separator_labels.clear()
 
-        # Cleanup workflow indicator
         if self._workflow_indicator is not None:
             if self._workflow_indicator.is_mounted():
                 self._workflow_indicator.unmount()
             self._workflow_indicator = None
 
-        # Cleanup workflow timeline
         self._workflow_timeline_frame = None
         self._workflow_timeline_label = None
 
-        # Cleanup role badge
         if self._role_badge is not None:
             if self._role_badge.is_mounted():
                 self._role_badge.unmount()
             self._role_badge = None
 
-        # Cleanup row2 frame
-        if hasattr(self, "_row2_frame"):
-            self._row2_frame = None
+        self._row2_frame = None
+        self._document_mode = None
 
-        # Cleanup toast panel
         if self._toast_panel is not None:
             self._toast_panel.hide()
             self._toast_panel = None
 
-        # Cancel pending hide timer
         if self._hide_after_id is not None and self._tk_frame is not None:
             self._tk_frame.after_cancel(self._hide_after_id)
             self._hide_after_id = None
 
-        # Unregister from notification service
         if self._notification_service is not None:
             self._notification_service.unregister_badge_callback(
                 self._on_notification_count_changed
             )
             self._notification_service = None
+
+    # ------------------------------------------------------------------
+    # Layout
+    # ------------------------------------------------------------------
 
     def _on_configure(self, event: Optional[tk.Event] = None) -> None:
         """Обрабатывает событие изменения размера.
@@ -989,7 +1083,7 @@ class StatusBar(BaseWidget):
         if self._tk_inner_frame is None:
             return
 
-        # Clear current layout
+        # Unpack all widgets
         for widget in [
             self._tk_cursor_label,
             self._tk_cpi_label,
@@ -1005,236 +1099,59 @@ class StatusBar(BaseWidget):
             if widget is not None:
                 widget.pack_forget()
 
-        # Unpack workflow indicator if exists
         if self._workflow_indicator is not None and self._workflow_indicator.widget is not None:
             self._workflow_indicator.widget.pack_forget()
 
-        # Unpack workflow timeline
         if self._workflow_timeline_frame is not None:
             self._workflow_timeline_frame.pack_forget()
 
-        # Unpack role badge
         if self._role_badge is not None and self._role_badge.widget is not None:
             self._role_badge.widget.pack_forget()
 
-        # Unpack row2 frame if exists
-        if hasattr(self, "_row2_frame") and self._row2_frame is not None:
+        if self._row2_frame is not None:
             self._row2_frame.pack_forget()
 
-        # Unpack separators
         for sep in self._separator_labels:
             sep.pack_forget()
+
+        # Adjust height for double row
+        if self._tk_frame is not None:
+            if self._is_double_row:
+                self._tk_frame.config(height=STATUSBAR_HEIGHT * 2)
+            else:
+                self._tk_frame.config(height=STATUSBAR_HEIGHT)
 
         if self._is_double_row:
             self._apply_double_row_layout()
         else:
             self._apply_single_row_layout()
 
-    def _create_separators(self) -> None:
-        """Создаёт разделительные метки │ между индикаторами."""
-        if self._tk_inner_frame is None:
-            return
-
-        # Create separator labels (we'll need about 8-10 separators)
-        for _ in range(10):
-            sep = tk.Label(
-                self._tk_inner_frame,
-                text="│",
-                bg=DEFAULT_BG,
-                fg="#999999",
-                font=("TkDefaultFont", 9),
-            )
-            self._separator_labels.append(sep)
-
-    def _update_notification_label(self) -> None:
-        """Обновляет индикатор уведомлений [n]."""
-        if self._tk_notification_label is None:
-            return
-
-        if self._notification_count > 0:
-            text = f"[{self._notification_count}]"
-            self._tk_notification_label.config(
-                text=text,
-                fg=NOTIFICATION_ACTIVE_COLOR,  # Orange when n > 0
-            )
-        else:
-            self._tk_notification_label.config(
-                text="[0]",
-                fg=NOTIFICATION_INACTIVE_COLOR,  # Gray when n = 0
-            )
-
-    def set_notification_count(self, count: int) -> None:
-        """Устанавливает количество уведомлений.
-
-        Args:
-            count: Количество непрочитанных уведомлений.
-
-        Example:
-            >>> statusbar.set_notification_count(3)
-            >>> # Отображает: "[3]" (оранжевый цвет)
-            >>> statusbar.set_notification_count(0)
-            >>> # Отображает: "[0]" (серый цвет)
-        """
-        self._notification_count = max(0, count)
-        self._update_notification_label()
-
-    def show_toast_panel(self) -> None:
-        """Показывает Toast Panel с уведомлениями.
-
-        Создаёт и отображает плавающую панель с последними
-        уведомлениями рядом с индикатором [n].
-
-        Example:
-            >>> statusbar.show_toast_panel()
-            >>> # Панель появляется над индикатором уведомлений
-        """
-        if self._tk_notification_label is None:
-            return
-
-        # Cancel any pending hide
-        if self._hide_after_id is not None:
-            if self._tk_frame is not None:
-                self._tk_frame.after_cancel(self._hide_after_id)
-            self._hide_after_id = None
-
-        # Create toast panel if needed
-        if self._toast_panel is None and self._tk_frame is not None:
-            self._toast_panel = ToastPanel(self._tk_frame)
-
-        # Show panel near notification label
-        if self._toast_panel is not None:
-            self._toast_panel.show_near_widget(self._tk_notification_label)
-
-            # Update with current notifications from service
-            if self._notification_service is not None:
-                notifications = self._notification_service.get_history(unread_only=True)
-                self._toast_panel.update_notifications(notifications)
-
-        self._toast_panel_visible = True
-
-    def hide_toast_panel(self) -> None:
-        """Скрывает Toast Panel.
-
-        Example:
-            >>> statusbar.hide_toast_panel()
-            >>> # Панель скрыта
-        """
-        # Cancel any pending hide
-        if self._hide_after_id is not None:
-            if self._tk_frame is not None:
-                self._tk_frame.after_cancel(self._hide_after_id)
-            self._hide_after_id = None
-
-        if self._toast_panel is not None:
-            self._toast_panel.hide()
-
-        self._toast_panel_visible = False
-
-    def _schedule_hide_toast_panel(self) -> None:
-        """Запускает таймер для auto-hide панели.
-
-        Панель будет скрыта через TOAST_PANEL_AUTO_HIDE_MS (3 секунды).
-        """
-        if self._tk_frame is None:
-            return
-
-        # Cancel existing timer
-        if self._hide_after_id is not None:
-            self._tk_frame.after_cancel(self._hide_after_id)
-
-        # Schedule new hide
-        self._hide_after_id = self._tk_frame.after(
-            TOAST_PANEL_AUTO_HIDE_MS,
-            self._do_hide_toast_panel,
-        )
-
-    def _do_hide_toast_panel(self) -> None:
-        """Выполняет фактическое скрытие панели."""
-        self._hide_after_id = None
-        self.hide_toast_panel()
-
-    def _on_notification_count_changed(self, count: int) -> None:
-        """Обработчик изменения количества уведомлений.
-
-        Вызывается NotificationService при изменении badge count.
-
-        Args:
-            count: Новое количество непрочитанных уведомлений.
-
-        Example:
-            >>> # Callback для NotificationService.register_badge_callback()
-            >>> notification_service.register_badge_callback(
-            ...     statusbar._on_notification_count_changed
-            ... )
-        """
-        self.set_notification_count(count)
-
-        # Update toast panel if visible
-        if self._toast_panel_visible and self._toast_panel is not None:
-            if self._notification_service is not None:
-                notifications = self._notification_service.get_history(unread_only=True)
-                self._toast_panel.update_notifications(notifications)
-
-    def _on_notification_enter(self, event: Optional[tk.Event] = None) -> None:
-        """Обрабатывает mouse enter на индикаторе уведомлений.
-
-        Args:
-            event: Событие mouse enter.
-        """
-        # Cancel any pending hide
-        if self._hide_after_id is not None:
-            if self._tk_frame is not None:
-                self._tk_frame.after_cancel(self._hide_after_id)
-            self._hide_after_id = None
-
-        # Show toast panel
-        self.show_toast_panel()
-
-    def _on_notification_leave(self, event: Optional[tk.Event] = None) -> None:
-        """Обрабатывает mouse leave на индикаторе уведомлений.
-
-        Запускает таймер для auto-hide через 3 секунды.
-
-        Args:
-            event: Событие mouse leave.
-        """
-        self._schedule_hide_toast_panel()
-
-    def set_notification_service(self, service: "NotificationService") -> None:
-        """Устанавливает NotificationService для интеграции.
-
-        Регистрирует callback для обновления badge count.
-
-        Args:
-            service: Сервис уведомлений.
-
-        Example:
-            >>> from src.gui.services.notification_service import NotificationService
-            >>> service = NotificationService(root, window_manager)
-            >>> statusbar.set_notification_service(service)
-        """
-        self._notification_service = service
-        service.register_badge_callback(self._on_notification_count_changed)
-
-        # Get initial count
-        initial_count = service.get_unread_count()
-        self.set_notification_count(initial_count)
-
     def _apply_single_row_layout(self) -> None:
-        """Применяет single row layout (все индикаторы в одну строку)."""
+        """Применяет single row layout (все индикаторы в одну строку).
+
+        Порядок (UI_SPEC §7.4):
+        Ln 12, Col 45 │ 12 CPI │ PC866 │ Tractor │ 🟢 Normal │ ✓
+        │ [Timeline] │ [RoleBadge]
+        │ 🔒 Standard │ Page 2/5 │ 100% │ [3]
+        """
         if self._tk_inner_frame is None:
             return
 
-        sep_index = 0
+        sep_index = [0]
+        master = self._tk_inner_frame
 
-        def pack_sep() -> None:
-            """Добавляет разделитель между индикаторами."""
-            nonlocal sep_index
-            if sep_index < len(self._separator_labels):
-                self._separator_labels[sep_index].pack(side="left")
-                sep_index += 1
+        def pack_sep(side: str = "left") -> None:
+            from tkinter import LEFT, RIGHT
+            from typing import Any, cast
 
-        # Left side: cursor, cpi, codepage, paper, mode, mfa
+            idx = sep_index[0]
+            if idx < len(self._separator_labels):
+                self._separator_labels[idx].pack(
+                    in_=master, side=cast(Any, RIGHT if side == "right" else LEFT)
+                )
+                sep_index[0] = idx + 1
+
+        # Left group
         widgets_left = [
             self._tk_cursor_label,
             self._tk_cpi_label,
@@ -1243,118 +1160,122 @@ class StatusBar(BaseWidget):
             self._tk_mode_label,
             self._tk_mfa_label,
         ]
-        for i, widget in enumerate(widgets_left):
+        first = True
+        for widget in widgets_left:
             if widget is not None:
-                if i > 0:
-                    pack_sep()
-                widget.pack(side="left", padx=(0, PADDING_SMALL))
+                if not first:
+                    pack_sep("left")
+                widget.pack(in_=master, side="left", padx=(0, PADDING_SMALL))
+                first = False
 
-        # Separator before workflow section
-        pack_sep()
+        # Workflow section (only for STRUCTURED_FORM)
+        if self._document_mode == DocumentMode.STRUCTURED_FORM:
+            pack_sep("left")
+            if self._workflow_timeline_frame is not None:
+                self._workflow_timeline_frame.pack(in_=master, side="left", padx=(0, PADDING_SMALL))
+            pack_sep("left")
+            if self._role_badge is not None and self._role_badge.widget is not None:
+                self._role_badge.widget.pack(in_=master, side="left", padx=(0, PADDING_SMALL))
 
-        # Workflow Timeline (clickable)
-        if self._workflow_timeline_frame is not None:
-            self._workflow_timeline_frame.pack(side="left", padx=(0, PADDING_SMALL))
+        # Separator before right group
+        pack_sep("left")
 
-        # Role Badge
-        if self._role_badge is not None and self._role_badge.widget is not None:
-            pack_sep()
-            self._role_badge.widget.pack(side="left", padx=(0, PADDING_SMALL))
-
-        # Separator before right side
-        pack_sep()
-
-        # Right side: security, page, zoom, notification (reversed order for side="right")
-        widgets_right = [
+        # Right group (pack side="right" in order: far-right first)
+        # Visual left-to-right: security │ page │ zoom │ notification
+        right_widgets = [
             self._tk_notification_label,
             self._tk_zoom_label,
             self._tk_page_label,
             self._tk_security_label,
         ]
-        for widget in widgets_right:
+        for i, widget in enumerate(right_widgets):
             if widget is not None:
-                widget.pack(side="right", padx=(PADDING_SMALL, 0))
+                widget.pack(in_=master, side="right", padx=(PADDING_SMALL, 0))
+                if i < len(right_widgets) - 1:
+                    pack_sep("right")
 
     def _apply_double_row_layout(self) -> None:
         """Применяет double row layout (две строки индикаторов).
 
-        Row 1: cursor, cpi, codepage, paper, mode, mfa, │ security
-        Row 2: [workflow timeline] │ role_badge │ page, zoom, notification
+        Строка 1 (UI_SPEC §7.2):
+            Ln 12, Col 45 │ Page 2/5 │ 🔒 Standard │ [3]
+            (+ Timeline и RoleBadge при STRUCTURED_FORM)
+        Строка 2:
+            12 CPI │ PC866 │ Tractor │ 🟢 Normal │ ✓ │ 100%
         """
         if self._tk_inner_frame is None:
             return
 
-        sep_index = 0
+        sep_index = [0]
+        master_row1 = self._tk_inner_frame
 
-        def pack_sep() -> None:
-            """Добавляет разделитель между индикаторами."""
-            nonlocal sep_index
-            if sep_index < len(self._separator_labels):
-                self._separator_labels[sep_index].pack(side="left")
-                sep_index += 1
+        def pack_sep(master: tk.Widget, side: str = "left") -> None:
+            from tkinter import LEFT, RIGHT
+            from typing import Any, cast
 
-        # Row 1: Left side indicators + security
-        widgets_row1 = [
-            self._tk_cursor_label,
+            idx = sep_index[0]
+            if idx < len(self._separator_labels):
+                mapped_side = cast(Any, RIGHT if side == "right" else LEFT)
+                self._separator_labels[idx].pack(in_=master, side=mapped_side)
+                sep_index[0] = idx + 1
+
+        # Row 1: cursor
+        if self._tk_cursor_label is not None:
+            self._tk_cursor_label.pack(in_=master_row1, side="left", padx=(0, PADDING_SMALL))
+
+        # Workflow section (only for STRUCTURED_FORM)
+        if self._document_mode == DocumentMode.STRUCTURED_FORM:
+            pack_sep(master_row1, "left")
+            if self._workflow_timeline_frame is not None:
+                self._workflow_timeline_frame.pack(
+                    in_=master_row1, side="left", padx=(0, PADDING_SMALL)
+                )
+            pack_sep(master_row1, "left")
+            if self._role_badge is not None and self._role_badge.widget is not None:
+                self._role_badge.widget.pack(in_=master_row1, side="left", padx=(0, PADDING_SMALL))
+
+        # Separator before right group
+        pack_sep(master_row1, "left")
+
+        # Row 1 right group: visual page │ security │ notification
+        # Pack order side="right": notification, security, page
+        if self._tk_notification_label is not None:
+            self._tk_notification_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
+            pack_sep(master_row1, "right")
+        if self._tk_security_label is not None:
+            self._tk_security_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
+            pack_sep(master_row1, "right")
+        if self._tk_page_label is not None:
+            self._tk_page_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
+
+        # Row 2
+        if self._row2_frame is None:
+            self._row2_frame = tk.Frame(self._tk_inner_frame, bg=_theme_color("bg"))
+        self._row2_frame.pack(fill="x", side=tk.BOTTOM, pady=(2, 0))
+
+        for child in self._row2_frame.winfo_children():
+            child.pack_forget()
+
+        master_row2 = self._row2_frame
+        widgets_row2 = [
             self._tk_cpi_label,
             self._tk_codepage_label,
             self._tk_paper_label,
             self._tk_mode_label,
             self._tk_mfa_label,
-        ]
-        for i, widget in enumerate(widgets_row1):
-            if widget is not None:
-                if i > 0:
-                    pack_sep()
-                widget.pack(side="left", padx=(0, PADDING_SMALL))
-
-        # Separator before security (right side)
-        pack_sep()
-
-        # Security on right
-        if self._tk_security_label is not None:
-            self._tk_security_label.pack(side="right", padx=(PADDING_SMALL, 0))
-
-        # Row 2: Workflow Timeline + Role Badge + Page/Zoom/Notification
-        # First unpack row 1 widgets from right side to allow row 2 to flow below
-        # Actually, we need a second inner frame for row 2
-
-        # Create a frame for row 2 if not exists
-        if not hasattr(self, "_row2_frame") or self._row2_frame is None:
-            self._row2_frame = tk.Frame(self._tk_inner_frame, bg=DEFAULT_BG)
-            self._row2_frame.pack(fill="x", side=tk.BOTTOM, pady=(2, 0))
-
-        # Clear row 2
-        for widget in self._row2_frame.winfo_children():
-            widget.pack_forget()
-
-        # Row 2 left: Workflow Timeline
-        if self._workflow_timeline_frame is not None:
-            self._workflow_timeline_frame.pack(side=tk.LEFT, padx=(0, PADDING_SMALL))
-
-        # Separator
-        if sep_index < len(self._separator_labels):
-            self._separator_labels[sep_index].pack(side=tk.LEFT)
-            sep_index += 1
-
-        # Role Badge
-        if self._role_badge is not None and self._role_badge.widget is not None:
-            self._role_badge.widget.pack(side=tk.LEFT, padx=(0, PADDING_SMALL))
-
-        # Separator
-        if sep_index < len(self._separator_labels):
-            self._separator_labels[sep_index].pack(side=tk.LEFT)
-            sep_index += 1
-
-        # Row 2 right: Page, Zoom, Notification
-        widgets_row2_right = [
-            self._tk_page_label,
             self._tk_zoom_label,
-            self._tk_notification_label,
         ]
-        for widget in widgets_row2_right:
+        first = True
+        for widget in widgets_row2:
             if widget is not None:
-                widget.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
+                if not first:
+                    pack_sep(master_row2, "left")
+                widget.pack(in_=master_row2, side="left", padx=(0, PADDING_SMALL))
+                first = False
+
+    # ------------------------------------------------------------------
+    # Update helpers
+    # ------------------------------------------------------------------
 
     def _update_cursor_label(self) -> None:
         """Обновляет индикатор позиции курсора."""
@@ -1364,11 +1285,10 @@ class StatusBar(BaseWidget):
         text = f"Ln {self._line}, Col {self._column}"
         self._tk_cursor_label.config(text=text)
 
-        # Apply modified color if modified
         if self._modified:
             self._tk_cursor_label.config(fg=MODIFIED_COLOR)
         else:
-            self._tk_cursor_label.config(fg=DEFAULT_FG)
+            self._tk_cursor_label.config(fg=_theme_color("fg"))
 
     def _update_cpi_label(self) -> None:
         """Обновляет индикатор CPI."""
@@ -1411,8 +1331,6 @@ class StatusBar(BaseWidget):
         else:
             tooltip = "Normal Mode - Click to enter Special Mode"
 
-        self._tk_mode_label.config(text=self._tk_mode_label.cget("text"))
-        # Store tooltip in widget attribute for external tooltip handler
         self._tk_mode_label.tooltip_text = tooltip  # type: ignore[attr-defined]
 
     def _update_mfa_label(self) -> None:
@@ -1429,7 +1347,7 @@ class StatusBar(BaseWidget):
             text = "⚠️ MFA"
             bg_color = MFA_REQUIRED_BG
             fg_color = MFA_REQUIRED_FG
-        else:  # none
+        else:
             text = "✓"
             bg_color = MFA_NONE_BG
             fg_color = MFA_NONE_FG
@@ -1448,7 +1366,6 @@ class StatusBar(BaseWidget):
         else:
             tooltip = "No MFA Required"
 
-        # Store tooltip in widget attribute for external tooltip handler
         self._tk_mfa_label.tooltip_text = tooltip  # type: ignore[attr-defined]
 
     def _update_security_label(self) -> None:
@@ -1459,7 +1376,6 @@ class StatusBar(BaseWidget):
         text = f"🔒 {self._security_preset}"
         self._tk_security_label.config(text=text)
 
-        # Apply color based on preset
         bg_color, fg_color = SECURITY_PRESET_COLORS.get(
             self._security_preset, DEFAULT_SECURITY_COLOR
         )
@@ -1484,23 +1400,75 @@ class StatusBar(BaseWidget):
             self._workflow_timeline_label.config(text="")
             return
 
-        statuses = ["draft", "filled", "validated", "approved", "signed"]
-        current = self._current_workflow_status.lower()
+        timeline_text = self._build_timeline_text(self._current_workflow_status)
+        self._workflow_timeline_label.config(
+            text=timeline_text,
+            fg=_theme_color("fg"),
+        )
 
-        if current not in statuses:
-            current = "draft"
+    def _build_timeline_text(self, current_status: str) -> str:
+        """Формирует текст workflow timeline strip.
 
-        color = TIMELINE_COLORS.get(current, "#95a5a6")
-        timeline_text = f"[{current.upper()} {TIMELINE_CURRENT_MARKER}──▶]"
+        Формат: [DRAFT ✓] ──▶ [FILLED ●] ──▶ [VALIDATED ○] ...
+        Пройденные статусы отмечены ✓, текущий ●, будущие ○.
 
-        self._workflow_timeline_label.config(text=timeline_text, fg=color)
+        В Simple Mode отображает только [DRAFT] ──▶ [SIGNED].
+
+        Args:
+            current_status: Текущий статус в виде строки.
+
+        Returns:
+            Строка timeline для отображения в StatusBar.
+        """
+        current = current_status.lower()
+        statuses = (
+            self._timeline_statuses
+            if hasattr(self, "_timeline_statuses")
+            else list(TIMELINE_STATUSES)
+        )
+        try:
+            current_idx = statuses.index(current)
+        except ValueError:
+            current_idx = -1
+
+        parts: list[str] = []
+        for i, st in enumerate(statuses):
+            if i < current_idx:
+                marker = TIMELINE_DONE_MARKER
+            elif i == current_idx:
+                marker = TIMELINE_CURRENT_MARKER
+            else:
+                marker = TIMELINE_FUTURE_MARKER
+            parts.append(f"[{st.upper()} {marker}]")
+
+        return f" {TIMELINE_ARROW} ".join(parts)
 
     def _update_role_badge(self) -> None:
         """Обновляет role badge визуализацию."""
         if self._role_badge is None:
             return
-
         self._role_badge.set_role(self._current_role)
+
+    def _update_notification_label(self) -> None:
+        """Обновляет индикатор уведомлений [n]."""
+        if self._tk_notification_label is None:
+            return
+
+        if self._notification_count > 0:
+            text = f"[{self._notification_count}]"
+            self._tk_notification_label.config(
+                text=text,
+                fg=NOTIFICATION_ACTIVE_COLOR,
+            )
+        else:
+            self._tk_notification_label.config(
+                text="[0]",
+                fg=NOTIFICATION_INACTIVE_COLOR,
+            )
+
+    # ------------------------------------------------------------------
+    # Event handlers
+    # ------------------------------------------------------------------
 
     def _on_workflow_timeline_click(self, event: Optional[tk.Event] = None) -> None:
         """Обрабатывает клик на workflow timeline.
@@ -1514,11 +1482,17 @@ class StatusBar(BaseWidget):
     def _on_paper_double_click(self, event: Optional[tk.Event] = None) -> None:
         """Обрабатывает double-click на индикаторе бумаги.
 
+        Если установлен callback — вызывает его. Иначе открывает
+        диалог настройки бумаги ``PaperSetupDialog``.
+
         Args:
             event: Событие double-click.
         """
         if self._paper_callback is not None:
             self._paper_callback()
+        elif self._is_mounted and self._tk_frame is not None:
+            dialog = PaperSetupDialog(parent=self._tk_frame)
+            dialog.show()
 
     def _on_mode_double_click(self, event: Optional[tk.Event] = None) -> None:
         """Обрабатывает double-click на индикаторе режима.
@@ -1529,23 +1503,62 @@ class StatusBar(BaseWidget):
         if self._mode_callback is not None:
             self._mode_callback()
 
+    def _on_notification_count_changed(self, count: int) -> None:
+        """Обработчик изменения количества уведомлений.
 
-# Stub для PaperSetupDialog (документация)
-class PaperSetupDialog:
-    """Stub для диалога настройки бумаги.
+        Args:
+            count: Новое количество непрочитанных уведомлений.
+        """
+        self.set_notification_count(count)
 
-    Реальный диалог должен быть реализован в модуле dialogs.
-    Вызывается при double-click на индикаторе бумаги.
+        if self._toast_panel_visible and self._toast_panel is not None:
+            if self._notification_service is not None:
+                notifications = self._notification_service.get_history(unread_only=True)
+                self._toast_panel.update_notifications(notifications)
 
-    Example:
-        >>> dialog = PaperSetupDialog()
-        >>> dialog.show()
-    """
+    def _on_notification_enter(self, event: Optional[tk.Event] = None) -> None:
+        """Обрабатывает mouse enter на индикаторе уведомлений."""
+        if self._hide_after_id is not None:
+            if self._tk_frame is not None:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            self._hide_after_id = None
+        self.show_toast_panel()
 
-    def show(self) -> None:
-        """Показывает диалог."""
-        pass
+    def _on_notification_leave(self, event: Optional[tk.Event] = None) -> None:
+        """Обрабатывает mouse leave на индикаторе уведомлений."""
+        self._schedule_hide_toast_panel()
 
+    def _schedule_hide_toast_panel(self) -> None:
+        """Запускает таймер для auto-hide панели."""
+        if self._tk_frame is None:
+            return
+        if self._hide_after_id is not None:
+            self._tk_frame.after_cancel(self._hide_after_id)
+        self._hide_after_id = self._tk_frame.after(
+            TOAST_PANEL_AUTO_HIDE_MS,
+            self._do_hide_toast_panel,
+        )
+
+    def _do_hide_toast_panel(self) -> None:
+        """Выполняет фактическое скрытие панели."""
+        self._hide_after_id = None
+        self.hide_toast_panel()
+
+    def _pin_all_notifications(self) -> None:
+        """Отмечает все уведомления как прочитанные."""
+        if self._notification_service is not None:
+            self._notification_service.mark_all_as_read()
+
+    def _clear_notifications(self) -> None:
+        """Очищает всю историю уведомлений."""
+        if self._notification_service is not None:
+            self._notification_service.clear_history()
+
+
+# Module metadata
+__version__: Final[str] = "1.4"
+__author__: Final[str] = "FX Text Processor Team"
+__date__: Final[str] = "May 2026"
 
 # Module exports
 __all__: list[str] = [
@@ -1557,4 +1570,11 @@ __all__: list[str] = [
     "MODIFIED_COLOR",
     "NOTIFICATION_ACTIVE_COLOR",
     "NOTIFICATION_INACTIVE_COLOR",
+    "SEPARATOR_COLOR",
+    "SEPARATOR_CHAR",
+    "TIMELINE_COLORS",
+    "TIMELINE_DONE_MARKER",
+    "TIMELINE_CURRENT_MARKER",
+    "TIMELINE_FUTURE_MARKER",
+    "TIMELINE_ARROW",
 ]

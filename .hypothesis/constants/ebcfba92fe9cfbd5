@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/auto_lock_settings_dialog.py
+# hypothesis_version: 6.151.12
+
+[0.0, 350, 500, 600, 1000, '#27ae60', '#2c3e50', '#3498db', '#7f8c8d', '#bdc3c7', '#e74c3c', '#f39c12', '#f8f9fa', '1 мин', '1 минута', '15', '30', '30 мин', '5', '60', '60 мин', 'Arial', 'AutoLockService', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Exception ignored', 'bold', 'disabled', 'italic', 'lock_on_screensaver', 'lock_on_sleep', 'normal', 'white', 'write', 'Активна', 'Блокировка...', 'Быстрый выбор:', 'На паузе', 'Неизвестно', 'Никогда', 'Остановлена', 'Сервис недоступен', 'Статус: ', 'Статус: Ожидание...', 'Таймаут бездействия', '✓ Сохранить', '❌ Отмена']

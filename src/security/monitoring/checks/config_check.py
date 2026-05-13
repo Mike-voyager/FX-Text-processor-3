@@ -156,7 +156,7 @@ class ConfigCheck:
                 details={"error": str(e)},
             )
 
-        except Exception as e:
+        except (OSError, TypeError, ValueError, RuntimeError, json.JSONDecodeError) as e:
             elapsed_ms = int((time.monotonic() - start_ms) * 1000)
             LOG.error("Config check failed: %s", e)
             return HealthCheckResult.error_result(
@@ -171,7 +171,7 @@ class ConfigCheck:
             return False
         try:
             return os.access(self.config_path, os.R_OK)
-        except Exception:
+        except (OSError, TypeError, ValueError, RuntimeError):
             return False
 
     def _read_config(self) -> Dict[str, Any]:

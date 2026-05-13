@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/components/mfa_panel.py
+# hypothesis_version: 6.151.12
+
+[300, '#00AA00', '#FF0000', '*', '<Return>', 'Courier', 'Exception ignored', 'FIDO2 Security Key', '[^a-zA-Z0-9]', 'backup_code', 'fido2', 'totp', 'write', 'Код подтверждения:', 'Код подтверждён', 'Неверный код', 'Подтвердить', 'Резервные коды']

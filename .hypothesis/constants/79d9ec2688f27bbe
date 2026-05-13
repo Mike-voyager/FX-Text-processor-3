@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/controller/document_controller.py
+# hypothesis_version: 6.151.12
+
+['.enc', '.fxsd.enc', 'CryptoService | None', 'Document | None', 'DocumentController', 'DocumentMode | None', 'DocumentView', 'DocumentView | None', 'MainWindow | None', 'free_form', 'list[Document]', 'structured_form', 'Без названия', 'Новая форма']

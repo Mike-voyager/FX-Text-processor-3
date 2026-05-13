@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/number_input_widget.py
+# hypothesis_version: 6.151.12
+
+['%P', ',', '<FocusOut>', '<KeyRelease>', 'Courier', 'NumberInputWidget', '^-?\\d*\\.?\\d*$', 'key', 'readonly', '₽']

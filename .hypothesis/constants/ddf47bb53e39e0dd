@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/builtin/__init__.py
+# hypothesis_version: 6.151.12
+
+['DOC', 'DVN', 'DocumentType', 'INV']

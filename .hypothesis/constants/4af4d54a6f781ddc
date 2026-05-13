@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/workflow_indicator.py
+# hypothesis_version: 6.151.12
+
+['#27ae60', '#2c3e50', '#333333', '#3498db', '#95a5a6', '#9b59b6', '#e74c3c', '#f0f0f0', '#f39c12', '<Button-1>', '<Enter>', '<Leave>', 'DOT_SIZE', 'FULL_MODE_STATUSES', 'FormStatus', 'Full', 'SIMPLE_MODE_STATUSES', 'STATUS_COLORS', 'STATUS_NAMES', 'Simple', 'TkDefaultFont', 'WorkflowIndicator', 'all', 'approved', 'archived', 'dot', 'draft', 'filled', 'hand2', 'printed', 'rejected', 'signed', 'validated', 'workflow_indicator', 'Архивирована', 'Заполнена', 'Напечатана', 'Отклонена', 'Подписана', 'Проверена', 'Утверждена', 'Черновик']

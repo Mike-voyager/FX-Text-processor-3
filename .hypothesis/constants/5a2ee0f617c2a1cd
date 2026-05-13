@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/__init__.py
+# hypothesis_version: 6.151.12
+
+['DEFAULT_CELL_HEIGHT', 'DEFAULT_CELL_WIDTH', 'DEFAULT_ZOOM', 'DragData', 'DragMode', 'ESCPGridCanvas', 'FieldPaletteWidget', 'MAX_ZOOM', 'MIN_ZOOM', 'PreviewData', 'PreviewPanel', 'PropertyPanel', 'SectionFrame']

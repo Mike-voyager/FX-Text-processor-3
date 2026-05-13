@@ -16,8 +16,7 @@ from typing import Any, Dict, Optional
 
 
 class IntegrityError(Exception):
-    """
-    Базовое исключение для ошибок проверки целостности.
+    """Базовое исключение для ошибок проверки целостности.
 
     Attributes:
         message: Человекочитаемое описание ошибки
@@ -56,8 +55,7 @@ class IntegrityError(Exception):
 
 
 class IntegrityCheckError(IntegrityError):
-    """
-    Ошибка проверки целостности приложения.
+    """Ошибка проверки целостности приложения.
 
     Raises когда:
     - Хеш бинарника не совпадает с ожидаемым
@@ -94,8 +92,7 @@ class IntegrityCheckError(IntegrityError):
 
 
 class ConfigSignatureError(IntegrityError):
-    """
-    Ошибка проверки подписи конфигурации.
+    """Ошибка проверки подписи конфигурации.
 
     Raises когда:
     - Подпись конфигурации недействительна
@@ -133,5 +130,5 @@ __all__: list[str] = [
 ]
 
 __version__ = "1.0.0"
-__author__ = "Mike Voyager"
+__author__ = "FX Text Processor Team"
 __date__ = "2026-03-23"

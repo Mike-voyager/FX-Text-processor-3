@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/core/registry.py
+# hypothesis_version: 6.151.12
+
+[', ', '-', '1.0.0', '2026-02-09', 'AlgorithmRegistry', 'Dilithium2', 'ECDSA-P256', 'ECDSA-P384', 'ECDSA-P521', 'ECDSA-secp256k1', 'Ed25519', 'Ed448', 'Falcon-1024', 'Falcon-512', 'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87', 'Mike Voyager', 'ProtocolError', 'RSA-PKCS1v15', 'RSA-PSS-2048', 'RSA-PSS-3072', 'RSA-PSS-4096', 'RegistryEntry', 'RegistryError', 'RegistryStatistics', 'SLH-DSA-SHA2-128s', 'SLH-DSA-SHA2-192s', 'SLH-DSA-SHA2-256s', 'SPHINCS+-128s', '_', 'aead_count', 'by_category', 'by_floppy_friendly', 'by_security_level', 'post_quantum_count', 'total']

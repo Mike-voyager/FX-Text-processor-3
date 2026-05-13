@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/controllers/document_controller.py
+# hypothesis_version: 6.151.12
+
+['./output', 'Print failed: %s', 'action', 'document_controller', 'edit_redo', 'edit_undo', 'editor', 'field_id', 'form', 'message', 'modified', 'on_field_changed', 'on_print', 'on_redo', 'on_save', 'on_text_changed', 'on_undo', 'status_bar', 'sync', 'text', 'value', 'Документ сохранён', 'Ошибка печати', 'Печать документа', 'Печать запущена', 'Сохранение документа']

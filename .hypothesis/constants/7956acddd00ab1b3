@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/layout/__init__.py
+# hypothesis_version: 6.151.12
+
+['MIN_WINDOW_HEIGHT', 'MIN_WINDOW_WIDTH', 'MainLayout', 'PANEL_RATIO_DEFAULT', 'PanedLayout', 'PanedLayoutState', 'SIDEBAR_WIDTH', 'STATUSBAR_HEIGHT', 'SashChangeCallback', 'TABBAR_HEIGHT']

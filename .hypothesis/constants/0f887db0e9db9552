@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/transition_command.py
+# hypothesis_version: 6.151.12
+
+['CommandStack', 'FormStatus', 'TransitionSnapshot', 'UUID', 'WorkflowController', 'WorkflowRole', 'document_store', 'restore_field_values', 'value']

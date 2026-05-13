@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/controllers/template_controller.py
+# hypothesis_version: 6.151.12
+
+['*.*', '*.fxstpl', '.fxstpl', 'Template created: %s', 'Template loaded: %s', 'error', 'export_status', 'import_status', 'name', 'new', 'on_export_template', 'on_import_template', 'on_load_template', 'path', 'success', 'template', 'template_controller', 'template_editor', 'template_id', 'Все файлы', 'Не указан ID шаблона', 'Нет доступа к файлу', 'Ошибка шаблона', 'Сохранить шаблон', 'Файл не найден', 'Шаблон не найден', 'Шаблоны FX']

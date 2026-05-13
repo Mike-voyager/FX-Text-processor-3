@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/commands/text_commands.py
+# hypothesis_version: 6.151.12
+
+[10.0, 12.0, 15.0, 17.0, 20.0, 100000, ', ', '.', '...', '1.0', 'ApplyFormatCommand', 'DEFAULT_CPI', 'DeleteTextCommand', 'InsertTextCommand', 'MAX_TEXT_LENGTH', 'SetCPICommand', 'SetTextCommand', 'VALID_CPI_VALUES', 'bold', 'double_height', 'double_width', 'end', 'italic', 'tagoff', 'tagon', 'underline']

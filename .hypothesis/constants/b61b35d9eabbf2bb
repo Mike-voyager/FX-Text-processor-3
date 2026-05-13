@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/registry.py
+# hypothesis_version: 6.151.12
+
+['DOC', 'DVN', 'INV', 'TypeRegistry', 'TypeRegistry | None']

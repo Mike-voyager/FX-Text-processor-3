@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/layout/paned_layout.py
+# hypothesis_version: 6.151.12
+
+[100, '<B1-Motion>', '<ButtonRelease-1>', '<Configure>', 'PanedLayout', 'PanedLayoutState', 'SashChangeCallback', 'horizontal', 'paned_operation', 'panel_collapsed', 'panel_expanded', 'sash_coord', 'sash_place', 'vertical']

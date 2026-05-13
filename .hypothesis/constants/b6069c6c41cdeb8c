@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/algorithms/kdf.py
+# hypothesis_version: 6.151.12
+
+[128, 1024, 65536, 100000, 600000, ', ', 'ALGORITHMS', 'ALL_METADATA', 'Argon2id', 'Argon2idKDF', 'HKDF-SHA256', 'HKDFSHA256', 'KDFProtocol', 'METADATA_ARGON2ID', 'METADATA_HKDF', 'METADATA_PBKDF2', 'METADATA_SCRYPT', 'Master key expansion', 'PBKDF2-SHA256', 'PBKDF2SHA256KDF', 'Password storage', 'RFC 5869', 'RFC 7914', 'RFC 9106', 'Salt cannot be empty', 'Scrypt', 'ScryptKDF', 'argon2-cffi', 'argon2id', 'cryptography', 'generate_salt', 'get_kdf_algorithm', 'hashlib', 'hkdf-sha256', 'pbkdf2-sha256', 'scrypt', 'sha256', 'warning']

@@ -1,28 +1,41 @@
-"""Document type definitions.
+"""Модель иерархических типов документов.
 
-Provides:
-- DocumentMode: Enum for document modes (FREE_FORM, STRUCTURED_FORM)
-- DocumentType: Main document type definition
-- DocumentSubtype: Subtype definition for document types
+Определяет структуру типов документов: DocumentType → DocumentSubtype.
+Все классы immutable (frozen=True) для безопасности в многопоточной среде.
+
+Example:
+    >>> from src.documents.types.document_type import (
+    ...     DocumentType, DocumentSubtype, DocumentMode
+    ... )
+    >>> from src.documents.types.type_schema import TypeSchema
+    >>> doc_type = DocumentType(
+    ...     code="DVN",
+    ...     name="Verbal Note",
+    ...     parent_code=None,
+    ...     document_mode=DocumentMode.FREE_FORM,
+    ...     index_template=None,
+    ...     field_schema=TypeSchema(fields=()),
+    ... )
+    >>> print(doc_type.code)
+    DVN
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, List, Literal, Optional, Tuple
 
 from src.documents.types.index_template import IndexTemplate
-from src.documents.types.type_schema import TypeSchema
+from src.documents.types.type_schema import FieldDefinition, TypeSchema
 
 
 class DocumentMode(str, Enum):
-    """Режим работы с документом.
-
-    FREE_FORM — свободное редактирование текста (Word-like документы).
-    STRUCTURED_FORM — структурированные формы с полями и валидацией.
+    """Режимы документа.
 
     Attributes:
-        FREE_FORM: Текстовые документы без предопределённой схемы полей.
-        STRUCTURED_FORM: Формы с полями, валидацией и подписью.
+        FREE_FORM: Свободная форма (любые поля).
+        STRUCTURED_FORM: Структурированная форма (по шаблону).
     """
 
     FREE_FORM = "free_form"
@@ -33,114 +46,222 @@ class DocumentMode(str, Enum):
 class DocumentSubtype:
     """Подтип документа.
 
-    Подтип наследует схему полей от родительского типа
-    и может добавлять собственные поля.
-
     Attributes:
-        code: Код подтипа (например, "44", "01").
-        name: Человеко-читаемое название подтипа.
-        extra_fields: Дополнительные поля, специфичные для подтипа.
+        code: Код подтипа.
+        name: Название подтипа.
+        extra_fields: Дополнительные поля подтипа.
+
+    Example:
+        >>> subtype = DocumentSubtype(
+        ...     code="01",
+        ...     name="Обычный",
+        ... )
+        >>> print(subtype.code)
+        01
     """
 
     code: str
     name: str
-    extra_fields: tuple[Any, ...] = field(default_factory=tuple)
+    extra_fields: Tuple[FieldDefinition, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        """Валидация полей после инициализации."""
+        if not self.code or not self.code.strip():
+            raise ValueError("code cannot be empty")
+        if not self.name or not self.name.strip():
+            raise ValueError("name cannot be empty")
 
 
 @dataclass(frozen=True)
 class DocumentType:
     """Тип документа.
 
-    Определяет структуру документа определённого типа,
-    включая схему индекса и схему полей.
-
     Attributes:
-        code: Уникальный код типа (например, "DVN", "INV", "DOC").
-        name: Человеко-читаемое название типа на русском.
+        code: Код типа документа.
+        name: Название типа документа.
         parent_code: Код родительского типа (None для корневых).
-        document_mode: Режим документа (FREE_FORM или STRUCTURED_FORM).
-        index_template: Шаблон генерации индекса (None для FREE_FORM).
+        document_mode: Режим документа (free_form или structured_form).
+        index_template: Шаблон индекса документа.
         field_schema: Схема полей документа.
-        subtypes: Кортеж подтипов данного типа.
-        metadata: Дополнительные метаданные.
+        subtypes: Подтипы документа.
+        metadata: Метаданные типа (кортеж пар ключ-значение).
+
+    Example:
+        >>> from src.documents.types.type_schema import TypeSchema
+        >>> doc_type = DocumentType(
+        ...     code="DVN",
+        ...     name="Verbal Note",
+        ...     parent_code=None,
+        ...     document_mode=DocumentMode.FREE_FORM,
+        ...     index_template=None,
+        ...     field_schema=TypeSchema(fields=()),
+        ... )
+        >>> print(doc_type.code)
+        DVN
     """
 
     code: str
     name: str
-    parent_code: str | None
+    parent_code: Optional[str]
     document_mode: DocumentMode
-    index_template: IndexTemplate | None
+    index_template: Optional[IndexTemplate]
     field_schema: TypeSchema
-    subtypes: tuple[DocumentSubtype, ...] = field(default_factory=tuple)
-    metadata: tuple[tuple[str, Any], ...] = field(default_factory=tuple)
+    subtypes: Tuple[DocumentSubtype, ...] = field(default_factory=tuple)
+    metadata: Tuple[Tuple[str, Any], ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
-        """Валидация после инициализации."""
-        if not self.code:
-            raise ValueError("DocumentType code cannot be empty")
-        if not self.name:
-            raise ValueError("DocumentType name cannot be empty")
+        """Валидация полей после инициализации."""
+        if not self.code or not self.code.strip():
+            raise ValueError("code cannot be empty")
+        if not self.name or not self.name.strip():
+            raise ValueError("name cannot be empty")
 
     @property
     def is_root(self) -> bool:
-        """Является ли тип корневым (нет родителя)."""
+        """Проверяет, является ли тип корневым.
+
+        Returns:
+            True если parent_code is None.
+        """
         return self.parent_code is None
 
     @property
     def has_subtypes(self) -> bool:
-        """Есть ли у типа подтипы."""
+        """Проверяет, есть ли у типа подтипы.
+
+        Returns:
+            True если есть подтипы.
+        """
         return len(self.subtypes) > 0
 
-    def get_subtype(self, code: str) -> DocumentSubtype | None:
-        """Возвращает подтип по коду."""
+    def get_subtype(self, code: str) -> Optional[DocumentSubtype]:
+        """Получить подтип по коду.
+
+        Args:
+            code: Код подтипа.
+
+        Returns:
+            DocumentSubtype или None если не найден.
+        """
         for subtype in self.subtypes:
             if subtype.code == code:
                 return subtype
         return None
 
-    def get_metadata(self, key: str) -> Any:
-        """Возвращает значение метаданных по ключу."""
+    def get_metadata(self, key: str) -> Optional[Any]:
+        """Получить значение метаданных по ключу.
+
+        Args:
+            key: Ключ метаданных.
+
+        Returns:
+            Значение метаданных или None если не найдено.
+        """
         for k, v in self.metadata:
             if k == key:
                 return v
         return None
 
-    def with_field_schema(self, schema: TypeSchema) -> "DocumentType":
-        """Создаёт копию с новой схемой полей.
-
-        Это immutable dataclass, поэтому для изменения
-        нужно создавать новый экземпляр.
+    def with_field_schema(self, field_schema: TypeSchema) -> DocumentType:
+        """Создать новый экземпляр с новой схемой полей.
 
         Args:
-            schema: Новая схема полей.
+            field_schema: Новая схема полей.
 
         Returns:
-            Новый экземпляр DocumentType с обновлённой схемой.
+            Новый экземпляр DocumentType.
         """
-        # Создаём новый экземпляр с изменённой схемой
-        # Используем object.__setattr__ для frozen dataclass
-        new_instance = DocumentType(
+        return DocumentType(
             code=self.code,
             name=self.name,
             parent_code=self.parent_code,
             document_mode=self.document_mode,
             index_template=self.index_template,
-            field_schema=schema,
+            field_schema=field_schema,
             subtypes=self.subtypes,
             metadata=self.metadata,
         )
-        return new_instance
 
-    def with_index_template(self, template: IndexTemplate) -> "DocumentType":
-        """Создаёт копию с новым шаблоном индекса."""
-        new_instance = DocumentType(
+    def with_index_template(self, index_template: Optional[IndexTemplate]) -> DocumentType:
+        """Создать новый экземпляр с новым шаблоном индекса.
+
+        Args:
+            index_template: Новый шаблон индекса.
+
+        Returns:
+            Новый экземпляр DocumentType.
+        """
+        return DocumentType(
             code=self.code,
             name=self.name,
             parent_code=self.parent_code,
             document_mode=self.document_mode,
-            index_template=template,
+            index_template=index_template,
             field_schema=self.field_schema,
             subtypes=self.subtypes,
             metadata=self.metadata,
         )
-        return new_instance
+
+
+# Legacy classes for backward compatibility
+
+
+@dataclass(frozen=True)
+class Series:
+    """Серия документа (устаревший класс - используется только для обратной совместимости).
+
+    Attributes:
+        code: Код серии.
+        name: Название серии.
+        custom_allowed: Разрешены ли пользовательские сегменты.
+        sequence_format: Формат нумерации.
+    """
+
+    code: str
+    name: str
+    custom_allowed: bool = False
+    sequence_format: Literal["ROMAN", "ARABIC"] = "ROMAN"
+
+    def __post_init__(self) -> None:
+        """Валидация полей после инициализации."""
+        if not self.code or not self.code.strip():
+            raise ValueError("Код серии не может быть пустым")
+        if not self.name or not self.name.strip():
+            raise ValueError("Название серии не может быть пустым")
+
+
+@dataclass(frozen=True)
+class Subtype:
+    """Подтип документа (устаревший класс - используется только для обратной совместимости).
+
+    Attributes:
+        code: Код подтипа.
+        name: Название подтипа.
+        series: Список серий.
+    """
+
+    code: str
+    name: str
+    series: List[Series] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Валидация полей после инициализации."""
+        if not self.code or not self.code.strip():
+            raise ValueError("Код подтипа не может быть пустым")
+        if not self.name or not self.name.strip():
+            raise ValueError("Название подтипа не может быть пустым")
+
+    def get_series(self, series_code: str) -> Optional[Series]:
+        """Получить серию по коду.
+
+        Args:
+            series_code: Код серии.
+
+        Returns:
+            Series или None если не найдена.
+        """
+        code_upper = series_code.upper()
+        for s in self.series:
+            if s.code == code_upper:
+                return s
+        return None

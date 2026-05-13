@@ -1,0 +1,98 @@
+================================================================================
+MYPY TYPE CHECKING REPORT - PHASE 5
+================================================================================
+Date: 2026-04-11
+Project: FX Text Processor 3
+Mode: mypy --strict
+
+================================================================================
+INDIVIDUAL FILE CHECKS - PHASE 5 FILES
+================================================================================
+
+1. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/protocols/template_security.py
+   Status: ✅ PASSED
+   Errors: 0
+
+2. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/trust_chain_service.py
+   Status: ✅ PASSED
+   Errors: 0
+
+3. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/floppy_optimizer.py
+   Status: ✅ PASSED
+   Errors: 0
+
+4. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/trust_chain_utils.py
+   Status: ✅ PASSED
+   Errors: 0
+
+5. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/trust_chain_dialog.py
+   Status: ✅ PASSED
+   Errors: 0
+
+6. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/floppy_optimizer_dialog.py
+   Status: ✅ PASSED
+   Errors: 0
+
+7. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/template_import_dialog.py (рефакторенный)
+   Status: ✅ PASSED
+   Errors: 0
+
+8. /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/__init__.py
+   Status: ✅ PASSED
+   Errors: 0
+
+================================================================================
+MODULE-LEVEL CHECKS - PHASE 5 MODULES
+================================================================================
+
+9. src/services/ (template_security.py + trust_chain_service.py)
+   Status: ✅ PASSED
+   Errors: 0
+   Note: Checked with clean mypy cache to avoid internal mypy error
+
+10. src/security/crypto/utilities/ (floppy_optimizer.py + trust_chain_utils.py)
+    Status: ✅ PASSED
+    Errors: 0
+    Note: Checked with clean mypy cache to avoid internal mypy error
+
+11. src/gui/dialogs/ (full module)
+    Status: ❌ FAILED
+    Errors: 55 errors in 5 files
+    Files with issues:
+      - workflow_dialogs.py (4 errors)
+      - navigation_dialogs.py (19 errors)
+      - barcode_dialogs.py (13 errors)
+      - transition_dialog.py (5 errors)
+      - role_switch_dialog.py (14 errors)
+    
+    Note: These errors are NOT in Phase 5 files. They are in existing
+    files that were not part of Phase 5 development.
+    
+    Phase 5 files in src/gui/dialogs/ are all clean:
+      - trust_chain_dialog.py: ✅ 0 errors
+      - floppy_optimizer_dialog.py: ✅ 0 errors
+      - template_import_dialog.py: ✅ 0 errors
+      - __init__.py: ✅ 0 errors
+
+================================================================================
+SUMMARY
+================================================================================
+
+Phase 5 Files Checked:     8
+Phase 5 Files Passed:      8
+Phase 5 Files Failed:      0
+
+Total Errors in Phase 5:   0
+
+Pre-existing Errors:       55 (in non-Phase 5 files, documented for reference)
+
+================================================================================
+STATUS: ✅ ALL PHASE 5 FILES PASS MYPY --STRICT
+================================================================================
+
+All new and refactored files from Phase 5 successfully pass strict type
+checking with mypy. The 55 errors found in other dialog files are pre-existing
+and not part of this Phase 5 deliverable.
+
+Verification completed successfully.
+================================================================================

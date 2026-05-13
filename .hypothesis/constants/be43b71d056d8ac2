@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/date_input_widget.py
+# hypothesis_version: 6.151.12
+
+[1900, 2100, '#3daee9', '%Y-%m-%d', '%d-%m-%Y', '%d.%m.%Y', '%d/%m/%Y', '300x280', '<FocusOut>', '<KeyRelease>', 'Courier', 'DD.MM.YYYY', 'DateInputWidget', 'TkDefaultFont', 'bold', 'disabled', 'readonly', 'white', 'Август', 'Апрель', 'Вс', 'Вт', 'Выберите дату', 'Год:', 'Декабрь', 'Июль', 'Июнь', 'Май', 'Март', 'Месяц:', 'Ноябрь', 'Обновить', 'Октябрь', 'Пн', 'Пт', 'Сб', 'Сентябрь', 'Ср', 'Февраль', 'Чт', 'Январь', '📅']

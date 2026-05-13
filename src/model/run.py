@@ -20,6 +20,7 @@ from .enums import (
     CodePage,
     Color,
     FontFamily,
+    PrintQuality,
     TextStyle,
     validate_cpi_font_combination,
 )
@@ -244,6 +245,7 @@ class Run:
     style: TextStyle = TextStyle(0)  # Empty flags
     color: Color = Color.BLACK
     codepage: CodePage = CodePage.PC866
+    quality: PrintQuality = PrintQuality.DRAFT
 
     # Typography and spacing
     letter_spacing: float = 0.0
@@ -338,9 +340,7 @@ class Run:
                     getattr(self.font, "value", self.font),
                 )
         except Exception as e:
-            logger.warning(
-                "CPI/font compatibility check encountered an unexpected error: %s", e
-            )
+            logger.warning("CPI/font compatibility check encountered an unexpected error: %s", e)
 
         # Auto-detect presence of special characters
         try:
@@ -376,17 +376,13 @@ class Run:
 
         # 3. Validate highlight ranges
         if not isinstance(self.highlights, list):
-            raise TypeError(
-                f"highlights must be list, got {type(self.highlights).__name__}"
-            )
+            raise TypeError(f"highlights must be list, got {type(self.highlights).__name__}")
 
         for i, highlight in enumerate(self.highlights):
             if not isinstance(highlight, HighlightRange):
                 raise TypeError(f"highlights[{i}] must be HighlightRange")
 
-            if not (
-                0 <= highlight.start_offset <= highlight.end_offset <= len(self.text)
-            ):
+            if not (0 <= highlight.start_offset <= highlight.end_offset <= len(self.text)):
                 raise ValueError(
                     f"Invalid highlight range [{highlight.start_offset}:{highlight.end_offset}] "
                     f"for text length {len(self.text)}"
@@ -399,9 +395,7 @@ class Run:
             )
 
         # 5. Validate list_marker
-        if self.list_marker is not None and not isinstance(
-            self.list_marker, ListMarkerInfo
-        ):
+        if self.list_marker is not None and not isinstance(self.list_marker, ListMarkerInfo):
             raise TypeError(
                 f"list_marker must be ListMarkerInfo or None, got {type(self.list_marker).__name__}"
             )
@@ -451,9 +445,7 @@ class Run:
                         f"Text contains characters incompatible with {self.codepage.value} encoding"
                     ) from exc
 
-        logger.debug(
-            f"Validated Run: len={len(self.text)}, formatting={self._format_summary()}"
-        )
+        logger.debug(f"Validated Run: len={len(self.text)}, formatting={self._format_summary()}")
 
     # Highlight management methods
     def add_highlight(
@@ -511,18 +503,14 @@ class Run:
 
     def get_highlights_at_position(self, position: int) -> list[HighlightRange]:
         """Get all highlights that include the given position."""
-        return [
-            h for h in self.highlights if h.start_offset <= position <= h.end_offset
-        ]
+        return [h for h in self.highlights if h.start_offset <= position <= h.end_offset]
 
     def clear_highlights(self, highlight_type: Optional[HighlightType] = None) -> None:
         """Clear highlights, optionally filtered by type."""
         if highlight_type is None:
             self.highlights.clear()
         else:
-            self.highlights = [
-                h for h in self.highlights if h.highlight_type != highlight_type
-            ]
+            self.highlights = [h for h in self.highlights if h.highlight_type != highlight_type]
 
     def merge_with(self, other: "Run") -> "Run":
         """
@@ -576,6 +564,7 @@ class Run:
             style=self.style,
             color=self.color,
             codepage=self.codepage,
+            quality=self.quality,
             letter_spacing=self.letter_spacing,
             word_spacing=self.word_spacing,
             baseline_shift=self.baseline_shift,
@@ -681,6 +670,7 @@ class Run:
                     self.style,
                     self.color,
                     self.codepage,
+                    self.quality,
                     self.letter_spacing,
                     self.word_spacing,
                     self.baseline_shift,
@@ -738,9 +728,7 @@ class Run:
                     highlight_id=highlight.highlight_id,
                     highlight_type=highlight.highlight_type,
                     style_override=(
-                        dict(highlight.style_override)
-                        if highlight.style_override
-                        else None
+                        dict(highlight.style_override) if highlight.style_override else None
                     ),
                     metadata=dict(highlight.metadata),
                 )
@@ -753,6 +741,7 @@ class Run:
             style=self.style,
             color=self.color,
             codepage=self.codepage,
+            quality=self.quality,
             letter_spacing=self.letter_spacing,
             word_spacing=self.word_spacing,
             baseline_shift=self.baseline_shift,
@@ -819,6 +808,7 @@ class Run:
             and self.style == other.style
             and self.color == other.color
             and self.codepage == other.codepage
+            and self.quality == other.quality
             and self.letter_spacing == other.letter_spacing
             and self.word_spacing == other.word_spacing
             and self.baseline_shift == other.baseline_shift
@@ -870,9 +860,7 @@ class Run:
                     highlight_id=highlight.highlight_id,
                     highlight_type=highlight.highlight_type,
                     style_override=(
-                        dict(highlight.style_override)
-                        if highlight.style_override
-                        else None
+                        dict(highlight.style_override) if highlight.style_override else None
                     ),
                     metadata=dict(highlight.metadata),
                 )
@@ -885,9 +873,7 @@ class Run:
                     highlight_id=highlight.highlight_id + "_left",
                     highlight_type=highlight.highlight_type,
                     style_override=(
-                        dict(highlight.style_override)
-                        if highlight.style_override
-                        else None
+                        dict(highlight.style_override) if highlight.style_override else None
                     ),
                     metadata=dict(highlight.metadata),
                 )
@@ -899,9 +885,7 @@ class Run:
                     highlight_id=highlight.highlight_id + "_right",
                     highlight_type=highlight.highlight_type,
                     style_override=(
-                        dict(highlight.style_override)
-                        if highlight.style_override
-                        else None
+                        dict(highlight.style_override) if highlight.style_override else None
                     ),
                     metadata=dict(highlight.metadata),
                 )
@@ -927,6 +911,7 @@ class Run:
             "style": self.style.value,
             "color": self.color.value,
             "codepage": self.codepage.value,
+            "quality": self.quality.value,
             "direction": self.direction.value,
             "border": self.border.value,
             "whitespace_handling": self.whitespace_handling.value,
@@ -1108,6 +1093,7 @@ class Run:
             style=TextStyle(data.get("style", 0)),
             color=Color(data.get("color", "black")),
             codepage=CodePage(data.get("codepage", "pc866")),
+            quality=PrintQuality(data.get("quality", "draft")),
             letter_spacing=data.get("letter_spacing", 0.0),
             word_spacing=data.get("word_spacing", 1.0),
             baseline_shift=data.get("baseline_shift", 0.0),
@@ -1131,9 +1117,7 @@ class Run:
             is_math=data.get("is_math", False),
             math_content=data.get("math_content"),
             has_special_chars=data.get("has_special_chars", False),
-            whitespace_handling=WhitespaceMode(
-                data.get("whitespace_handling", "normal")
-            ),
+            whitespace_handling=WhitespaceMode(data.get("whitespace_handling", "normal")),
             alt_text=data.get("alt_text"),
             aria_label=data.get("aria_label"),
             source_id=data.get("source_id"),
@@ -1194,9 +1178,7 @@ class Run:
             parts.append(f"highlights={len(self.highlights)}")
 
         if self.list_marker:
-            parts.append(
-                f"list={self.list_marker.list_style.value}@{self.list_marker.list_level}"
-            )
+            parts.append(f"list={self.list_marker.list_style.value}@{self.list_marker.list_level}")
 
         if self.source_id:
             parts.append(f"src={self.source_id}")
@@ -1221,6 +1203,7 @@ class Run:
             and self.style == other.style
             and self.color == other.color
             and self.codepage == other.codepage
+            and self.quality == other.quality
             and self.letter_spacing == other.letter_spacing
             and self.word_spacing == other.word_spacing
             and self.baseline_shift == other.baseline_shift
@@ -1318,9 +1301,7 @@ def split_by_formatting(text: str, runs: list[Run]) -> list[Run]:
         result.append(new_run)
         position += segment_length
 
-    logger.debug(
-        f"Split text into {len(result)} runs (original: {len(runs)} templates)"
-    )
+    logger.debug(f"Split text into {len(result)} runs (original: {len(runs)} templates)")
     return result
 
 

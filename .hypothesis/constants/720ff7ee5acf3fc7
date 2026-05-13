@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/document_stats_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, 150, 200, 5280, 'CharacterStats', 'Document', 'DocumentStats', 'DocumentStatsService', 'LineStats', 'PageStats', 'Paragraph', 'ParagraphStats', 'Section', 'WordStats', '[а-яёa-z]', '\\b[а-яёa-z]+\\b', '\\d', '\\s', 'get_text', 'name', 'runs', 'text']

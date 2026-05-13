@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/themes/__init__.py
+# hypothesis_version: 6.151.12
+
+[0.2, 0.3, 255, '#', '#000000', '#003300', '#00AA00', '#00FF00', '#FF0000', '#FFA500', 'Button', 'Courier New', 'Entry', 'TButton', 'TEntry', 'TText', 'Text', 'Theme', 'ThemeError', 'ThemeManager', 'ThemeNotFoundError', 'ThemeProtocol', 'ThemeRegistry', 'ThemeRegistryError', 'ThemeVariant', 'Unknown', '_validated', 'amber', 'classic_green', 'configure', 'get_registry', 'get_theme_manager', 'high_contrast', 'phosphor_white', 'retro_green', 'winfo_class', 'Ошибка темы']

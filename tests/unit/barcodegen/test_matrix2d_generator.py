@@ -184,7 +184,7 @@ def test_batch_generate_error_case1() -> None:
     results = []
     try:
         results = Matrix2DCodeGenerator.batch_generate(items, parallel=False)
-    except Exception:
+    except (RuntimeError, AttributeError, TypeError, ValueError):
         pass
 
 
@@ -223,7 +223,7 @@ def test_batch_generate_error_case() -> None:
     ]
     try:
         Matrix2DCodeGenerator.batch_generate(items, parallel=False)
-    except Exception:
+    except (RuntimeError, AttributeError, TypeError, ValueError):
         pass
 
 

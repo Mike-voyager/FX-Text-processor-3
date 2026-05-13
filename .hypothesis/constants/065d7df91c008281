@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/form_constructor.py
+# hypothesis_version: 6.151.12
+
+[0.0, '-', 'FieldDefinition', 'FormValidator', 'TypeRegistry', 'created_at', 'document_name', 'draft', 'field_defaults', 'fields', 'form_id', 'index', 'merge_count', 'merged_from', 'metadata', 'modified_at', 'parent_id', 'r', 'schema_version', 'series', 'status', 'subtype', 'template_id', 'type_code', 'utf-8', 'w']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/erasure_handler.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', '2026-03-24', 'AuditLog', 'DENIAL_REASONS', 'Data subject request', 'Deleted %d records', 'ErasureResult', 'Mike Voyager', 'No record IDs found', 'action', 'audit_log', 'category', 'completed', 'consent_revoked', 'contract', 'data_type', 'deleted_count', 'denied', 'error', 'failed', 'file_path', 'financial_records', 'id', 'internal', 'is_complete', 'legal_claim', 'legal_hold', 'legal_obligation', 'legal_records', 'partial', 'processing', 'public_interest', 'reason', 'remaining_categories', 'remaining_records', 'request_id', 'status', 'subject_id', 'unknown', 'verified_at']

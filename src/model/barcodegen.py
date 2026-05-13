@@ -181,7 +181,9 @@ class Barcode:
             if not isinstance(self.position, tuple) or len(self.position) != 2:
                 errors.append(f"Invalid position: {self.position}, must be tuple of 2 ints")
             elif not all(isinstance(x, int) and x >= 0 for x in self.position):
-                errors.append(f"Invalid position values: {self.position}, must be non-negative ints")
+                errors.append(
+                    f"Invalid position values: {self.position}, must be non-negative ints"
+                )
 
         # Проверка размера
         if self.size is not None:
@@ -221,9 +223,7 @@ class Barcode:
         dct: Dict[str, Any] = asdict(self)
         dct["schema_version"] = SCHEMA_VERSION
         if self.signature_payload is not None:
-            dct["signature_payload"] = base64.b64encode(self.signature_payload).decode(
-                "ascii"
-            )
+            dct["signature_payload"] = base64.b64encode(self.signature_payload).decode("ascii")
         return dct
 
     @classmethod

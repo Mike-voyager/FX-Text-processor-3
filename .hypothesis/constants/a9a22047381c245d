@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/base/widget.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', '2026-04-01', 'BaseWidget', 'Mike Voyager', 'SmartBaseWidget', 'enter_edit_mode', 'exit_edit_mode', 'mount', 'unmount', 'widget_mounted', 'widget_unmounted', 'winfo_exists']

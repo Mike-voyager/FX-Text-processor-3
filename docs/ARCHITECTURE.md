@@ -1804,6 +1804,8 @@ class NotificationService:
     def subscribe(self, callback: Callable[[Notification], None]) -> None: ...
 ```
 
+> **Примечание:** В Phase 7 реализован расширенный `NotificationService` в `src/gui/services/notification_service.py` с поддержкой истории, категорий и приоритетов. См. раздел 5.8.
+
 #### Document Lock Service
 
 ```python
@@ -1998,9 +2000,126 @@ class PaperFormatService:
 
 **Назначение:** Tkinter-based GUI компоненты.
 
-> **Статус:** ❌ Не начато — 0%.
+> **Статус:** 🚧 В процессе — Phase 7 завершён, Phase 8 запланирована.
 
-#### Основные компоненты
+#### Phase 7: GUI Services (src/gui/services/)
+
+Phase 7 внедрила сервисный слой для GUI с поддержкой многоконного режима и межоконного взаимодействия:
+
+**WindowManager** — централизованное управление окнами:
+```python
+# src/gui/services/window_manager.py
+class WindowManager:
+    """Централизованный менеджер окон для многоконного режима."""
+    
+    def register_window(
+        self,
+        window: tk.Toplevel | tk.Tk,
+        title: str,
+        document_path: Optional[Path] = None,
+        is_modal: bool = False,
+    ) -> str: ...  # Returns window_id (UUID)
+    
+    def bring_to_front(self, window_id: str) -> None: ...
+    def close_all_except_main(self) -> int: ...  # Returns closed count
+    def transfer_document(self, from_id: str, to_id: str, doc_id: str) -> bool: ...
+```
+
+**Security constraints:**
+- `MAX_WINDOWS = 50` — предотвращение исчерпания ресурсов
+- UUID для идентификации окон
+- Отслеживание всех диалогов для быстрого закрытия при блокировке сессии
+
+**NotificationService** — расширенная система уведомлений:
+```python
+# src/gui/services/notification_service.py
+class NotificationService:
+    """Сервис уведомлений с историей и приоритетами."""
+    
+    def notify(
+        self,
+        message: str,
+        category: str,  # "security", "workflow", "system", "sync"
+        priority: NotificationPriority,  # LOW, NORMAL, HIGH, CRITICAL
+    ) -> str: ...  # Returns notification_id
+    
+    def get_history(self, category: str | None = None) -> list[Notification]: ...
+    def mark_as_read(self, notification_id: str) -> None: ...
+```
+
+**Маршрутизация по приоритетам:**
+- `LOW` / `NORMAL` → ToastService (неблокирующие)
+- `HIGH` / `CRITICAL` → Модальные диалоги через WindowManager
+
+**SyncService** — синхронизация состояния между окнами:
+```python
+# src/gui/services/sync_service.py
+class SyncService:
+    """Сервис синхронизации между окнами."""
+    
+    DATA_SIDEBAR_STATE = "sidebar_state"      # last-write-wins
+    DATA_BOOKMARK_CHANGE = "bookmark_change"  # merge strategy
+    DATA_DOCUMENT_UPDATE = "document_update"  # MFA-gated
+    DATA_SELECTION_CHANGE = "selection_change"  # broadcast only
+    DATA_MODE_CHANGE = "mode_change"          # MFA-gated
+    
+    def broadcast(
+        self,
+        source_window_id: str,
+        data_type: str,
+        data: Any,
+    ) -> None: ...
+    
+    def send_to_window(
+        self,
+        source_window_id: str,
+        target_window_id: str,
+        data_type: str,
+        data: Any,
+    ) -> None: ...
+```
+
+**DragDropServiceProtocol** — drag-and-drop операции:
+```python
+# src/gui/core/protocols.py
+class DragDropServiceProtocol(Protocol):
+    def start_drag(self, source_window_id: str, data: Any) -> None: ...
+    def register_drop_target(self, widget: tk.Widget, target: Any) -> str: ...
+    def is_dragging(self) -> bool: ...
+    def cancel_drag(self) -> None: ...
+```
+
+**PreviewPanel** — панель предпросмотра ESC/P вывода:
+```python
+# src/gui/form_designer/preview_panel.py
+class PreviewPanel(BaseWidget):
+    """Панель предпросмотра с двумя режимами."""
+    
+    def set_preview_data(self, data: PreviewData) -> None: ...
+    def show_hex_view(self) -> None: ...       # Hex дамп с подсветкой
+    def show_visual_preview(self) -> None: ...  # Canvas-рендеринг
+    def zoom_in(self) -> None: ...
+    def zoom_out(self) -> None: ...
+```
+
+**Интеграция в MainWindow:**
+```python
+class MainWindow:
+    def __init__(self, controller: ControllerProtocol):
+        # Phase 7 Services
+        self._window_manager = WindowManager(self._root)
+        self._notification_service = NotificationService(
+            self._root, self._window_manager
+        )
+        self._sync_service = SyncService(self._window_manager)
+        
+        # Register main window
+        self._main_window_id = self._window_manager.register_window(
+            self._root, "FX Text Processor 3"
+        )
+```
+
+#### Основные компоненты (план Phase 8)
 
 ```
 src/view/
@@ -2790,6 +2909,10 @@ CloudStorage/FXTextProcessor/
 | `services/paper_format/` | ❌ 0% | — | — | Профили форматов бумаги (A4, Letter, A5) |
 | `view/` (GUI) | ❌ 0% | — | — | Tkinter UI — не начато |
 | `controller/` | ❌ 0% | — | — | Controllers — не начато |
+| `gui/services/window_manager.py` | ✅ 90% | 90% | 15+ | Phase 7: управление окнами |
+| `gui/services/notification_service.py` | ✅ 85% | 85% | 20+ | Phase 7: уведомления |
+| `gui/services/sync_service.py` | ✅ 88% | 88% | 25+ | Phase 7: синхронизация окон |
+| `gui/form_designer/preview_panel.py` | ✅ 80% | 80% | 12+ | Phase 7: предпросмотр ESC/P |
 | `controller/` | ❌ 0% | — | — | Controllers — не начато |
 | `backup/` | 📋 TODO | — | — | Key ceremony, Shamir SSS |
 | `network/` | 📋 TODO | — | — | LAN verifier (opt-in) |

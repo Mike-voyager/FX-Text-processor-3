@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/lock/session_lock_manager.py
+# hypothesis_version: 6.151.12
+
+[100, '\x00', '-', 'AuthController', 'Clipboard cleared', 'INVALID_MFA', 'INVALID_PASSWORD', 'MFA_REQUIRED', 'NOT_LOCKED', 'VERIFICATION_ERROR', 'auto_lock', 'lock', 'manual', 'screensaver', 'security_policy', 'system_sleep', 'unlock', 'Неверный MFA код', 'Неверный пароль']

@@ -10,7 +10,6 @@ Reference: Epson FX-890 Technical Reference Manual, Chapter 5
 from typing import Final
 
 __all__ = [
-    "ESC_FONT_DRAFT",
     "ESC_FONT_ROMAN",
     "ESC_FONT_SANS_SERIF",
     "ESC_10CPI",
@@ -18,57 +17,69 @@ __all__ = [
     "ESC_15CPI",
     "ESC_PROPORTIONAL_ON",
     "ESC_PROPORTIONAL_OFF",
+    "ESC_MASTER_SELECT",
+    "MASTER_12_CPI",
+    "MASTER_PROPORTIONAL",
+    "MASTER_CONDENSED",
+    "MASTER_BOLD",
+    "MASTER_DOUBLE_STRIKE",
+    "MASTER_DOUBLE_WIDTH",
+    "MASTER_ITALIC",
+    "MASTER_UNDERLINE",
     "set_cpi",
     "set_character_spacing",
+    "set_extra_spacing",
+    "master_select",
 ]
 
 # =============================================================================
 # FONT SELECTION
 # =============================================================================
 
-ESC_FONT_DRAFT: Final[bytes] = b"\x1bk\x00"
+# NOTE: ESC k command only works in NLQ mode (ESC x 1) for selecting
+# typeface. Draft font (ESC x 0) does NOT support font selection.
+#
+# Draft mode is activated via ESC x 0, NOT via ESC k.
+# See print_quality.py for mode selection.
+
+ESC_FONT_ROMAN: Final[bytes] = b"\x1bk\x00"
 """
-Select draft font (fast printing).
+Select Roman font (serif, NLQ quality only).
 
 Command: ESC k 0
 Hex: 1B 6B 00
-Effect: High-speed draft quality font
-Speed: ~680 cps (characters per second)
-Quality: Standard readability
-Reset: Changed by other font commands or printer reset
-
-Example:
-    >>> printer.send(ESC_FONT_DRAFT + b"Fast draft text")
-"""
-
-ESC_FONT_ROMAN: Final[bytes] = b"\x1bk\x01"
-"""
-Select Roman font (serif, NLQ quality).
-
-Command: ESC k 1
-Hex: 1B 6B 01
 Effect: Roman serif font with serifs (NLQ mode required)
-Speed: ~227 cps (slower due to higher quality)
+Speed: ~104 cps at 10 CPI, ~125 cps at 12 CPI (NLQ mode)
 Quality: Near Letter Quality
-Requirement: Printer must be in NLQ mode
+Requirement: Printer must be in NLQ mode (ESC x 1)
 Reset: Changed by other font commands or printer reset
+
+Note:
+    This command ONLY works in NLQ mode (ESC x 1).
+    In Draft mode (ESC x 0), NLQ fonts are unavailable.
+    Draft mode is selected via ESC x 0, NOT ESC k.
 
 Example:
     >>> from src.escp.commands.print_quality import ESC_SELECT_LQ
     >>> printer.send(ESC_SELECT_LQ + ESC_FONT_ROMAN + b"Roman serif text")
 """
 
-ESC_FONT_SANS_SERIF: Final[bytes] = b"\x1bk\x02"
+ESC_FONT_SANS_SERIF: Final[bytes] = b"\x1bk\x01"
 """
-Select Sans Serif font (clean, NLQ quality).
+Select Sans Serif font (clean, NLQ quality only).
 
-Command: ESC k 2
-Hex: 1B 6B 02
+Command: ESC k 1
+Hex: 1B 6B 01
 Effect: Sans serif font without serifs (NLQ mode required)
-Speed: ~227 cps
+Speed: ~104 cps at 10 CPI, ~125 cps at 12 CPI (NLQ mode)
 Quality: Near Letter Quality
-Requirement: Printer must be in NLQ mode
+Requirement: Printer must be in NLQ mode (ESC x 1)
 Reset: Changed by other font commands or printer reset
+
+Note:
+    This command ONLY works in NLQ mode (ESC x 1).
+    Value 0 = Roman, 1 = Sans Serif (no other values supported).
+    Draft mode is selected via ESC x 0, NOT ESC k.
 
 Example:
     >>> from src.escp.commands.print_quality import ESC_SELECT_LQ
@@ -167,30 +178,33 @@ Example:
 
 def set_cpi(cpi: int) -> bytes:
     """
-    Set custom character pitch.
+    Set character pitch (CPI).
 
     Command: ESC x n
     Hex: 1B 78 n
 
     Args:
-        cpi: Characters per inch (5-20 supported on FX-890).
+        cpi: Characters per inch. FX-890 supports only:
+             - 10 CPI (pica, standard)
+             - 12 CPI (elite)
+             - 15 CPI (condensed)
 
     Returns:
         ESC/P command bytes.
 
     Raises:
-        ValueError: If cpi is out of supported range.
+        ValueError: If cpi is not 10, 12, or 15.
 
     Note:
-        Not all CPI values may render well. Standard values are:
-        10 CPI (pica), 12 CPI (elite), 15 CPI (condensed).
+        FX-890 only supports 10, 12, and 15 CPI.
+        Use ESC P, ESC M, ESC g shortcuts for these values.
 
     Example:
-        >>> cmd = set_cpi(17)  # 17 characters per inch
-        >>> printer.send(cmd + b"Custom 17 CPI text")
+        >>> cmd = set_cpi(12)  # 12 CPI (elite)
+        >>> printer.send(cmd + b"12 CPI text")
     """
-    if not (5 <= cpi <= 20):
-        raise ValueError(f"CPI must be 5-20, got {cpi}")
+    if cpi not in (10, 12, 15):
+        raise ValueError(f"FX-890 supports only 10, 12, or 15 CPI, got {cpi}")
 
     return b"\x1bx" + bytes([cpi])
 
@@ -227,6 +241,119 @@ def set_character_spacing(spacing: int) -> bytes:
 
 
 # =============================================================================
+# MASTER SELECT (ESC !)
+# =============================================================================
+
+ESC_MASTER_SELECT: Final[bytes] = b"\x1b!"
+"""
+Master Select command prefix.
+
+Command: ESC ! n
+Hex: 1B 21 n
+Effect: Combined font attribute selection via bit flags.
+
+Bit flags for Master Select:
+    Bit 0 (0x01): 12 CPI (elite) - if 0, uses 10 CPI
+    Bit 1 (0x02): Proportional spacing
+    Bit 2 (0x04): Condensed mode
+    Bit 3 (0x08): Bold
+    Bit 4 (0x10): Double-strike
+    Bit 5 (0x20): Double-width
+    Bit 6 (0x40): Italic
+    Bit 7 (0x80): Underline
+
+Note:
+    This command combines multiple attributes in a single byte.
+    Some combinations may be mutually exclusive or hardware-dependent.
+
+Example:
+    >>> # Bold + Italic + 12 CPI
+    >>> flags = MASTER_BOLD | MASTER_ITALIC | MASTER_12_CPI
+    >>> printer.send(master_select(flags))
+"""
+
+# Master Select bit flags
+MASTER_12_CPI: Final[int] = 0x01
+MASTER_PROPORTIONAL: Final[int] = 0x02
+MASTER_CONDENSED: Final[int] = 0x04
+MASTER_BOLD: Final[int] = 0x08
+MASTER_DOUBLE_STRIKE: Final[int] = 0x10
+MASTER_DOUBLE_WIDTH: Final[int] = 0x20
+MASTER_ITALIC: Final[int] = 0x40
+MASTER_UNDERLINE: Final[int] = 0x80
+
+
+def master_select(flags: int) -> bytes:
+    """
+    Master Select - combined font attribute selection.
+
+    Command: ESC ! n
+    Hex: 1B 21 n
+
+    Args:
+        flags: Bit mask of attributes (0-255).
+               Use MASTER_* constants to build the mask.
+
+    Returns:
+        ESC/P command bytes.
+
+    Raises:
+        ValueError: If flags is out of range.
+
+    Bit flags:
+        MASTER_12_CPI (0x01): 12 CPI elite (default is 10 CPI)
+        MASTER_PROPORTIONAL (0x02): Enable proportional spacing
+        MASTER_CONDENSED (0x04): Condensed mode
+        MASTER_BOLD (0x08): Bold text
+        MASTER_DOUBLE_STRIKE (0x10): Double-strike
+        MASTER_DOUBLE_WIDTH (0x20): Double-width
+        MASTER_ITALIC (0x40): Italic
+        MASTER_UNDERLINE (0x80): Underline
+
+    Example:
+        >>> # Bold + Italic + Underline + 12 CPI
+        >>> flags = MASTER_BOLD | MASTER_ITALIC | MASTER_UNDERLINE | MASTER_12_CPI
+        >>> printer.send(master_select(flags))
+        >>> printer.send(b"Formatted text")
+    """
+    if not (0 <= flags <= 255):
+        raise ValueError(f"Flags must be 0-255, got {flags}")
+
+    return b"\x1b!" + bytes([flags])
+
+
+def set_extra_spacing(dots: int) -> bytes:
+    """
+    Set extra intercharacter spacing.
+
+    Command: ESC Space n
+    Hex: 1B 20 n
+
+    Args:
+        dots: Extra spacing in 1/120 inch units (0-127).
+              0 = no extra spacing (default).
+
+    Returns:
+        ESC/P command bytes.
+
+    Raises:
+        ValueError: If dots is out of range.
+
+    Note:
+        Adds n/120 inch to the right of each character.
+        Independent of CPI setting.
+
+    Example:
+        >>> cmd = set_extra_spacing(10)  # Add 10/120" spacing
+        >>> printer.send(cmd + b"Spaced text")
+    """
+    if not (0 <= dots <= 127):
+        raise ValueError(f"Spacing must be 0-127, got {dots}")
+
+    return b"\x1b " + bytes([dots])
+
+
+# =============================================================================
 # USAGE EXAMPLES
 # =============================================================================
 
@@ -252,19 +379,30 @@ MAXIMUM LINE WIDTH:
     - 15 CPI: 127 characters per line
 
 FONT AVAILABILITY:
-    - Draft font: Always available
-    - Roman/Sans Serif: NLQ mode only
-    - Some fonts may not support all CPI values
+    - Draft fonts: Available in Draft mode (ESC x 0 or ESC_SELECT_DRAFT)
+    - Roman/Sans Serif: Only in NLQ mode (ESC x 1 or ESC_SELECT_LQ)
+    - ESC k only works in NLQ mode
 
 PERFORMANCE CONSIDERATIONS:
-    - Draft mode: ~680 cps
-    - NLQ mode: ~227 cps
+    - Draft mode: ~419 cps at 10 CPI, ~503 cps at 12 CPI
+    - NLQ mode: ~104 cps at 10 CPI, ~125 cps at 12 CPI
     - Proportional: Slightly slower than fixed-width
+
+MASTER SELECT EXAMPLES:
+    Combined attribute selection:
+
+    >>> # Bold + 12 CPI
+    >>> printer.send(master_select(MASTER_BOLD | MASTER_12_CPI))
+    >>> printer.send(b"Bold elite text")
+
+    >>> # Italic + Underline
+    >>> printer.send(master_select(MASTER_ITALIC | MASTER_UNDERLINE))
+    >>> printer.send(b"Italic underlined text")
 
 TROUBLESHOOTING:
     If font doesn't appear:
-    1. Check printer mode (draft vs NLQ)
-    2. Verify font is supported in current mode
-    3. Reset printer and try again
-    4. Check paper type (some effects work poorly on thermal paper)
+    1. Check printer mode (ESC x 0 = Draft, ESC x 1 = NLQ)
+    2. Roman/Sans Serif require NLQ mode
+    3. ESC k only works in NLQ mode
+    4. Reset printer and try again
 """

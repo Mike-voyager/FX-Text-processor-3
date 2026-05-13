@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/__init__.py
+# hypothesis_version: 6.151.12
+
+['EventHandlingError', 'GUIError', 'LifecycleError', 'WidgetCategory', 'WidgetComplexity', 'WidgetCreationError', 'WidgetMetadata', 'WidgetNotFoundError', 'WidgetRegistry', 'WidgetRegistryEntry', 'WidgetRegistryError', '__version__']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/field_builder.py
+# hypothesis_version: 6.151.12
+
+['FieldDefinition', 'FieldType', 'FieldType | None', 'TableSchema', 'TableSchema | None', 'field_id is required', 'label is required']

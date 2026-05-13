@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/auto_save_service.py
+# hypothesis_version: 6.151.12
+
+[300, '.bak', 'AutoSaveCallback', 'AutoSaveConfig', 'AutoSaveService', 'AutoSaveStats', 'Unknown error']

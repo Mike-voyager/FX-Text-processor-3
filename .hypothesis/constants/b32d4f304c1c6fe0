@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/core/error_handler.py
+# hypothesis_version: 6.151.12
+
+['An error occurred.', 'Document Error', 'Error', 'ErrorContext', 'GUI error in %s: %s', 'GUIErrorHandler', 'Security Error', 'UI Error', 'Unexpected Error', 'audit_context', 'operation', 'security_error', 'unknown']

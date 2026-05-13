@@ -97,9 +97,7 @@ class AppContext:
         # По умолчанию in-memory; файловый бэкенд подключается после аутентификации
         self.storage: KeyStoreProtocol = _InMemoryStore()
 
-        self.mfa_manager: SecondFactorManager = SecondFactorManager(
-            storage=self.storage
-        )
+        self.mfa_manager: SecondFactorManager = SecondFactorManager(storage=self.storage)
         self.audit: Any = None
         self.user_id: str | None = user_id
         self.services: dict[str, Any] = {}
@@ -149,11 +147,7 @@ class AppContext:
             storage_path: Путь к файлу хранилища (для "file").
             master_key: Мастер-ключ (32 байта) для SecureStorage.
         """
-        if (
-            storage_backend == "file"
-            and storage_path is not None
-            and master_key is not None
-        ):
+        if storage_backend == "file" and storage_path is not None and master_key is not None:
             self.storage = SecureStorage(storage_path, master_key)
         else:
             self.storage = _InMemoryStore()

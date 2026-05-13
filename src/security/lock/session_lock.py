@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
@@ -75,6 +74,8 @@ class SessionLockManager:
     user_id: str = field(default="operator")
     audit_callback: Optional[AuditCallback] = field(default=None)
     mfa_required_callback: Optional[Callable[[], bool]] = field(default=None)
+    password_service: Optional[Any] = field(default=None)
+    mfa_manager: Optional[Any] = field(default=None)
 
     # Внутреннее состояние
     _state: LockState = field(default=LockState.UNLOCKED, init=False)
@@ -210,10 +211,13 @@ class SessionLockManager:
                 )
 
                 # Логируем
-                self._audit("session.locked", {
-                    "reason": reason.value,
-                    "event_id": event.event_id,
-                })
+                self._audit(
+                    "session.locked",
+                    {
+                        "reason": reason.value,
+                        "event_id": event.event_id,
+                    },
+                )
 
                 LOG.info("Session locked: reason=%s", reason.value)
                 return event
@@ -274,10 +278,19 @@ class SessionLockManager:
             LOG.info("Unlocking session: user=%s attempt=%d", self.user_id, self._unlock_attempts)
 
             try:
-                # TODO: Проверка пароля через AuthService
-                # Пока просто проверяем что пароль не пустой
+                # Проверка пароля
                 if password is None or len(password) < 1:
                     raise UnlockError("Password required for unlock", reason="password_required")
+
+                if self.password_service is not None:
+                    try:
+                        password_ok = self.password_service.verify_password(self.user_id, password)
+                    except Exception as exc:
+                        LOG.warning("Password verification failed: %s", exc)
+                        password_ok = False
+                    if not password_ok:
+                        raise UnlockError("Invalid password", reason="invalid_password")
+                # else: fallback — non-empty password accepted (dev/test mode)
 
                 # Проверяем MFA если требуется
                 mfa_method: Optional[str] = None
@@ -290,12 +303,27 @@ class SessionLockManager:
                             mfa_methods=["totp", "fido2", "backup_code"],
                         )
 
-                    # TODO: Проверка MFA через SecondFactorService
-                    # Пока просто проверяем что код не пустой
-                    if len(mfa_code) < 6:
-                        raise UnlockError("Invalid MFA code", reason="invalid_mfa")
-
-                    mfa_method = "totp"  # Заглушка
+                    if self.mfa_manager is not None:
+                        # Try TOTP first, then backup code
+                        mfa_ok = False
+                        method_order = ["totp", "backup_code"]
+                        for method in method_order:
+                            try:
+                                mfa_ok = self.mfa_manager.verify_factor(
+                                    self.user_id, method, mfa_code
+                                )
+                            except Exception:
+                                mfa_ok = False
+                            if mfa_ok:
+                                mfa_method = method
+                                break
+                        if not mfa_ok:
+                            raise UnlockError("Invalid MFA code", reason="invalid_mfa")
+                    else:
+                        # fallback — min length check
+                        if len(mfa_code) < 6:
+                            raise UnlockError("Invalid MFA code", reason="invalid_mfa")
+                        mfa_method = "totp"
 
                 # Вызываем callbacks
                 for callback in self._on_unlock_callbacks:
@@ -319,10 +347,13 @@ class SessionLockManager:
                 )
 
                 # Логируем
-                self._audit("session.unlocked", {
-                    "event_id": event.event_id,
-                    "mfa_method": mfa_method,
-                })
+                self._audit(
+                    "session.unlocked",
+                    {
+                        "event_id": event.event_id,
+                        "mfa_method": mfa_method,
+                    },
+                )
 
                 LOG.info("Session unlocked: user=%s mfa=%s", self.user_id, mfa_method or "none")
                 return event

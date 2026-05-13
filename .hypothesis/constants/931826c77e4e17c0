@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/undo_redo_menu.py
+# hypothesis_version: 6.151.12
+
+['UndoRedoMenuItems', 'redo', 'undo', 'Отменить', 'Отменить (Ctrl+Z)', 'Повторить', 'Повторить (Ctrl+Y)', '↶ Отменить', '↷ Повторить']

@@ -17,7 +17,6 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from src.security.monitoring.exceptions import DeviceCheckError
 from src.security.monitoring.models import HealthCheckResult, HealthCheckStatus
 
 LOG = logging.getLogger(__name__)
@@ -206,8 +205,8 @@ class DeviceCheck:
 
         try:
             # Пытаемся импортировать fido2
+            from fido2.client import Fido2Client  # noqa: F401
             from fido2.hid import CtapHidDevice
-            from fido2.client import Fido2Client
 
             devices = list(CtapHidDevice.list_devices())
             result["count"] = len(devices)

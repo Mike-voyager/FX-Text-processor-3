@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/primitive/entry.py
+# hypothesis_version: 6.151.12
+
+['<FocusIn>', '<FocusOut>', 'ThemedEntry', 'enter_edit_mode', 'entry_changed', 'exit_edit_mode', 'get_edit_value', 'set_edit_value', 'sync_to_model', 'Невалидное значение']

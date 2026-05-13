@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/passwords.py
+# hypothesis_version: 6.151.12
+
+[100, 65536, '$', '$argon2', '$scrypt$', '(.)\\1{2,}', '000000', '1.0.0', '111111', '123123', '1234', '12345', '123456', '1234567', '12345678', '123456789', '1234567890', '2026-03-02', '654321', '=', 'Mike Voyager', 'PasswordHasher', 'PasswordStrength', '[A-Z]', '[^a-zA-Z0-9]', '[a-z]', '\\d', 'aa123456', 'abc123', 'access', 'admin', 'ascii', 'ashley', 'baseball', 'batman', 'changeme', 'charlie', 'donald', 'dragon', 'fair', 'football', 'hash_str', 'hello', 'iloveyou', 'letmein', 'login', 'master', 'michael', 'monkey', 'p@ssw0rd', 'p@ssword', 'pass', 'passw0rd', 'password', 'password1', 'password1!', 'password123', 'princess', 'qazwsx', 'qwerty', 'qwerty123', 'scrypt', 'shadow', 'starwars', 'strong', 'sunshine', 'superman', 'test', 'trustno1', 'utf-8', 'very_strong', 'weak', 'welcome', 'Добавьте цифры']

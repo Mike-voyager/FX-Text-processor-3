@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/data_export.py
+# hypothesis_version: 6.151.12
+
+['%Y%m%d_%H%M%S', '1.0.0', '2026-03-24', 'AuditLog', 'DataExportService', 'Exported data to: %s', 'Mike Voyager', 'action', 'anonymized', 'categories', 'category', 'created_at', 'csv', 'data', 'data_export', 'date_range', 'earliest', 'export_format', 'export_info', 'exported_at', 'field', 'fields', 'format', 'index', 'internal', 'json', 'latest', 'metadata', 'name', 'record', 'record_count', 'serialized', 'subject_id', 'total_records', 'unicode', 'utf-8', 'xml']

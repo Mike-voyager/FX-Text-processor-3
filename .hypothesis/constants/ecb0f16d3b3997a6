@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/barcode_service.py
+# hypothesis_version: 6.151.12
+
+['1d', '2d', 'Barcode', 'BarcodeGenerator', 'BarcodeService', 'BarcodeType', 'Matrix2DCodeType', 'background', 'border', 'caption', 'err', 'escp', 'foreground', 'generator', 'gs1_mode', 'hard', 'layer', 'level', 'options_allowlist', 'padding', 'preview', 'renderimage', 'show_label', 'soft', 'support_level', 'types', 'unknown', 'validate']

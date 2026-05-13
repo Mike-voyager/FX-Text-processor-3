@@ -445,7 +445,7 @@ class YubiKeyPivBackend:
                 connection = device.open_connection(SmartCardConnection)
                 try:
                     piv = PivSession(connection)
-                except Exception:
+                except (OSError, TypeError, RuntimeError):
                     connection.close()
                     raise
                 logger.debug("PIV session opened: card_id=%s", self._card_id)
@@ -454,11 +454,11 @@ class YubiKeyPivBackend:
             raise
         except DeviceNotFoundError:
             raise
-        except Exception as exc:
+        except (OSError, TypeError, RuntimeError) as exc:
             if connection is not None:
                 try:
                     connection.close()
-                except Exception as close_err:
+                except (OSError, TypeError, RuntimeError) as close_err:
                     logger.debug("Failed to close connection during error handling: %s", close_err)
             raise DeviceCommunicationError(
                 device_id=self._card_id,
@@ -793,6 +793,14 @@ class YubiKeyPivBackend:
                             algorithm=algo,
                             status=SlotStatus.POPULATED,
                             key_size=key_size,
+                        )
+                    )
+                except (OSError, ValueError, TypeError, RuntimeError):
+                    slots.append(
+                        SlotInfo(
+                            slot_id=slot_hex,
+                            label=label,
+                            status=SlotStatus.EMPTY,
                         )
                     )
                 except Exception:

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/mfa_verification_dialog.py
+# hypothesis_version: 6.151.12
+
+[350, 400, 800, '#27ae60', '#2c3e50', '#333333', '#3498db', '#666666', '#e74c3c', '#f8f9fa', '-', '<Return>', 'Arial', 'Backup Code', 'Cancel', 'Courier', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Enter 6-digit code:', 'Method:', 'TOTP Code', 'backup', 'bold', 'cancelled', 'method', 'totp', 'verified', 'white', '✓ Verify']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/checkbox_widget.py
+# hypothesis_version: 6.151.12
+
+[' *', 'CheckboxWidget', 'TkDefaultFont', 'config', 'disabled']

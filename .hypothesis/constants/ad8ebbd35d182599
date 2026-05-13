@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/model/section.py
+# hypothesis_version: 6.151.12
+
+[0.118, 0.5, 4.0, 8.0, 8.5, 10.0, 11.0, 22.0, 9999, 'Margins', 'PageSettings', 'Section', 'bottom', 'bottom_inches', 'break_type', 'continuous', 'even_page', 'height', 'height_inches', 'landscape', 'left', 'left_inches', 'margins', 'new_page', 'odd_page', 'orientation', 'page_number_start', 'page_settings', 'paragraphs', 'portrait', 'right', 'right_inches', 'runs', 'text', 'top', 'top_inches', 'width', 'width_inches']

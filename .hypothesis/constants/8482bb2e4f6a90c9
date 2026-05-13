@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/monitoring/exceptions.py
+# hypothesis_version: 6.151.12
+
+[256, ', ', '1.0.0', '2026-03-24', 'AlgorithmCheckError', 'AuditChainCheckError', 'Config check failed', 'ConfigCheckError', 'Device check failed', 'DeviceCheckError', 'Entropy check failed', 'EntropyCheckError', 'HealthCheckError', 'KeystoreCheckError', 'Mike Voyager', 'algorithm', 'audit_chain', 'available_bits', 'config', 'config_path', 'device', 'device_id', 'device_type', 'entropy', 'event_count', 'failed_at_event', 'keystore', 'keystore_path', 'reason', 'required_bits']

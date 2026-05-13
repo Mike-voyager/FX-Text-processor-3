@@ -73,6 +73,7 @@ from cryptography.hazmat.primitives.asymmetric import (
 from cryptography.hazmat.primitives.asymmetric import (
     padding as rsa_padding,
 )
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     NoEncryption,
@@ -191,7 +192,7 @@ def _load_private_key_der(data: bytes) -> object:
     """
     try:
         return load_der_private_key(data, password=None)
-    except Exception as exc:
+    except (TypeError, ValueError, RuntimeError, UnsupportedAlgorithm) as exc:
         raise InvalidKeyError(
             "Invalid private key DER format. Expected PKCS#8 DER-encoded private key."
         ) from exc
@@ -212,7 +213,7 @@ def _load_public_key_der(data: bytes) -> object:
     """
     try:
         return load_der_public_key(data)
-    except Exception as exc:
+    except (TypeError, ValueError, RuntimeError, UnsupportedAlgorithm) as exc:
         raise InvalidKeyError(
             "Invalid public key DER format. Expected SubjectPublicKeyInfo DER-encoded public key."
         ) from exc
@@ -286,7 +287,7 @@ class Ed25519Signer(SignatureProtocol):
             key = ed25519.Ed25519PrivateKey.generate()
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise KeyGenerationError(
                 "Ed25519 key generation failed. This might indicate a system CSPRNG issue."
             ) from exc
@@ -326,7 +327,7 @@ class Ed25519Signer(SignatureProtocol):
 
         try:
             return key_obj.sign(message)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise SigningFailedError("Ed25519 signing failed", algorithm="Ed25519") from exc
 
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
@@ -363,8 +364,7 @@ class Ed25519Signer(SignatureProtocol):
         try:
             key_obj.verify(signature, message)
             return True
-        except Exception:
-            # Любая ошибка верификации = невалидная подпись
+        except InvalidSignature:
             return False
 
 
@@ -415,7 +415,7 @@ class Ed448Signer(SignatureProtocol):
             key = ed448.Ed448PrivateKey.generate()
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise KeyGenerationError("Ed448 key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -429,7 +429,7 @@ class Ed448Signer(SignatureProtocol):
 
         try:
             return key_obj.sign(message)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise SigningFailedError("Ed448 signing failed", algorithm="Ed448") from exc
 
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
@@ -444,7 +444,7 @@ class Ed448Signer(SignatureProtocol):
         try:
             key_obj.verify(signature, message)
             return True
-        except Exception:
+        except InvalidSignature:
             return False
 
 
@@ -490,7 +490,7 @@ class _ECDSASignerBase(SignatureProtocol):
             key = ec.generate_private_key(self._CURVE)
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -509,7 +509,7 @@ class _ECDSASignerBase(SignatureProtocol):
 
         try:
             return key_obj.sign(message, ec.ECDSA(self._HASH()))
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise SigningFailedError(
                 f"{self.algorithm_name} signing failed", algorithm=self.algorithm_name
             ) from exc
@@ -526,7 +526,7 @@ class _ECDSASignerBase(SignatureProtocol):
         try:
             key_obj.verify(signature, message, ec.ECDSA(self._HASH()))
             return True
-        except Exception:
+        except InvalidSignature:
             return False
 
 
@@ -681,7 +681,7 @@ class _RSAPSSSignerBase(SignatureProtocol):
             key = rsa.generate_private_key(public_exponent=65537, key_size=self._KEY_SIZE)
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -706,7 +706,7 @@ class _RSAPSSSignerBase(SignatureProtocol):
 
         try:
             return key_obj.sign(message, padding, hashes.SHA256())
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise SigningFailedError(
                 f"{self.algorithm_name} signing failed", algorithm=self.algorithm_name
             ) from exc
@@ -728,7 +728,7 @@ class _RSAPSSSignerBase(SignatureProtocol):
         try:
             key_obj.verify(signature, message, padding, hashes.SHA256())
             return True
-        except Exception:
+        except InvalidSignature:
             return False
 
 
@@ -850,7 +850,7 @@ class RSAPKCS1v15Signer(SignatureProtocol):
             key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
             pub = key.public_key()
             return _encode_private_key_der(key), _encode_public_key_der(pub)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise KeyGenerationError("RSA-PKCS1v15 key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -864,7 +864,7 @@ class RSAPKCS1v15Signer(SignatureProtocol):
 
         try:
             return key_obj.sign(message, rsa_padding.PKCS1v15(), hashes.SHA256())
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             raise SigningFailedError(
                 "RSA-PKCS1v15 signing failed", algorithm="RSA-PKCS1v15"
             ) from exc
@@ -881,7 +881,7 @@ class RSAPKCS1v15Signer(SignatureProtocol):
         try:
             key_obj.verify(signature, message, rsa_padding.PKCS1v15(), hashes.SHA256())
             return True
-        except Exception:
+        except InvalidSignature:
             return False
 
 
@@ -949,7 +949,7 @@ class _OQSSignerBase(SignatureProtocol):
                 public_key = sig.generate_keypair()
                 private_key = sig.export_secret_key()
             return private_key, public_key
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, OSError) as exc:
             raise KeyGenerationError(f"{self.algorithm_name} key generation failed") from exc
 
     def sign(self, private_key: bytes, message: bytes) -> bytes:
@@ -983,7 +983,7 @@ class _OQSSignerBase(SignatureProtocol):
             with oqs.Signature(self._OQS_NAME, secret_key=private_key) as sig:
                 result: bytes = sig.sign(message)
                 return result
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, OSError) as exc:
             raise SigningFailedError(
                 f"{self.algorithm_name} signing failed", algorithm=self.algorithm_name
             ) from exc
@@ -1018,7 +1018,7 @@ class _OQSSignerBase(SignatureProtocol):
             with oqs.Signature(self._OQS_NAME) as sig:
                 ok = sig.verify(message, signature, public_key)
                 return bool(ok)
-        except Exception:
+        except (TypeError, ValueError, RuntimeError, OSError):
             return False
 
 

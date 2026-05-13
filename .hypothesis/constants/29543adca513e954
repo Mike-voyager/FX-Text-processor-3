@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/lock/auto_lock.py
+# hypothesis_version: 6.151.12
+
+[1000, 1000000000, '-c', '1.0.0', '2026-03-23', '=\\s*(\\d+)', 'Auto-lock failed: %s', 'AutoLockService', 'AutoLockThread', 'Darwin', 'HIDIdleTime', 'IOHIDSystem', 'Linux', 'Mike Voyager', 'Windows', 'auto_lock', 'cbSize', 'dwTime', 'idle_seconds', 'ioreg', 'timeout_config', 'types.TracebackType', 'xprintidle']

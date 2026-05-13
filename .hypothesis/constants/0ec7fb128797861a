@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/template_preview_panel.py
+# hypothesis_version: 6.151.12
+
+[160, 240, '#005a9e', '#0078d4', '#28a745', '#2c3e50', '#495057', '#545b62', '#6c757d', '#adb5bd', '#dc3545', '#dee2e6', '#e9ecef', '#f8f9fa', '#ffffff', '0', 'Arial', 'Fields:', 'Signature:', 'THUMB_HEIGHT', 'THUMB_WIDTH', '[Image Preview]', '[Preview]', 'all', 'bold', 'fields', 'name', 'signature_valid', 'thumbnail', 'Без названия', 'Шаблон не выбран', '—', '✓ Valid', '✗ Invalid', '📄 New Document', '🖨️ Print Blank']

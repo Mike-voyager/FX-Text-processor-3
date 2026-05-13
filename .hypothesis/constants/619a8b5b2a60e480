@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/index_search_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, 0.01, 0.1, 0.2, 0.3, 0.5, 1.0, 100, 1000, '*', '**\\g<0>**', '-', '.', '.*', '...', '?', 'Document', 'IndexEntry', 'IndexSearchService', 'IndexStorage', 'SearchField', 'SearchOperator', 'SearchQuery', 'SearchResponse', 'SearchResult', 'SortOrder', 'all', 'and', 'author', 'category', 'content', 'created_at', 'date', 'date_asc', 'date_desc', 'document_type', 'end', 'format_index', 'get_text', 'get_text_content', 'groups', 'index', 'index_asc', 'index_desc', 'keywords', 'metadata', 'name', 'not', 'or', 'paragraphs', 'relevance', 'sections', 'start', 'text', 'title', 'title_asc', 'title_desc', 'Ошибка поиска: %s']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/type_schema.py
+# hypothesis_version: 6.151.12
+
+['1.0', 'autocomplete_source', 'barcode', 'calculated', 'checkbox', 'cross_field_rules', 'currency', 'date_input', 'default_value', 'deprecated_fields', 'dropdown', 'email', 'enabled_condition', 'escp_variable', 'excel_import', 'field_id', 'field_type', 'fields', 'help_text', 'inherited_from', 'input_mask', 'label', 'label_i18n', 'max_date', 'max_length', 'max_value', 'min_date', 'min_value', 'multi_line_text', 'number_input', 'options', 'phone', 'placeholder', 'qr', 'radio_group', 'read_only_condition', 'readonly', 'required', 'required_if', 'shrink_font', 'signature', 'stamp', 'static_text', 'tab_index', 'table', 'text_input', 'truncate', 'validation_pattern', 'version', 'visibility_condition', 'wrap']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/ruler.py
+# hypothesis_version: 6.151.12
+
+[4.8, 5.647, 6.4, 8.0, 9.6, '#0078d4', '#333333', '#666666', '#c41e3a', '#cccccc', '#f0f0f0', '#ff6b6b', '<B1-Motion>', '<Button-1>', '<Button-3>', '<ButtonRelease-1>', '<Configure>', '<Double-Button-1>', '<Enter>', '<Leave>', 'CPI_TO_PIXELS', 'RULER_HEIGHT', 'Ruler', 'Segoe UI', 'TAB_MARKER_COLOR', 'TICK_INTERVAL', 'VALID_CPI_VALUES', 'black', 'current_x', 'drag_id', 'label', 'ruler', 'ruler_clicked', 'ruler_cpi_changed', 'start_x', 'tab_marker', 'tab_stop', 'tabs_changed', 'tick', 'white', 'Десятичный (▶·)', 'Изменить тип', 'Левый (▶)', 'Правый (◀)', 'Удалить', 'Центральный (◀▶)']

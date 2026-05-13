@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/trust_chain_utils.py
+# hypothesis_version: 6.151.12
+
+[256, 384, 512, 1312, 1952, 2592, 10000000, ' (корневой)', '%Y-%m-%d', '-', '1.0.0', '2026-04-11', 'Expected JSON array', 'Expected bytes', 'KEY_ID_PREFIX', 'MAX_KEY_SIZE', 'MIN_KEY_SIZE', 'Mike Voyager', 'Public key is empty', 'TRUSTED_KEYS_FILE', 'TrustChainError', 'TrustChainFileError', '_', 'chain', 'data', 'description', 'ed25519', 'ed448', 'email', 'errno', 'error', 'file_lock', 'filepath', 'generate_key_id', 'got_type', 'key-', 'load_trusted_keys', 'ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87', 'name', 'organization', 'public_key', 'rsa-2048', 'rsa-4096', 'save_trusted_keys', 'utf-8', 'validate_key_format', '⏰', '🔗 Цепочка доверия:', '🟢']

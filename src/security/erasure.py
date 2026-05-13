@@ -22,9 +22,7 @@ import ctypes
 import logging
 import os
 import platform
-import shutil
 import subprocess
-import sys
 import types
 from pathlib import Path
 from typing import Final, List, Optional
@@ -41,7 +39,7 @@ BUFFER_SIZE: Final[int] = 65536
 # Паттерны перезаписи по стандарту DoD 5220.22-M
 DOD_PATTERNS: Final[List[bytes]] = [
     b"\x00",  # Проход 1: нули
-    b"\xFF",  # Проход 2: единицы
+    b"\xff",  # Проход 2: единицы
     b"\x00",  # Проход 3: случайные (будут заменены на os.urandom)
 ]
 
@@ -222,9 +220,13 @@ def wipe_file(
         # Удаляем файл
         if remove:
             filepath.unlink()
-            LOG.info("Файл безопасно удалён: %s (%d байт, %d проходов)", filepath, file_size, passes)
+            LOG.info(
+                "Файл безопасно удалён: %s (%d байт, %d проходов)", filepath, file_size, passes
+            )
         else:
-            LOG.info("Файл безопасно перезаписан: %s (%d байт, %d проходов)", filepath, file_size, passes)
+            LOG.info(
+                "Файл безопасно перезаписан: %s (%d байт, %d проходов)", filepath, file_size, passes
+            )
 
         return True
 
@@ -355,7 +357,7 @@ def clear_clipboard() -> bool:
             LOG.warning("Неподдерживаемая платформа для очистки буфера: %s", system)
             return False
 
-    except Exception as e:
+    except (OSError, TypeError, RuntimeError, ValueError) as e:
         raise ClipboardClearError(f"Ошибка очистки буфера обмена: {e}") from e
 
 
@@ -492,7 +494,7 @@ class SecureData:
         try:
             if hasattr(self, "_data") and self._data is not None:
                 wipe_memory(self._data)
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError, RuntimeError):
             pass  # Игнорируем ошибки в деструкторе
 
 

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/audit/logger.py
+# hypothesis_version: 6.151.12
+
+[100, 100000, 1000000, '%Y%m%d_%H%M%S', '.audit', '1.0', '1.0.0', '2026-03-22', 'AUDIT_FILE_EXTENSION', 'AUDIT_LOG_VERSION', 'AuditError', 'AuditEvent', 'AuditIntegrityError', 'AuditLog', 'AuditLogError', 'MAX_EVENTS_PER_FILE', 'Mike Voyager', 'SHA3_256_DIGEST_SIZE', 'a', 'category', 'details', 'event_hash', 'event_id', 'event_type', 'hmac_signature', 'metadata', 'previous_hash', 'r', 'severity', 'timestamp', 'utf-8', 'version', 'w']

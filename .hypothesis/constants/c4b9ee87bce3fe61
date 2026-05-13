@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/form_field.py
+# hypothesis_version: 6.151.12
+
+[' (?)', ' *', '#ffffcc', '#ffffff', '%P', '%Y-%m-%d', '%d-%m-%Y', '%d.%m.%Y', '%d/%m/%Y', '1.0', '<<ComboboxSelected>>', '<Enter>', '<FocusIn>', '<FocusOut>', '<KeyRelease>', '<Leave>', 'FormField', 'TkDefaultFont', '^-?\\d*\\.?\\d*$', '_date_entry', '_text_widget', 'background', 'bg_color', 'black', 'blue', 'bold', 'disabled', 'gray', 'hand2', 'key', 'normal', 'question_arrow', 'readonly', 'red', 'ДД.ММ.ГГГГ', '●', '📅']

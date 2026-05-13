@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/model/__init__.py
+# hypothesis_version: 6.151.12
+
+['Alignment', 'BarcodeType', 'Bookmark', 'BookmarkManager', 'CharSize', 'CharactersPerInch', 'CodePage', 'Color', 'DitheringAlgorithm', 'Document', 'DocumentMetadata', 'DocumentPosition', 'EmbeddedObject', 'FileExtension', 'FileType', 'FontFamily', 'GraphicsMode', 'ImagePosition', 'LineSpacing', 'ListType', 'MarginUnits', 'Matrix2DCodeType', 'Orientation', 'PageSettings', 'PageSize', 'PaperSource', 'PaperType', 'Paragraph', 'PrintDirection', 'PrintQuality', 'PrinterSettings', 'Run', 'RunEmbeddedObject', 'Section', 'TabAlignment', 'TabStop', 'TabStopManager', 'TabStopType', 'TableStyle', 'TextStyle', 'create_form_document']

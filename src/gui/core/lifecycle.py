@@ -21,6 +21,8 @@ Date: April 2026
 
 from __future__ import annotations
 
+import logging
+
 import threading
 import tkinter as tk
 from contextlib import contextmanager
@@ -444,24 +446,27 @@ class LifecycleManager:
         for handler in self._event_handlers.get("mount", []):
             try:
                 handler(info)
-            except Exception:  # nosec B110 - callbacks should not crash manager
-                pass  # Игнорируем ошибки в callbacks
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+                logging.exception(f"Error during mount callback: {e}")
+                pass  # noqa: S110
 
     def _trigger_unmount(self, info: ComponentInfo) -> None:
         """Триггерит событие размонтирования."""
         for handler in self._event_handlers.get("unmount", []):
             try:
                 handler(info)
-            except Exception:  # nosec B110 - callbacks should not crash manager
-                pass  # Игнорируем ошибки в callbacks
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+                logging.exception(f"Error during unmount callback: {e}")
+                pass  # noqa: S110
 
     def _trigger_state_change(self, info: ComponentInfo, old_state: LifecycleState) -> None:
         """Триггерит событие изменения состояния."""
         for handler in self._event_handlers.get("state_changed", []):
             try:
                 handler(info)
-            except Exception:  # nosec B110 - callbacks should not crash manager
-                pass  # Игнорируем ошибки в callbacks
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+                logging.exception(f"Error during state change callback: {e}")
+                pass  # noqa: S110
 
 
 # =============================================================================
@@ -508,19 +513,21 @@ def SafeMount(
 
         # Регистрируем в менеджере если передан
         if manager is not None:
-            try:
-                widget_id = getattr(component, "widget_id", str(id(component)))
-                manager.register(widget_id)
-                manager.update_widget(widget_id, widget, str(parent))
-                manager.transition_to(widget_id, LifecycleState.MOUNTED)
-                registered = True
-            except Exception:  # nosec B110 - registration errors should not block mount
-                pass  # Игнорируем ошибки регистрации
+                try:
+                    widget_id = getattr(component, "widget_id", str(id(component)))
+                    manager.register(widget_id)
+                    manager.update_widget(widget_id, widget, str(parent))
+                    manager.transition_to(widget_id, LifecycleState.MOUNTED)
+                    registered = True
+                except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110
+                    logging.exception(f"Registration error for {widget_id if 'widget_id' in locals() else 'unknown'}: {e}")
+                    pass  # noqa: S110
 
         yield widget
 
-    except Exception:
+    except Exception as e:
         # При ошибке пробрасываем исключение
+        logging.exception(f"Critical lifecycle error: {e}")
         raise
     finally:
         # Всегда демонтируем при выходе из контекста
@@ -530,12 +537,14 @@ def SafeMount(
                     widget_id = getattr(component, "widget_id", str(id(component)))
                     manager.transition_to(widget_id, LifecycleState.UNMOUNTED)
                     manager.unregister(widget_id)
-                except Exception:  # nosec B110 - cleanup errors should not block
-                    pass
+                except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
+                    logging.exception(f"Cleanup error for {widget_id if 'widget_id' in locals() else 'unknown'}: {e}")
+                    pass  # noqa: S110
 
-            component.unmount()
-        except Exception:  # nosec B110 - cleanup errors should not block
-            pass  # Игнорируем ошибки при cleanup
+            component.unmount()  # type: ignore[attr-defined]
+        except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
+            logging.exception(f"Critical cleanup error: {e}")
+            pass  # Игнорируем ошибки при cleanup  # noqa: S110
 
 
 # =============================================================================
@@ -605,16 +614,18 @@ class LifecycleCallbacks:
         for handler in self._mount_handlers:
             try:
                 handler()
-            except Exception:  # nosec B110 - callbacks should not crash trigger
-                pass
+            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110
+                logging.exception(f"Mount callback failed: {e}")
+                pass  # noqa: S110
 
     def trigger_unmount(self) -> None:
         """Вызывает все unmount callbacks."""
         for handler in self._unmount_handlers:
             try:
                 handler()
-            except Exception:  # nosec B110 - callbacks should not crash trigger
-                pass
+            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110
+                logging.exception(f"Unmount callback failed: {e}")
+                pass  # noqa: S110
 
 
 # =============================================================================

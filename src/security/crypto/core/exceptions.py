@@ -43,6 +43,7 @@ from typing import Any, Dict, List, Optional
 __all__: list[str] = [
     # Base exception
     "CryptoError",
+    "AuthError",
     # Algorithm errors
     "AlgorithmError",
     "AlgorithmNotFoundError",
@@ -913,6 +914,13 @@ class DuplicateRegistrationError(RegistryError):
 # ==============================================================================
 # VALIDATION ERRORS
 # ==============================================================================
+
+
+class AuthError(CryptoError):
+    """
+    Базовое исключение для ошибок аутентификации и доступа.
+    """
+    pass
 
 
 class ValidationError(CryptoError):

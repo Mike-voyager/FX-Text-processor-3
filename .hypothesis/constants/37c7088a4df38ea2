@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/page_control.py
+# hypothesis_version: 6.151.12
+
+[b'\x00', b'\x1b(U\x01\x00', b'\x1b(c\x04\x00', b'\x1bB', b'\x1bB\x00', b'\x1bC', b'\x1bC\x00', b'\x1bD', b'\x1bD\x00', b'\x1bN', b'\x1bO', b'\x1bQ', b'\x1bl', 120, 127, 180, 255, 65535, 'cancel_vertical_tabs', 'inches', 'lines', 'set_horizontal_tabs', 'set_left_margin', 'set_margins_360', 'set_page_length', 'set_right_margin', 'set_unit', 'set_vertical_tabs']

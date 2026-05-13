@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/watermark_service.py
+# hypothesis_version: 6.151.12
+
+[b'\x00', b'\n', b'\x1b', b'\x1b4', b'\x1b5', b'\x1b@', b'\x1bE', b'\x1bF', b'$', b'(', b'J', -45.0, -30.0, 0.0, 0.1, 0.15, 0.2, 0.25, 0.3, 1.0, 100, 128, 200, '#000000', '#000080', '#808080', '#FF0000', '*', '+', '-', 'Arial', 'CONFIDENTIAL', 'COPY', 'DRAFT', 'Document', 'ImageWatermark', 'PatternWatermark', 'SAMPLE', 'TextStyle', 'TextWatermark', 'WatermarkBlendMode', 'WatermarkConfig', 'WatermarkPosition', 'WatermarkResult', 'WatermarkService', 'WatermarkType', 'ascii', 'background', 'bold', 'bottom_center', 'bottom_left', 'bottom_right', 'center', 'confidential', 'copy', 'darken', 'diagonal', 'dots', 'draft', 'grid', 'image', 'italic', 'lighten', 'lines', 'little', 'middle_left', 'middle_right', 'multiply', 'normal', 'overlay', 'pattern', 'pc866', 'replace', 'sample', 'screen', 'text', 'tile', 'top_center', 'top_left', 'top_right', '·']

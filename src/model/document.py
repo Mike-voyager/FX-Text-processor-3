@@ -16,9 +16,11 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 from uuid import UUID, uuid4
 
+# Импорт Section для реализации add_section
+from src.model.bookmark import Bookmark, BookmarkManager, DocumentPosition
 from src.model.enums import (
     Alignment,
     CharactersPerInch,
@@ -32,8 +34,6 @@ from src.model.enums import (
     PrintDirection,
     PrintQuality,
 )
-
-# Импорт Section для реализации add_section
 from src.model.section import Section
 
 # Добавить поля доступа: owner, scope ("private"/"shared"/"system"), shared_with (user_id[])
@@ -89,12 +89,8 @@ class DocumentMetadata:
         return cls(
             title=data.get("title", ""),
             author=data.get("author", ""),
-            created=datetime.fromisoformat(
-                data.get("created", datetime.now().isoformat())
-            ),
-            modified=datetime.fromisoformat(
-                data.get("modified", datetime.now().isoformat())
-            ),
+            created=datetime.fromisoformat(data.get("created", datetime.now().isoformat())),
+            modified=datetime.fromisoformat(data.get("modified", datetime.now().isoformat())),
             subject=data.get("subject", ""),
             keywords=data.get("keywords", []),
             version=data.get("version", "1.0"),
@@ -115,7 +111,8 @@ class PageSettings:
         margin_right_inches: Правое поле в дюймах
         margin_top_inches: Верхнее поле в дюймах
         margin_bottom_inches: Нижнее поле в дюймах
-        line_spacing: Режим межстрочного интервала
+        line_spacing: Межстрочный интервал в n/216 дюйма (36 = 1/6", 27 = 1/8")
+        line_spacing_mode: Режим межстрочного интервала (для совместимости)
         characters_per_line: Максимум символов в строке
         lines_per_page: Максимум строк на странице
     """
@@ -128,7 +125,10 @@ class PageSettings:
     margin_right_inches: float = 1.0
     margin_top_inches: float = 1.0
     margin_bottom_inches: float = 1.0
-    line_spacing: LineSpacing = LineSpacing.ONE_SIXTH_INCH
+    # НОВОЕ: дефолтный межстрочный интервал (n/216 дюйма)
+    # 1/6" = 36, 1/8" = 27
+    line_spacing: int = 36  # 1/6 дюйма по умолчанию
+    line_spacing_mode: LineSpacing = LineSpacing.ONE_SIXTH_INCH
     characters_per_line: int = 80
     lines_per_page: int = 66
 
@@ -151,7 +151,8 @@ class PageSettings:
             "margin_right_inches": self.margin_right_inches,
             "margin_top_inches": self.margin_top_inches,
             "margin_bottom_inches": self.margin_bottom_inches,
-            "line_spacing": self.line_spacing.value,
+            "line_spacing": self.line_spacing,
+            "line_spacing_mode": self.line_spacing_mode.value,
             "characters_per_line": self.characters_per_line,
             "lines_per_page": self.lines_per_page,
         }
@@ -159,6 +160,15 @@ class PageSettings:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> PageSettings:
         """Создает настройки страницы из словаря."""
+        # Handle legacy line_spacing value (might be stored as enum string)
+        line_spacing_val = data.get("line_spacing", 36)
+        if isinstance(line_spacing_val, str):
+            # Legacy format - convert from enum
+            ls_enum = LineSpacing.from_string(line_spacing_val)
+            line_spacing = ls_enum.to_escp_value() if ls_enum else 36
+        else:
+            line_spacing = int(line_spacing_val)
+
         return cls(
             size=PageSize.from_string(data.get("size", "letter")) or PageSize.LETTER,
             orientation=Orientation.from_string(data.get("orientation", "portrait"))
@@ -169,7 +179,8 @@ class PageSettings:
             margin_right_inches=data.get("margin_right_inches", 1.0),
             margin_top_inches=data.get("margin_top_inches", 1.0),
             margin_bottom_inches=data.get("margin_bottom_inches", 1.0),
-            line_spacing=LineSpacing.from_string(data.get("line_spacing", "1/6"))
+            line_spacing=line_spacing,
+            line_spacing_mode=LineSpacing.from_string(data.get("line_spacing_mode", "1/6"))
             or LineSpacing.ONE_SIXTH_INCH,
             characters_per_line=data.get("characters_per_line", 80),
             lines_per_page=data.get("lines_per_page", 66),
@@ -222,8 +233,7 @@ class PrinterSettings:
         """Создает настройки принтера из словаря."""
         return cls(
             printer_name=data.get("printer_name", "Epson FX-890"),
-            codepage=CodePage.from_string(data.get("codepage", "pc866"))
-            or CodePage.PC866,
+            codepage=CodePage.from_string(data.get("codepage", "pc866")) or CodePage.PC866,
             print_quality=PrintQuality.from_string(data.get("print_quality", "draft"))
             or PrintQuality.DRAFT,
             font_family=FontFamily.from_string(data.get("font_family", "draft"))
@@ -232,19 +242,13 @@ class PrinterSettings:
                 data.get("characters_per_inch", "10cpi")
             )
             or CharactersPerInch.CPI_10,
-            print_direction=PrintDirection.from_string(
-                data.get("print_direction", "bidirectional")
-            )
+            print_direction=PrintDirection.from_string(data.get("print_direction", "bidirectional"))
             or PrintDirection.BIDIRECTIONAL,
-            paper_type=PaperType.from_string(
-                data.get("paper_type", "continuous_tractor")
-            )
+            paper_type=PaperType.from_string(data.get("paper_type", "continuous_tractor"))
             or PaperType.CONTINUOUS_TRACTOR,
             paper_source=PaperSource.from_string(data.get("paper_source", "auto"))
             or PaperSource.AUTO,
-            default_alignment=Alignment.from_string(
-                data.get("default_alignment", "left")
-            )
+            default_alignment=Alignment.from_string(data.get("default_alignment", "left"))
             or Alignment.LEFT,
         )
 
@@ -300,6 +304,9 @@ class Document:
         self.file_path: Optional[Path] = None
         self._is_modified: bool = False
 
+        # Менеджер закладок
+        self._bookmark_manager: BookmarkManager = BookmarkManager(self.id)
+
         logger.info(f"Создан новый документ с ID: {self.id}")
 
     @property
@@ -335,9 +342,7 @@ class Document:
         section = Section()
         if index is not None:
             if index < 0 or index > len(self.sections):
-                raise IndexError(
-                    f"Индекс секции {index} вне диапазона [0, {len(self.sections)}]"
-                )
+                raise IndexError(f"Индекс секции {index} вне диапазона [0, {len(self.sections)}]")
             self.sections.insert(index, section)
         else:
             self.sections.append(section)
@@ -359,9 +364,7 @@ class Document:
             IndexError: Если индекс вне границ
         """
         if index < 0 or index >= len(self.sections):
-            raise IndexError(
-                f"Индекс секции {index} вне диапазона [0, {len(self.sections)})"
-            )
+            raise IndexError(f"Индекс секции {index} вне диапазона [0, {len(self.sections)})")
 
         section = self.sections.pop(index)
         logger.debug(f"Удалена секция на индексе {index}")
@@ -382,9 +385,7 @@ class Document:
             IndexError: Если индекс вне границ
         """
         if index < 0 or index >= len(self.sections):
-            raise IndexError(
-                f"Индекс секции {index} вне диапазона [0, {len(self.sections)})"
-            )
+            raise IndexError(f"Индекс секции {index} вне диапазона [0, {len(self.sections)})")
         return self.sections[index]
 
     def iter_sections(self) -> Iterator[Section]:
@@ -400,11 +401,36 @@ class Document:
         """
         return "\n\n".join(section.get_text() for section in self.sections)
 
+    def set_text_content(self, text: str) -> None:
+        """Устанавливает текстовое содержимое документа.
+
+        Заменяет содержимое всех секций на переданный текст.
+        Создаёт одну секцию с параграфами для каждой строки текста.
+
+        Args:
+            text: Текст для установки
+        """
+        from src.model.paragraph import Paragraph
+        from src.model.run import Run
+
+        # Очищаем существующие секции
+        self.sections.clear()
+
+        # Создаём новую секцию
+        section = self.add_section()
+
+        # Разбиваем текст на строки и создаём параграфы
+        lines = text.split("\n")
+        for line in lines:
+            paragraph = Paragraph(runs=[Run(text=line)])
+            section.add_paragraph(paragraph)
+
+        self._is_modified = True
+        logger.debug(f"Установлен текст документа: {len(text)} символов")
+
     def get_character_count(self) -> int:
         """Получает общее количество символов (без пробелов)."""
-        return sum(
-            len(text.replace(" ", "")) for text in self.get_text_content().split()
-        )
+        return sum(len(text.replace(" ", "")) for text in self.get_text_content().split())
 
     def get_word_count(self) -> int:
         """Получает общее количество слов."""
@@ -432,7 +458,7 @@ class Document:
             "metadata": self.metadata.to_dict(),
             "page_settings": self.page_settings.to_dict(),
             "printer_settings": self.printer_settings.to_dict(),
-            "sections": [],  # TODO: Сериализовать секции при реализации
+            "sections": [section.to_dict() for section in self.sections],
             "file_path": str(self.file_path) if self.file_path else None,
         }
 
@@ -465,11 +491,58 @@ class Document:
         if data.get("file_path"):
             doc.file_path = Path(data["file_path"])
 
-        # TODO: Восстановить секции при реализации класса Section
+        # Восстанавливаем секции
+        for section_data in data.get("sections", []):
+            doc.sections.append(Section.from_dict(section_data))
 
         doc._is_modified = False
         logger.info(f"Загружен документ {doc.id} с {len(doc.sections)} секциями")
         return doc
+
+    # === Закладки ===
+
+    @property
+    def bookmark_manager(self) -> BookmarkManager:
+        """Возвращает менеджер закладок."""
+        return self._bookmark_manager
+
+    def add_bookmark(self, name: str, position: DocumentPosition) -> Bookmark:
+        """Добавляет закладку в документ.
+
+        Args:
+            name: Имя закладки
+            position: Позиция в документе
+
+        Returns:
+            Созданная закладка
+        """
+        bookmark = self._bookmark_manager.add_bookmark(name, position)
+        self._is_modified = True
+        logger.debug(f"Добавлена закладка '{name}' в документ {self.id}")
+        return bookmark
+
+    def remove_bookmark(self, name: str) -> bool:
+        """Удаляет закладку из документа.
+
+        Args:
+            name: Имя закладки
+
+        Returns:
+            True если закладка была удалена
+        """
+        result = self._bookmark_manager.remove_bookmark(name)
+        if result:
+            self._is_modified = True
+            logger.debug(f"Удалена закладка '{name}' из документа {self.id}")
+        return result
+
+    def get_bookmarks(self) -> list[Bookmark]:
+        """Возвращает все закладки документа.
+
+        Returns:
+            Список закладок
+        """
+        return self._bookmark_manager.get_all_bookmarks()
 
     def __repr__(self) -> str:
         """Строковое представление для отладки."""
@@ -596,5 +669,9 @@ def create_form_document(
             font_family=FontFamily.DRAFT,
         )
 
-    doc = Document(metadata=metadata, page_settings=page_settings, printer_settings=printer_settings)
+    doc = Document(
+        metadata=metadata,
+        page_settings=page_settings,
+        printer_settings=printer_settings,
+    )
     return doc

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/barcode_widget.py
+# hypothesis_version: 6.151.12
+
+[100, 180, '#856404', '#cccccc', '#fff3cd', '<FocusOut>', '<Return>', 'BarcodeWidget', 'CODE128', 'CODE39', 'Courier', 'EAN-13', 'EAN-8', 'EAN13', 'EAN8', 'black', 'disabled', 'hardware', 'readonly', 'software', 'white', 'Вставить']

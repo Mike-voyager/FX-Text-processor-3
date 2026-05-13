@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/format/document_format.py
+# hypothesis_version: 6.151.12
+
+[b'\x00', b'FXSD', b'FXSE', 65536, 100000, 262144, 600000, '.enc', '.fxsd.enc', '1.0', '<H', '<Q', 'AES-128-GCM', 'AES-256-GCM', 'AES-256-GCM-SIV', 'Argon2id', 'ChaCha20-Poly1305', 'DocumentFile', 'DocumentFormatHeader', 'DocumentSerializer', 'FXTextProcessor/3.0', 'FormInstance', 'FormatError', 'PBKDF2-SHA256', 'SecurityPreset', '_EncryptedHeader', 'algorithm', 'algorithm_id', 'ciphertext', 'document', 'draft', 'encrypted', 'error', 'fields', 'form_id', 'format', 'format_version', 'generator', 'index', 'legacy', 'memory_cost', 'merged_from', 'metadata', 'nonce', 'parallelism', 'paranoid', 'parent_id', 'path', 'plain', 'pqc', 'rb', 'series', 'sha256', 'size', 'standard', 'status', 'subtype', 'time_cost', 'type_code', 'unknown', 'utf-8', 'uuid', 'version', 'wb']

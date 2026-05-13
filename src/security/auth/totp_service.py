@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 # External deps expected; callers/tests may monkeypatch these names on this module
 try:
     import pyotp
-except Exception:  # pragma: no cover
+except (ImportError, RuntimeError) as e:
+    _logger.debug("pyotp not available: %s", e)
     pyotp = None  # type: ignore
 
 try:
@@ -31,7 +32,8 @@ try:
     from qrcode.constants import ERROR_CORRECT_M
 
     _QR_EC: Optional[int] = ERROR_CORRECT_M
-except Exception:  # pragma: no cover
+except (ImportError, RuntimeError) as e:
+    _logger.debug("qrcode not available: %s", e)
     qrcode = None
     _QR_EC = None
 
@@ -49,8 +51,8 @@ try:
             # Check if crypto_service exists in context
             if hasattr(ctx, "crypto_service") and ctx.crypto_service is not None:
                 return ctx.crypto_service  # type: ignore[no-any-return]
-        except Exception:  # pragma: no cover
-            _logger.debug("Failed to get crypto_service from app_context, using default")
+        except (RuntimeError, AttributeError) as e:
+            _logger.debug("Failed to get crypto_service from app_context, using default: %s", e)
         # Fallback for tests or pre-initialization
         return _default_crypto_service
 
@@ -60,7 +62,7 @@ try:
         password_bytes = password.encode() if isinstance(password, str) else password
         return crypto_service.derive_key(password_bytes, salt, key_length=length)
 
-except Exception:  # pragma: no cover
+except (ImportError, RuntimeError) as e:
 
     def _get_crypto_service_impl_fallback() -> Any:
         raise RuntimeError("_get_crypto_service_impl is not available")
@@ -234,7 +236,7 @@ class TOTPService:
             ctx = get_app_context()
             if hasattr(ctx, "crypto_service") and ctx.crypto_service is not None:
                 return ctx.crypto_service
-        except Exception:
+        except (RuntimeError, AttributeError, TypeError):
             _logger.debug("Failed to get crypto_service from app_context, using default")
         # Fallback to default
         return _default_crypto_service
@@ -292,7 +294,7 @@ class TOTPService:
                         "result": "success",
                     }
                 )
-            except Exception as e:  # pragma: no cover
+            except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
                 _logger.warning("Failed to log TOTP audit event: %s", e)
 
             result: Dict[str, Any] = {"uri": uri, "qr": qr, "qr_mime": mime}
@@ -335,7 +337,7 @@ class TOTPService:
             # Fresh import to ensure any runtime monkeypatching is honored
             try:
                 import pyotp as _pyotp
-            except Exception as e:  # pragma: no cover
+            except (ImportError, ModuleNotFoundError, RuntimeError) as e:  # pragma: no cover
                 raise TotpRuntimeUnavailable("TOTP runtime is unavailable") from e
 
             normalized = _normalize_otp(otp)
@@ -356,7 +358,7 @@ class TOTPService:
                             "result": "fail",
                         }
                     )
-                except Exception as e:  # pragma: no cover
+                except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
                     _logger.warning("Failed to log TOTP verify audit: %s", e)
                 raise TotpInvalidCode("Invalid TOTP credential")
 
@@ -369,7 +371,7 @@ class TOTPService:
                         "result": "success",
                     }
                 )
-            except Exception as e:  # pragma: no cover
+            except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
                 _logger.warning("Failed to log TOTP audit event: %s", e)
 
             # Derive key using CryptoService with deterministic salt
@@ -529,7 +531,7 @@ def _make_qr_bytes(uri: str) -> Tuple[bytes, str]:
         buf = io.BytesIO()
         img.save(buf, "PNG")
         return buf.getvalue(), "image/png"
-    except Exception as e:  # pragma: no cover
+    except (OSError, ValueError, TypeError, RuntimeError) as e:  # pragma: no cover
         _logger.warning("QR generation failed: %s", e)
         return b"", "image/png"
 
@@ -629,7 +631,7 @@ def setup_totp_for_user(
                     "result": "success",
                 }
             )
-        except Exception as e:  # pragma: no cover
+        except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
             _logger.warning("Failed to log TOTP audit event: %s", e)
 
         result: Dict[str, Any] = {"uri": uri, "qr": qr, "qr_mime": mime}
@@ -670,7 +672,7 @@ def remove_totp_for_user(user_id: str) -> None:
                     "action": "remove",
                 }
             )
-        except Exception as e:  # pragma: no cover
+        except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
             _logger.warning("Failed to log TOTP audit event: %s", e)
         ctx.mfa_manager.remove_factor(user_id, "totp")
 
@@ -776,7 +778,7 @@ def get_totp_secret_for_storage(
         # Fresh import to ensure any runtime monkeypatching is honored
         try:
             import pyotp as _pyotp
-        except Exception as e:  # pragma: no cover
+        except (ImportError, ModuleNotFoundError, RuntimeError) as e:  # pragma: no cover
             raise TotpRuntimeUnavailable("TOTP runtime is unavailable") from e
 
         normalized = _normalize_otp(otp)
@@ -797,7 +799,7 @@ def get_totp_secret_for_storage(
                         "result": "fail",
                     }
                 )
-            except Exception as e:  # pragma: no cover
+            except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
                 _logger.warning("Failed to log TOTP verify audit: %s", e)
             raise TotpInvalidCode("Invalid TOTP credential")
 
@@ -810,7 +812,7 @@ def get_totp_secret_for_storage(
                     "result": "success",
                 }
             )
-        except Exception as e:  # pragma: no cover
+        except (TypeError, ValueError, AttributeError) as e:  # pragma: no cover
             _logger.warning("Failed to log TOTP audit event: %s", e)
 
         # Derive key using Argon2id with deterministic, user-bound salt and optional pepper

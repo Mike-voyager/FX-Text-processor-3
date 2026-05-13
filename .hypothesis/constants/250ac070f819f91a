@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/reject_dialog.py
+# hypothesis_version: 6.151.12
+
+[440, 450, 500, 600, 800, 1000, '#0c5460', '#27ae60', '#2c3e50', '#3498db', '#721c24', '#7f8c8d', '#856404', '#d1ecf1', '#e74c3c', '#f39c12', '#f8d7da', '#f8f9fa', '#fff3cd', '1.0', 'Arial', 'BackSpace', 'Cancel', 'Confirm', 'Confirm Rejection', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Delete', 'Down', 'Left', 'MAX_REASON_LENGTH', 'MIN_REASON_LENGTH', 'ModeManager', 'RejectDialog', 'Right', 'Select action', 'Up', 'Validation Error', 'auth_controller', 'backup_code', 'bold', 'break', 'method', 'mfa_credentials', 'mfa_verified', 'option', 'reason', 'reject_document', 'target_status', 'to_draft', 'to_rejected', 'totp', 'warning', 'white', 'winfo_height', 'winfo_rootx', 'winfo_rooty', 'winfo_width', '⚠️ Form Rejection', '⚠️ Reject Form', '⛔ Mark as REJECTED', '🔄 Return to DRAFT']

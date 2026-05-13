@@ -290,7 +290,7 @@ def print_barcode(
     except UnicodeEncodeError as e:
         raise TypeError(
             f"Barcode data must be ASCII-encodable (codes 0-127). "
-            f"Invalid character: {e.object[e.start:e.end]!r}"
+            f"Invalid character: {e.object[e.start : e.end]!r}"
         )
 
     # Calculate packet length (little-endian 16-bit)

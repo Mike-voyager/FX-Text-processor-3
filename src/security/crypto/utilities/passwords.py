@@ -19,6 +19,7 @@ Priority: Phase 8 — Utilities
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import logging
 import math
@@ -405,7 +406,10 @@ class PasswordHasher:
             try:
                 result: bool = self._argon2_hasher.check_needs_rehash(hash_str)
                 return result
-            except Exception:
+            except (ValueError, TypeError):
+                return True
+            except Exception as e:
+                logger.debug("Argon2 needs rehash check failed: %s", e)
                 return True
 
         return False
@@ -419,7 +423,7 @@ class PasswordHasher:
         try:
             hashed: str = self._argon2_hasher.hash(password)
             return hashed
-        except Exception as e:
+        except (TypeError, ValueError, RuntimeError, OSError) as e:
             raise CryptoError(f"Argon2id hashing failed: {e}") from e
 
     def _verify_argon2(self, password: str, hash_str: str) -> bool:
@@ -482,5 +486,6 @@ class PasswordHasher:
                 dklen=len(expected),
             )
             return secrets.compare_digest(derived, expected)
-        except Exception:
+        except (ValueError, TypeError, binascii.Error) as e:
+            logger.debug("Scrypt verification failed: %s", e)
             return False

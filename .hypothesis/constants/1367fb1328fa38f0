@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/converters/designer_to_template.py
+# hypothesis_version: 6.151.12
+
+['01', 'CUSTOM', 'GEN', 'col', 'constraints', 'created_at', 'default_value', 'field_id', 'field_type', 'height', 'help_text', 'index', 'label', 'label_i18n', 'max_date', 'max_length', 'max_value', 'min_date', 'min_value', 'options', 'page', 'page_count', 'pages', 'params', 'placeholder', 'position', 'profile_name', 'readonly', 'required', 'required_if', 'row', 'series', 'subtype', 'tab_index', 'type', 'type_code', 'validation_pattern', 'width']

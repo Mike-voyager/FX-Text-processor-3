@@ -522,6 +522,7 @@ class FormatToolbar(BaseWidget):
         """
         if self._fix_button is not None:
             from typing import Literal
+
             state: Literal["normal", "active", "disabled"] = "normal" if enabled else "disabled"
             self._fix_button.config(state=state)
 

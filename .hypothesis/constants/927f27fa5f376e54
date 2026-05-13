@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/window_manager_dialog.py
+# hypothesis_version: 6.151.12
+
+[100, 150, 200, 250, 350, 450, 500, 600, '#0066cc', '#212529', '#dee2e6', '#e9ecef', '#f8f9fa', '-', '10', '20', '<<TreeviewSelect>>', 'COLOR_BG', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Helvetica', 'Open windows', 'WINDOW_TYPE_DIALOG', 'WINDOW_TYPE_DOCUMENT', 'WINDOW_TYPE_MAIN', 'Window Manager', 'WindowManagerDialog', 'bold', 'browse', 'document', 'e', 'ew', 'headings', 'main', 'normal', 'ns', 'nsew', 'title', 'type', 'w', 'Главное окно', 'Диалог', 'Документ', 'Заголовок', 'Закрыть диалог', 'Невозможно закрыть', 'Подтверждение', 'Тип', '❌ Закрыть', '⬆️ На передний план', '🗕 Свернуть', '🗕 Свернуть все']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/integrity/config_integrity.py
+# hypothesis_version: 6.151.12
+
+[',', '.config-pubkey', '.fxsconfig', '1.0.0', '2026-03-23', ':', 'CONFIG_PUBLIC_KEY', 'ConfigTamperedError', 'Ed25519', 'PUBLIC_KEY_FILE', '__import__', '_config_path', '_metadata', '_public_key', 'algorithm', 'config_path', 'eval(', 'exec(', 'public_key_hint', 'signature', 'signed_at', 'utf-8', 'Подпись отсутствует']

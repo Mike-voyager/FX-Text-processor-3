@@ -24,8 +24,8 @@ from src.security.integrity.exceptions import (
     IntegrityError,
 )
 from src.security.integrity.models import (
+    ConfigSignatureResult,
     IntegrityCheckResult,
-    IntegrityCheckType,
 )
 
 __all__: list[str] = [
@@ -34,13 +34,13 @@ __all__: list[str] = [
     "IntegrityCheckError",
     "ConfigSignatureError",
     # Models
-    "IntegrityCheckType",
     "IntegrityCheckResult",
+    "ConfigSignatureResult",
     # Checkers
     "AppIntegrityChecker",
     "ConfigIntegrityChecker",
 ]
 
 __version__ = "1.0.0"
-__author__ = "Mike Voyager"
+__author__ = "FX Text Processor Team"
 __date__ = "2026-03-23"

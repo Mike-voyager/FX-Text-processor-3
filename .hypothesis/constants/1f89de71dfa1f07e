@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/model/document.py
+# hypothesis_version: 6.151.12
+
+[0.5, 1.0, 8.5, 11.0, '1.0', '1/6', '10cpi', 'Epson FX-890', 'author', 'auto', 'bidirectional', 'characters_per_inch', 'characters_per_line', 'codepage', 'continuous_tractor', 'created', 'default_alignment', 'draft', 'file_path', 'font_family', 'height_inches', 'id', 'keywords', 'left', 'letter', 'line_spacing', 'line_spacing_mode', 'lines_per_page', 'margin_bottom_inches', 'margin_left_inches', 'margin_right_inches', 'margin_top_inches', 'metadata', 'modified', 'orientation', 'page_settings', 'paper_source', 'paper_type', 'pc866', 'portrait', 'print_direction', 'print_quality', 'printer_name', 'printer_settings', 'sections', 'size', 'subject', 'title', 'version', 'width_inches', 'Без названия', 'Письмо', 'Форма']

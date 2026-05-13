@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/monitoring/checks/device_check.py
+# hypothesis_version: 6.151.12
+
+[1000, '1.0.0', '2026-03-24', 'DeviceCheck', 'HSM check failed: %s', 'HSM not configured', 'Mike Voyager', 'Unknown FIDO2 device', 'Unknown HSM', 'count', 'device', 'device_types', 'devices', 'devices_checked', 'devices_found', 'devices_healthy', 'devices_total', 'fido2', 'healthy', 'hsm', 'list_hsm', 'name', 'smartcard', 'type', 'warning']

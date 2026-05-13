@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/table_schema.py
+# hypothesis_version: 6.151.12
+
+['ColumnDefinition', 'FieldType', 'SummaryFunction', 'TableSchema', 'auto_number', 'avg', 'calculated', 'column_id', 'column_type', 'columns', 'count', 'currency', 'default_value', 'editable', 'header', 'max', 'max_length', 'max_rows', 'min', 'min_rows', 'number_input', 'required', 'row_height', 'show_summary_row', 'sortable', 'sum', 'summary_function', 'summary_functions', 'validation_pattern', 'width_chars', 'Количество', 'Максимум', 'Минимум', 'Среднее', 'Сумма']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/primitive/button.py
+# hypothesis_version: 6.151.12
+
+['#000000', '#00ff00', '#1a1a1a', '#2d2d2d', '#3d3d3d', '#666666', '#999999', '#d0d0d0', '#e0e0e0', '#f0f0f0', '<Enter>', '<Leave>', 'Courier', 'arrow', 'bold', 'classic', 'dark', 'disabled', 'hand2', 'normal', 'state']

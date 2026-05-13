@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/session_lock.py
+# hypothesis_version: 6.151.12
+
+[0.5, 1000, '%H:%M:%S', '*', '-fullscreen', '-topmost', '<Escape>', '<Return>', 'LockReason', 'MFAGate', 'Method:', 'Password:', 'SessionLockManager', 'SessionLockScreen', 'Unlock error: %s', 'Unlock failed: %s', 'UnlockResult', 'WM_DELETE_WINDOW', 'auto_lock', 'bold', 'fido2', 'hand2', 'manual', 'screensaver', 'security_policy', 'system_sleep', 'totp', 'unknown', 'Введите MFA код', 'Введите пароль', 'Время простоя: 0 мин', 'Неизвестно', 'Ошибка разблокировки', 'Проверка...', 'Ручная блокировка', '⏱️ TOTP', '👁', '🔐 FIDO2', '🔒 Session Locked', '🔓 Разблокировать', '🙈']

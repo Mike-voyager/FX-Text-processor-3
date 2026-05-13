@@ -567,7 +567,7 @@ class TestThreadSafety:
             )
             try:
                 registry.register_type(doc_type)
-            except Exception:  # noqa: S110
+            except (RuntimeError, AttributeError, TypeError, ValueError):  # noqa: S110
                 pass  # We just want to check the lock was used
             # Lock должен быть использован
             assert mock_lock.__enter__.called

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/totp_setup_dialog.py
+# hypothesis_version: 6.151.12
+
+[130, 140, 150, 155, 160, 165, 170, 180, 190, 200, 450, 550, 600, 800, 1000, '#27ae60', '#2c3e50', '#3498db', '#7f8c8d', '#95a5a6', '#e74c3c', '#ecf0f1', '#f39c12', '#f8f9fa', '<KeyRelease>', '=', 'Arial', 'Cancel', 'Courier', 'DIALOG_HEIGHT', 'DIALOG_WIDTH', 'Done', 'FX Text Processor', 'Or enter manually', 'Secret:', 'Step 1: Scan QR Code', 'Step 2: Verify Setup', 'TOTP setup completed', 'TOTPSetupDialog', 'TOTP_SECRET_LENGTH', 'ascii', 'black', 'bold', 'cancelled', 'italic', 'method', 'readonly', 'secret', 'totp', 'verified', 'white', 'winfo_height', 'winfo_rootx', 'winfo_rooty', 'winfo_width', '✓ Verify', '📋 Copy']

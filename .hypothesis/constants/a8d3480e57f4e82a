@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/commands/design_commands.py
+# hypothesis_version: 6.151.12
+
+['Batch operation', 'BatchCommand', 'FieldCreateCommand', 'FieldDeleteCommand', 'FieldMoveCommand', 'FieldResizeCommand', 'Select field', 'SelectFieldCommand', 'label', 'none', 'readonly', 'required']

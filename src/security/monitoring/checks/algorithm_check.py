@@ -15,9 +15,8 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from src.security.monitoring.exceptions import AlgorithmCheckError
 from src.security.monitoring.models import HealthCheckResult, HealthCheckStatus
 
 LOG = logging.getLogger(__name__)
@@ -165,7 +164,7 @@ class AlgorithmCheck:
         # cryptography (обязательная)
         try:
             import cryptography
-            from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.backends import default_backend  # noqa: F401
 
             libs["cryptography"] = {
                 "available": True,
@@ -193,7 +192,7 @@ class AlgorithmCheck:
 
         # pyscard (опциональная, для smartcard)
         try:
-            import smartcard
+            import smartcard  # noqa: F401
 
             libs["pyscard"] = {
                 "available": True,
@@ -265,8 +264,9 @@ class AlgorithmCheck:
     def _check_aes_gcm(self) -> bool:
         """Проверка AES-256-GCM."""
         try:
-            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             from secrets import token_bytes
+
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
             key = token_bytes(32)
             nonce = token_bytes(12)
@@ -275,14 +275,15 @@ class AlgorithmCheck:
             ct = aesgcm.encrypt(nonce, data, None)
             pt = aesgcm.decrypt(nonce, ct, None)
             return pt == data
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_chacha20(self) -> bool:
         """Проверка ChaCha20-Poly1305."""
         try:
-            from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
             from secrets import token_bytes
+
+            from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
             key = token_bytes(32)
             nonce = token_bytes(12)
@@ -291,14 +292,13 @@ class AlgorithmCheck:
             ct = chacha.encrypt(nonce, data, None)
             pt = chacha.decrypt(nonce, ct, None)
             return pt == data
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_ed25519(self) -> bool:
         """Проверка Ed25519."""
         try:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-            from cryptography.hazmat.primitives import serialization
 
             private_key = Ed25519PrivateKey.generate()
             public_key = private_key.public_key()
@@ -307,7 +307,7 @@ class AlgorithmCheck:
             signature = private_key.sign(data)
             public_key.verify(signature, data)
             return True
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_sha256(self) -> bool:
@@ -319,7 +319,7 @@ class AlgorithmCheck:
             digest.update(b"test")
             result = digest.finalize()
             return len(result) == 32
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_sha3_256(self) -> bool:
@@ -331,14 +331,15 @@ class AlgorithmCheck:
             digest.update(b"test")
             result = digest.finalize()
             return len(result) == 32
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_argon2id(self) -> bool:
         """Проверка Argon2id."""
         try:
-            from argon2.low_level import hash_secret_raw, Type
             from secrets import token_bytes
+
+            from argon2.low_level import Type, hash_secret_raw
 
             password = b"password"
             salt = token_bytes(16)
@@ -352,7 +353,7 @@ class AlgorithmCheck:
                 type=Type.ID,
             )
             return len(hash_value) == 32
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_ml_dsa(self) -> bool:
@@ -366,7 +367,7 @@ class AlgorithmCheck:
                 signature = sig.sign(b"test message")
                 result = sig.verify(b"test message", signature, public_key)
                 return bool(result)
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_ml_kem(self) -> bool:
@@ -380,7 +381,7 @@ class AlgorithmCheck:
                 ciphertext, shared_secret_enc = kem.encap_secret(public_key)
                 shared_secret_dec = kem.decap_secret(ciphertext)
                 return bool(shared_secret_enc == shared_secret_dec)
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
     def _check_slh_dsa(self) -> bool:
@@ -394,7 +395,7 @@ class AlgorithmCheck:
                 signature = sig.sign(b"test message")
                 result = sig.verify(b"test message", signature, public_key)
                 return bool(result)
-        except Exception:
+        except (ImportError, TypeError, RuntimeError, OSError, ValueError):
             return False
 
 

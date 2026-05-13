@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/format/template_format.py
+# hypothesis_version: 6.151.12
+
+[b'FXSE', b'FXST', b'x', b'y', '.enc', '.fxssig', '.fxstpl', '.fxstpl.enc', '1.0', '<H', '<Q', 'AES-128-GCM', 'AES-256-GCM', 'ChaCha20-Poly1305', 'Ed25519', 'FXTextProcessor/3.0', 'FormTemplate', 'TemplateError', 'TemplateFormatHeader', 'TemplateSerializer', 'TemplateSignature', 'algorithm', 'algorithm_id', 'ciphertext', 'datetime', 'encrypted', 'error', 'field_defaults', 'format', 'format_version', 'generated_public_key', 'generator', 'metadata', 'nonce', 'path', 'plain', 'public_key', 'rb', 'series', 'signature', 'size', 'subtype', 'template', 'template_id', 'timestamp', 'type_code', 'unknown', 'unknown_encrypted', 'unknown_plain', 'utf-8', 'version', 'wb']

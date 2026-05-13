@@ -19,6 +19,11 @@ __all__ = [
     "ESC_BEEP",
     "ESC_ONLINE",
     "ESC_OFFLINE",
+    "ESC_UNIDIRECTIONAL_ON",
+    "ESC_UNIDIRECTIONAL_OFF",
+    "ESC_CUT_SHEET_EJECT",
+    "ESC_TEAR_OFF",
+    "set_unidirectional",
 ]
 
 # =============================================================================
@@ -105,6 +110,126 @@ Effect: Переводит устройство в "пауза/offline", есл�
     >>> printer.send(ESC_ONLINE)
 
 Подтверждено: ⚠️ Стандарт ASCII/ESC/P, не всегда поддерживается в USB-режиме
+"""
+
+# =============================================================================
+# PRINT DIRECTION CONTROL
+# =============================================================================
+
+ESC_UNIDIRECTIONAL_ON: Final[bytes] = b"\x1bU\x01"
+"""
+Enable unidirectional printing (left to right only).
+
+Command: ESC U 1
+Hex: 1B 55 01
+Effect: Print head moves only left to right (no bidirectional)
+Use Case: Precise graphics alignment, exact vertical lines
+Tradeoff: Slower printing speed
+Reset: Changed by ESC U 0 or printer reset (default is bidirectional)
+
+Note:
+    Bidirectional printing is faster but may cause slight
+    vertical misalignment between left-to-right and right-to-left passes.
+    Unidirectional ensures perfect alignment for graphics.
+
+Example:
+    >>> printer.send(ESC_UNIDIRECTIONAL_ON)
+    >>> printer.send(b"Precise vertical lines for graphics")
+    >>> printer.send(ESC_UNIDIRECTIONAL_OFF)  # Return to bidirectional
+
+Подтверждено: ✅ FX-890 Technical Reference Manual
+"""
+
+ESC_UNIDIRECTIONAL_OFF: Final[bytes] = b"\x1bU\x00"
+"""
+Enable bidirectional printing (default).
+
+Command: ESC U 0
+Hex: 1B 55 00
+Effect: Print head moves both directions (faster)
+Default: Bidirectional printing after printer reset
+
+Note:
+    This is the default mode after power-on/reset.
+    Provides maximum print speed.
+
+Example:
+    >>> printer.send(ESC_UNIDIRECTIONAL_OFF)  # Default mode
+
+Подтверждено: ✅ FX-890 Technical Reference Manual
+"""
+
+
+def set_unidirectional(enable: bool) -> bytes:
+    """
+    Set print direction mode.
+
+    Command: ESC U n
+    Hex: 1B 55 n
+
+    Args:
+        enable: True for unidirectional (left-to-right only),
+                False for bidirectional (default, faster).
+
+    Returns:
+        ESC/P command bytes.
+
+    Note:
+        Unidirectional printing provides better alignment for graphics
+        but is slower. Bidirectional is the default for speed.
+
+    Example:
+        >>> # For precise graphics
+        >>> printer.send(set_unidirectional(True))
+        >>> # ...print graphics...
+        >>> printer.send(set_unidirectional(False))  # Back to fast mode
+    """
+    return b"\x1bU\x01" if enable else b"\x1bU\x00"
+
+
+# =============================================================================
+# PAPER CONTROL
+# =============================================================================
+
+ESC_CUT_SHEET_EJECT: Final[bytes] = b"\x1b\x19\x01"
+"""
+Eject cut sheet paper.
+
+Command: ESC EM 1
+Hex: 1B 19 01
+Effect: Ejects current cut sheet paper
+Availability: FX-890 with cut sheet feeder option
+
+Note:
+    EM = 0x19 (ASCII 25)
+    Requires optional cut sheet feeder.
+
+Example:
+    >>> printer.send(b"Document complete")
+    >>> printer.send(ESC_CUT_SHEET_EJECT)
+
+Подтверждено: ⚠️ Requires optional cut sheet feeder
+"""
+
+ESC_TEAR_OFF: Final[bytes] = b"\x1b\x19\x02"
+"""
+Tear off continuous paper (form feed to tear-off position).
+
+Command: ESC EM 2
+Hex: 1B 19 02
+Effect: Advance paper to tear-off bar position
+Use Case: Continuous forms, easy tear-off between documents
+
+Note:
+    EM = 0x19 (ASCII 25)
+    Advances paper to predefined tear-off position.
+
+Example:
+    >>> printer.send(b"Document complete")
+    >>> printer.send(ESC_TEAR_OFF)  # Advance to tear bar
+    >>> # User tears off paper
+
+Подтверждено: ✅ FX-890 Technical Reference Manual
 """
 
 # =============================================================================

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/models.py
+# hypothesis_version: 6.151.12
+
+[365, 2555, 3650, '*', '+1-555-000-0000', '000-00-0000', '1.0', '1.0.0', '123 Main St', '2026-03-24', 'Data subject request', 'DataCategory', 'DataExportRequest', 'DataSubjectRecord', 'ErasureRequest', 'John Doe', 'Mike Voyager', 'PIIField', 'RetentionAction', 'RetentionPolicy', 'RetentionRule', '[REDACTED]', 'action', 'address', 'anonymize', 'archive', 'consent_date', 'consent_given', 'created_at', 'credentials', 'data_categories', 'data_category', 'default_rule', 'delete', 'description', 'email', 'fake', 'financial', 'hash', 'identifier_type', 'internal', 'json', 'last_updated', 'legal_basis', 'mask', 'name', 'pending', 'phone', 'pii', 'public', 'redact', 'retention_days', 'retention_policy', 'review', 'rules', 'sensitive', 'ssn', 'subject_id', 'user@example.com', 'user_id', 'version']

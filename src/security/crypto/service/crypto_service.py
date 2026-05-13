@@ -59,6 +59,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypedDict
 
+from src.security.audit import AuditEventType
 from src.security.crypto.advanced.hybrid_encryption import (
     HybridPayload,
     create_hybrid_cipher,
@@ -83,8 +84,6 @@ from src.security.crypto.service.profiles import (
     ProfileConfig,
     get_profile_config,
 )
-
-from src.security.audit import AuditEventType
 
 if TYPE_CHECKING:
     from src.security.audit import AuditLog
@@ -359,7 +358,7 @@ class CryptoService:
                 **kwargs,
             }
             audit_log.log_event(event_type, details=details)
-        except Exception as e:
+        except (TypeError, ValueError, RuntimeError, OSError) as e:
             logger.warning("Failed to log audit event: %s", e)
 
     # --------------------------------------------------------------------------
@@ -490,7 +489,7 @@ class CryptoService:
 
         try:
             nonce, ciphertext = cipher.encrypt(key, document, aad=aad)
-        except Exception as exc:
+        except (TypeError, ValueError, RuntimeError, OSError) as exc:
             self._log_operation(
                 AuditEventType.CRYPTO_ENCRYPTION, algo_id, success=False, data_size=len(document)
             )
@@ -833,7 +832,9 @@ class CryptoService:
         algo_id = algorithm_id or self.config.hash_algorithm
         hasher: HashProtocol = self._registry.create(algo_id)
         digest = hasher.hash(data)
-        self._log_operation(AuditEventType.CRYPTO_ENCRYPTION, algo_id, operation="hash", data_size=len(data))
+        self._log_operation(
+            AuditEventType.CRYPTO_ENCRYPTION, algo_id, operation="hash", data_size=len(data)
+        )
         return digest
 
     # --------------------------------------------------------------------------
@@ -933,12 +934,8 @@ class CryptoService:
         target_category = _category_map.get(category) if category else None
 
         for meta in self._registry.list_algorithms():
-            try:
-                # meta уже является AlgorithmMetadata, не нужен get_metadata
-                pass
-            except Exception:
-                logger.warning("Не удалось получить метаданные для '%s'", meta.id)
-                continue
+            # meta уже является AlgorithmMetadata, не нужен get_metadata
+            pass
 
             if target_category is not None and meta.category != target_category:
                 continue
@@ -1027,7 +1024,7 @@ class CryptoService:
             sym_meta = self._registry.get_metadata(sym_id)
             nonce_size = sym_meta.nonce_size or 12
             tag_size = 16 if sym_meta.is_aead else 0
-        except Exception:
+        except (AttributeError, KeyError, TypeError):
             nonce_size, tag_size = 12, 16
 
         encrypted_size = data_size + nonce_size + tag_size
@@ -1037,7 +1034,7 @@ class CryptoService:
             try:
                 sig_meta = self._registry.get_metadata(sig_id)
                 signature_size = sig_meta.signature_size or 64
-            except Exception:
+            except (AttributeError, KeyError, TypeError):
                 signature_size = 64
 
         total = encrypted_size + signature_size

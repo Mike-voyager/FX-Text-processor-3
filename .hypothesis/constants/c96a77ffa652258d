@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/controller/workflow_controller.py
+# hypothesis_version: 6.151.12
+
+['#0080FF', '#00C000', '#808080', '#FF0000', '#FFA500', 'FieldComment', 'FormStatus', 'MFARequiredError', 'Severity', 'T', 'WorkflowController', 'WorkflowEvent', 'WorkflowRole', 'approved', 'archived', 'current_role', 'current_state', 'doc_id', 'draft', 'editor', 'error', 'filled', 'info', 'is_editable', 'is_terminal', 'medium', 'operator', 'rejected', 'signatory', 'signed', 'supervisor', 'total_comments', 'total_transitions', 'unresolved_comments', 'validated', 'warning', 'Архивирована', 'Документ утверждён', 'Заполнена', 'Оператор', 'Отклонена', 'Подписана', 'Подписант', 'Проверена', 'Редактор', 'Супервайзер', 'Утверждена', 'Черновик']

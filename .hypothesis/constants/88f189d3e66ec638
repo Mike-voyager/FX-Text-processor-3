@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/__init__.py
+# hypothesis_version: 6.151.12
+
+['Comment', 'CommentEvent', 'FieldCommentWidget', 'MAX_UNDO_STEPS', 'MFAChallengeEvent', 'MFA_REQUIRED_ROLES', 'ROLE_ACTIONS', 'ROLE_COLORS', 'ROLE_ICONS', 'ROLE_NAMES_RU', 'Role', 'RoleChangeEvent', 'STATE_ACTIONS', 'STATUS_COLORS', 'STATUS_NAMES_RU', 'Severity', 'SnapshotManager', 'SnapshotMetadata', 'StateTransitionEvent', 'TransitionRequest', 'TransitionResult', 'TransitionSnapshot', 'UNDO_REDO_ICONS', 'UndoRedoEvent', 'UndoRedoMenuItems', 'WorkflowErrorEvent', 'WorkflowEventBus', 'WorkflowManager', 'WorkflowStateManager', 'WorkflowToolbar', 'WorkflowUIEvent', 'WorkflowUIProtocol']

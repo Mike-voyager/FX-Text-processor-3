@@ -372,8 +372,8 @@ def list_recommended_algorithms(
         try:
             # meta уже является AlgorithmMetadata, не нужен get_metadata
             pass
-        except Exception:
-            logger.warning("Не удалось получить метаданные для '%s'", meta.id)
+        except (AttributeError, KeyError, TypeError) as e:
+            logger.debug("Failed to process metadata: %s", e)
             continue
 
         if meta.category != algo_category:
@@ -397,7 +397,8 @@ def list_recommended_algorithms(
     def _sort_key(algo_id: str) -> tuple[int, int, int, int, str]:
         try:
             meta = registry.get_metadata(algo_id)
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
+            logger.debug("Failed to get metadata for %s: %s", algo_id, e)
             return (99, 99, 99, 99, algo_id)
 
         # 0 = stable, 1 = experimental, 2 = deprecated

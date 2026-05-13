@@ -711,7 +711,7 @@ class TestPostQuantumSigning:
                 signer.generate_keypair()
                 if w:
                     assert any(issubclass(x.category, DeprecationWarning) for x in w)
-        except Exception:  # noqa: S110
+        except (RuntimeError, ValueError, AttributeError, OSError, ImportError):  # noqa: S110
             pass  # liboqs 0.15+ не поддерживает Dilithium2 — ожидаемо
 
 

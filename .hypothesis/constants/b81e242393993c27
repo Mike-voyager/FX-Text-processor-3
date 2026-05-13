@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/mfa_form.py
+# hypothesis_version: 6.151.12
+
+['#27ae60', '#2c3e50', '#2ecc71', '#34495e', '#3498db', '#7f8c8d', '#95a5a6', '#e74c3c', '#ecf0f1', '#f39c12', '(6-digit code)', '(backup code)', '*', '<Return>', 'Authenticate', 'Authentication error', 'Cancel', 'Connect FIDO2 key', 'Courier New', 'Invalid credentials', 'MFAForm', 'Method:', 'MfaSubmitCallback', 'Password + FIDO2', 'Password + TOTP', 'Password is required', 'Password:', 'Token is required', 'Token:', 'Username:', 'Verifying...', 'backup', 'bold', 'disabled', 'e', 'fido2', 'hand2', 'italic', 'normal', 'operator', 'totp', 'w', 'write']

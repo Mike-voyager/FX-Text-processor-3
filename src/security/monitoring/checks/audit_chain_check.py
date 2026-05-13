@@ -172,7 +172,9 @@ class AuditChainCheck:
                 chain_valid = self.audit_log.verify_chain()
                 result["valid"] = chain_valid
                 event_count = self._get_event_count()
-                result["verified_count"] = min(event_count, self.max_events) if event_count > 0 else 0
+                result["verified_count"] = (
+                    min(event_count, self.max_events) if event_count > 0 else 0
+                )
 
             else:
                 LOG.warning("AuditLog has no verify_chain method")

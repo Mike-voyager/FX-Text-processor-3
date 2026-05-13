@@ -16,6 +16,11 @@ from __future__ import annotations
 
 import logging
 import os
+
+# Pillow compatibility layer (Resampling enum added in Pillow 9.1.0)
+# Newer versions: use PIL.Image.Resampling.LANCZOS / BOX
+# Older versions: use Image.LANCZOS / Image.BOX (deprecated but still available)
+import sys
 from typing import Any, Dict, Final, List, Optional, Set, Tuple, Union
 
 import pdf417gen
@@ -25,11 +30,6 @@ from PIL.ImageFont import ImageFont as PILImageFont
 from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
 
 from src.model.enums import Matrix2DCodeType
-
-# Pillow compatibility layer (Resampling enum added in Pillow 9.1.0)
-# Newer versions: use PIL.Image.Resampling.LANCZOS / BOX
-# Older versions: use Image.LANCZOS / Image.BOX (deprecated but still available)
-import sys
 
 if sys.version_info >= (3, 10):
     # Modern Pillow with Resampling enum
@@ -96,9 +96,7 @@ class Matrix2DCodeGenerator:
         gs1_mode: bool = False,
     ) -> None:
         if not isinstance(barcode_type, Matrix2DCodeType):
-            logger.error(
-                "barcode_type must be Matrix2DCodeType, got %r", type(barcode_type)
-            )
+            logger.error("barcode_type must be Matrix2DCodeType, got %r", type(barcode_type))
             raise TypeError("barcode_type must be Matrix2DCodeType")
         self.barcode_type = barcode_type
         self.data = data
@@ -182,16 +180,12 @@ class Matrix2DCodeGenerator:
             if width <= 0:
                 raise Matrix2DCodeGenError(f"Width must be positive, got {width}")
             if width > MAX_IMAGE_WIDTH:
-                raise Matrix2DCodeGenError(
-                    f"Width {width} exceeds maximum {MAX_IMAGE_WIDTH}px"
-                )
+                raise Matrix2DCodeGenError(f"Width {width} exceeds maximum {MAX_IMAGE_WIDTH}px")
         if height is not None:
             if height <= 0:
                 raise Matrix2DCodeGenError(f"Height must be positive, got {height}")
             if height > MAX_IMAGE_HEIGHT:
-                raise Matrix2DCodeGenError(
-                    f"Height {height} exceeds maximum {MAX_IMAGE_HEIGHT}px"
-                )
+                raise Matrix2DCodeGenError(f"Height {height} exceeds maximum {MAX_IMAGE_HEIGHT}px")
 
         self.validate()
         opts = dict(self.options)
@@ -212,9 +206,7 @@ class Matrix2DCodeGenerator:
                 ERROR_CORRECT_H if (logo_path or logo_image) else ERROR_CORRECT_M,
             )
             fill_color = opts.get("fill_color", "black")
-            back_color = (
-                opts.get("back_color", "white") if not background_transparent else None
-            )
+            back_color = opts.get("back_color", "white") if not background_transparent else None
             qr = qrcode.QRCode(
                 version=qr_version,
                 error_correction=error_correction,
@@ -232,9 +224,7 @@ class Matrix2DCodeGenerator:
                 qr_img = qr_img.get_image()
             if not isinstance(qr_img, Image.Image):
                 logger.error("QR code did not produce a PIL.Image")
-                raise Matrix2DCodeGenError(
-                    "QR code rendering did not produce a valid image"
-                )
+                raise Matrix2DCodeGenError("QR code rendering did not produce a valid image")
             qr_img = qr_img.convert("RGBA" if background_transparent else "RGB")
             # Overlay logo
             if logo_path or logo_image:
@@ -246,12 +236,8 @@ class Matrix2DCodeGenerator:
                     logo = Image.open(logo_path).convert("RGBA")
                 if logo is not None:
                     min_side = min(qr_img.width, qr_img.height)
-                    logo_size = max(
-                        10, min(int(min_side * logo_scale), int(min_side * 0.5))
-                    )
-                    logo = logo.resize(
-                        (logo_size, logo_size), resample=RESAMPLE_LANCZOS
-                    )
+                    logo_size = max(10, min(int(min_side * logo_scale), int(min_side * 0.5)))
+                    logo = logo.resize((logo_size, logo_size), resample=RESAMPLE_LANCZOS)
                     if logo_round:
                         mask = Image.new("L", (logo_size, logo_size), 0)
                         draw = ImageDraw.Draw(mask)
@@ -288,9 +274,7 @@ class Matrix2DCodeGenerator:
 
                 if dm_img is None or not isinstance(dm_img, Image.Image):
                     logger.error("treepoem did not produce a valid DataMatrix image")
-                    raise Matrix2DCodeGenError(
-                        "DataMatrix generation failed via treepoem"
-                    )
+                    raise Matrix2DCodeGenError("DataMatrix generation failed via treepoem")
 
                 img = dm_img.convert("RGBA" if background_transparent else "RGB")
 
@@ -317,9 +301,7 @@ class Matrix2DCodeGenerator:
             try:
                 import treepoem
             except ImportError:
-                raise Matrix2DCodeGenError(
-                    "treepoem not installed (pip install treepoem)"
-                )
+                raise Matrix2DCodeGenError("treepoem not installed (pip install treepoem)")
 
             try:
                 aztec_opts = {}
@@ -350,9 +332,7 @@ class Matrix2DCodeGenerator:
             try:
                 import treepoem
             except ImportError:
-                raise Matrix2DCodeGenError(
-                    "treepoem not installed (pip install treepoem)"
-                )
+                raise Matrix2DCodeGenError("treepoem not installed (pip install treepoem)")
 
             try:
                 maxicode_opts = {}
@@ -381,9 +361,7 @@ class Matrix2DCodeGenerator:
             try:
                 import treepoem
             except ImportError:
-                raise Matrix2DCodeGenError(
-                    "treepoem not installed (pip install treepoem)"
-                )
+                raise Matrix2DCodeGenError("treepoem not installed (pip install treepoem)")
 
             try:
                 dotcode_opts = {}
@@ -414,9 +392,7 @@ class Matrix2DCodeGenerator:
             try:
                 import treepoem
             except ImportError:
-                raise Matrix2DCodeGenError(
-                    "treepoem not installed (pip install treepoem)"
-                )
+                raise Matrix2DCodeGenError("treepoem not installed (pip install treepoem)")
 
             try:
                 microqr_opts = {}
@@ -445,9 +421,7 @@ class Matrix2DCodeGenerator:
             try:
                 import treepoem
             except ImportError:
-                raise Matrix2DCodeGenError(
-                    "treepoem not installed (pip install treepoem)"
-                )
+                raise Matrix2DCodeGenError("treepoem not installed (pip install treepoem)")
 
             try:
                 rmqr_opts = {}
@@ -473,9 +447,7 @@ class Matrix2DCodeGenerator:
 
         else:
             logger.error("Unsupported 2D barcode type %r", self.barcode_type)
-            raise Matrix2DCodeGenError(
-                f"Unsupported 2D barcode type: {self.barcode_type!r}"
-            )
+            raise Matrix2DCodeGenError(f"Unsupported 2D barcode type: {self.barcode_type!r}")
 
         # --- Resize
         if not isinstance(img, Image.Image):
@@ -499,9 +471,7 @@ class Matrix2DCodeGenerator:
                 font_size=caption_font_size,
                 transparent=background_transparent,
             )
-        logger.info(
-            "2D code generated: %s type, %r chars", self.barcode_type.name, len(payload)
-        )
+        logger.info("2D code generated: %s type, %r chars", self.barcode_type.name, len(payload))
         return img
 
     @staticmethod
@@ -649,6 +619,4 @@ class Matrix2DCodeGenerator:
         import asyncio
 
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, lambda: self.render_bytes(*args, **kwargs)
-        )
+        return await loop.run_in_executor(None, lambda: self.render_bytes(*args, **kwargs))

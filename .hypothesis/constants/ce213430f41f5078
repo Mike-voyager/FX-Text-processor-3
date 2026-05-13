@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/second_method/fido2_factor.py
+# hypothesis_version: 6.151.12
+
+['CredentialMismatch', 'DeviceNotFound', 'Fido2Factor']

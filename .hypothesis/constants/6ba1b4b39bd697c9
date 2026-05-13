@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/migration.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', '2026-03-02', 'CryptoMigrator', 'MigrationResult', 'Mike Voyager']

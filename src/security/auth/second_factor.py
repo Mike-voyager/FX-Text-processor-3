@@ -65,12 +65,13 @@ def _state_created_ts(state: Dict[str, Any]) -> int:
     if isinstance(created_at, str):
         try:
             return int(datetime.fromisoformat(created_at).timestamp())
-        except Exception as e:
+        except (ValueError, TypeError, OSError) as e:
             LOG.debug("Failed to parse created_at timestamp: %s", e)
     created = state.get("created")
     try:
         return int(created) if created is not None else _now_ts()
-    except Exception:
+    except (ValueError, TypeError) as e:
+        LOG.debug("Failed to parse created timestamp: %s", e)
         return _now_ts()
 
 
@@ -80,7 +81,8 @@ def _state_is_expired(state: Dict[str, Any]) -> bool:
         return False
     try:
         ttl_i = int(ttl)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        LOG.debug("Failed to parse ttl value: %s", e)
         return False
     created_ts = _state_created_ts(state)
     return (_now_ts() - created_ts) > ttl_i
@@ -130,7 +132,7 @@ class SecondFactorManager:
             raw_bytes = self._storage.load(_STORAGE_ITEM)
         except KeyError:
             raw_bytes = b""
-        except Exception as e:
+        except (TypeError, RuntimeError, OSError, ValueError) as e:
             self._logger.error("Failed to load encrypted MFA state: %s", e)
             raw_bytes = b""
         if not raw_bytes:
@@ -143,7 +145,7 @@ class SecondFactorManager:
             self._factors = cast(Dict[str, Dict[str, List[Dict[str, Any]]]], obj.get("factors", {}))
             self._audit = cast(List[Dict[str, Any]], obj.get("audit", []))
             self._logger.debug("Loaded MFA state from keystore item '%s'", _STORAGE_ITEM)
-        except Exception as e:
+        except (json.JSONDecodeError, TypeError, ValueError, UnicodeDecodeError) as e:
             self._logger.error("Failed to parse MFA state JSON: %s", e)
             self._factors = {}
             self._audit = []
@@ -157,7 +159,7 @@ class SecondFactorManager:
             data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             self._storage.save(_STORAGE_ITEM, data)
             self._logger.debug("Saved MFA state to keystore item '%s'", _STORAGE_ITEM)
-        except Exception as e:
+        except (TypeError, RuntimeError, OSError, ValueError) as e:
             self._logger.error("Failed to save MFA state: %s", e)
 
     # ---------- Registry ----------
@@ -229,7 +231,8 @@ class SecondFactorManager:
                     factor_state["created"] = int(
                         datetime.fromisoformat(factor_state["created_at"]).timestamp()
                     )
-                except Exception:
+                except (ValueError, TypeError) as e:
+                    LOG.debug("Failed to parse created_at timestamp for factor_state: %s", e)
                     factor_state["created"] = _now_ts()
 
             entry = {
@@ -316,7 +319,7 @@ class SecondFactorManager:
                     reason = result.get("detail") or result.get("reason")
                 else:
                     ok = bool(result)
-            except Exception as e:
+            except (TypeError, ValueError, RuntimeError) as e:
                 ok = False
                 reason = f"exception:{e}"
 
@@ -370,11 +373,11 @@ class SecondFactorManager:
                 try:
                     instance = factor_cls()
                     instance.remove(user_id, state)
-                except Exception as e:
+                except (TypeError, ValueError, RuntimeError) as e:
                     self._logger.warning("Factor remove failed: %s", e)
             try:
                 del factor_list[idx]
-            except Exception as e:
+            except (TypeError, RuntimeError, IndexError, KeyError) as e:
                 LOG.debug("Failed to delete factor from list: %s", e)
             if (
                 user_id in self._factors
@@ -383,14 +386,14 @@ class SecondFactorManager:
             ):
                 try:
                     del self._factors[user_id][factor_type]
-                except Exception as e:
+                except (TypeError, RuntimeError, KeyError) as e:
                     LOG.debug(
                         "Failed to delete factor type %s for user %s: %s", factor_type, user_id, e
                     )
                 if user_id in self._factors and not self._factors[user_id]:
                     try:
                         del self._factors[user_id]
-                    except Exception as e:
+                    except (TypeError, RuntimeError, KeyError) as e:
                         LOG.debug("Failed to delete user %s from factors: %s", user_id, e)
             self._audit.append(
                 {

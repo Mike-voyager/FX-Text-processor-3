@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/model/paragraph.py
+# hypothesis_version: 6.151.12
+
+[0.0, 1.0, 255, 'EmbeddedObject', 'Paragraph', 'alignment', 'bookmarks', 'bullet', 'char_size', 'data', 'description', 'embedded', 'first_line_indent', 'font_family', 'indent', 'left_indent', 'line_spacing', 'list_level', 'marker_style', 'numbering', 'obj_type', 'position', 'quality', 'right_indent', 'runs', 'spacing', 'tabstops', 'text', 'user_data', 'Ожидается тип Run']

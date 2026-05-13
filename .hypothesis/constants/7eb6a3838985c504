@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/themes/adapter.py
+# hypothesis_version: 6.151.12
+
+['ThemeDataclass', 'accent', 'accent_color', 'bg', 'bg_color', 'border', 'border_color', 'button', 'button_primary', 'card_bg', 'close_hover', 'configure', 'dialog_bg', 'entry', 'error', 'error_color', 'fg', 'fg_color', 'info', 'margin_color', 'new_btn_bg', 'new_btn_fg', 'new_btn_hover', 'normal', 'paper_preview_bg', 'perforation_color', 'scroll_btn_bg', 'success', 'success_color', 'tab_active_bg', 'tab_active_fg', 'tab_border', 'tab_inactive_bg', 'tab_inactive_fg', 'text', 'text_primary', 'text_secondary', 'tk.Button', 'tk.Entry', 'tk.Text', 'warning', 'warning_color']

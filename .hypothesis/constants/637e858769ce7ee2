@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/dialogs/options_editor_dialog.py
+# hypothesis_version: 6.151.12
+
+[150, 300, 400, 500, 550, '#007bff', '#28a745', '#555555', '#cce5ff', '#dc3545', '#e9ecef', '#f8d7da', '#f8f9fa', '<<TreeviewSelect>>', 'Arial', 'FieldOption', 'OK', 'OptionsEditorDialog', 'WM_DELETE_WINDOW', 'bold', 'browse', 'e', 'ew', 'headings', 'label_en', 'label_ru', 'ns', 'nsew', 'value', 'w', 'white', 'Значение (value)', 'Значение:*', 'Метка (EN)', 'Метка (EN):', 'Метка (RU)', 'Метка (RU):*', 'Опция добавлена', 'Опция обновлена', 'Опция удалена', 'Отмена', 'Ошибка', 'Подтверждение', 'Редактирование опции', 'Редактор опций', 'Список опций', '➕ Добавить', '⬆️ Вверх', '⬇️ Вниз', '💾 Обновить', '🗑️ Удалить']

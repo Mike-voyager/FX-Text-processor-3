@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/session.py
+# hypothesis_version: 6.151.12
+
+['DeviceMismatch', 'InvalidToken', 'Session revoked.', 'SessionError', 'SessionManager', 'SessionRecord', 'TokenBundle', 'TokenExpired', 'TokenRevoked', 'Unknown session id.', 'ValidationResult', 'access_expires_at', 'created_at', 'device_bound', 'ip_bound', 'last_access_at', 'mfa_last_verified_at', 'mfa_required', 'mfa_satisfied', 'refresh_expires_at', 'revoked', 'rotation', 'scopes', 'session_id', 'user_id', 'utf-8']

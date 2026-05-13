@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/qr_code_dialog.py
+# hypothesis_version: 6.151.12
+
+[125, 250, 500, 550, 600, 650, 1000, 4296, '#17a2b8', '#212529', '#27ae60', '#3498db', '#6c757d', '#dee2e6', '#e74c3c', '#f39c12', '#f8f9fa', '#ffffff', '*.*', '*.png', '.png', '0 characters', '1', '1.0', '10', '15', '2', '20', '30', '40', '5', '<<ComboboxSelected>>', '<KeyRelease>', 'All files', 'H', 'Helvetica', 'High', 'L', 'Low', 'M', 'Medium', 'PNG files', 'Q', 'Quartile', 'Unknown version', 'all', 'auto', 'black', 'bold', 'italic', 'nsew', 'px', 'readonly', 'w', 'white', 'Автоматический выбор', 'Версия QR:', 'Внимание', 'Готово', 'Готово к вставке', 'Граница:', 'Информация', 'Коррекция ошибок:', 'Ожидание данных...', 'Ошибка', 'Ошибка генерации', 'Параметры', 'Предпросмотр', 'Размер модуля:', 'Сохранить QR-код', 'Успех', 'модулей', '✓ Вставить', '✗ Отмена', '👁️ Обновить', '💾 Экспорт PNG', '🔳 Генерация QR-кода', '🔳 Настройки QR-кода']

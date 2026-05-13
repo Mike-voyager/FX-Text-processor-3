@@ -19,11 +19,17 @@ Date: March 2026
 from __future__ import annotations
 
 # Lazy imports for submodules
-from src.security import audit, auth, blanks, compliance, crypto
-from src.security import erasure
-from src.security import integrity
-from src.security import lock
-from src.security import monitoring
+from src.security import (
+    audit,
+    auth,
+    blanks,
+    compliance,
+    crypto,
+    erasure,
+    integrity,
+    lock,
+    monitoring,
+)
 
 __all__: list[str] = [
     "audit",

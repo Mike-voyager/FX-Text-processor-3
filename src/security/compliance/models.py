@@ -218,7 +218,9 @@ class RetentionPolicy:
                 "data_category": self.default_rule.data_category.value,
                 "retention_days": self.default_rule.retention_days,
                 "action": self.default_rule.action.value,
-            } if self.default_rule else None,
+            }
+            if self.default_rule
+            else None,
             "created_at": self.created_at.isoformat(),
         }
 

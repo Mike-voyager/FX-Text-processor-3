@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/type_registry.py
+# hypothesis_version: 6.151.12
+
+[100, 400, 500, 900, 1000, 3999, ', ', '-', '44', '45', 'C', 'CD', 'CM', 'D', 'DVN', 'I', 'II', 'INV', 'IV', 'IX', 'Invoice', 'Invoice Series K01', 'Invoice Type I', 'Invoice Type II', 'K01', 'K53', 'K54', 'K60', 'L', 'M', 'ROMAN', 'Series K60', 'Standard Series K53', 'Standard Series K54', 'V', 'Verbal Note', 'Verbal Note Type 44', 'Verbal Note Type 45', 'X', 'XC', 'XL', '📄', '🧾']

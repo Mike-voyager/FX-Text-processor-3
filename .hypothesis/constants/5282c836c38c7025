@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/workflow_dialogs.py
+# hypothesis_version: 6.151.12
+
+[100, 150, 200, 300, 400, 500, 1000, '#28a745', '#dc3545', '#e9ecef', '#f8f9fa', '#ffc107', '0 / 1000', '1.0', '10', '20', '<<TreeviewSelect>>', '<ButtonRelease>', '<Double-1>', '<KeyRelease>', 'Helvetica', 'bold', 'browse', 'center', 'confidence', 'critical', 'customer_name', 'date', 'document', 'e', 'error', 'field', 'gray', 'headings', 'info', 'inn', 'kpp', 'modal', 'suggestion', 'value', 'values', 'w', 'warning', 'Внимание', 'Выбрать', 'Дата', 'Добавить комментарий', 'Документ', 'Значение', 'Значение:', 'Информация', 'Искать', 'Комментарий', 'Критично', 'Найденные совпадения', 'Найти', 'Отмена', 'Ошибка', 'Поиск', 'Поле', 'Поле:', 'Предложение', 'Предупреждение', 'Результаты', 'Сохранить', 'Текст комментария', 'Уверенность', 'Уровень важности']

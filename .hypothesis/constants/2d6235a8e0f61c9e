@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/hardware/backends.py
+# hypothesis_version: 6.151.12
+
+[129, 154, 156, 157, 158, 255, 256, 2048, 3072, 4096, '(read_key_type)', '(resolve)', '(validation)', ', ', '1.0.0', '2026-03-02', '9A', '9C', '9D', '9E', 'AES-128', 'AES-192', 'AES-256', 'Card Authentication', 'DeviceBackend', 'Digital Signature', 'ECC-P256', 'ECC-P384', 'Ed25519', 'F058544350303100', 'JavaCard (J3R200)', 'JavaCardRawBackend', 'Key Management', 'Mike Voyager', 'N/A', 'OpenPGP Auth', 'OpenPGP Encrypt', 'OpenPGP Sign', 'OpenPGPDeviceBackend', 'PIV Authentication', 'RSA-2048', 'RSA-3072', 'RSA-4096', 'RSA3072', 'RSA4096', 'SlotInfo', 'SlotStatus', 'X25519', 'YubiKey (PIV)', 'YubiKeyPivBackend', 'auth', 'big', 'create_backend', 'empty', 'encrypt', 'ins', 'javacard_raw', 'key_size', 'locked', 'openpgp', 'populated', 'pyscard>=2.0.0', 'secp256r1', 'secp384r1', 'sign', 'sw', 'unknown', 'yubikey_piv']

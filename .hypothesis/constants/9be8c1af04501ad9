@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/session_service.py
+# hypothesis_version: 6.151.12
+
+['SessionInfo', 'SessionService', 'app.locked', 'auth.mfa_challenged', 'auth.success', 'count', 'mfa_required', 'operator', 'result', 'scopes', 'session.revoke', 'session.revoke_all', 'session_id', 'success', 'user_id']

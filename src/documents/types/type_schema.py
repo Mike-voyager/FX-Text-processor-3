@@ -5,12 +5,30 @@ Provides:
 - FieldDefinition: Definition of a single field
 - TypeSchema: Collection of fields for a document type
 - OverflowBehavior: How to handle text overflow in fields
+
+Example:
+    >>> from src.documents.types.type_schema import (
+    ...     FieldType, FieldDefinition, TypeSchema
+    ... )
+    >>> field = FieldDefinition(
+    ...     field_id="recipient",
+    ...     field_type=FieldType.TEXT_INPUT,
+    ...     label="Получатель",
+    ...     required=True
+    ... )
+    >>> schema = TypeSchema(fields=(field,), version="1.0")
+    >>> print(schema.has_field("recipient"))
+    True
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Any
+
+from src.model.enums import CharSize
 
 if TYPE_CHECKING:
     from src.documents.constructor.table_schema import TableSchema
@@ -66,11 +84,17 @@ class FieldType(str, Enum):
 
 
 class OverflowBehavior(str, Enum):
-    """Поведение при переполнении текстового поля."""
+    """Поведение при переполнении текстового поля.
 
-    TRUNCATE = "truncate"  # Обрезать лишнее
-    WRAP = "wrap"  # Переносить на новую строку
-    SHRINK_FONT = "shrink_font"  # Уменьшать шрифт
+    Attributes:
+        TRUNCATE: Обрезать лишнее.
+        WRAP: Переносить на новую строку.
+        SHRINK_FONT: Уменьшать шрифт.
+    """
+
+    TRUNCATE = "truncate"
+    WRAP = "wrap"
+    SHRINK_FONT = "shrink_font"
 
 
 @dataclass(frozen=True)
@@ -78,17 +102,18 @@ class FieldDefinition:
     """Определение одного поля в схеме типа документа.
 
     Attributes:
-        field_id: Программное имя поля (ранее `name`).
+        field_id: Программное имя поля.
         field_type: Тип поля из enum FieldType.
         label: Метка поля на русском языке.
         label_i18n: Словарь локализованных меток {lang: label}.
         required: Обязательность поля.
+        readonly: Поле только для чтения.
         default_value: Значение по умолчанию.
         validation_pattern: Regex-паттерн для валидации.
         max_length: Максимальная длина строки.
         options: Допустимые значения для DROPDOWN/RADIO_GROUP.
         escp_variable: Связь с ESC/P переменной.
-        inherited_from: Код типа, от которого поле унаследовано (None = собственное).
+        inherited_from: Код типа, от которого поле унаследовано.
         min_value: Минимальное числовое значение.
         max_value: Максимальное числовое значение.
         min_date: Минимальная дата.
@@ -103,18 +128,28 @@ class FieldDefinition:
         placeholder: Подсказка в пустом поле.
         autocomplete_source: Источник автодополнения.
         help_text: Вспомогательный текст (tooltip).
+        table_schema: Схема для табличных полей.
+
+    Example:
+        >>> field = FieldDefinition(
+        ...     field_id="recipient",
+        ...     field_type=FieldType.TEXT_INPUT,
+        ...     label="Получатель",
+        ...     required=True,
+        ...     max_length=100
+        ... )
+        >>> print(field.field_id)
+        recipient
     """
 
-    field_id: str  # Changed from `name` per ARCHITECTURE.md
+    field_id: str
     field_type: FieldType
     label: str
-    label_i18n: dict[str, str] = field(
-        default_factory=dict, compare=False, hash=False
-    )  # Changed from `label_en: str`
+    label_i18n: dict[str, str] = field(default_factory=dict, compare=False, hash=False)
     required: bool = True
-    readonly: bool = False  # Поле только для чтения
+    readonly: bool = False
     default_value: Any = None
-    validation_pattern: str | None = None  # Changed from `validation: tuple[str, ...]`
+    validation_pattern: str | None = None
     max_length: int | None = None
     options: tuple[str, ...] | None = None
     escp_variable: str | None = None
@@ -141,7 +176,35 @@ class FieldDefinition:
     help_text: str | None = None
 
     # Table schema for TABLE fields
-    table_schema: "TableSchema | None" = None
+    table_schema: TableSchema | None = None
+
+    # Static text / Calculated fields
+    formula: str | None = None
+    char_size: CharSize | None = None
+
+    def __post_init__(self) -> None:
+        """Валидация после инициализации."""
+        # Проверка наличия field_id
+        if not self.field_id or not self.field_id.strip():
+            raise ValueError("field_id не может быть пустым")
+
+        # Проверка наличия label
+        if not self.label:
+            raise ValueError("label не может быть пустым")
+
+        # Проверка max_length
+        if self.max_length is not None and self.max_length <= 0:
+            raise ValueError("max_length должен быть положительным")
+
+        # Проверка min/max значений
+        if self.min_value is not None and self.max_value is not None:
+            if self.min_value > self.max_value:
+                raise ValueError("min_value не может быть больше max_value")
+
+        # Проверка min/max дат
+        if self.min_date is not None and self.max_date is not None:
+            if self.min_date > self.max_date:
+                raise ValueError("min_date не может быть позже max_date")
 
 
 @dataclass(frozen=True)
@@ -153,6 +216,18 @@ class TypeSchema:
         version: Версия схемы.
         compatibility_version: Минимальная совместимая версия.
         deprecated_fields: Список устаревших field_id.
+
+    Example:
+        >>> from src.documents.types.type_schema import FieldType
+        >>> schema = TypeSchema(
+        ...     fields=(
+        ...         FieldDefinition("name", FieldType.TEXT_INPUT, "Name"),
+        ...         FieldDefinition("date", FieldType.DATE_INPUT, "Date"),
+        ...     ),
+        ...     version="1.0"
+        ... )
+        >>> print(len(schema.fields))
+        2
     """
 
     fields: tuple[FieldDefinition, ...] = field(default_factory=tuple)
@@ -163,7 +238,7 @@ class TypeSchema:
     def __post_init__(self) -> None:
         """Валидация схемы после инициализации."""
         if not self.fields:
-            # Пустая схема допустима (могут быть только вычисляемые поля)
+            # Пустая схема допустима
             return
 
         # Проверяем уникальность field_id полей
@@ -182,6 +257,11 @@ class TypeSchema:
 
         Raises:
             KeyError: Если поле не найдено.
+
+        Example:
+            >>> field = schema.get_field("recipient")
+            >>> print(field.label)
+            Получатель
         """
         for field_def in self.fields:
             if field_def.field_id == field_id:
@@ -189,21 +269,47 @@ class TypeSchema:
         raise KeyError(f"Field not found: {field_id}")
 
     def has_field(self, field_id: str) -> bool:
-        """Проверяет наличие поля в схеме по field_id."""
+        """Проверяет наличие поля в схеме по field_id.
+
+        Args:
+            field_id: Идентификатор поля.
+
+        Returns:
+            True если поле существует.
+
+        Example:
+            >>> schema.has_field("recipient")
+            True
+        """
         return any(f.field_id == field_id for f in self.fields)
 
     @property
     def required_fields(self) -> list[FieldDefinition]:
-        """Возвращает список обязательных полей."""
+        """Возвращает список обязательных полей.
+
+        Returns:
+            Список FieldDefinition с required=True.
+        """
         return [f for f in self.fields if f.required]
 
     @property
     def optional_fields(self) -> list[FieldDefinition]:
-        """Возвращает список необязательных полей."""
+        """Возвращает список необязательных полей.
+
+        Returns:
+            Список FieldDefinition с required=False.
+        """
         return [f for f in self.fields if not f.required]
 
     def get_fields_by_type(self, field_type: FieldType) -> list[FieldDefinition]:
-        """Возвращает поля указанного типа."""
+        """Возвращает поля указанного типа.
+
+        Args:
+            field_type: Тип поля для поиска.
+
+        Returns:
+            Список FieldDefinition указанного типа.
+        """
         return [f for f in self.fields if f.field_type == field_type]
 
     def validate_value(self, field_id: str, value: Any) -> list[str]:
@@ -215,6 +321,11 @@ class TypeSchema:
 
         Returns:
             Список ошибок (пустой если валидно).
+
+        Example:
+            >>> errors = schema.validate_value("recipient", "")
+            >>> print(errors)
+            ["Field 'recipient' is required"]
         """
         errors: list[str] = []
 
@@ -226,10 +337,10 @@ class TypeSchema:
         # Проверка обязательности
         if field_def.required and (value is None or value == ""):
             errors.append(f"Field '{field_id}' is required")
-            return errors  # Дальнейшие проверки не имеют смысла
+            return errors
 
         if value is None or value == "":
-            return []  # Необязательное пустое поле
+            return errors
 
         # Проверка типов
         if field_def.field_type == FieldType.NUMBER_INPUT:
@@ -275,12 +386,6 @@ class TypeSchema:
 
         Returns:
             Словарь с данными схемы.
-
-        Example:
-            >>> schema = TypeSchema(fields=())
-            >>> data = schema.to_dict()
-            >>> "fields" in data
-            True
         """
         return {
             "fields": [
@@ -320,7 +425,7 @@ class TypeSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TypeSchema":
+    def from_dict(cls, data: dict[str, Any]) -> TypeSchema:
         """Десериализует схему из словаря.
 
         Args:
@@ -328,17 +433,11 @@ class TypeSchema:
 
         Returns:
             Экземпляр TypeSchema.
-
-        Example:
-            >>> data = {"fields": [], "version": "1.0"}
-            >>> schema = TypeSchema.from_dict(data)
-            >>> schema.version
-            '1.0'
         """
         from datetime import datetime
 
         fields_data = data.get("fields", [])
-        fields = []
+        fields: list[FieldDefinition] = []
 
         for f_data in fields_data:
             field_type = FieldType(f_data.get("field_type", "text_input"))

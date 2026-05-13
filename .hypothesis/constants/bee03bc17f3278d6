@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/views/card_file_tab_bar.py
+# hypothesis_version: 6.151.12
+
+[200, '#00FF00', '#333333', '#808080', '#FFA500', '(*)', '+', '1.1', '<Button-1>', '<Button-3>', '<Button-4>', '<Button-5>', '<Configure>', '<Enter>', '<Leave>', '<MouseWheel>', 'CardFileTabBar', 'MAX_TABS', 'MAX_TITLE_LENGTH', 'May 2026', 'Segoe UI Emoji', 'TabInfo', 'TkDefaultFont', 'Untitled', '^[a-zA-Z0-9_-]+$', '_close_btn', '_indicators', '_title_label', 'all', 'bold', 'both', 'cardfile_tabbar', 'close_hover', 'delta', 'encrypted', 'end', 'flat', 'hand2', 'left', 'modified', 'new_btn_bg', 'new_btn_fg', 'new_btn_hover', 'nw', 'raised', 'readonly', 'right', 'tab_active_bg', 'tab_active_fg', 'tab_inactive_bg', 'tab_inactive_fg', 'top', 'units', 'x', 'y', '×', 'Закрыть', 'Закрыть все', 'Закрыть остальные', '●', '👁️', '📄', '📋', '🔒', '🔴']

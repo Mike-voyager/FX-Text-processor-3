@@ -7,6 +7,7 @@ All commands verified for FX-890.
 Reference: Epson FX-890 Technical Reference Manual, Chapter 6
 """
 
+from typing import Final
 
 __all__ = [
     "set_left_margin",
@@ -16,6 +17,11 @@ __all__ = [
     "set_vertical_tabs",
     "cancel_horizontal_tabs",
     "cancel_vertical_tabs",
+    "set_margins_360",
+    "set_skip_over_perforation",
+    "cancel_skip_over_perforation",
+    "set_unit",
+    "ESC_SKIP_OVER_PERFORATION_OFF",
 ]
 
 # =============================================================================
@@ -244,9 +250,7 @@ def set_vertical_tabs(positions: list[int]) -> bytes:
     # Validate ascending order
     for i in range(len(positions) - 1):
         if positions[i] >= positions[i + 1]:
-            raise ValueError(
-                f"Vertical tab positions must be ascending, got {positions}"
-            )
+            raise ValueError(f"Vertical tab positions must be ascending, got {positions}")
 
     # Validate range
     for pos in positions:
@@ -299,6 +303,146 @@ def cancel_vertical_tabs() -> bytes:
         >>> printer.send(cancel_vertical_tabs())
     """
     return b"\x1bB\x00"
+
+
+# =============================================================================
+# ADVANCED MARGIN AND PAGE CONTROL
+# =============================================================================
+
+
+def set_margins_360(top: int, bottom: int) -> bytes:
+    """
+    Set top and bottom margins in 1/360 inch units.
+
+    Command: ESC (c
+    Hex: 1B 28 63 n1 n2 t1 t2 b1 b2
+    Format: ESC (c 4 0 tL tH bL bH
+
+    Args:
+        top: Top margin in 1/360 inch units (0-65535).
+        bottom: Bottom margin in 1/360 inch units (0-65535).
+
+    Returns:
+        ESC/P command bytes.
+
+    Raises:
+        ValueError: If margins are out of range.
+
+    Note:
+        Margins are measured in 1/360 inch units.
+        To convert from inches: dots = inches * 360.
+
+    Example:
+        >>> # Set 1 inch top margin, 1 inch bottom margin
+        >>> cmd = set_margins_360(360, 360)  # 1" = 360 units
+        >>> printer.send(cmd)
+    """
+    if not (0 <= top <= 65535):
+        raise ValueError(f"Top margin must be 0-65535, got {top}")
+    if not (0 <= bottom <= 65535):
+        raise ValueError(f"Bottom margin must be 0-65535, got {bottom}")
+
+    t1 = top & 0xFF
+    t2 = (top >> 8) & 0xFF
+    b1 = bottom & 0xFF
+    b2 = (bottom >> 8) & 0xFF
+
+    return b"\x1b(c\x04\x00" + bytes([t1, t2, b1, b2])
+
+
+ESC_SKIP_OVER_PERFORATION_OFF: Final[bytes] = b"\x1bO"
+"""
+Cancel skip over perforation.
+
+Command: ESC O
+Hex: 1B 4F
+Effect: Disable automatic skipping over perforation
+Default: Disabled after printer reset
+
+Example:
+    >>> printer.send(ESC_SKIP_OVER_PERFORATION_OFF)
+"""
+
+
+def set_skip_over_perforation(lines: int) -> bytes:
+    """
+    Set lines to skip over perforation.
+
+    Command: ESC N n
+    Hex: 1B 4E n
+
+    Args:
+        lines: Number of lines to skip at page break (1-127).
+
+    Returns:
+        ESC/P command bytes.
+
+    Raises:
+        ValueError: If lines is not 1-127.
+
+    Note:
+        Automatically skips specified lines at page breaks
+        to avoid printing on perforation (continuous forms).
+
+    Example:
+        >>> cmd = set_skip_over_perforation(3)  # Skip 3 lines
+        >>> printer.send(cmd)
+    """
+    if not (1 <= lines <= 127):
+        raise ValueError(f"Lines must be 1-127, got {lines}")
+
+    return b"\x1bN" + bytes([lines])
+
+
+def cancel_skip_over_perforation() -> bytes:
+    """
+    Cancel skip over perforation (same as ESC O).
+
+    Command: ESC O
+    Hex: 1B 4F
+
+    Returns:
+        ESC/P command bytes.
+
+    Example:
+        >>> printer.send(cancel_skip_over_perforation())
+    """
+    return b"\x1bO"
+
+
+def set_unit(unit: int) -> bytes:
+    """
+    Set unit of measurement for positioning commands.
+
+    Command: ESC (U
+    Hex: 1B 28 55 n1 n2 m
+    Format: ESC (U 1 0 m
+
+    Args:
+        unit: Base unit in dots per inch.
+              Valid values: 60, 120, 180
+              60 = 1/60 inch (default for many commands)
+              120 = 1/120 inch
+              180 = 1/180 inch
+
+    Returns:
+        ESC/P command bytes.
+
+    Raises:
+        ValueError: If unit is not 60, 120, or 180.
+
+    Note:
+        Affects subsequent positioning commands.
+        Default unit is 1/60 inch.
+
+    Example:
+        >>> cmd = set_unit(180)  # Use 1/180 inch units
+        >>> printer.send(cmd)
+    """
+    if unit not in (60, 120, 180):
+        raise ValueError(f"Unit must be 60, 120, or 180, got {unit}")
+
+    return b"\x1b(U\x01\x00" + bytes([unit])
 
 
 # =============================================================================

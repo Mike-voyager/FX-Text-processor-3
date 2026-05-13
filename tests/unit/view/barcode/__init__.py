@@ -1,0 +1,1 @@
+# Barcode UI components tests

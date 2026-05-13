@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/key_rotation.py
+# hypothesis_version: 6.151.12
+
+[',', '1.0.0', '2026-03-02', ':', 'KeyRotationManager', 'KeyRotationStatus', 'Mike Voyager', '_rotation_meta_', 'created_at', 'key_id', 'next_rotation', 'rotated_at', 'rotation_count', 'utf-8']

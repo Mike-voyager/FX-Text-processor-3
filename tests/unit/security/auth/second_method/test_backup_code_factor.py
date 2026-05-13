@@ -300,7 +300,7 @@ def test_getauditlog_empty_and_nonempty() -> None:
     code = state["codes"][0]["code"]
     try:
         factor.verify("edge_case", code, state)
-    except Exception:
+    except (RuntimeError, AttributeError, TypeError, ValueError):
         pass
     log = factor.get_audit_log(state)
     assert isinstance(log, list)

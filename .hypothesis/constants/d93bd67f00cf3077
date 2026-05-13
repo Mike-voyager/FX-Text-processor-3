@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/crypto_profile_dialog.py
+# hypothesis_version: 6.151.12
+
+[150, 220, 250, 280, 550, 650, 1024, ' + ', '#1565c0', '#17a2b8', '#212529', '#27ae60', '#3498db', '#6c757d', '#7b1fa2', '#c62828', '#dee2e6', '#e3f2fd', '#e74c3c', '#ef6c00', '#f39c12', '#f3e5f5', '#f8f9fa', '#ffebee', '#fff3e0', '#ffffff', '-', '<Configure>', 'CryptoProfileDialog', 'KDF:', 'MFA Error', 'MFA Required', 'Post-quantum:', 'SECURITY_LEVELS', 'TkDefaultFont', 'all', 'apply_btn', 'argon2id', 'backup', 'bold', 'cancel_btn', 'desc', 'description', 'hash', 'kdf', 'name', 'operator', 'post_quantum', 'radio', 'row', 'signing', 'symmetric', 'totp', 'verified', 'warning', 'white', 'Выберите профиль', 'Да', 'Детали профиля', 'Нет', 'Описание:', 'Подпись:', 'Подтверждение', 'Хеш:', 'Шифрование:', '⚠️ Небезопасно', '⚡ Медленнее', '⚡ Очень медленно', '✓ Применить', '❌ Отмена', '💾 Оптимизирован', '🔮 Post-Quantum']

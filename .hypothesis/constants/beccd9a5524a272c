@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/services/drag_drop_service.py
+# hypothesis_version: 6.151.12
+
+[0.7, 150, '#4a90d9', '+', '+0+0', '-alpha', '-topmost', '<ButtonRelease-1>', '<Escape>', '<Motion>', 'DATA_TYPE_DOCUMENT', 'DATA_TYPE_FIELD', 'DATA_TYPE_TEMPLATE', 'DATA_TYPE_TEXT', 'DragData', 'DragDropService', 'DropOperation', 'DropTarget', 'Helvetica', 'Segoe UI Emoji', 'allowed_operations', 'bold', 'copy', 'data_type', 'document', 'drag_cancel', 'drag_drop', 'drag_start', 'exchange', 'field', 'fleur', 'link', 'move', 'no', 'operation', 'preview_text', 'target_id', 'template', 'text', 'white', 'withdrawn', '🖐️']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/trust_chain_service.py
+# hypothesis_version: 6.151.12
+
+['.tmp', 'ChainValidationError', 'Ed25519', 'KeyEntry', 'KeyNotFoundError', 'TrustChainError', 'TrustChainService', 'add_trusted_key', 'algorithm', 'audit', 'chain_depth', 'embedded', 'error', 'is_root', 'key_id', 'keystore_file', 'link', 'loaded_keys', 'metadata_keys', 'note', 'operation', 'parent_key_id', 'r', 'reason', 'revoke_key', 'revoke_reason', 'revoked', 'revoked_at', 'revoked_by', 'signature', 'signing_algorithm', 'signing_key_id', 'signing_public_key', 'template_id', 'trusted_keys.json', 'utf-8', 'w']

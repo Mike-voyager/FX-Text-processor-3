@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/permissions.py
+# hypothesis_version: 6.151.12
+
+['MFARequiredError', 'OPERATOR_PERMISSIONS', 'OPERATOR_SCOPES', 'OperatorRole', 'Permission', 'PermissionChecker', 'PermissionError', 'PermissionPolicy', 'SCOPE_PERMISSIONS', 'Scope', 'ScopeError', 'audit', 'audit:read', 'audit:verify', 'backup', 'backup:create', 'backup:restore', 'blank:issue', 'blank:read', 'blank:sign', 'blank:verify', 'blank:void', 'blanks', 'config', 'config:modify', 'config:read', 'device:list', 'device:provision', 'device:revoke', 'devices', 'document:delete', 'document:encrypt', 'document:export', 'document:read', 'document:sign', 'document:write', 'documents', 'full', 'key:export', 'key:import_device', 'key:rotate', 'keys', 'operator', 'requires_mfa', 'security', 'security:config_read', 'security:downgrade', 'session:list', 'session:revoke', 'sessions', 'Оператор']

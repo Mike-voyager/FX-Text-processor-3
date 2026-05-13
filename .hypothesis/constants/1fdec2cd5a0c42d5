@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/mode_manager.py
+# hypothesis_version: 6.151.12
+
+['ModeChangeCallback', 'ModeManager', 'Special Mode enabled', '_initialized', 'already_normal', 'already_special', 'backupcode', 'disabled', 'fido2', 'health_check_failed', 'normal', 'ok', 'operator', 'password', 'special', 'totp', 'user_id']

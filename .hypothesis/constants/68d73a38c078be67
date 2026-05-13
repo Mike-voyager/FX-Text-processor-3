@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/printing/document_renderer.py
+# hypothesis_version: 6.151.12
+
+[b'\x0c', b'\r\n', b'[Table]', 1.0, 8.5, 'DocumentRenderer', 'Margins', 'RenderOptions', 'RenderSettings', 'ascii', 'cp866', 'encode', 'replace', 'rows', 'runs', 'text']

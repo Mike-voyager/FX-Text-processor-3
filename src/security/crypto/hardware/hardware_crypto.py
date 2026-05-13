@@ -506,6 +506,9 @@ def _select_aid(connection: Any, aid: bytes) -> bool:
     try:
         _, sw1, sw2 = connection.transmit(apdu)
         return (sw1, sw2) == _SW_SUCCESS
+    except (OSError, TypeError, RuntimeError, ValueError) as exc:
+        logger.debug("SELECT AID %s failed: %s", aid.hex().upper(), exc)
+        return False
     except Exception as exc:
         logger.debug("SELECT AID %s failed: %s", aid.hex().upper(), exc)
         return False
@@ -636,6 +639,8 @@ def _detect_card_profile(reader: Any, reader_name: str) -> CardProfile:
         if connection is not None:
             try:
                 connection.disconnect()
+            except (OSError, TypeError, RuntimeError):
+                logger.debug("Failed to disconnect smartcard connection during cleanup")
             except Exception:
                 logger.debug("Failed to disconnect smartcard connection during cleanup")
 
@@ -1089,7 +1094,7 @@ class HardwareCryptoManager:
 
         try:
             available_readers: list[Any] = sc_readers()
-        except Exception as exc:
+        except (OSError, TypeError, RuntimeError, ValueError) as exc:
             logger.warning("PC/SC enumeration failed: %s", exc)
             return [], [exc]
 
@@ -2082,6 +2087,8 @@ class HardwareCryptoManager:
             if connection is not None:
                 try:
                     connection.close()
+                except (OSError, TypeError, RuntimeError):
+                    logger.debug("Failed to close YubiKey connection during cleanup")
                 except Exception:
                     logger.debug("Failed to close YubiKey connection during cleanup")
 
@@ -2148,7 +2155,7 @@ class HardwareCryptoManager:
                 return (0, 0, 0)
             # yubikit.core.Version: .major, .minor, .patch
             return (int(v.major), int(v.minor), int(v.patch))
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return (0, 0, 0)
 
     # ------------------------------------------------------------------

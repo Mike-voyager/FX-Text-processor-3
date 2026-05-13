@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/batch_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, 0.1, 'BatchCallback', 'BatchItem', 'BatchOperation', 'BatchOperationType', 'BatchResult', 'BatchService', 'BatchStatus', 'Document', 'ExportOptions', 'ExportService', 'ItemProcessor', 'ItemStatus', 'PrintQueueService', 'cancelled', 'completed', 'completed_at', 'completed_items', 'convert', 'copies', 'created_at', 'custom', 'export', 'export_options', 'exported', 'failed', 'failed_items', 'id', 'items', 'metadata', 'name', 'operation_type', 'output_dir', 'path', 'paused', 'pending', 'print', 'printed', 'printer_name', 'processed', 'processing', 'resumed', 'running', 'skipped', 'started', 'started_at', 'status', 'total', 'total_items', 'validate', 'Операция не найдена', 'Ошибка callback: %s']

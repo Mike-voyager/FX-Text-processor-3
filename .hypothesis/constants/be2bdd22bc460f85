@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/themes/registry.py
+# hypothesis_version: 6.151.12
+
+['AMBER_THEME', 'CLASSIC_GREEN_THEME', 'HIGH_CONTRAST_THEME', 'PHOSPHOR_WHITE_THEME', 'RETRO_GREEN_THEME', 'ThemeNotFoundError', 'ThemeRegistry', 'ThemeRegistryError', 'get_registry', 'Ошибка реестра тем']

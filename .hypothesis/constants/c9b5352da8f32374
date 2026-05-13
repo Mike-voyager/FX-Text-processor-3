@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/document_manager_service.py
+# hypothesis_version: 6.151.12
+
+[100, 'CloseResult', 'CreateResult', 'Document', 'DocumentFormat', 'DocumentLockProtocol', 'OpenResult', 'SaveResult', 'default', 'doc_id', 'document.closed', 'document.created', 'document.opened', 'document.saved', 'owner_id', 'path', 'saved', 'title', 'Без названия', 'Закрыт документ: %s', 'Ошибка аудита: %s']

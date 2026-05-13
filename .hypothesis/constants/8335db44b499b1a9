@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/views/auth_overlay.py
+# hypothesis_version: 6.151.12
+
+[0.5, '#27ae60', '#2c3e50', '#2ecc71', '#34495e', '#3498db', '#e74c3c', '#ecf0f1', '#f39c12', '<Escape>', 'AuthOverlay', 'Authenticate', 'Authenticating...', 'Authentication error', 'Cancel', 'Enter credentials', 'Second factor error', 'TkDefaultFont', 'auth_overlay', 'backupcode', 'center', 'error', 'fido2', 'info', 'invalid_mfa', 'invalid_password', 'mfa_error', 'mfa_missing', 'password_error', 'success', 'totp', 'w', 'warning']

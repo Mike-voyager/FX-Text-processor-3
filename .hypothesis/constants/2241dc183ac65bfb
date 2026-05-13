@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/clipboard_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, '--clipboard', '--input', '--output', '-o', '-selection', 'ClipboardData', 'ClipboardEntry', 'ClipboardFormat', 'ClipboardService', 'CopyResult', 'Paragraph', 'PasteResult', 'PyperclipBackend', 'Run', 'clipboard', 'count', 'data', 'get_text', 'paragraphs', 'replace', 'runs', 'text', 'text/html', 'text/plain', 'text/rtf', 'type', 'utf-8', 'xclip', 'xsel', 'Буфер обмена очищен', 'Пустой список runs', 'Пустой текст', 'Скопировано runs: %d']

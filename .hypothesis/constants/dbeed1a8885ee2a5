@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/excel_import.py
+# hypothesis_version: 6.151.12
+
+['.xls', '.xlsx', ':', 'ExcelImporter', '^(\\d+):(\\d+)$', 'auto', 'column', 'date', 'float', 'int', 'range', 'row', 'str']

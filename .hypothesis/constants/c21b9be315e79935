@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/__init__.py
+# hypothesis_version: 6.151.12
+
+['1.0.0', 'DocumentType', 'FieldDefinition', 'FieldType', 'IndexComponents', 'IndexTemplate', 'Mike Voyager', 'OverflowBehavior', 'RegistryError', 'Series', 'Subtype', 'TemplateField', 'TypeRegistry', 'TypeRegistryError', 'TypeSchema', 'TypeSchemaFieldType', 'UnknownTypeError', 'ValidationRule']

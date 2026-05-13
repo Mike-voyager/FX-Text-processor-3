@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/state_manager.py
+# hypothesis_version: 6.151.12
+
+['FormStatus', 'Invalid transition', 'MFAGate', 'MFA_REQUIRED', 'TransitionRequest', 'TransitionResult', 'TransitionSnapshot', 'WorkflowController', 'WorkflowRole', 'WorkflowStateManager', 'approve', 'approved', 'archive', 'archived', 'draft', 'fill_fields', 'filled', 'get_all_comments', 'get_field_values', 'mfa_gate обязателен', 'print', 'printed', 'reject', 'rejected', 'save_draft', 'sign', 'signed', 'switch_role', 'validate', 'validated', 'view_comments']

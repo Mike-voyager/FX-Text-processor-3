@@ -36,6 +36,11 @@ from src.security.crypto.core.exceptions import (
     InvalidParameterError,
 )
 
+try:
+    from cryptography.exceptions import InvalidTag
+except ImportError:
+    InvalidTag = None  # type: ignore[misc,assignment]
+
 __all__: list[str] = [
     "SecureStorage",
 ]
@@ -278,8 +283,12 @@ class SecureStorage:
         try:
             cipher = AESGCM(self._master_key)
             return cipher.decrypt(nonce, ciphertext, None)
-        except Exception as e:
+        except (TypeError, ValueError, RuntimeError, OSError) as e:
             raise DecryptionFailedError("Failed to decrypt keystore") from e
+        except Exception as e:
+            if InvalidTag is not None and isinstance(e, InvalidTag):
+                raise DecryptionFailedError("Failed to decrypt keystore: invalid authentication tag") from e
+            raise
 
     def _save_to_disk(self) -> None:
         """Атомарная запись хранилища на диск."""
@@ -301,7 +310,8 @@ class SecureStorage:
             os.fsync(fd)
             os.close(fd)
             os.replace(tmp_path, str(self._path))
-        except Exception:
+        except (OSError, ValueError) as e:
+            LOG.debug("Atomic write failed: %s", e)
             os.close(fd) if not os.get_inheritable(fd) else None
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)

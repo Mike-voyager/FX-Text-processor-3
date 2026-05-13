@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/second_method/code.py
+# hypothesis_version: 6.151.12
+
+[180, 256, '-', 'BackupCodeFactor', 'CodeExpired', 'CodeLockout', 'CodeUsed', 'DEFAULT_TTL_DAYS', 'a', 'action', 'active_codes', 'audit', 'audit_events', 'block_size', 'code', 'code_bits', 'codes', 'created_at', 'default_ttl_days', 'expired', 'fail', 'failed_attempts', 'format_example', 'is_expired', 'is_locked', 'lock_seconds', 'lock_until', 'locked_for', 'lockout', 'max_attempts', 'raw', 'remaining_lock_sec', 'remove', 'result', 'status', 'success', 'timestamp', 'total_codes', 'ttl_days', 'used', 'used_at', 'used_codes', 'user_id']

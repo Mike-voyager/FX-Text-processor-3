@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/second_method/fido2.py
+# hypothesis_version: 6.151.12
+
+['CredentialMismatch', 'DeviceNotFound', 'FX Text Processor', 'Fido2Factor', 'Unnamed Device', 'action', 'audit', 'audit_events', 'authenticatorData', 'authenticator_data', 'challenge', 'challenge required', 'clientDataJSON', 'client_data_json', 'created_at', 'credential_id', 'default_rp_id', 'default_rp_name', 'device', 'device_count', 'device_not_found', 'device_removed', 'devices', 'error', 'id', 'localhost', 'multi_device_support', 'name', 'registered_at', 'remove', 'response', 'result', 'rp', 'signature', 'signature_fail', 'success', 'timestamp', 'type', 'unknown', 'userHandle', 'user_handle', 'user_id', 'utf-8']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/text_formatting.py
+# hypothesis_version: 6.151.12
+
+[b'\x1b!', b'\x1b"', b'\x1b(', b'\x1b)', b'\x1b-\x00', b'\x1b-\x01', b'\x1b-\x02', b'\x1b4', b'\x1b5', b'\x1bE', b'\x1bF', b'\x1bG', b'\x1bH', 'ESC_BOLD_OFF', 'ESC_BOLD_ON', 'ESC_DOUBLE_STRIKE_ON', 'ESC_ITALIC_OFF', 'ESC_ITALIC_ON', 'ESC_OUTLINE_OFF', 'ESC_OUTLINE_ON', 'ESC_SHADOW_OFF', 'ESC_SHADOW_ON', 'ESC_UNDERLINE_DOUBLE', 'ESC_UNDERLINE_OFF', 'ESC_UNDERLINE_ON']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/print_dialog.py
+# hypothesis_version: 6.151.12
+
+['<<ComboboxSelected>>', 'Arial', 'CPI', 'adapter', 'classic_green', 'copies', 'cups', 'file', 'grey', 'id', 'italic', 'page_by_page', 'paper_type', 'print_test_page', 'printer_id', 'priority', 'readonly', 'theme', 'values', 'win32', 'Адаптер:', 'Все', 'Выбор устройства', 'Качество', 'Кодовая страница', 'Копии:', 'Опции печати', 'Отмена', 'Параметры документа', 'Печать', 'Поля', 'Постраничная печать', 'Предпросмотр', 'Принтер', 'Принтер:', 'Приоритет:', 'Стандарт', 'Тест', 'Тип бумаги']

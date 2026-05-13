@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/utilities/serialization.py
+# hypothesis_version: 6.151.12
+
+[b'=', b'\xcf', 127, 128, ',', '-----BEGIN', '-----END', '1.0.0', '2026-03-02', ':', '=', '>H', 'KeyFormat', 'Mike Voyager', 'PRIVATE', 'SYMMETRIC', 'alg', 'ascii', 'big', 'compact', 'data', 'der', 'deserialize_key', 'detect_format', 'ec', 'ed25519', 'ed448', 'fmt', 'from_compact', 'from_pem', 'jwk', 'k', 'kty', 'oct', 'pem', 'pem_data', 'pkcs8', 'raw', 'rsa', 'serialize_key', 'strict', 'to_compact', 'to_pem', 'utf-8']

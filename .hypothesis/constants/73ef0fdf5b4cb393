@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/print_quality.py
+# hypothesis_version: 6.151.12
+
+[b'\x1bx\x00', b'\x1bx\x01', b'\x1by', b'\x1by\x00', b'\x1by\x01', b'\x1by\x02', 'ESC_DRAFT_MODE', 'ESC_DRAFT_SPEED_HIGH', 'ESC_LQ_MODE', 'ESC_SELECT_DRAFT', 'ESC_SELECT_LQ', 'set_draft_speed']

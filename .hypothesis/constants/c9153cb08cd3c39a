@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/workflow_annotation_panel.py
+# hypothesis_version: 6.151.12
+
+[400, '#27ae60', '#2c3e50', '#3498db', '#7f8c8d', '#95a5a6', '#e74c3c', '#ecf0f1', '#f39c12', '#f8f9fa', '%d.%m.%Y %H:%M', '1.0', '<Configure>', 'AnnotationStatus', 'AnnotationType', 'TkDefaultFont', 'WorkflowAnnotation', 'all', 'annotation_add', 'annotation_reply', 'annotation_resolve', 'bold', 'closed', 'comment', 'italic', 'open', 'operator', 'remark', 'resolution', 'signature', 'white', 'Добавить', 'Добавить аннотацию', 'Закрыто', 'Закрыть', 'Замечание', 'Комментарий', 'Нет аннотаций', 'Ответить', 'Открыто', 'Отправить', 'Подпись', 'Показать историю', 'Резолюция', 'Скрыть историю', '⚠', '✓', '💬', '🔏']

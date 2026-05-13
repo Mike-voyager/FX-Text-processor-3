@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/services/sync_service.py
+# hypothesis_version: 6.151.12
+
+[0.0, 'DATA_BOOKMARK_CHANGE', 'DATA_DOCUMENT_UPDATE', 'DATA_MODE_CHANGE', 'DATA_SIDEBAR_STATE', 'Exception ignored', 'SyncMessage', 'SyncService', 'bookmark_change', 'broadcast_only', 'data_type', 'document_update', 'handler', 'last_write_wins', 'merge', 'mfa_gated', 'mode_change', 'selection_change', 'sidebar_state', 'window_id', 'window_list_changed']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/print_queue_service.py
+# hypothesis_version: 6.151.12
+
+[100, 'PrintJob', 'PrintJobStatus', 'PrintPriority', 'PrintQueueCallback', 'PrintQueueService', 'QueueStats', 'added', 'cancelled', 'completed', 'failed', 'paused', 'pending', 'preparing', 'printing', 'started', 'Завершено задание %s', 'Запущено задание %s', 'Отменено задание %s', 'Ошибка callback: %s']

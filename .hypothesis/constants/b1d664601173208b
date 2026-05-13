@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/__init__.py
+# hypothesis_version: 6.151.12
+
+['AutocompleteEntry', 'BarcodeWidget', 'BaseField', 'BaseFieldWidget', 'CalculatedWidget', 'CheckboxWidget', 'DateEntry', 'DateInputWidget', 'DropdownWidget', 'EmailWidget', 'ExcelImportWidget', 'FIELD_WIDGETS', 'FieldSettingsToolbar', 'INLINE_FIELD_WIDGETS', 'InlineCheckboxField', 'InlineDropdownField', 'InlineMultiLineField', 'MultiLineWidget', 'NumberEntry', 'NumberInputWidget', 'PHASE_5_WIDGETS', 'PhoneWidget', 'QRWidget', 'RadioGroupWidget', 'SignatureWidget', 'StampWidget', 'StaticTextWidget', 'T', 'TableData', 'TableEditorDialog', 'TableField', 'TableWidget', 'TextInputWidget', 'autocomplete_service', 'columns', 'create_field_widget', 'create_inline_widget', 'decimal_places', 'rows']

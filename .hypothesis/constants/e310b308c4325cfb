@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/session_lock_screen.py
+# hypothesis_version: 6.151.12
+
+[0.5, 200, '#27ae60', '#888888', '#e74c3c', '#ecf0f1', '%H:%M:%S', '-fullscreen', '-topmost', '<Escape>', 'Courier New', 'Invalid credentials', 'Session Locked', 'SessionLockScreen', 'Unlock', 'UnlockCallback', 'WM_DELETE_WINDOW', 'black', 'bold', 'break', 'manual', 'white']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/types/index_formatter.py
+# hypothesis_version: 6.151.12
+
+[100, 400, 500, 900, 1000, '-', 'C', 'CD', 'CM', 'D', 'I', 'IV', 'IVXLCDM', 'IX', 'L', 'M', 'V', 'X', 'XC', 'XL']

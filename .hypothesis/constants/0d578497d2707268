@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/second_factor.py
+# hypothesis_version: 6.151.12
+
+[126, '****', ',', ':', 'action', 'audit', 'backup_codes', 'backupcode', 'created', 'created_at', 'credential', 'detail', 'expired', 'factors', 'fido2', 'id', 'mfa_state', 'name', 'ok', 'private_key', 'reason', 'remove', 'result', 'secret', 'seed', 'setup', 'sk', 'state', 'status', 'success', 'totp', 'ts', 'ttl_seconds', 'ttlseconds', 'type', 'user', 'utf-8', 'valid', 'verify']

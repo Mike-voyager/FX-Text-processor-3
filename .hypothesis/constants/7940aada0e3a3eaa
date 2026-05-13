@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/controllers/barcode_controller.py
+# hypothesis_version: 6.151.12
+
+['-', '400x400', 'M', 'OK', 'QR', 'auto', 'border', 'box_size', 'data', 'dpi', 'error_correction', 'hardware', 'height_mm', 'show_text', 'software', 'switch', 'version', 'width_mm', 'Отмена', 'Ошибка']

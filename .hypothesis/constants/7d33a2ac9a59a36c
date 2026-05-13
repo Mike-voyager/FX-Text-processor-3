@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/digital_signature_dialog.py
+# hypothesis_version: 6.151.12
+
+[320, 480, 'Ed25519', 'Ed448', 'RSA-PSS-2048', 'RSA-PSS-4096', 'both', 'ew', 'left', 'readonly', 'sign', 'signature', 'verify', 'w', 'Алгоритм подписи:', 'Выполнить', 'Действие', 'Информация', 'Отмена', 'Подписать документ', 'Предупреждение', 'Проверить подпись', 'Цифровая подпись']

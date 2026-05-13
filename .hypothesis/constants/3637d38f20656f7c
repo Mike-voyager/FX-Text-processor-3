@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/dialogs/conditions_editor_dialog.py
+# hypothesis_version: 6.151.12
+
+[350, 400, 500, 550, 600, '\n  •  ', '  •  ', ' Активность ', ' Видимость ', ' Только чтение ', '#212529', '#219a52', '#27ae60', '#2980b9', '#3498db', '#555555', '#6c757d', '#dee2e6', '#e74c3c', '#e9ecef', '#f8f9fa', '#ffffff', '1.0', '1.0.0', '<string>', 'April 2026', 'Arial', 'Consolas', 'Mike Voyager', 'OK', 'WM_DELETE_WINDOW', '__', 'bold', 'compile', 'enabled_condition', 'eval', 'ew', 'exec', 'file', 'import', 'is_urgent == True', 'italic', 'nsew', 'open', 'read_only_condition', 'visibility_condition', 'white', 'Активность', 'Видимость', 'Отмена', 'Ошибка валидации', 'Примеры условий', 'Проверить', 'Только чтение']

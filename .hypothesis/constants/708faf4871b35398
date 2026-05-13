@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/compliance/anonymization.py
+# hypothesis_version: 6.151.12
+
+['*', '+1-555-000-0000', '0.0.0.0', '000-00-0000', '00000', '1.0.0', '123 Anonymous St', '18-24', '1900-01-01', '2026-03-24', '25-34', '35-44', '45-54', '55-64', '65+', 'ANON000000', 'Anonymous City', 'Anonymous User', 'Anonymous/1.0', 'Country', 'DEFAULT_PII_FIELDS', 'Mike Voyager', 'PIIAnonymizer', '[AGE RANGE]', '[ANONYMIZED]', '[REDACTED]', '[Region]', '[YEAR]', '^\\d{3}-\\d{2}-\\d{4}$', '^\\d{5}(-\\d{4})?$', 'action', 'address', 'age', 'anon@example.com', 'birth', 'city', 'country', 'date', 'date_of_birth', 'email', 'fake', 'field_count', 'fields_anonymized', 'first_name', 'full_name', 'generalize', 'hash', 'ip', 'ip_address', 'ip_v4', 'keep', 'last_name', 'mask', 'name', 'passport', 'phone', 'pii_anonymization', 'postal', 'postal_code', 'redact', 'ssn', 'under-18', 'user_agent', 'zip']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/monitoring/checks/algorithm_check.py
+# hypothesis_version: 6.151.12
+
+[b'password', b'test', b'test message', 1000, '1.0.0', '2026-03-24', 'AES-256-GCM', 'AlgorithmCheck', 'Argon2id', 'ChaCha20-Poly1305', 'Dilithium3', 'Ed25519', 'Kyber768', 'ML-DSA-65', 'ML-KEM-768', 'Mike Voyager', 'Not installed', 'OPTIONAL_ALGORITHMS', 'REQUIRED_ALGORITHMS', 'SHA-256', 'SHA3-256', 'SLH-DSA', '__version__', 'algorithm', 'argon2', 'available', 'cryptography', 'error', 'liboqs', 'libraries', 'optional', 'pyscard', 'required', 'unknown', 'version', 'warning']

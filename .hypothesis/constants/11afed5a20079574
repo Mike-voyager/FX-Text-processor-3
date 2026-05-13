@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/table_field.py
+# hypothesis_version: 6.151.12
+
+[100, '#e0e0e0', '+', '-', '<Configure>', '<FocusIn>', '<KeyRelease>', 'Courier', 'TableField', 'TkDefaultFont', 'all', 'bold', 'label', 'Строк: 0']

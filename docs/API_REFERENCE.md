@@ -71,7 +71,11 @@
     - 10.14 [KeyBindingsService](#1014-keybindingsservice)
     - 10.15 [WatermarkService](#1015-watermarkservice)
     - 10.16 [PaperFormatService](#1016-paperformatservice)
-11. [Floppy Disk Optimization API](#11-floppy-disk-optimization-api)
+ 11. [Floppy Disk Optimization API](#11-floppy-disk-optimization-api)
+ 12. [GUI Protocols (`src/gui/core/protocols.py`)](#12-gui-protocols-srcguicoreprotocolspy)
+     - 12.1 [Base Protocols](#121-base-protocols)
+     - 12.2 [Controller Protocols](#122-controller-protocols)
+     - 12.3 [Phase 7 Service Protocols](#123-phase-7-service-protocols)
 
 ---
 
@@ -3737,6 +3741,301 @@ class AlgorithmMetadata:
 ```
 
 > **Примечание:** Floppy-оптимизация включается опционально в настройках. Ed25519 предпочтителен для компактных подписей на дискетах.
+
+---
+
+## 12. GUI Protocols (`src/gui/core/protocols.py`)
+
+Protocol-интерфейсы для GUI подсистемы. Определяют контракты для компонентов GUI с использованием `typing.Protocol` для structural subtyping.
+
+Все Protocol классы помечены `@runtime_checkable` для поддержки `isinstance()` проверок.
+
+---
+
+### 12.1 Base Protocols
+
+#### `EventProtocol`
+
+Базовый протокол для всех событий GUI.
+
+```python
+@runtime_checkable
+class EventProtocol(Protocol):
+    timestamp: float
+    source_widget_id: str
+    event_type: str
+
+    def get_data(self) -> dict[str, Any]: ...
+    def is_propagation_stopped(self) -> bool: ...
+    def stop_propagation(self) -> None: ...
+```
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `get_data` | `() -> dict[str, Any]` | Возвращает данные события в виде словаря. |
+| `is_propagation_stopped` | `() -> bool` | Проверяет, остановлено ли распространение события. |
+| `stop_propagation` | `() -> None` | Останавливает распространение события родителям. |
+
+---
+
+#### `WidgetProtocol`
+
+Базовый протокол для всех виджетов GUI.
+
+```python
+@runtime_checkable
+class WidgetProtocol(Protocol):
+    widget_id: str
+
+    def mount(self, parent: Any) -> Any: ...
+    def unmount(self) -> None: ...
+    def handle_event(self, event: EventProtocol) -> bool: ...
+    def is_mounted(self) -> bool: ...
+```
+
+**Lifecycle:**
+1. `mount(parent)` — создание и регистрация в родителе
+2. `handle_event(event)` — обработка событий
+3. `unmount()` — удаление и освобождение ресурсов
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `mount` | `(parent: Any) -> Any` | Монтирует виджет в родительский контейнер. Возвращает созданный Tkinter виджет. |
+| `unmount` | `() -> None` | Демонтирует виджет и освобождает ресурсы. Очищает sensitive данные. |
+| `handle_event` | `(event: EventProtocol) -> bool` | Обрабатывает входящее событие. Returns `True` если consumed. |
+| `is_mounted` | `() -> bool` | Проверяет, смонтирован ли виджет. |
+
+---
+
+#### `SmartWidgetProtocol`
+
+Протокол для виджетов с локальным состоянием редактирования.
+
+```python
+@runtime_checkable
+class SmartWidgetProtocol(WidgetProtocol, Protocol):
+    is_editing: bool
+
+    def enter_edit_mode(self) -> None: ...
+    def exit_edit_mode(self) -> None: ...
+    def sync_to_model(self) -> bool: ...
+    def get_edit_value(self) -> str: ...
+    def set_edit_value(self, value: str) -> None: ...
+```
+
+**Состояния:**
+- `VIEW_MODE` — отображение значения из модели
+- `EDIT_MODE` — локальное редактирование, sync отключен
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `enter_edit_mode` | `() -> None` | Входит в режим редактирования. Отключает синхронизацию. |
+| `exit_edit_mode` | `() -> None` | Выходит из режима редактирования. Автоматически вызывает sync_to_model() при изменениях. |
+| `sync_to_model` | `() -> bool` | Синхронизирует локальное состояние с моделью. Returns `True` если были изменения. |
+| `get_edit_value` | `() -> str` | Возвращает текущее значение в режиме редактирования. |
+| `set_edit_value` | `(value: str) -> None` | Устанавливает значение в режиме редактирования (без sync). |
+
+---
+
+### 12.2 Controller Protocols
+
+#### `ControllerProtocol`
+
+Базовый протокол для GUI контроллеров.
+
+```python
+@runtime_checkable
+class ControllerProtocol(Protocol):
+    controller_id: str
+
+    def dispatch(self, action: str, **kwargs: Any) -> Optional[Any]: ...
+    def notify_view_update(self, widget_id: str, data: Any) -> None: ...
+    def register_view(self, widget_id: str, callback: Callable[..., None]) -> None: ...
+    def unregister_view(self, widget_id: str) -> None: ...
+```
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `dispatch` | `(action: str, **kwargs) -> Optional[Any]` | Диспетчирует действие в Service Layer. |
+| `notify_view_update` | `(widget_id: str, data: Any) -> None` | Уведомляет View об изменениях в Model. |
+| `register_view` | `(widget_id: str, callback) -> None` | Регистрирует callback для обновления View. |
+| `unregister_view` | `(widget_id: str) -> None` | Отменяет регистрацию View callback. |
+
+---
+
+#### `DocumentControllerProtocol`
+
+Протокол для контроллера документов.
+
+```python
+@runtime_checkable
+class DocumentControllerProtocol(ControllerProtocol, Protocol):
+    def on_text_changed(self, text: str) -> None: ...
+    def on_field_changed(self, field_id: str, value: str) -> None: ...
+    def on_save(self) -> bool: ...
+    def on_print(self) -> bool: ...
+    def on_undo(self) -> bool: ...
+    def on_redo(self) -> bool: ...
+```
+
+**Действия:**
+- `on_text_changed` — изменение текста в FREE_FORM режиме
+- `on_field_changed` — изменение поля в STRUCTURED_FORM режиме
+- `on_save` — сохранение документа (может потребовать MFA)
+- `on_print` — печать документа (может потребовать MFA)
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `on_text_changed` | `(text: str) -> None` | Обрабатывает изменение текста в FREE_FORM режиме. |
+| `on_field_changed` | `(field_id: str, value: str) -> None` | Обрабатывает изменение поля в STRUCTURED_FORM режиме. Запускает валидацию. |
+| `on_save` | `() -> bool` | Сохраняет текущий документ. **Security:** Может требовать MFA для зашифрованных документов. |
+| `on_print` | `() -> bool` | Печатает текущий документ. Открывает PrintDialog, формирует ESC/P команды. |
+| `on_undo` | `() -> bool` | Отменяет последнее действие. Returns `True` если выполнено. |
+| `on_redo` | `() -> bool` | Повторяет отменённое действие. Returns `True` если выполнено. |
+
+---
+
+### 12.3 Phase 7 Service Protocols
+
+#### `WindowManagerProtocol`
+
+Протокол для управления окнами приложения (Phase 7).
+
+```python
+@runtime_checkable
+class WindowManagerProtocol(Protocol):
+    def register_window(
+        self,
+        window: tk.Toplevel,
+        title: str,
+        document_path: Optional[Path] = None,
+        is_modal: bool = False
+    ) -> str: ...
+    def unregister_window(self, window_id: str) -> None: ...
+    def get_window(self, window_id: str) -> Optional[tk.Toplevel]: ...
+    def bring_to_front(self, window_id: str) -> None: ...
+    def minimize_all(self) -> None: ...
+    def restore_all(self) -> None: ...
+    def close_all_except_main(self) -> None: ...
+    def get_window_list(self) -> list[Any]: ...
+    def transfer_document(self, from_id: str, to_id: str, doc_id: str) -> bool: ...
+```
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `register_window` | `(window, title, path=None, is_modal=False) -> str` | Регистрирует новое окно. Returns `window_id`. **Security:** Путь используется только для отображения. |
+| `unregister_window` | `(window_id: str) -> None` | Удаляет окно из менеджера. Не закрывает само окно. |
+| `get_window` | `(window_id: str) -> Optional[Toplevel]` | Возвращает окно по идентификатору. |
+| `bring_to_front` | `(window_id: str) -> None` | Выводит окно на передний план. |
+| `minimize_all` | `() -> None` | Сворачивает все окна в иконку. |
+| `restore_all` | `() -> None` | Восстанавливает все свёрнутые окна. |
+| `close_all_except_main` | `() -> None` | **Security:** Проверяет unsaved_changes, показывает диалог подтверждения. |
+| `get_window_list` | `() -> list[Any]` | Возвращает список словарей с информацией об окнах. |
+| `transfer_document` | `(from_id, to_id, doc_id) -> bool` | **Security:** Проверяет права доступа через DocumentLockService. Требует MFA для PARANOID. |
+
+---
+
+#### `NotificationServiceProtocol`
+
+Протокол для сервиса уведомлений (Phase 7).
+
+```python
+@runtime_checkable
+class NotificationServiceProtocol(Protocol):
+    def notify(self, message: str, category: str, priority: Any) -> str: ...
+    def get_history(self, category: Optional[str] = None) -> list[Any]: ...
+    def mark_as_read(self, notification_id: str) -> None: ...
+    def get_unread_count(self, category: Optional[str] = None) -> int: ...
+```
+
+**Categories:** `info`, `warning`, `error`, `security`
+**Priorities:** `LOW`, `NORMAL`, `HIGH`, `CRITICAL`
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `notify` | `(message, category, priority) -> str` | Создаёт и отображает уведомление. Returns `notification_id`. **Security:** `category="security"` только для MFA/подписи/шифрования. |
+| `get_history` | `(category=None) -> list[Any]` | Возвращает историю уведомлений. Фильтр по категории — опционально. |
+| `mark_as_read` | `(notification_id: str) -> None` | Отмечает уведомление как прочитанное. |
+| `get_unread_count` | `(category=None) -> int` | Возвращает количество непрочитанных уведомлений. |
+
+---
+
+#### `SyncServiceProtocol`
+
+Протокол для синхронизации между окнами (Phase 7).
+
+```python
+@runtime_checkable
+class SyncServiceProtocol(Protocol):
+    def broadcast(self, source_window_id: str, data_type: str, data: Any) -> None: ...
+    def register_handler(
+        self,
+        data_type: str,
+        window_id: str,
+        handler: Callable[..., None]
+    ) -> str: ...
+    def unregister_handler(self, handler_id: str) -> None: ...
+```
+
+**Data Types:** `document_update`, `settings_change`, `theme_change`, `clipboard_update`
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `broadcast` | `(source_id, data_type, data) -> None` | Рассылает данные всем зарегистрированным обработчикам. **Security:** Данные передаются без шифрования (shared memory). |
+| `register_handler` | `(data_type, window_id, handler) -> str` | Регистрирует обработчик для типа данных. Returns `handler_id`. |
+| `unregister_handler` | `(handler_id: str) -> None` | Удаляет зарегистрированный обработчик. |
+
+---
+
+#### `DragDropServiceProtocol`
+
+Протокол для drag-and-drop сервиса (Phase 7).
+
+```python
+@runtime_checkable
+class DragDropServiceProtocol(Protocol):
+    def start_drag(self, source_window_id: str, data: Any) -> None: ...
+    def register_drop_target(self, widget: tk.Widget, target: Any) -> str: ...
+    def unregister_drop_target(self, target_id: str) -> None: ...
+    def is_dragging(self) -> bool: ...
+    def cancel_drag(self) -> None: ...
+```
+
+**Data Types:** `text`, `file`, `document`
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `start_drag` | `(source_id, data) -> None` | Начинает операцию перетаскивания. **Security:** Данные не шифруются при перетаскивании. |
+| `register_drop_target` | `(widget, target) -> str` | Регистрирует виджет как целевую зону. Returns `target_id`. |
+| `unregister_drop_target` | `(target_id: str) -> None` | Удаляет регистрацию целевой зоны. |
+| `is_dragging` | `() -> bool` | Проверяет, выполняется ли операция перетаскивания. |
+| `cancel_drag` | `() -> None` | Отменяет текущую операцию перетаскивания. |
+
+---
+
+#### `PreviewPanelProtocol`
+
+Протокол для панели предпросмотра документа (Phase 7).
+
+```python
+@runtime_checkable
+class PreviewPanelProtocol(Protocol):
+    def mount(self, parent: tk.Widget) -> tk.Widget: ...
+    def unmount(self) -> None: ...
+    def set_preview_data(self, data: Any) -> None: ...
+    def show_hex_view(self) -> None: ...
+    def show_visual_preview(self) -> None: ...
+```
+
+**View Modes:** `HEX_VIEW`, `VISUAL_PREVIEW`
+
+| Метод | Сигнатура | Описание |
+|-------|-----------|----------|
+| `mount` | `(parent: Widget) -> Widget` | Монтирует панель предпросмотра в родительский контейнер. |
+| `unmount` | `() -> None` | **Security:** Очищает отображаемый контент для предотвращения утечки данных. |
+| `set_preview_data` | `(data: Any) -> None` | Устанавливает данные для предпросмотра. **Security:** Очищать при закрытии документа. |
+| `show_hex_view` | `() -> None` | Переключает в режим hex-просмотра (адреса + ASCII). |
+| `show_visual_preview` | `() -> None` | Переключает в режим визуального предпросмотра (WYSIWYG). |
 
 ---
 

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/table_widget.py
+# hypothesis_version: 6.151.12
+
+[600, 800, '#', '(Нет схемы таблицы)', ',', '800x600', '<Configure>', 'TableData', 'TableEditorDialog', 'TableWidget', 'TkDefaultFont', 'all', 'bold', 'currency', 'disabled', 'gray', 'headings', 'normal', 'number_input', 'readonly', 'row', 'values', 'Буфер обмена', 'Буфер обмена пуст', 'Вставить из Excel', 'Добавить строку', 'Лимит', 'Отмена', 'Ошибка', 'Сохранить', 'Удаление', 'Удалить строку']

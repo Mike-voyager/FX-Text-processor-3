@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/workflow/role_badge.py
+# hypothesis_version: 6.151.12
+
+[' 🔒', '#2ecc71', '#3498db', '#e74c3c', '#f39c12', 'ModeManager', 'RoleBadge', 'TkDefaultFont', 'WorkflowRole', 'bold', 'editor', 'operator', 'role_badge', 'signatory', 'supervisor', 'white', 'Оператор', 'Подписант', 'Редактор', 'Супервайзер', '▼', '✏️', '👁️', '👤', '🔏', '🔒']

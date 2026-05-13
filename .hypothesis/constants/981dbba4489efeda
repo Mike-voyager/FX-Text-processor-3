@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/services/version_history_service.py
+# hypothesis_version: 6.151.12
+
+[300, '+ ', '- ', '.meta', '.versions', '? ', 'Checkpoint', 'DiffType', 'Document', 'Milestone', 'StorageBackend', 'VersionDiff', 'VersionInfo', 'VersionSnapshot', 'VersionType', 'added', 'auto', 'checkpoint', 'checksum', 'created_at', 'created_by', 'deleted', 'description', 'document_id', 'id', 'manual', 'metadata', 'milestone', 'modified', 'moved', 'parent_version', 'replace', 'size_bytes', 'to_dict', 'utf-8', 'version_number', 'version_type', 'Версия %s удалена', 'Ошибка отката: %s']

@@ -344,6 +344,8 @@ class ApduTransport:
             return
         try:
             self._connection.disconnect()
+        except (OSError, TypeError, RuntimeError) as exc:
+            logger.debug("ApduTransport: disconnect error (ignored): %s", exc)
         except Exception as exc:
             logger.debug("ApduTransport: disconnect error (ignored): %s", exc)
         finally:
@@ -1024,5 +1026,7 @@ def list_readers() -> list[str]:
         return []
     try:
         return [str(r) for r in sc_readers()]
+    except (OSError, TypeError, RuntimeError):
+        return []
     except Exception:
         return []

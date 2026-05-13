@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/input_mask.py
+# hypothesis_version: 6.151.12
+
+['#', '-', 'A', 'InputMask', 'L', 'N', 'R', '[A-Z]', '\\[A-Z\\]', '\\\\d\\{(\\d+)\\}', '\\d', '\\{(\\d+)(?:,(\\d+))?\\}', '^[0-9]$', '^[A-Za-z]$', '^[IVXLCDM]$', '_', 'segments', 'separator']

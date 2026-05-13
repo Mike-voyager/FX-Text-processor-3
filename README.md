@@ -40,10 +40,10 @@ Every document receives a unique hierarchical composite index:
 
 ```
 DVN-44-K53-IX
- │   │   │   └── SEQUENCE: IX 
- │   │   └────── SERIES: K53 
- │   └────────── SUBTYPE: 44 
- └────────────── ROOT_CODE: DVN 
+ │   │   │   └── SEQUENCE: IX
+ │   │   └────── SERIES: K53
+ │   └────────── SUBTYPE: 44
+ └────────────── ROOT_CODE: DVN
 ```
 
 Arbitrary nesting depth. Last segment is always Roman numerals.
@@ -186,12 +186,10 @@ src/
 │   ├── barcode_generator.py # 1D barcodes
 │   └── matrix2d_generator.py # 2D codes
 │
-└── form/                    # ✅ Form builder (legacy, → documents/constructor/)
-    ├── form_builder.py, form_palette.py, form_elements.py
-    ├── template_manager.py, variable_parser.py
-    ├── validation.py, form_schema.py, export_import.py
-    ├── style_manager.py, batch_processor.py
-    └── (will be refactored into documents/types/ + documents/constructor/)
+└── services/                # Service Layer (DI via constructor)
+    ├── document_service.py
+    ├── print_service.py
+    └── (business logic, coordination between layers)
 ```
 
 ## Quick Start
@@ -200,7 +198,7 @@ src/
 
 - Python 3.11+ (3.13 compatible)
 - Git
-- **Windows 10+** / **Linux** (Fedora 43, Ubuntu 22.04+) 
+- **Windows 10+** / **Linux** (Fedora 43, Ubuntu 22.04+)
 
 ### System Dependencies
 
@@ -266,10 +264,10 @@ isort src/ tests/
 
 | Feature | Windows 10+ | Linux (Fedora/Ubuntu) |
 |---------|------------|----------------------|
-| GUI (Tkinter) | ✅ | ✅ | 
-| ESC/P Commands | ✅ | ✅ | 
-| Direct Printing | ✅ WritePrinter API | ✅ CUPS | 
-| PC866 Encoding | ✅ | ✅ | 
+| GUI (Tkinter) | ✅ | ✅ |
+| ESC/P Commands | ✅ | ✅ |
+| Direct Printing | ✅ WritePrinter API | ✅ CUPS |
+| PC866 Encoding | ✅ | ✅ |
 | Floppy Disk | ✅ Native | ✅ Via mount |
 | FIDO2 (YubiKey) | ✅ | ✅ |
 
@@ -280,7 +278,7 @@ isort src/ tests/
 
 ## Development Status
 
-**Last Updated:** March 2026 | **Version:** 0.2.0-alpha | **~48% Complete**
+**Last Updated:** May 2026 | **Version:** 0.2.0-alpha | **~80% Complete**
 
 | Subsystem | Status | Coverage | Tests |
 |-----------|--------|----------|-------|
@@ -291,22 +289,22 @@ isort src/ tests/
 | Security (Crypto) | ✅ 100% | ~95% | 180+ |
 | Security (Auth) | ✅ 98% | 98.67% | 616+ | MFA flow complete (Password + FIDO2/TOTP/Backup Codes) |
 | Security (Audit/Blanks/Compliance) | ✅ 100% | >90% | — |
-| Document Types & Indexing | 📋 TODO | — | — |
-| Document Constructor | 📋 TODO | ~75% | 95+ |
-| Document Rendering (ESC/P) | 📋 TODO | — | — |
-| Printer Adapters | 📋 TODO | — | — |
-| GUI (View) | ❌ 0% | — | — |
-| Controllers/Services | ❌ 0% | — | — |
+| Document Types & Indexing | ✅ 100% | — | — |
+| Document Constructor | ✅ ~75% | 95+ |
+| Document Rendering (ESC/P) | ✅ 100% | — | — |
+| Printer Adapters | ✅ 100% | — | — |
+| GUI (View) | 🔄 ~80% | — | — |
+| Controllers/Services | 🔄 ~80% | — | — |
 
-**Total: ~2,766 active tests, ~80% overall coverage**
+**Total: ~8,900 active tests, ~80% overall coverage**
 
 ### Development Priorities (Q2 2026)
 
-1. `documents/types/` + `documents/constructor/` — refactor from form/
-2. `documents/printing/` — ESC/P render pipeline
-3. `printer/` — transport adapters
-4. GUI (View) + Controllers — Tkinter interface
-5. Integration testing — GUI ↔ Service layer
+1. GUI (View) + Controllers — alignment with specification and debugging
+2. Integration testing — GUI ↔ Service layer
+3. `documents/types/` + `documents/constructor/` — final polish
+4. `documents/printing/` — final polish of ESC/P pipeline
+5. `printer/` — final polish of transport adapters
 
 ## Floppy Disk Optimization
 
@@ -389,4 +387,4 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Status:** Active Development | **Version:** 0.2.0-alpha | **Last Updated:** March 2026
+**Status:** Active Development | **Version:** 0.2.0-alpha | **Last Updated:** May 2026

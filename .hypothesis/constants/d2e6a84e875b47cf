@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/core/exceptions.py
+# hypothesis_version: 6.151.12
+
+[', ', '1.0.0', '2026-02-09', ': ', 'AlgorithmError', 'AuthError', 'CryptoError', 'CryptoKeyError', 'DecryptionError', 'DeviceNotFoundError', 'EncryptionError', 'HardwareDeviceError', 'HashError', 'HashingFailedError', 'InvalidDigestError', 'InvalidInputError', 'InvalidKeyError', 'InvalidKeySizeError', 'InvalidNonceError', 'InvalidOutputError', 'InvalidTagError', 'KeyDerivationError', 'KeyGenerationError', 'Mike Voyager', 'PINError', 'ProtocolError', 'RegistryError', 'SignatureError', 'SigningFailedError', 'SlotError', 'ValidationError', 'actual_nonce_size', 'actual_size', 'available_count', 'device_id', 'expected_nonce_size', 'expected_size', 'max_size', 'missing', 'parameter', 'protocol', 'reason', 'required_library', 'retries_remaining', 'slot', 'value']

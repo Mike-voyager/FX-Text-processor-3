@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/security/mfa_gate.py
+# hypothesis_version: 6.151.12
+
+[380, 420, 500, ' Метод верификации ', '#27ae60', '#2c3e50', '#333333', '#3498db', '#666666', '#7f8c8d', '#e74c3c', '#f39c12', '#f8f9fa', '(не реализовано)', ',', '-', '<Escape>', '<Return>', 'APPROVED', 'Arial', 'AuthServiceProtocol', 'Courier', 'FIDO2 Security Key', 'MFADialog', 'MFAGate', 'MFAMethod', 'MFAResult', 'REJECTED', 'T', 'TOTP (6-значный код)', 'audit_token', 'backup_code', 'bold', 'cancelled', 'disabled', 'error', 'fido2', 'italic', 'method', 'operation', 'operator', 'password', 'reason', 'totp', 'unknown', 'user_id', 'white', 'Верификация успешна!', 'Отмена', 'Ошибка верификации', 'Подтвердить', 'Резервный код']

@@ -21,7 +21,7 @@ import os
 import platform
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from src.security.monitoring.exceptions import EntropyCheckError
 from src.security.monitoring.models import HealthCheckResult, HealthCheckStatus

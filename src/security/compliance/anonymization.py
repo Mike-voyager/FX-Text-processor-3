@@ -19,15 +19,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import random
 import re
 import secrets
-import string
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
-from src.security.compliance.exceptions import AnonymizationError
 from src.security.compliance.models import DataCategory, PIIField
 
 LOG = logging.getLogger(__name__)
@@ -42,10 +39,19 @@ DEFAULT_PII_FIELDS: List[PIIField] = [
     PIIField(name="address", field_type="address", anonymization_method="mask"),
     PIIField(name="city", field_type="city", anonymization_method="generalize"),
     PIIField(name="postal_code", field_type="postal_code", anonymization_method="mask"),
-    PIIField(name="country", field_type="country", anonymization_method="keep"),  # Страна обычно не PII
+    PIIField(
+        name="country", field_type="country", anonymization_method="keep"
+    ),  # Страна обычно не PII
     PIIField(name="date_of_birth", field_type="date", anonymization_method="generalize"),
-    PIIField(name="ssn", field_type="ssn", category=DataCategory.SENSITIVE, anonymization_method="redact"),
-    PIIField(name="passport", field_type="passport", category=DataCategory.SENSITIVE, anonymization_method="redact"),
+    PIIField(
+        name="ssn", field_type="ssn", category=DataCategory.SENSITIVE, anonymization_method="redact"
+    ),
+    PIIField(
+        name="passport",
+        field_type="passport",
+        category=DataCategory.SENSITIVE,
+        anonymization_method="redact",
+    ),
     PIIField(name="ip_address", field_type="ip", anonymization_method="mask"),
     PIIField(name="user_agent", field_type="user_agent", anonymization_method="redact"),
 ]
@@ -153,7 +159,9 @@ class PIIAnonymizer:
         Returns:
             Список анонимизированных записей
         """
-        return [self.anonymize(record, fields_to_anonymize=fields_to_anonymize) for record in records]
+        return [
+            self.anonymize(record, fields_to_anonymize=fields_to_anonymize) for record in records
+        ]
 
     def _find_field(self, name: str) -> Optional[PIIField]:
         """Найти PII поле по имени."""
@@ -214,7 +222,7 @@ class PIIAnonymizer:
             "country": "Country",
             "ssn": "000-00-0000",
             "passport": "ANON000000",
-            "ip": "0.0.0.0",
+            "ip": "0.0.0.0",  # nosec: B104 - This is a fake anonymized value, not a real bind
             "user_agent": "Anonymous/1.0",
             "date": "1900-01-01",
             "postal_code": "00000",
@@ -262,8 +270,17 @@ class PIIAnonymizer:
         # Проверяем имя поля
         key_lower = key.lower()
         pii_keywords = {
-            "email", "phone", "ssn", "passport", "name", "address",
-            "postal", "zip", "birth", "ip", "user_agent",
+            "email",
+            "phone",
+            "ssn",
+            "passport",
+            "name",
+            "address",
+            "postal",
+            "zip",
+            "birth",
+            "ip",
+            "user_agent",
         }
 
         if any(kw in key_lower for kw in pii_keywords):
@@ -308,7 +325,8 @@ class PIIAnonymizer:
 
             # Определяем какие поля были анонимизированы
             anonymized_fields = [
-                key for key in original
+                key
+                for key in original
                 if original.get(key) != anonymized.get(key) and original.get(key) is not None
             ]
 

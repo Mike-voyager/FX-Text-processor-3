@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/form_designer/resize_handles.py
+# hypothesis_version: 6.151.12
+
+['#00cc00', '#00cccc', '#00ff00', '#00ffff', '#1a252f', '#2980b9', '#2c3e50', '#3498db', '#ff8c00', '#ffb000', '<B1-Motion>', '<Button-1>', '<ButtonRelease-1>', 'ResizeHandles', '_cell_height', '_cell_width', 'amber', 'black', 'classic_green', 'dos_blue', 'e', 'handle', 'handle_active', 'matrix', 'n', 'ne', 'nw', 'outline', 'paper_white', 'resize_handle', 's', 'se', 'size_ne_sw', 'size_ns', 'size_nw_se', 'size_we', 'sw', 'w', 'white']

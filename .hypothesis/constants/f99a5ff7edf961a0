@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/tooltip.py
+# hypothesis_version: 6.151.12
+
+[500, '#000000', '#ffffe0', '-topmost', '<Enter>', '<Leave>', 'Arial', 'TooltipManager', '_initialized', 'normal']

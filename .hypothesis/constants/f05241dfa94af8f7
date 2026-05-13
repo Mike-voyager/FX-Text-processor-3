@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/widgets/autocomplete_entry.py
+# hypothesis_version: 6.151.12
+
+[100, 150, 200, '-', '-topmost', '<ButtonRelease-1>', '<Control-space>', '<Down>', '<Escape>', '<FocusOut>', '<KeyRelease>', '<Return>', '<Tab>', '<Up>', 'AutocompleteEntry', 'Courier', 'Down', 'Escape', 'Return', 'Tab', 'Up', 'break', 'none', 'write', '📋 Lookup']

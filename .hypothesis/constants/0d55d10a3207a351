@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/modes/structured_form/workflow/form_workflow_bar.py
+# hypothesis_version: 6.151.12
+
+[280, 350, '#27ae60', '#2c3e50', '#3498db', '#7f8c8d', '#95a5a6', '#9b59b6', '#bdc3c7', '#e74c3c', '#ecf0f1', '#f39c12', '*', '350x280', 'FormWorkflowBar', 'TkDefaultFont', 'backup', 'bold', 'fido2', 'form_workflow_bar', 'italic', 'normal', 'readonly', 'red', 'success', 'totp', 'white', 'write', 'Архивировать', 'Выберите метод', 'Заполнить', 'Код TOTP:', 'Код:', 'На доработку', 'Напечатать', 'Ожидание касания...', 'Отклонить', 'Подписать', 'Проверить', 'Статус:', '→', '✓ Подтвердить', '✗ Отмена', '📱 TOTP Authenticator', '🔐 FIDO2 Security Key', '🔑 Резервный код', '🔒 Подтверждение MFA']

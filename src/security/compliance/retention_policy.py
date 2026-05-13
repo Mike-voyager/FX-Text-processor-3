@@ -28,7 +28,7 @@ from src.security.compliance.models import (
 )
 
 if TYPE_CHECKING:
-    from src.security.audit import AuditLog, AuditEventType
+    from src.security.audit import AuditLog
 
 LOG = logging.getLogger(__name__)
 
@@ -106,7 +106,9 @@ class RetentionPolicyManager:
         ...     print(f"{record.id}: {action}")
     """
 
-    policy: RetentionPolicy = field(default_factory=lambda: RetentionPolicy(name="default", rules=DEFAULT_RULES))
+    policy: RetentionPolicy = field(
+        default_factory=lambda: RetentionPolicy(name="default", rules=DEFAULT_RULES)
+    )
     audit_log: Optional["AuditLog"] = None
     storage_path: Optional[Path] = None
 
@@ -231,11 +233,13 @@ class RetentionPolicyManager:
 
             except Exception as e:
                 LOG.error("Failed to apply %s to record %s: %s", action.value, record_id, e)
-                result["errors"].append({
-                    "record_id": record_id,
-                    "action": action.value,
-                    "error": str(e),
-                })
+                result["errors"].append(
+                    {
+                        "record_id": record_id,
+                        "action": action.value,
+                        "error": str(e),
+                    }
+                )
 
         # Логируем в audit
         self._log_retention_action(result)

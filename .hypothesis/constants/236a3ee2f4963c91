@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/escp_preview_widget.py
+# hypothesis_version: 6.151.12
+
+[126, 127, '#1e1e1e', '#264f78', '#569cd6', '#666666', '#ce9178', '#d4d4d4', '1.0', '<End>', '<Home>', '<Next>', '<Prior>', 'Courier New', 'Document', 'DocumentRenderer', 'ESCPPreviewWidget', 'PREVIEW_BG_COLOR', 'PREVIEW_FG_COLOR', 'RenderSettings', 'Segoe UI', '[ESC]', 'bold', 'esc_command', 'ew', 'form_feed', 'ns', 'nsew', 'Вперед →', 'Страница 1/1', '← Назад']

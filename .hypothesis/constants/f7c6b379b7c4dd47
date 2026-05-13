@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/crypto/service/ui_helpers.py
+# hypothesis_version: 6.151.12
+
+[100, 1000, 1024, ' [PQC]', ' [💾]', '1.0.0', '2026-02-17', 'Mike Voyager', 'asymmetric', 'format_key_sizes', 'get_floppy_badge', 'get_profile_summary', 'get_security_badge', 'get_status_badge', 'hash', 'kdf', 'kex', 'signing', 'symmetric', 'Применение:', 'Размеры:', '⚠️', '✅', '❌', '❓', '💚', '💛', '🧪']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/printer/cups_adapter.py
+# hypothesis_version: 6.151.12
+
+['-d', '-l', '-n', '-o', '-p', '-t', '.', ':', 'Description:', 'FX-Document', 'Interface:', 'Location:', 'URI:', 'Unknown error', '__main__', 'cancel', 'cups', 'description', 'disabled', 'error', 'idle', 'interface', 'is', 'location', 'lp', 'lpoptions', 'lpstat', 'lpstat timeout', 'paused', 'printer ', 'printing', 'processing', 'raw', 'replace', 'request id is', 'status_line', 'stopped', 'uri', 'utf-8', 'Идёт печать', 'Ошибка принтера', 'Статус неизвестен']

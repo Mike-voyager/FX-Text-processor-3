@@ -658,6 +658,253 @@ class TestValidateCrossFields:
         assert results[0].code == "cross_field_rule_violation"
 
 
+class TestApplyCrossFieldRules:
+    """Тесты специфических кросс-полевых правил (_apply_cross_field_rules)."""
+
+    @pytest.fixture
+    def validator(self) -> FormValidator:
+        """Фикстура валидатора."""
+        return FormValidator()
+
+    def test_inn_required_when_ru_country(self, validator: FormValidator) -> None:
+        """ИНН обязателен, если страна = RU."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="country",
+                    field_type=FieldType.DROPDOWN,
+                    label="Страна",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="inn",
+                    field_type=FieldType.TEXT_INPUT,
+                    label="ИНН",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"country": "RU", "inn": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert result.has_field_errors("inn")
+        assert any("обязательно" in e.message for e in result.get_field_errors("inn"))
+
+    def test_inn_valid_10_digits(self, validator: FormValidator) -> None:
+        """ИНН из 10 цифр принимается для RU."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="country",
+                    field_type=FieldType.DROPDOWN,
+                    label="Страна",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="inn",
+                    field_type=FieldType.TEXT_INPUT,
+                    label="ИНН",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"country": "RU", "inn": "1234567890"}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert not result.has_field_errors("inn")
+
+    def test_inn_valid_12_digits(self, validator: FormValidator) -> None:
+        """ИНН из 12 цифр принимается для RU."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="country",
+                    field_type=FieldType.DROPDOWN,
+                    label="Страна",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="inn",
+                    field_type=FieldType.TEXT_INPUT,
+                    label="ИНН",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"country": "RU", "inn": "123456789012"}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert not result.has_field_errors("inn")
+
+    def test_inn_invalid_length(self, validator: FormValidator) -> None:
+        """ИНН из 9 цифр отклоняется для RU."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="country",
+                    field_type=FieldType.DROPDOWN,
+                    label="Страна",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="inn",
+                    field_type=FieldType.TEXT_INPUT,
+                    label="ИНН",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"country": "RU", "inn": "123456789"}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert result.has_field_errors("inn")
+        assert any("10 или 12" in e.message for e in result.get_field_errors("inn"))
+
+    def test_inn_not_required_for_non_ru(self, validator: FormValidator) -> None:
+        """ИНН необязателен, если страна != RU."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="country",
+                    field_type=FieldType.DROPDOWN,
+                    label="Страна",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="inn",
+                    field_type=FieldType.TEXT_INPUT,
+                    label="ИНН",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"country": "US", "inn": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert not result.has_field_errors("inn")
+
+    def test_vat_rate_required_when_applicable(self, validator: FormValidator) -> None:
+        """Ставка НДС обязательна, если vat_applicable=True."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="vat_applicable",
+                    field_type=FieldType.CHECKBOX,
+                    label="НДС",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="vat_rate",
+                    field_type=FieldType.NUMBER_INPUT,
+                    label="Ставка НДС",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"vat_applicable": True, "vat_rate": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert result.has_field_errors("vat_rate")
+        assert any("НДС" in e.message for e in result.get_field_errors("vat_rate"))
+
+    def test_vat_rate_not_required_when_not_applicable(self, validator: FormValidator) -> None:
+        """Ставка НДС необязательна, если vat_applicable=False."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="vat_applicable",
+                    field_type=FieldType.CHECKBOX,
+                    label="НДС",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="vat_rate",
+                    field_type=FieldType.NUMBER_INPUT,
+                    label="Ставка НДС",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"vat_applicable": False, "vat_rate": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert not result.has_field_errors("vat_rate")
+
+    def test_lease_term_required_for_lease(self, validator: FormValidator) -> None:
+        """Срок аренды обязателен для договора лизинга."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="contract_type",
+                    field_type=FieldType.DROPDOWN,
+                    label="Тип договора",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="lease_term",
+                    field_type=FieldType.NUMBER_INPUT,
+                    label="Срок аренды",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"contract_type": "lease", "lease_term": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert result.has_field_errors("lease_term")
+        assert any("аренды" in e.message for e in result.get_field_errors("lease_term"))
+
+    def test_lease_term_not_required_for_sale(self, validator: FormValidator) -> None:
+        """Срок аренды необязателен для договора продажи."""
+        schema = TypeSchema(
+            fields=(
+                FieldDefinition(
+                    field_id="contract_type",
+                    field_type=FieldType.DROPDOWN,
+                    label="Тип договора",
+                    required=False,
+                ),
+                FieldDefinition(
+                    field_id="lease_term",
+                    field_type=FieldType.NUMBER_INPUT,
+                    label="Срок аренды",
+                    required=False,
+                ),
+            )
+        )
+
+        class MockForm:
+            fields: Dict[str, Any] = {"contract_type": "sale", "lease_term": ""}
+
+        form = MockForm()
+        result = validator.validate(form, schema)
+        assert not result.has_field_errors("lease_term")
+
+
 class TestValidateAll:
     """Тесты validate_all (все уровни)."""
 

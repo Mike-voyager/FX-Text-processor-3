@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/format/migration.py
+# hypothesis_version: 6.151.12
+
+['.', '1.0', '1.1', '1.2', 'AES-256-GCM', 'Add metadata', 'Argon2id', 'CURRENT_VERSION', 'DOC', 'DocumentMigrator', 'FXTextProcessor/3.0', 'MigrationError', 'MigrationManager', 'SUPPORTED_VERSIONS', 'VersionInfo', 'algorithm', 'created_with', 'datetime', 'deprecated_fields', 'document_type_code', 'encrypted', 'encryption_info', 'format_version', 'generator', 'kdf', 'metadata', 'migrated_from', 'migration_date', 'rb', 'security_metadata', 'unknown', 'utf-8']

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/fonts.py
+# hypothesis_version: 6.151.12
+
+[b'\x1b ', b'\x1b!', b'\x1bM', b'\x1bP', b'\x1bg', b'\x1bk\x00', b'\x1bk\x01', b'\x1bp\x00', b'\x1bp\x01', b'\x1bx', 127, 128, 255, 'ESC_10CPI', 'ESC_12CPI', 'ESC_15CPI', 'ESC_FONT_ROMAN', 'ESC_FONT_SANS_SERIF', 'ESC_MASTER_SELECT', 'ESC_PROPORTIONAL_OFF', 'ESC_PROPORTIONAL_ON', 'MASTER_12_CPI', 'MASTER_BOLD', 'MASTER_CONDENSED', 'MASTER_DOUBLE_STRIKE', 'MASTER_DOUBLE_WIDTH', 'MASTER_ITALIC', 'MASTER_PROPORTIONAL', 'MASTER_UNDERLINE', 'master_select', 'set_cpi', 'set_extra_spacing']

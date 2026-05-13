@@ -1,0 +1,229 @@
+================================================================================
+FX TEXT PROCESSOR 3 - Phase 5 Coverage Report
+Date: 2026-04-11
+Agent: 4.5
+================================================================================
+
+SUMMARY
+-------
+ВСЕ ТРЕБОВАНИЯ НЕ ВЫПОЛНЕНЫ ❌
+
+Требования:
+- Trust Chain Service:    ≥95%
+- Floppy Optimizer:       ≥95%
+- Trust Chain Utils:      ≥90%
+- GUI Dialogs (2):        ≥90%
+
+================================================================================
+
+DETAILED RESULTS
+================================================================================
+
+1. TRUST CHAIN SERVICE
+--------------------------------------------------------------------------------
+File:       src/services/trust_chain_service.py
+Tests:      tests/unit/services/test_trust_chain_service.py
+Result:     ❌ FAILED
+Coverage:   13.55% (285 statements, 235 missing)
+Requirement: ≥95%
+
+Missing Lines (key sections):
+- 106, 117-121            : Initial setup methods
+- 200-218, 226-247        : Key management
+- 255-269, 282-284        : Storage operations
+- 300-307, 328-333        : Trust chain operations
+- 366-694                 : Core verification logic (LARGE BLOCK)
+- 731-752, 792-855        : Chain validation
+- 889-977, 1001-1031      : Import/export operations
+- 1045-1046, 1062-1063    : Error handling
+- 1072-1073, 1082-1083    : Thread safety
+
+Root Cause Analysis:
+- Тесты используют MockTrustChainService вместо импорта реального сервиса
+- Тестовый файл содержит полную mock-реализацию (~500 строк)
+- Реальный TrustChainService из src/ практически не покрыт
+
+Recommendation:
+- Переписать тесты для использования реального TrustChainService
+- Добавить фикстуры с временным хранилищем
+- Разделить unit и integration тесты
+
+================================================================================
+
+2. FLOPPY OPTIMIZER
+--------------------------------------------------------------------------------
+File:       src/security/crypto/utilities/floppy_optimizer.py
+Tests:      tests/unit/security/crypto/utilities/test_floppy_optimizer.py
+Result:     ❌ FAILED
+Coverage:   0.00% (149 statements, 149 missing)
+Requirement: ≥95%
+
+Status:     Module was NEVER imported during test run
+
+Root Cause Analysis:
+- Тесты импортируют FloppyOptimizer из src.security.crypto.utilities.utils
+- Реальный класс в floppy_optimizer.py не импортируется
+- Существует дублирующий класс в utils.py (строка 335)
+
+Code Location:
+  TEST imports from:  src/security/crypto/utilities/utils.py (line 335)
+  REAL module:        src/security/crypto/utilities/floppy_optimizer.py (line 101)
+
+Missing Lines (floppy_optimizer.py):
+- 26-512: Entire module not covered
+
+Recommendation:
+- Обновить импорты в тестах на floppy_optimizer.py
+- Удалить или синхронизировать дублирующую реализацию в utils.py
+- Проверить какой класс используется в production
+
+================================================================================
+
+3. TRUST CHAIN UTILS
+--------------------------------------------------------------------------------
+File:       src/security/crypto/utilities/trust_chain_utils.py
+Tests:      tests/unit/security/crypto/utilities/test_trust_chain_utils.py
+Result:     ❌ FAILED
+Coverage:   85.77% (206 statements, 29 missing)
+Requirement: ≥90%
+Gap:        -4.23% (нужно ещё ~9 строк)
+
+Missing Lines:
+- 231-232                 : Error handling in parse_trust_chain
+- 237->exit               : Exit branch in validation
+- 242-243                 : Exception handling
+- 314                     : Single line in _validate_key_format
+- 327                     : Branch in signature verification
+- 510-511                 : Certificate validation error
+- 538-539                 : Chain building error
+- 549-554                 : Chain validation error handling
+- 567-572                 : Trust level calculation edge case
+- 580-581                 : Metadata extraction error
+- 589                     : Single branch
+- 626-627                 : Chain serialization error
+- 665-666                 : Export format error
+- 715, 720                : Validation error lines
+- 723->727, 724->723, 728 : Recursive loop detection
+
+Recommendation:
+- Добавить тесты для edge cases (невалидные цепочки, ошибки парсинга)
+- Покрыть error handling ветки (исключения, выходы)
+- Добавить тест для циклических ссылок в цепочке (строки 723-728)
+- Требуется всего ~5-7 дополнительных тестовых случаев
+
+================================================================================
+
+4. TRUST CHAIN DIALOG (GUI)
+--------------------------------------------------------------------------------
+File:       src/gui/dialogs/trust_chain_dialog.py
+Tests:      tests/unit/gui/dialogs/test_trust_chain_dialog.py
+Result:     ❌ FAILED
+Coverage:   Unable to measure (test timeout)
+Requirement: ≥90%
+
+Status:     Test execution timed out after 120s
+
+Root Cause Analysis:
+- Тест использует importlib для импорта модуля напрямую
+- Возможна проблема с инициализацией Tkinter в headless режиме
+- Первый тест (test_dialog_initialization) зависает
+
+Test Approach Issue:
+```python
+# Тест использует:
+spec = importlib.util.spec_from_file_location(
+    "trust_chain_dialog",
+    "/path/to/trust_chain_dialog.py",
+)
+```
+
+Recommendation:
+- Использовать стандартный импорт вместо importlib
+- Добавить xvfb-run для всех GUI тестов
+- Добавить таймауты на уровне теста (@pytest.mark.timeout)
+- Проверить корректность mock'ов для Tkinter widgets
+
+================================================================================
+
+5. FLOPPY OPTIMIZER DIALOG (GUI)
+--------------------------------------------------------------------------------
+File:       src/gui/dialogs/floppy_optimizer_dialog.py
+Tests:      tests/unit/gui/dialogs/test_floppy_optimizer_dialog.py
+Result:     ❌ FAILED
+Coverage:   0.00% (module not imported)
+Requirement: ≥90%
+
+Status:     Module was NEVER imported during test run
+
+Root Cause Analysis:
+- Tests pass but coverage reports "No data was collected"
+- Module src.gui.dialogs.floppy_optimizer_dialog not loaded
+- Возможно, тесты используют mock'и или не импортируют реальный класс
+
+Test Results:
+- 28 tests passed
+- 2 warnings (numpy reload)
+- No coverage data collected
+
+Recommendation:
+- Проверить что тесты действительно импортируют FloppyOptimizerDialog
+- Убедиться что импорт происходит до запуска pytest-cov
+- Проверить совместимость с xvfb-run
+
+================================================================================
+
+CRITICAL ISSUES IDENTIFIED
+================================================================================
+
+1. WRONG IMPORT PATHS (High Priority)
+   - FloppyOptimizer тесты импортируют из utils вместо floppy_optimizer
+   - TrustChainService тесты используют mock вместо реального сервиса
+
+2. NO COVERAGE FOR GUI MODULES (High Priority)
+   - Оба GUI диалога не покрыты
+   - TrustChainDialog зависает при тестировании
+   - FloppyOptimizerDialog не импортируется
+
+3. INSUFFICIENT UTIL COVERAGE (Medium Priority)
+   - TrustChainUtils близко к цели (85.77% vs 90%)
+   - Нужно добавить тесты error handling
+
+================================================================================
+
+ACTION PLAN
+================================================================================
+
+Priority 1 - Fix Import Paths:
+[ ] Обновить test_floppy_optimizer.py импорты
+[ ] Переписать test_trust_chain_service.py для реального сервиса
+
+Priority 2 - Fix GUI Tests:
+[ ] Исправить TrustChainDialog тесты (таймаут/импорт)
+[ ] Исправить FloppyOptimizerDialog покрытие
+
+Priority 3 - Improve Utils:
+[ ] Добавить 5-7 тестов для trust_chain_utils.py
+[ ] Покрыть error handling ветки
+
+================================================================================
+
+VERDICT
+================================================================================
+
+Overall Status: ❌ ALL REQUIREMENTS FAILED
+
+Module                      Coverage    Required    Status
+---------------------------------------------------------------
+Trust Chain Service          13.55%       ≥95%       ❌ FAIL
+Floppy Optimizer              0.00%       ≥95%       ❌ FAIL  
+Trust Chain Utils            85.77%       ≥90%       ❌ FAIL
+Trust Chain Dialog              N/A       ≥90%       ❌ FAIL
+Floppy Optimizer Dialog         N/A       ≥90%       ❌ FAIL
+
+---------------------------------------------------------------
+Total: 0/5 modules passed
+
+Phase 5 is NOT ready for release.
+
+================================================================================
+End of Report

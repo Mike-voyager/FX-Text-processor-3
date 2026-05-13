@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/components/page_sidebar.py
+# hypothesis_version: 6.151.12
+
+[0.1, 1.414, 120, '#000000', '#2980b9', '#3498db', '#d0d0d0', '#e0e0e0', '#e8e8e8', '#ffffff', '+ Добавить', '<B1-Motion>', '<Button-1>', '<Button-3>', '<Button-4>', '<Button-5>', '<ButtonRelease-1>', '<MouseWheel>', 'Arial', 'PageSidebar', 'SidebarPageInfo', 'add_page', 'all', 'black', 'bold', 'delta', 'page_sidebar', 'select_page', 'set_pages', 'text', 'units', 'white', 'Вверх', 'Вниз', 'Выбрать', 'Дублировать', 'Стр.', 'Страницы', 'Удалить']

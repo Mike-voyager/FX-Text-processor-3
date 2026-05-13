@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/printing/paragraph_renderer.py
+# hypothesis_version: 6.151.12
+
+[b'\n', b'\x0f', b'\x12', b'\x18', b'\x1bW\x00', b'\x1bW\x01', b'\x1bk\x00', b'\x1bk\x01', b'\x1bw\x00', b'\x1bw\x01', b'\x1bx\x00\x1by\x00', b'\x1bx\x00\x1by\x01', b'\x1bx\x00\x1by\x02', b' ', 2.0, 8.5, 'PageSettings | None', 'ParagraphRenderer', 'line_spacing']

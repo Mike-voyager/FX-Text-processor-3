@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/escp/commands/sizing.py
+# hypothesis_version: 6.151.12
+
+[b'\x0f', b'\x12', b'\x1bW\x00', b'\x1bW\x01', b'\x1bw\x00', b'\x1bw\x01', 'DC2', 'ESC_CONDENSED_OFF', 'ESC_CONDENSED_ON', 'ESC_DOUBLE_HEIGHT_ON', 'ESC_DOUBLE_WIDTH_OFF', 'ESC_DOUBLE_WIDTH_ON', 'SI']

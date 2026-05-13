@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/dialogs/template_import_dialog.py
+# hypothesis_version: 6.151.12
+
+[160, 450, 550, 600, 700, 1350000, '#28a745', '#dc3545', '#dee2e6', '#e9ecef', '#f8f9fa', '#ffc107', '*.*', '*.fxstpl', '-', '1.0', '10', '6', '<<TreeviewSelect>>', '? Не проверена', 'Helvetica', 'ImportResult', 'Rejected: %s', 'TemplateImportDialog', 'TemplatePreviewPanel', 'Whitelisted: %s', 'bold', 'browse', 'description', 'end', 'ew', 'fields', 'gray', 'headings', 'name', 'nsew', 'nw', 'rb', 'readonly', 'signature_valid', 'thumbnail', 'type', 'w', 'Все файлы', 'Выбор файла', 'Импорт шаблона', 'Импортировать', 'Название', 'Название:', 'Обзор...', 'Описание:', 'Отмена', 'Ошибка', 'Ошибка импорта', 'Подпись', 'Подпись:', 'Полей:', 'Предпросмотр шаблона', 'Проверить', 'Размер', 'Размер файла', 'Создан:', 'Страниц:', 'Тип', 'Тип документа:', 'Шаблоны', 'Шаблоны FX', '—', '✓ Подпись валидна', '✗ Подпись невалидна']

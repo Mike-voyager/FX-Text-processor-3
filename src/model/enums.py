@@ -145,6 +145,90 @@ class LineSpacing(StringEnumMixin, str, Enum):
     def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
         return self.value
 
+    def to_escp_value(self) -> int:
+        """Возвращает значение n для ESC 3 n (n/216 дюйма).
+
+        Returns:
+            int: Значение n (27 для 1/8", 36 для 1/6")
+        """
+        mapping = {
+            LineSpacing.ONE_SIXTH_INCH: 36,  # 36/216 = 1/6"
+            LineSpacing.ONE_EIGHTH_INCH: 27,  # 27/216 = 1/8"
+        }
+        return mapping.get(self, 36)  # Default to 1/6"
+
+
+class LinesPerInch(str, Enum):
+    """Строк на дюйм (LPI) для ESC/P.
+
+    Attributes:
+        LPI_6: 6 строк на дюйм
+        LPI_8: 8 строк на дюйм
+    """
+
+    LPI_6 = "6"
+    LPI_8 = "8"
+
+    @property
+    def numeric_value(self) -> int:
+        """Возвращает числовое значение LPI."""
+        return int(self.value)
+
+    def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
+        names_ru = {
+            LinesPerInch.LPI_6: "6 строк/дюйм",
+            LinesPerInch.LPI_8: "8 строк/дюйм",
+        }
+        names_en = {
+            LinesPerInch.LPI_6: "6 lines per inch",
+            LinesPerInch.LPI_8: "8 lines per inch",
+        }
+        return names_ru[self] if lang == "ru" else names_en[self]
+
+
+class CharSize(StringEnumMixin, str, Enum):
+    """Размер символа для ESC/P.
+
+    Double-height занимает 2 строки в сетке - следующая строка должна быть пустой.
+    """
+
+    NORMAL = "normal"  # Обычный
+    DOUBLE_WIDTH = "double_width"  # ESC W 1
+    DOUBLE_HEIGHT = "double_height"  # ESC w 1 - занимает 2 строки!
+    DOUBLE_WIDTH_HEIGHT = "double_wh"  # ESC W 1 + ESC w 1
+    CONDENSED = "condensed"  # SI
+
+    def occupies_grid_rows(self) -> int:
+        """Сколько строк в сетке занимает этот размер."""
+        if self in (CharSize.DOUBLE_HEIGHT, CharSize.DOUBLE_WIDTH_HEIGHT):
+            return 2
+        return 1
+
+    def is_double_height(self) -> bool:
+        """Проверяет, является ли размер double-height."""
+        return self in (CharSize.DOUBLE_HEIGHT, CharSize.DOUBLE_WIDTH_HEIGHT)
+
+    def is_double_width(self) -> bool:
+        """Проверяет, является ли размер double-width."""
+        return self in (CharSize.DOUBLE_WIDTH, CharSize.DOUBLE_WIDTH_HEIGHT)
+
+    def localized_name(self, lang: Literal["ru", "en"] = "ru") -> str:
+        names_ru = {
+            CharSize.NORMAL: "Обычный",
+            CharSize.DOUBLE_WIDTH: "Двойная ширина",
+            CharSize.DOUBLE_HEIGHT: "Двойная высота",
+            CharSize.DOUBLE_WIDTH_HEIGHT: "Двойной размер",
+            CharSize.CONDENSED: "Сжатый",
+        }
+        names_en = {
+            CharSize.NORMAL: "Normal",
+            CharSize.DOUBLE_WIDTH: "Double Width",
+            CharSize.DOUBLE_HEIGHT: "Double Height",
+            CharSize.DOUBLE_WIDTH_HEIGHT: "Double Size",
+            CharSize.CONDENSED: "Condensed",
+        }
+        return names_ru[self] if lang == "ru" else names_en[self]
+
 
 class CodePage(StringEnumMixin, str, Enum):
     PC437 = "pc437"
@@ -266,11 +350,7 @@ class CodePage(StringEnumMixin, str, Enum):
             self.PC771: "PC771",
             self.PC437_SLOVENI: "PC437 (Slovene)",
         }
-        return (
-            names_ru.get(self, self.value)
-            if lang == "ru"
-            else names_en.get(self, self.value)
-        )
+        return names_ru.get(self, self.value) if lang == "ru" else names_en.get(self, self.value)
 
 
 class BarcodeType(str, Enum):
@@ -339,11 +419,7 @@ class BarcodeType(str, Enum):
             self.TELEPEN: "Telepen",
             self.TRIOPTIC: "Trioptic",
         }
-        return (
-            names_ru.get(self, self.value)
-            if lang == "ru"
-            else names_en.get(self, self.value)
-        )
+        return names_ru.get(self, self.value) if lang == "ru" else names_en.get(self, self.value)
 
 
 class Matrix2DCodeType(str, Enum):
@@ -450,7 +526,9 @@ class Orientation(StringEnumMixin, str, Enum):
         return (
             "Портрет"
             if self == Orientation.PORTRAIT and lang == "ru"
-            else "Альбомная" if lang == "ru" else self.value.capitalize()
+            else "Альбомная"
+            if lang == "ru"
+            else self.value.capitalize()
         )
 
 
@@ -634,9 +712,7 @@ DEFAULT_LINE_SPACING: Final[LineSpacing] = LineSpacing.ONE_SIXTH_INCH
 DEFAULT_COLOR: Final[Color] = Color.BLACK
 DEFAULT_PAGE_SIZE: Final[PageSize] = PageSize.LETTER
 DEFAULT_TABLE_STYLE: Final[TableStyle] = TableStyle.GRID
-DEFAULT_DITHERING_ALGORITHM: Final[DitheringAlgorithm] = (
-    DitheringAlgorithm.FLOYD_STEINBERG
-)
+DEFAULT_DITHERING_ALGORITHM: Final[DitheringAlgorithm] = DitheringAlgorithm.FLOYD_STEINBERG
 DEFAULT_PRINT_DIRECTION: Final[PrintDirection] = PrintDirection.BIDIRECTIONAL
 DEFAULT_MARGIN_UNITS: Final[MarginUnits] = MarginUnits.INCHES
 DEFAULT_ORIENTATION: Final[Orientation] = Orientation.PORTRAIT
@@ -703,6 +779,8 @@ __all__ = [
     "CharactersPerInch",
     "PrintQuality",
     "LineSpacing",
+    "LinesPerInch",
+    "CharSize",
     "CodePage",
     "BarcodeType",
     "GraphicsMode",

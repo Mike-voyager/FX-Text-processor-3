@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/documents/constructor/form_status.py
+# hypothesis_version: 6.151.12
+
+['FormStatus', 'allowed_transitions', 'approved', 'archived', 'draft', 'filled', 'is_editable', 'is_terminal', 'localized_name', 'printed', 'rejected', 'signed', 'status', 'validated', 'value', 'workflow.transition', 'Архивирована', 'Заполнена', 'Напечатана', 'Отклонена', 'Подписана', 'Проверена', 'Черновик']

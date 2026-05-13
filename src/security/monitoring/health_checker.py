@@ -21,11 +21,10 @@ from src.security.monitoring.exceptions import HealthCheckError
 from src.security.monitoring.models import (
     HealthCheckReport,
     HealthCheckResult,
-    HealthCheckStatus,
 )
 
 if TYPE_CHECKING:
-    from src.security.audit import AuditLog, AuditEventType
+    from src.security.audit import AuditEventType, AuditLog
 
 LOG = logging.getLogger(__name__)
 

@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/security/auth/second_method/totp.py
+# hypothesis_version: 6.151.12
+
+['****', 'FX Text Processor', 'Invalid TOTP code', 'RFC 6238', 'TotpFactor', 'TotpSecretMissing', 'action', 'anti_replay_enabled', 'audit', 'audit_events', 'created_at', 'default_digits', 'default_interval', 'default_issuer', 'digits', 'error', 'fail', 'fail_count', 'interval', 'invalid_format', 'issuer', 'last_success_at', 'last_used_time_step', 'otp', 'remove', 'replay_count', 'replay_detected', 'result', 'rfc_standard', 'rotated', 'rotated_at', 'secret', 'secret_rotated', 'success', 'success_count', 'time_step', 'timestamp', 'user', 'user_id', 'username', 'valid_window']

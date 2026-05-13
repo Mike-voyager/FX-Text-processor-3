@@ -1,0 +1,4 @@
+# file: /home/Mike/Dev/FX-Text-processor/FX-Text-processor-3/src/gui/services/notification_service.py
+# hypothesis_version: 6.151.12
+
+[100, 'CATEGORY_SECURITY', 'CATEGORY_SYNC', 'CATEGORY_SYSTEM', 'CATEGORY_WORKFLOW', 'Exception ignored', 'MAX_HISTORY', 'MAX_MESSAGE_LENGTH', 'Notification', 'NotificationPriority', 'NotificationService', 'eval(', 'exec(', 'security', 'sync', 'system', 'workflow', 'Важное уведомление']

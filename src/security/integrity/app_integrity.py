@@ -17,29 +17,41 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Optional
 
 from src.security.integrity.exceptions import IntegrityCheckError
-from src.security.integrity.models import (
-    IntegrityCheckResult,
-    IntegrityCheckType,
-)
+from src.security.integrity.models import IntegrityCheckResult
 
 LOG = logging.getLogger(__name__)
 
 # Размер буфера для чтения файла (64 KB)
 HASH_BUFFER_SIZE: Final[int] = 65536
 
-# Имя файла с ожидаемым хешем
-HASH_FILE_NAME: Final[str] = ".app-hash"
+
+@dataclass(frozen=True)
+class AppHashRegistry:
+    """Реестр зарегистрированного хеша приложения.
+
+    Содержит эталонный хеш и метаданные для верификации.
+
+    Attributes:
+        hash_value: Эталонный хеш в hex формате
+        algorithm: Алгоритм хеширования
+        file_name: Имя файла приложения
+        registration_time: Время регистрации
+    """
+
+    hash_value: str
+    algorithm: str
+    file_name: str
+    registration_time: str
 
 
 class AppIntegrityChecker:
-    """
-    Проверка целостности бинарника приложения.
+    """Проверка целостности бинарного файла приложения.
 
     Вычисляет SHA3-256 хеш исполняемого файла и сравнивает
     с сохранённым ожидаемым хешем. Поддерживает:
@@ -50,47 +62,60 @@ class AppIntegrityChecker:
     Attributes:
         expected_hash: Ожидаемый хеш приложения (hex)
         app_path: Путь к исполняемому файлу
-        hash_algorithm: Алгоритм хеширования (sha3-256)
+        hash_algorithm: Алгоритм хеширования (SHA3-256)
 
     Example:
-        >>> checker = AppIntegrityChecker()
-        >>> result = checker.check_integrity()
-        >>> if result.passed:
+        >>> checker = AppIntegrityChecker(Path("/app/.app-hash"))
+        >>> result = checker.verify()
+        >>> if result.valid:
         ...     print("Приложение не модифицировано")
         ... else:
-        ...     print(f"Нарушение целостности: {result.error_message}")
+        ...     print(f"Нарушение целостности: {result.reason}")
     """
 
-    __slots__ = ("_expected_hash", "_app_path", "_hash_file_path")
+    __slots__ = ("_reference_path", "_algorithm", "_app_path")
 
     def __init__(
         self,
-        expected_hash: Optional[str] = None,
-        app_path: Optional[Path] = None,
-        hash_file_path: Optional[Path] = None,
+        reference_hash_path: Path,
+        algorithm: str = "SHA3-256",
     ) -> None:
-        """
-        Инициализация проверяющего.
+        """Инициализация проверяющего.
 
         Args:
-            expected_hash: Ожидаемый хеш (hex строка). Если None, читается
-                           из файла или из переменной окружения APP_HASH.
-            app_path: Путь к исполняемому файлу. Если None, определяется
-                     автоматически (sys.executable или __file__).
-            hash_file_path: Путь к файлу с хешем. Если None, ищется
-                           рядом с исполняемым файлом.
+            reference_hash_path: Путь к файлу с эталонным hash
+            algorithm: Алгоритм hash (SHA3-256, SHA-256, etc.)
 
         Raises:
-            IntegrityCheckError: Не удалось определить путь к приложению
+            IntegrityCheckError: Некорректные параметры
         """
-        self._app_path = app_path or self._detect_app_path()
-        self._hash_file_path = hash_file_path or self._detect_hash_file()
-        self._expected_hash = expected_hash or self._load_expected_hash()
+        self._reference_path = reference_hash_path
+        self._algorithm = algorithm.upper()
+        self._app_path = self._detect_app_path()
 
-    @staticmethod
-    def _detect_app_path() -> Path:
-        """
-        Автоматическое определение пути к приложению.
+        # Проверяем поддержку алгоритма
+        if self._algorithm not in (
+            "SHA3-256",
+            "SHA-256",
+            "SHA3-512",
+            "SHA-512",
+            "BLAKE2b",
+        ):
+            raise IntegrityCheckError(
+                f"Неподдерживаемый алгоритм хеширования: {algorithm}",
+                context={
+                    "supported": [
+                        "SHA3-256",
+                        "SHA-256",
+                        "SHA3-512",
+                        "SHA-512",
+                        "BLAKE2b",
+                    ]
+                },
+            )
+
+    def _detect_app_path(self) -> Path:
+        """Автоматическое определение пути к приложению.
 
         Returns:
             Путь к исполняемому файлу
@@ -123,164 +148,144 @@ class AppIntegrityChecker:
             context={"sys_argv": str(sys.argv), "sys_executable": str(sys.executable)},
         )
 
-    def _detect_hash_file(self) -> Optional[Path]:
-        """
-        Поиск файла с ожидаемым хешем.
+    def _compute_hash(self, file_path: Path) -> str:
+        """Вычисление hash файла.
+
+        Использует hashlib для SHA3-256, чтение блоками для больших файлов.
+
+        Args:
+            file_path: Путь к файлу для хеширования
 
         Returns:
-            Путь к файлу с хешем или None
-        """
-        # Ищем файл рядом с исполняемым
-        hash_file = self._app_path.parent / HASH_FILE_NAME
-        if hash_file.exists():
-            return hash_file
-
-        # Ищем в текущей директории
-        hash_file = Path.cwd() / HASH_FILE_NAME
-        if hash_file.exists():
-            return hash_file
-
-        return None
-
-    def _load_expected_hash(self) -> Optional[str]:
-        """
-        Загрузка ожидаемого хеша из источника.
-
-        Приоритет:
-        1. Переменная окружения APP_HASH
-        2. Файл .app-hash
-        3. Встроенный хеш (для PyInstaller)
-
-        Returns:
-            Ожидаемый хеш (hex) или None
-        """
-        # 1. Переменная окружения
-        env_hash = os.environ.get("APP_HASH")
-        if env_hash:
-            LOG.debug("Loaded hash from environment: %s...", env_hash[:16])
-            return env_hash.lower().strip()
-
-        # 2. Файл с хешем
-        if self._hash_file_path and self._hash_file_path.exists():
-            try:
-                hash_content = self._hash_file_path.read_text(encoding="utf-8").strip()
-                # Формат: <hash>  или  <hash>  <filename>
-                expected = hash_content.split()[0].lower()
-                LOG.debug("Loaded hash from file: %s...", expected[:16])
-                return expected
-            except OSError as e:
-                LOG.warning("Не удалось прочитать файл хеша: %s", e)
-
-        # 3. Встроенный хеш (для PyInstaller)
-        if getattr(sys, "frozen", False):
-            # PyInstaller добавляет __file__ к executable
-            builtin_hash = getattr(sys, "_MEIAPP_HASH", None)
-            if isinstance(builtin_hash, str):
-                result: str = builtin_hash.lower()
-                LOG.debug("Loaded builtin hash: %s...", result[:16])
-                return result
-
-        return None
-
-    def compute_hash(self) -> str:
-        """
-        Вычисление SHA3-256 хеша приложения.
-
-        Returns:
-            Хеш в hex формате (64 символа)
+            Хеш в hex формате
 
         Raises:
-            IntegrityCheckError: Файл не найден или ошибка чтения
+            IntegrityCheckError: Ошибка чтения или хеширования
         """
-        if not self._app_path.exists():
+        if not file_path.exists():
             raise IntegrityCheckError(
-                f"Файл приложения не найден: {self._app_path}",
-                file_path=str(self._app_path),
+                f"Файл не найден: {file_path}",
+                file_path=str(file_path),
             )
 
         try:
-            hasher = hashlib.sha3_256()
+            # Выбираем алгоритм
+            if self._algorithm == "SHA3-256":
+                hasher = hashlib.sha3_256()
+            elif self._algorithm == "SHA-256":
+                hasher = hashlib.sha256()
+            elif self._algorithm == "SHA3-512":
+                hasher = hashlib.sha3_512()
+            elif self._algorithm == "SHA-512":
+                hasher = hashlib.sha512()
+            elif self._algorithm == "BLAKE2b":
+                hasher = hashlib.blake2b()
+            else:
+                hasher = hashlib.sha3_256()  # Fallback
 
-            with open(self._app_path, "rb") as f:
+            # Читаем файл блоками
+            with open(file_path, "rb") as f:
                 while chunk := f.read(HASH_BUFFER_SIZE):
                     hasher.update(chunk)
 
             computed_hash = hasher.hexdigest()
-            LOG.debug("Computed hash: %s for %s", computed_hash[:16], self._app_path)
+            LOG.debug("Computed hash for %s: %s...", file_path, computed_hash[:16])
             return computed_hash
 
         except PermissionError as e:
             raise IntegrityCheckError(
-                f"Нет прав для чтения файла: {self._app_path}",
-                file_path=str(self._app_path),
+                f"Нет прав для чтения файла: {file_path}",
+                file_path=str(file_path),
             ) from e
         except OSError as e:
             raise IntegrityCheckError(
                 f"Ошибка чтения файла: {e}",
-                file_path=str(self._app_path),
+                file_path=str(file_path),
             ) from e
 
-    def check_integrity(
-        self,
-        expected_hash: Optional[str] = None,
-    ) -> IntegrityCheckResult:
+    def _load_expected_hash(self) -> Optional[str]:
+        """Загрузка ожидаемого хеша из реестра.
+
+        Returns:
+            Ожидаемый хеш (hex) или None
+
+        Raises:
+            IntegrityCheckError: Ошибка чтения файла
         """
-        Проверка целостности приложения.
+        if not self._reference_path.exists():
+            LOG.warning("Файл с эталонным хешем не найден: %s", self._reference_path)
+            return None
 
-        Вычисляет текущий хеш и сравнивает с ожидаемым.
+        try:
+            hash_content = self._reference_path.read_text(encoding="utf-8").strip()
+            # Формат: <hash>  или  <hash>  <filename>
+            expected = hash_content.split()[0].lower()
+            LOG.debug("Loaded expected hash from file: %s...", expected[:16])
+            return expected
+        except OSError as e:
+            raise IntegrityCheckError(
+                f"Не удалось прочитать файл хеша: {e}",
+                file_path=str(self._reference_path),
+            ) from e
 
-        Args:
-            expected_hash: Переопределить ожидаемый хеш.
-                          Если None, используется сохранённый.
+    def verify(self) -> IntegrityCheckResult:
+        """Проверка hash текущего исполняемого файла.
+
+        Получает путь к текущему исполняемому файлу, вычисляет hash
+        и сравнивает с эталонным.
 
         Returns:
             IntegrityCheckResult с результатом проверки
-
-        Example:
-            >>> result = checker.check_integrity()
-            >>> result.passed
-            True
-            >>> result.actual_hash[:16]
-            'a1b2c3d4e5f6...'
         """
-        # Определяем ожидаемый хеш
-        expected = expected_hash or self._expected_hash
+        # Загружаем ожидаемый хеш
+        expected_hash = self._load_expected_hash()
 
-        if expected is None:
-            LOG.warning("Ожидаемый хеш не задан — пропуск проверки")
+        if expected_hash is None:
+            LOG.warning("Эталонный хеш не задан — проверка пропущена")
             return IntegrityCheckResult(
-                check_type=IntegrityCheckType.APP_BINARY,
-                passed=True,
-                file_path=str(self._app_path),
-                algorithm="sha3-256",
-                warnings=["Ожидаемый хеш не задан — проверка пропущена"],
+                valid=True,
+                reason="Проверка пропущена: эталонный хеш не задан",
+                expected_hash=None,
+                actual_hash=None,
+                warnings=["Эталонный хеш не задан — проверка целостности пропущена"],
+                metadata={
+                    "file_path": str(self._app_path),
+                    "algorithm": self._algorithm,
+                },
             )
 
         # Вычисляем фактический хеш
         try:
-            actual_hash = self.compute_hash()
+            actual_hash = self._compute_hash(self._app_path)
         except IntegrityCheckError as e:
             return IntegrityCheckResult(
-                check_type=IntegrityCheckType.APP_BINARY,
-                passed=False,
-                file_path=str(self._app_path),
-                algorithm="sha3-256",
+                valid=False,
+                reason="Ошибка вычисления хеша",
+                expected_hash=expected_hash,
+                actual_hash=None,
                 error_message=e.message,
+                metadata={
+                    "file_path": str(self._app_path),
+                    "algorithm": self._algorithm,
+                },
             )
 
         # Сравниваем хеши
-        expected_clean = expected.lower().strip()
+        expected_clean = expected_hash.lower().strip()
         actual_clean = actual_hash.lower().strip()
 
         if expected_clean == actual_clean:
-            LOG.info("Целостность приложения подтверждена")
+            LOG.info("Целостность приложения подтверждена: %s", self._app_path)
             return IntegrityCheckResult(
-                check_type=IntegrityCheckType.APP_BINARY,
-                passed=True,
+                valid=True,
+                reason="Хеш совпадает — целостность подтверждена",
                 expected_hash=expected_clean,
                 actual_hash=actual_clean,
-                file_path=str(self._app_path),
-                algorithm="sha3-256",
+                metadata={
+                    "file_path": str(self._app_path),
+                    "algorithm": self._algorithm,
+                    "reference_file": str(self._reference_path),
+                },
             )
 
         # Нарушение целостности
@@ -290,73 +295,75 @@ class AppIntegrityChecker:
             actual_clean[:16],
         )
         return IntegrityCheckResult(
-            check_type=IntegrityCheckType.APP_BINARY,
-            passed=False,
+            valid=False,
+            reason="Нарушение целостности: хеш не совпадает",
             expected_hash=expected_clean,
             actual_hash=actual_clean,
-            file_path=str(self._app_path),
-            algorithm="sha3-256",
-            error_message="Хеш приложения не совпадает с ожидаемым",
+            error_message="Хеш приложения не совпадает с ожидаемым — возможно, файл был изменён",
+            metadata={
+                "file_path": str(self._app_path),
+                "algorithm": self._algorithm,
+                "reference_file": str(self._reference_path),
+            },
         )
 
-    @property
-    def app_path(self) -> Path:
-        """Путь к исполняемому файлу."""
-        return self._app_path
+    def register_hash(self) -> None:
+        """Регистрация текущего hash как эталонного.
 
-    @property
-    def expected_hash(self) -> Optional[str]:
-        """Ожидаемый хеш (если задан)."""
-        return self._expected_hash
-
-    @property
-    def hash_file_path(self) -> Optional[Path]:
-        """Путь к файлу с хешем."""
-        return self._hash_file_path
-
-    def save_current_hash(self, output_path: Optional[Path] = None) -> Path:
-        """
-        Сохранение текущего хеша в файл.
-
-        Используется для генерации файла хеша при сборке.
-
-        Args:
-            output_path: Путь для сохранения. По умолчанию .app-hash
-                         рядом с исполняемым файлом.
-
-        Returns:
-            Путь к созданному файлу
+        Вычисляет hash, сохраняет в reference_hash_path.
+        Используется при сборке или первоначальной настройке.
 
         Raises:
             IntegrityCheckError: Ошибка записи файла
         """
-        current_hash = self.compute_hash()
-        save_path = output_path or (self._app_path.parent / HASH_FILE_NAME)
+        # Вычисляем текущий хеш
+        current_hash = self._compute_hash(self._app_path)
 
+        # Создаём директорию если нужно
+        self._reference_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Сохраняем хеш
         try:
-            save_path.write_text(f"{current_hash}  {self._app_path.name}\n", encoding="utf-8")
-            LOG.info("Хеш сохранён в %s", save_path)
-            return save_path
+            # Формат: <hash>  <filename>
+            content = f"{current_hash}  {self._app_path.name}\n"
+            self._reference_path.write_text(content, encoding="utf-8")
+            LOG.info("Хеш зарегистрирован: %s", self._reference_path)
         except OSError as e:
             raise IntegrityCheckError(
                 f"Ошибка записи файла хеша: {e}",
-                file_path=str(save_path),
+                file_path=str(self._reference_path),
             ) from e
+
+    @property
+    def reference_path(self) -> Path:
+        """Путь к файлу с эталонным хешем."""
+        return self._reference_path
+
+    @property
+    def app_path(self) -> Path:
+        """Путь к исполняемому файлу приложения."""
+        return self._app_path
+
+    @property
+    def algorithm(self) -> str:
+        """Алгоритм хеширования."""
+        return self._algorithm
 
     def __repr__(self) -> str:
         return (
             f"AppIntegrityChecker("
             f"app_path={self._app_path!r}, "
-            f"has_expected_hash={self._expected_hash is not None})"
+            f"reference_path={self._reference_path!r}, "
+            f"algorithm={self._algorithm!r})"
         )
 
 
 __all__: list[str] = [
     "AppIntegrityChecker",
+    "AppHashRegistry",
     "HASH_BUFFER_SIZE",
-    "HASH_FILE_NAME",
 ]
 
 __version__ = "1.0.0"
-__author__ = "Mike Voyager"
+__author__ = "FX Text Processor Team"
 __date__ = "2026-03-23"
