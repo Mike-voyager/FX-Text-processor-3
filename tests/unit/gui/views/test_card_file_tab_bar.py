@@ -26,7 +26,6 @@ from src.gui.views.card_file_tab_bar import (
     TabInfo,
 )
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
@@ -115,7 +114,9 @@ class TestAddTab:
 
         assert tab_bar._active_tab_id == "doc_1"
 
-    def test_add_tab_duplicate_activates_existing(self, tab_bar: CardFileTabBar) -> None:
+    def test_add_tab_duplicate_activates_existing(
+        self, tab_bar: CardFileTabBar
+    ) -> None:
         """add_tab() с существующим id активирует существующую вкладку."""
         tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
         tab_bar.add_tab("doc_2", "Document 2", DocumentMode.FREE_FORM)
@@ -164,7 +165,9 @@ class TestCloseTab:
         assert result is True
         assert "doc_1" not in tab_bar._tabs
 
-    def test_close_tab_calls_callback(self, tab_bar: CardFileTabBar, mock_close_callback: MagicMock) -> None:
+    def test_close_tab_calls_callback(
+        self, tab_bar: CardFileTabBar, mock_close_callback: MagicMock
+    ) -> None:
         """close_tab() вызывает on_tab_close callback."""
         tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
 
@@ -223,7 +226,9 @@ class TestSetActiveTab:
 
         assert tab_bar._active_tab_id == "doc_1"
 
-    def test_set_active_tab_calls_callback(self, tab_bar: CardFileTabBar, mock_activate_callback: MagicMock) -> None:
+    def test_set_active_tab_calls_callback(
+        self, tab_bar: CardFileTabBar, mock_activate_callback: MagicMock
+    ) -> None:
         """set_active_tab() вызывает on_tab_activate callback."""
         tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
         tab_bar.add_tab("doc_2", "Document 2", DocumentMode.FREE_FORM)

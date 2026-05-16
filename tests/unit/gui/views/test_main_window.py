@@ -14,14 +14,13 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.gui.services.toast_service import ToastService
 from src.gui.views.main_window import (
     APP_NAME,
     MODIFIED_INDICATOR,
     TITLE_SEPARATOR,
     MainWindow,
 )
-from src.gui.services.toast_service import ToastService
-
 
 # =============================================================================
 # FIXTURES
@@ -176,7 +175,9 @@ class TestSetTitle:
         title = initialized_window._root.title()
         assert MODIFIED_INDICATOR in title
 
-    def test_set_title_empty_shows_app_name(self, initialized_window: MainWindow) -> None:
+    def test_set_title_empty_shows_app_name(
+        self, initialized_window: MainWindow
+    ) -> None:
         """set_title() с пустым title показывает только APP_NAME."""
         initialized_window.set_title("")
 
@@ -228,7 +229,9 @@ class TestDestroy:
         assert not initialized_window._is_initialized
         assert initialized_window._root is None
 
-    def test_destroy_closes_toast_notifications(self, initialized_window: MainWindow) -> None:
+    def test_destroy_closes_toast_notifications(
+        self, initialized_window: MainWindow
+    ) -> None:
         """destroy() закрывает все уведомления."""
         # Show a notification first
         service = initialized_window.get_toast_service()
@@ -262,7 +265,9 @@ class TestLockUnlockSession:
 
         assert not initialized_window._is_locked
 
-    def test_lock_session_creates_lock_screen(self, initialized_window: MainWindow) -> None:
+    def test_lock_session_creates_lock_screen(
+        self, initialized_window: MainWindow
+    ) -> None:
         """lock_session() создаёт SessionLockScreen."""
         initialized_window.lock_session()
 
@@ -293,6 +298,7 @@ class TestConstants:
     def test_lock_overlay_colors_defined(self) -> None:
         """Цвета overlay определены в themes."""
         from src.gui.themes.registry import ThemeRegistry
+
         tr = ThemeRegistry()
         assert tr is not None  # ThemeRegistry работает
 

@@ -114,7 +114,10 @@ class TestSideBarCreation:
         assert bar.widget_id == "sidebar"
 
     def test_side_bar_creation_with_callbacks(
-        self, tk_root: tk.Tk, mock_section_callback: MagicMock, mock_tree_callback: MagicMock
+        self,
+        tk_root: tk.Tk,
+        mock_section_callback: MagicMock,
+        mock_tree_callback: MagicMock,
     ) -> None:
         """Создание SideBar с callbacks."""
         bar = SideBar(
@@ -130,9 +133,9 @@ class TestSideBarCreation:
         self, tk_root: tk.Tk
     ) -> None:
         """Создание SideBar с window_manager и drag_drop_service."""
-        from src.gui.services.window_manager import WindowManager
         from src.gui.services.drag_drop_service import DragDropService
         from src.gui.services.sync_service import SyncService
+        from src.gui.services.window_manager import WindowManager
 
         wm = WindowManager(tk_root)
         sync = SyncService(wm)
@@ -148,9 +151,7 @@ class TestSideBarCreation:
         assert bar._window_manager is wm
         assert bar._drag_drop_service is dds
 
-    def test_side_bar_creation_special_mode_callback(
-        self, tk_root: tk.Tk
-    ) -> None:
+    def test_side_bar_creation_special_mode_callback(self, tk_root: tk.Tk) -> None:
         """Создание SideBar с is_special_mode и on_sync_status_click."""
         callback = MagicMock()
         bar = SideBar(
@@ -169,9 +170,9 @@ def side_bar_with_drag(
     tk_root: tk.Tk,
 ) -> SideBar:
     """Fixture для SideBar c DragDropService и WindowManager."""
-    from src.gui.services.window_manager import WindowManager
     from src.gui.services.drag_drop_service import DragDropService
     from src.gui.services.sync_service import SyncService
+    from src.gui.services.window_manager import WindowManager
 
     wm = WindowManager(tk_root)
     sync = SyncService(wm)
@@ -529,7 +530,9 @@ class TestAddTreeItemWithFilePath:
 class TestSyncIndicatorCreation:
     """Тесты создания Sync Indicator."""
 
-    def test_sync_indicator_created_in_special_mode(self, side_bar_special_mode: SideBar) -> None:
+    def test_sync_indicator_created_in_special_mode(
+        self, side_bar_special_mode: SideBar
+    ) -> None:
         """Sync indicator создаётся в Special Mode."""
         assert side_bar_special_mode._tk_sync_indicator is not None
         assert side_bar_special_mode._tk_sync_label is not None
@@ -539,7 +542,9 @@ class TestSyncIndicatorCreation:
         assert side_bar._tk_sync_indicator is None
         assert side_bar._tk_sync_label is None
 
-    def test_sync_indicator_click_callback(self, side_bar_special_mode: SideBar) -> None:
+    def test_sync_indicator_click_callback(
+        self, side_bar_special_mode: SideBar
+    ) -> None:
         """Клик по sync indicator вызывает callback."""
         callback = MagicMock()
         side_bar_special_mode._on_sync_status_click = callback

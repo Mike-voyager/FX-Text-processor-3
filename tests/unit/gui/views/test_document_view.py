@@ -16,10 +16,10 @@ from unittest.mock import MagicMock
 import pytest
 from src.gui.views.document_view import (
     DEFAULT_PLACEHOLDER_MESSAGE,
-    DocumentMode,
-    DocumentView,
     MAX_DOCUMENT_ID_LENGTH,
     PLACEHOLDER_ICON,
+    DocumentMode,
+    DocumentView,
 )
 
 
@@ -105,13 +105,17 @@ class TestShowPlaceholder:
 
         assert document_view.is_placeholder_visible is True
 
-    def test_show_placeholder_default_message(self, document_view: DocumentView) -> None:
+    def test_show_placeholder_default_message(
+        self, document_view: DocumentView
+    ) -> None:
         """show_placeholder() с дефолтным сообщением."""
         document_view.show_placeholder()
 
         assert document_view.is_placeholder_visible is True
 
-    def test_show_placeholder_truncates_long_message(self, document_view: DocumentView) -> None:
+    def test_show_placeholder_truncates_long_message(
+        self, document_view: DocumentView
+    ) -> None:
         """show_placeholder() обрезает длинные сообщения."""
         long_message = "A" * 250
         document_view.show_placeholder(long_message)
@@ -174,7 +178,9 @@ class TestClearDocument:
 
         assert document_view.current_document_id is None
 
-    def test_clear_document_shows_placeholder(self, document_view: DocumentView) -> None:
+    def test_clear_document_shows_placeholder(
+        self, document_view: DocumentView
+    ) -> None:
         """clear_document() показывает placeholder."""
         document_view.set_document(MockDocument("doc_123"))
         document_view.clear_document()
@@ -198,14 +204,18 @@ class TestWipeSensitiveData:
 
         assert document_view.current_document_id is None
 
-    def test_wipe_sensitive_data_clears_hidden_backup(self, document_view: DocumentView) -> None:
+    def test_wipe_sensitive_data_clears_hidden_backup(
+        self, document_view: DocumentView
+    ) -> None:
         """wipe_sensitive_data() очищает hidden_content_backup."""
         document_view._hidden_content_backup = "backup"
         document_view.wipe_sensitive_data()
 
         assert document_view._hidden_content_backup is None
 
-    def test_wipe_sensitive_data_shows_placeholder(self, document_view: DocumentView) -> None:
+    def test_wipe_sensitive_data_shows_placeholder(
+        self, document_view: DocumentView
+    ) -> None:
         """wipe_sensitive_data() показывает placeholder."""
         document_view.set_document(MockDocument("doc_123"))
         document_view.wipe_sensitive_data()
@@ -242,7 +252,9 @@ class TestHideRestoreContent:
 
         assert document_view._content_hidden is False
 
-    def test_restore_content_noop_when_not_hidden(self, document_view: DocumentView) -> None:
+    def test_restore_content_noop_when_not_hidden(
+        self, document_view: DocumentView
+    ) -> None:
         """restore_content() ничего не делает если не было hide_content."""
         document_view.restore_content()  # Should not raise
 
@@ -413,7 +425,9 @@ class TestModuleExports:
 class TestBarcodeProxyMethods:
     """Тесты проксирования barcode методов к рендереру."""
 
-    def test_insert_barcode_at_cursor_delegates(self, document_view: DocumentView) -> None:
+    def test_insert_barcode_at_cursor_delegates(
+        self, document_view: DocumentView
+    ) -> None:
         """insert_barcode_at_cursor() проксирует к рендереру."""
         mock_renderer = MagicMock()
         mock_renderer.insert_barcode_at_cursor.return_value = True
@@ -450,19 +464,25 @@ class TestBarcodeProxyMethods:
         assert pos == (3, 5)
         mock_renderer.get_cursor_position.assert_called_once()
 
-    def test_insert_barcode_returns_false_without_renderer(self, document_view: DocumentView) -> None:
+    def test_insert_barcode_returns_false_without_renderer(
+        self, document_view: DocumentView
+    ) -> None:
         """insert_barcode_at_cursor() без рендерера возвращает False."""
         document_view._current_renderer = None
         success = document_view.insert_barcode_at_cursor("CODE128", "12345", "software")
         assert not success
 
-    def test_insert_qr_returns_false_without_renderer(self, document_view: DocumentView) -> None:
+    def test_insert_qr_returns_false_without_renderer(
+        self, document_view: DocumentView
+    ) -> None:
         """insert_qr_at_cursor() без рендерера возвращает False."""
         document_view._current_renderer = None
         success = document_view.insert_qr_at_cursor("https://example.com")
         assert not success
 
-    def test_get_cursor_position_default_without_renderer(self, document_view: DocumentView) -> None:
+    def test_get_cursor_position_default_without_renderer(
+        self, document_view: DocumentView
+    ) -> None:
         """get_cursor_position() без рендерера возвращает (1, 1)."""
         document_view._current_renderer = None
         pos = document_view.get_cursor_position()

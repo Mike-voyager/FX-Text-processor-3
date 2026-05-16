@@ -20,7 +20,9 @@ if TYPE_CHECKING:
 
 try:
     import tkinter as tk
+
     from src.gui.security.session_lock_screen import SessionLockScreen
+
     TKINTER_AVAILABLE = True
 except ImportError:
     TKINTER_AVAILABLE = False
@@ -77,7 +79,9 @@ class TestSessionLockScreen:
         assert screen._on_unlock is mock_unlock_callback
         screen.destroy()
 
-    def test_show_creates_ui(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_show_creates_ui(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """show() создаёт UI элементы."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -94,7 +98,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_locked_info_displayed(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_locked_info_displayed(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """Отображается время блокировки."""
         now = datetime.now()
         screen = SessionLockScreen(
@@ -110,7 +116,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_trigger_info_displayed(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_trigger_info_displayed(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """Отображается причина блокировки."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -125,7 +133,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_auto_lock_label(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_auto_lock_label(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """Отображается auto-lock информация при необходимости."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -142,7 +152,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_wipe_credentials(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_wipe_credentials(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """wipe_credentials() очищает поля MFA."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -158,7 +170,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_on_escape_returns_break(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_on_escape_returns_break(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """ESC возвращает 'break'."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -173,7 +187,9 @@ class TestSessionLockScreen:
 
         screen.destroy()
 
-    def test_on_close_attempt_does_nothing(self, mock_root: tk.Tk, mock_unlock_callback: MagicMock) -> None:
+    def test_on_close_attempt_does_nothing(
+        self, mock_root: tk.Tk, mock_unlock_callback: MagicMock
+    ) -> None:
         """Попытка закрытия игнорируется."""
         screen = SessionLockScreen(
             parent=mock_root,
@@ -213,9 +229,7 @@ class TestSessionLockScreenUnlock:
 
         screen.destroy()
 
-    def test_on_mfa_submit_no_callback_shows_error(
-        self, mock_root: tk.Tk
-    ) -> None:
+    def test_on_mfa_submit_no_callback_shows_error(self, mock_root: tk.Tk) -> None:
         """Без callback показывается ошибка."""
         screen = SessionLockScreen(
             parent=mock_root,

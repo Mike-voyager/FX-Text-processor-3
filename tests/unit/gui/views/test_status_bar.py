@@ -15,7 +15,7 @@ Coverage target: ≥90%
 """
 
 import tkinter as tk
-from typing import Generator
+from typing import Any, Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -252,13 +252,9 @@ class TestPaperDoubleClick:
 
         mock_paper_callback.assert_called_once()
 
-    def test_paper_double_click_no_callback(
-        self, tk_root: tk.Tk, mocker: Any
-    ) -> None:
+    def test_paper_double_click_no_callback(self, tk_root: tk.Tk, mocker: Any) -> None:
         """Double-click без callback открывает PaperSetupDialog."""
-        mock_dialog_cls = mocker.patch(
-            "src.gui.views.status_bar.PaperSetupDialog"
-        )
+        mock_dialog_cls = mocker.patch("src.gui.views.status_bar.PaperSetupDialog")
         mock_dialog = mock_dialog_cls.return_value
         bar = StatusBar()
         bar.mount(tk_root)
@@ -300,7 +296,9 @@ class TestAdaptiveLayout:
         """Изначально single row layout."""
         assert not status_bar._is_double_row
 
-    def test_layout_switches_to_double_row_on_small_width(self, status_bar: StatusBar) -> None:
+    def test_layout_switches_to_double_row_on_small_width(
+        self, status_bar: StatusBar
+    ) -> None:
         """Layout переключается на double row при малой ширине."""
         event = MagicMock()
         event.width = MIN_WINDOW_WIDTH - 100

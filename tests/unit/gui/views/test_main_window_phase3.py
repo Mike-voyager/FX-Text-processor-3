@@ -7,7 +7,7 @@ Version: 1.0
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch, call, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 
@@ -16,8 +16,10 @@ if TYPE_CHECKING:
 
 try:
     import tkinter as tk
-    from src.gui.views.main_window import MainWindow, APP_NAME
+
     from src.gui.security.mode_manager import ModeManager
+    from src.gui.views.main_window import APP_NAME, MainWindow
+
     TKINTER_AVAILABLE = True
 except ImportError:
     TKINTER_AVAILABLE = False
@@ -52,7 +54,11 @@ def mock_controller() -> MagicMock:
 @pytest.fixture
 def mock_health_checker() -> MagicMock:
     """Создание мока HealthChecker."""
-    from src.security.monitoring.models import HealthCheckReport, HealthCheckResult, HealthCheckStatus
+    from src.security.monitoring.models import (
+        HealthCheckReport,
+        HealthCheckResult,
+        HealthCheckStatus,
+    )
 
     mock = MagicMock()
     mock.run_critical.return_value = HealthCheckReport(
@@ -72,17 +78,25 @@ class TestMainWindowStartupHealthCheck:
 
     def test_startup_health_check_success(self, mock_controller: MagicMock) -> None:
         """Проверка успешного Health Check при старте."""
-        from src.security.monitoring.models import HealthCheckReport, HealthCheckResult, HealthCheckStatus
+        from src.security.monitoring.models import (
+            HealthCheckReport,
+            HealthCheckResult,
+            HealthCheckStatus,
+        )
 
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar') as mock_string_var, \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.security.monitoring.health_checker.HealthChecker') as mock_health_checker_cls:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar") as mock_string_var,
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+            patch(
+                "src.security.monitoring.health_checker.HealthChecker"
+            ) as mock_health_checker_cls,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -103,11 +117,13 @@ class TestMainWindowStartupHealthCheck:
             )
             mock_health_checker_cls.return_value = mock_health_instance
 
-            with patch.object(MainWindow, '_create_menubar'), \
-                 patch.object(MainWindow, '_create_main_layout'), \
-                 patch.object(MainWindow, '_create_main_toolbar'), \
-                 patch.object(MainWindow, '_show_welcome_toast'), \
-                 patch.object(MainWindow, '_run_startup_health_check') as mock_health:
+            with (
+                patch.object(MainWindow, "_create_menubar"),
+                patch.object(MainWindow, "_create_main_layout"),
+                patch.object(MainWindow, "_create_main_toolbar"),
+                patch.object(MainWindow, "_show_welcome_toast"),
+                patch.object(MainWindow, "_run_startup_health_check") as mock_health,
+            ):
 
                 window = MainWindow(controller=mock_controller)
                 window.initialize()
@@ -117,17 +133,25 @@ class TestMainWindowStartupHealthCheck:
 
     def test_startup_health_check_failure(self, mock_controller: MagicMock) -> None:
         """Проверка Health Check с ошибками при старте."""
-        from src.security.monitoring.models import HealthCheckReport, HealthCheckResult, HealthCheckStatus
+        from src.security.monitoring.models import (
+            HealthCheckReport,
+            HealthCheckResult,
+            HealthCheckStatus,
+        )
 
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.security.monitoring.health_checker.HealthChecker') as mock_health_checker_cls:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+            patch(
+                "src.security.monitoring.health_checker.HealthChecker"
+            ) as mock_health_checker_cls,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -164,15 +188,17 @@ class TestMainWindowModeMenu:
 
     def test_mode_menu_creation(self, mock_controller: MagicMock) -> None:
         """Проверка создания меню Mode."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar') as mock_string_var, \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.gui.security.mode_manager.ModeManager') as mock_mode_manager:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar") as mock_string_var,
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+            patch("src.gui.security.mode_manager.ModeManager") as mock_mode_manager,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -190,11 +216,13 @@ class TestMainWindowModeMenu:
             mock_mode_mgr_instance.get_current_mode.return_value = "normal"
             mock_mode_manager.return_value = mock_mode_mgr_instance
 
-            with patch.object(MainWindow, '_create_menubar') as mock_menubar, \
-                 patch.object(MainWindow, '_create_main_layout'), \
-                 patch.object(MainWindow, '_create_main_toolbar'), \
-                 patch.object(MainWindow, '_show_welcome_toast'), \
-                 patch.object(MainWindow, '_run_startup_health_check'):
+            with (
+                patch.object(MainWindow, "_create_menubar") as mock_menubar,
+                patch.object(MainWindow, "_create_main_layout"),
+                patch.object(MainWindow, "_create_main_toolbar"),
+                patch.object(MainWindow, "_show_welcome_toast"),
+                patch.object(MainWindow, "_run_startup_health_check"),
+            ):
 
                 window = MainWindow(controller=mock_controller)
                 window.initialize()
@@ -213,16 +241,20 @@ class TestMainWindowModeSwitching:
         self, mock_controller: MagicMock, mock_health_checker: MagicMock
     ) -> None:
         """Проверка что при переходе в Special показывается AuthOverlay."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog') as mock_health_dialog, \
-             patch('src.gui.views.main_window.AuthOverlay') as mock_auth_overlay:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+            patch(
+                "src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog"
+            ) as mock_health_dialog,
+            patch("src.gui.views.main_window.AuthOverlay") as mock_auth_overlay,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -245,7 +277,7 @@ class TestMainWindowModeSwitching:
             mock_auth_overlay_instance = MagicMock()
             mock_auth_overlay.return_value = mock_auth_overlay_instance
 
-            with patch.object(window, '_show_auth_overlay') as mock_show_auth:
+            with patch.object(window, "_show_auth_overlay") as mock_show_auth:
                 # Вызываем переход в Special Mode
                 window._on_mode_special()
 
@@ -259,15 +291,19 @@ class TestMainWindowModeSwitching:
         self, mock_controller: MagicMock
     ) -> None:
         """Проверка что при отмене HealthCheckDialog показывается toast."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog') as mock_dialog:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+            patch(
+                "src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog"
+            ) as mock_dialog,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -296,15 +332,17 @@ class TestMainWindowModeSwitching:
 
     def test_mode_switch_to_normal_confirm(self, mock_controller: MagicMock) -> None:
         """Проверка перехода в Normal Mode с подтверждением."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('tkinter.messagebox.askyesno') as mock_askyesno, \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("tkinter.messagebox.askyesno") as mock_askyesno,
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -336,16 +374,20 @@ class TestMainWindowModeSwitching:
 class TestMainWindowStatusBarModeClick:
     """Тесты клика по Mode индикатору в StatusBar."""
 
-    def test_statusbar_mode_click_normal_to_special(self, mock_controller: MagicMock) -> None:
+    def test_statusbar_mode_click_normal_to_special(
+        self, mock_controller: MagicMock
+    ) -> None:
         """Проверка что клик на StatusBar в Normal Mode вызывает _on_mode_special."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -362,22 +404,26 @@ class TestMainWindowStatusBarModeClick:
             window._toast_service = mock_toast_instance
 
             # Мокаем _on_mode_special
-            with patch.object(window, '_on_mode_special') as mock_special:
+            with patch.object(window, "_on_mode_special") as mock_special:
                 window._on_statusbar_mode_click()
 
                 # Проверяем что вызван _on_mode_special
                 mock_special.assert_called_once()
 
-    def test_statusbar_mode_click_special_to_normal(self, mock_controller: MagicMock) -> None:
+    def test_statusbar_mode_click_special_to_normal(
+        self, mock_controller: MagicMock
+    ) -> None:
         """Проверка что клик на StatusBar в Special Mode вызывает _on_mode_normal."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -394,7 +440,7 @@ class TestMainWindowStatusBarModeClick:
             window._toast_service = mock_toast_instance
 
             # Мокаем _on_mode_normal
-            with patch.object(window, '_on_mode_normal') as mock_normal:
+            with patch.object(window, "_on_mode_normal") as mock_normal:
                 window._on_statusbar_mode_click()
 
                 # Проверяем что вызван _on_mode_normal
@@ -407,14 +453,16 @@ class TestMainWindowUpdateModeUI:
 
     def test_update_mode_ui_normal(self) -> None:
         """Проверка обновления UI в Normal Mode."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar') as mock_status, \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService'):
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar") as mock_status,
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService"),
+        ):
 
             mock_status_instance = MagicMock()
             mock_status.return_value = mock_status_instance
@@ -432,14 +480,16 @@ class TestMainWindowUpdateModeUI:
 
     def test_update_mode_ui_special(self) -> None:
         """Проверка обновления UI в Special Mode."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar') as mock_status, \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService'):
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar") as mock_status,
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService"),
+        ):
 
             mock_status_instance = MagicMock()
             mock_status.return_value = mock_status_instance
@@ -462,14 +512,16 @@ class TestMainWindowAuthCallbacks:
 
     def test_on_auth_success_updates_ui(self, mock_controller: MagicMock) -> None:
         """Проверка что _on_auth_success обновляет UI."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -486,7 +538,7 @@ class TestMainWindowAuthCallbacks:
             window._mode_var = MagicMock()
             window._auth_overlay = MagicMock()
 
-            with patch.object(window, '_update_mode_ui') as mock_update:
+            with patch.object(window, "_update_mode_ui") as mock_update:
                 window._on_auth_success()
 
                 # Проверяем что AuthOverlay скрыт
@@ -498,14 +550,16 @@ class TestMainWindowAuthCallbacks:
 
     def test_on_auth_cancel_cleans_up(self, mock_controller: MagicMock) -> None:
         """Проверка что _on_auth_cancel очищает данные."""
-        with patch('tkinter.Tk') as mock_tk, \
-             patch('tkinter.StringVar'), \
-             patch('src.gui.views.main_window.MainLayout'), \
-             patch('src.gui.views.main_window.StatusBar'), \
-             patch('src.gui.views.main_window.SideBar'), \
-             patch('src.gui.views.main_window.CardFileTabBar'), \
-             patch('src.gui.views.main_window.DocumentView'), \
-             patch('src.gui.services.toast_service.ToastService') as mock_toast_service:
+        with (
+            patch("tkinter.Tk") as mock_tk,
+            patch("tkinter.StringVar"),
+            patch("src.gui.views.main_window.MainLayout"),
+            patch("src.gui.views.main_window.StatusBar"),
+            patch("src.gui.views.main_window.SideBar"),
+            patch("src.gui.views.main_window.CardFileTabBar"),
+            patch("src.gui.views.main_window.DocumentView"),
+            patch("src.gui.services.toast_service.ToastService") as mock_toast_service,
+        ):
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -521,7 +575,7 @@ class TestMainWindowAuthCallbacks:
             window._mode_manager = MagicMock()
             window._auth_overlay = MagicMock()
 
-            with patch.object(window, '_update_mode_ui') as mock_update:
+            with patch.object(window, "_update_mode_ui") as mock_update:
                 window._on_auth_cancel()
 
                 # Проверяем что credentials очищены

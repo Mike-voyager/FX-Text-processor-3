@@ -46,6 +46,7 @@ dependencies = [
     "pdf417gen>=0.7.0",
     "pyotp>=2.9.0",
     "argon2-cffi>=23.1.0",
+    "hypothesis>=6.0.0",
 ]
 
 

@@ -15,18 +15,16 @@ from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
-
+from src.documents.types.document_type import DocumentMode
 from src.gui.components.format_toolbar import FormatToolbar
 from src.gui.components.navigator import Navigator
 from src.gui.components.ruler import Ruler
 from src.gui.renderers.free_form_renderer import FreeFormDocument, FreeFormRenderer
-from src.documents.types.document_type import DocumentMode
 from src.gui.views.document_view import (
     DEFAULT_PLACEHOLDER_MESSAGE,
     DocumentProtocol,
     DocumentView,
 )
-
 
 # =============================================================================
 # TEST FIXTURES
@@ -196,9 +194,7 @@ class TestCPIIntegration:
         assert document_view._free_form_renderer is not None
         assert document_view._free_form_renderer.get_cpi() == 15
 
-    def test_cpi_change_propagates_to_ruler(
-        self, document_view: DocumentView
-    ) -> None:
+    def test_cpi_change_propagates_to_ruler(self, document_view: DocumentView) -> None:
         """Изменение CPI распространяется на Ruler."""
         document_view._on_cpi_changed(15)
 
@@ -361,14 +357,18 @@ class TestUndoRedoIntegration:
         # Text should be restored (may need event processing)
         # Note: In tests, undo might not work immediately due to event loop
 
-    def test_can_undo(self, document_view: DocumentView, mock_document: MockDocument) -> None:
+    def test_can_undo(
+        self, document_view: DocumentView, mock_document: MockDocument
+    ) -> None:
         """can_undo() возвращает состояние."""
         document_view.set_document(mock_document)
 
         # Initially no undo available
         assert document_view.can_undo() == document_view._command_stack.can_undo()
 
-    def test_can_redo(self, document_view: DocumentView, mock_document: MockDocument) -> None:
+    def test_can_redo(
+        self, document_view: DocumentView, mock_document: MockDocument
+    ) -> None:
         """can_redo() возвращает состояние."""
         document_view.set_document(mock_document)
 
@@ -445,14 +445,18 @@ class TestSecurityIntegration:
 class TestEditMenuIntegration:
     """Тесты интеграции с Edit меню."""
 
-    def test_on_edit_undo(self, document_view: DocumentView, mock_document: MockDocument) -> None:
+    def test_on_edit_undo(
+        self, document_view: DocumentView, mock_document: MockDocument
+    ) -> None:
         """on_edit_undo() не вызывает ошибок."""
         document_view.set_document(mock_document)
 
         # Should not raise even if nothing to undo
         document_view.on_edit_undo()
 
-    def test_on_edit_redo(self, document_view: DocumentView, mock_document: MockDocument) -> None:
+    def test_on_edit_redo(
+        self, document_view: DocumentView, mock_document: MockDocument
+    ) -> None:
         """on_edit_redo() не вызывает ошибок."""
         document_view.set_document(mock_document)
 
@@ -480,7 +484,9 @@ class TestEditMenuIntegration:
 class TestDocumentProtocol:
     """Тесты DocumentProtocol."""
 
-    def test_mock_document_implements_protocol(self, mock_document: MockDocument) -> None:
+    def test_mock_document_implements_protocol(
+        self, mock_document: MockDocument
+    ) -> None:
         """MockDocument реализует DocumentProtocol."""
         # This should not raise if protocol is satisfied
         doc: DocumentProtocol = mock_document
