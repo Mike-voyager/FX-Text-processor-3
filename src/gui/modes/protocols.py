@@ -65,10 +65,10 @@ class ModeContext:
     def __post_init__(self) -> None:
         """Валидация параметров viewport после инициализации."""
         if len(self.viewport) != 4:
-            raise ValueError("viewport должен содержать ровно 4 значения (x, y, width, height)")
+            raise ValueError("viewport must contain exactly 4 values (x, y, width, height)")
         x, y, width, height = self.viewport
         if width < 0 or height < 0:
-            raise ValueError("width и height viewport не могут быть отрицательными")
+            raise ValueError("width и height viewport cannot be negative")
 
     def with_dirty(self, is_dirty: bool) -> ModeContext:
         """Создаёт новый контекст с изменённым флагом is_dirty.
@@ -206,6 +206,38 @@ class ModeSwitchEvent:
             поэтому метод ничего не делает.
         """
         pass
+
+
+# =============================================================================
+# MODE STATE
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class ModeState:
+    """Сохранённое состояние режима редактирования.
+
+    Используется ModeIntegration для кэширования состояния
+    при переключении между режимами документа.
+
+    Attributes:
+        mode: Режим документа.
+        content: Содержимое документа (опционально).
+        viewport: Параметры viewport (опционально).
+        is_dirty: Флаг несохранённых изменений.
+
+    Example:
+        >>> state = ModeState(
+        ...     mode=DocumentMode.FREE_FORM,
+        ...     content="Hello",
+        ...     is_dirty=True,
+        ... )
+    """
+
+    mode: DocumentMode
+    content: Optional[Any] = None
+    viewport: Optional[Any] = None
+    is_dirty: bool = False
 
 
 # =============================================================================
@@ -460,6 +492,7 @@ class DocumentModeRendererProtocol(DocumentRendererProtocol[Any, Any], Protocol)
 __all__: list[str] = [
     "DocumentModeRendererProtocol",
     "ModeContext",
+    "ModeState",
     "ModeSwitchEvent",
     "ModeToolbarProtocol",
 ]

@@ -18,8 +18,7 @@ from __future__ import annotations
 import sys
 import tkinter as tk
 from tkinter import ttk
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -33,13 +32,13 @@ if sys.platform == "linux" and not sys.stdin.isatty():
         pytest.skip("No display available", allow_module_level=True)
 
 from src.gui.dialogs.barcode_dialog import (
+    HARDWARE_TYPES,
     BarcodeConflictDialog,
     BarcodeMode,
     BarcodeSelectionResult,
     BarcodeSettings,
     BarcodeSettingsPanel,
     BarcodeTypeSelector,
-    HARDWARE_TYPES,
 )
 from src.model.enums import BarcodeType
 

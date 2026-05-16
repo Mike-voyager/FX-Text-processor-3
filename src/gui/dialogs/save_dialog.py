@@ -56,10 +56,10 @@ STRENGTH_COLORS: Final[dict[PasswordStrength, str]] = {
 }
 
 STRENGTH_LABELS: Final[dict[PasswordStrength, str]] = {
-    PasswordStrength.WEAK: "Слакий",
-    PasswordStrength.FAIR: "Средний",
-    PasswordStrength.STRONG: "Надёжный",
-    PasswordStrength.VERY_STRONG: "Отличный",
+    PasswordStrength.WEAK: "Weak",
+    PasswordStrength.FAIR: "Fair",
+    PasswordStrength.STRONG: "Strong",
+    PasswordStrength.VERY_STRONG: "Excellent",
 }
 
 # Security preset labels
@@ -128,7 +128,7 @@ class SaveDialog(BaseDialog):
         document: Document,
         *,
         default_path: Optional[Path] = None,
-        title: str = "Сохранить документ",
+        title: str = "Save Document",
     ) -> None:
         """Инициализация диалога сохранения.
 
@@ -216,14 +216,14 @@ class SaveDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        file_frame = ttk.LabelFrame(parent, text="Расположение файла", padding="10")
+        file_frame = ttk.LabelFrame(parent, text="File Location", padding="10")
         file_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         file_frame.columnconfigure(0, weight=1)
 
         # Filename entry
-        ttk.Label(file_frame, text="Имя файла:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(file_frame, text="Filename:").grid(row=0, column=0, sticky="w", padx=(0, 5))
 
-        self._filename_var: tk.StringVar = tk.StringVar()
+        self._filename_var: tk.StringVar = tk.StringVar(master=self)
         self._filename_entry: ttk.Entry = ttk.Entry(
             file_frame,
             textvariable=self._filename_var,
@@ -234,13 +234,13 @@ class SaveDialog(BaseDialog):
         # Browse button
         self._browse_button: ttk.Button = ttk.Button(
             file_frame,
-            text="📁 Обзор...",
+            text="📁 Browse...",
             command=self._on_browse,
         )
         self._browse_button.grid(row=1, column=1, padx=(5, 0), pady=(2, 5))
 
         # Path label
-        self._path_var: tk.StringVar = tk.StringVar(master=self, value="Путь не выбран")
+        self._path_var: tk.StringVar = tk.StringVar(master=self, value="No path selected")
         self._path_label: ttk.Label = ttk.Label(
             file_frame,
             textvariable=self._path_var,
@@ -256,7 +256,7 @@ class SaveDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        enc_frame = ttk.LabelFrame(parent, text="Безопасность", padding="10")
+        enc_frame = ttk.LabelFrame(parent, text="Security", padding="10")
         enc_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         enc_frame.columnconfigure(0, weight=1)
 
@@ -264,7 +264,7 @@ class SaveDialog(BaseDialog):
         self._encrypt_var: tk.BooleanVar = tk.BooleanVar(master=self, value=False)
         self._encrypt_check: ttk.Checkbutton = ttk.Checkbutton(
             enc_frame,
-            text="🔒 Шифровать документ",
+            text="🔒 Encrypt document",
             variable=self._encrypt_var,
             command=self._on_encrypt_toggle,
         )
@@ -273,7 +273,7 @@ class SaveDialog(BaseDialog):
         # Encryption info label
         self._encrypt_info: ttk.Label = ttk.Label(
             enc_frame,
-            text="Документ будет защищён паролем с использованием AES-256-GCM",
+            text="Document will be protected with a password using AES-256-GCM",
             foreground="gray",
             font=("Helvetica", 8),
             wraplength=500,
@@ -287,11 +287,13 @@ class SaveDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        preset_frame = ttk.LabelFrame(parent, text="Пресет безопасности", padding="10")
+        preset_frame = ttk.LabelFrame(parent, text="Security Preset", padding="10")
         preset_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         preset_frame.columnconfigure(0, weight=1)
 
-        self._preset_var: tk.StringVar = tk.StringVar(master=self, value=SecurityPreset.STANDARD.value)
+        self._preset_var: tk.StringVar = tk.StringVar(
+            master=self, value=SecurityPreset.STANDARD.value
+        )
         self._preset_combo: ttk.Combobox = ttk.Combobox(
             preset_frame,
             textvariable=self._preset_var,
@@ -323,7 +325,7 @@ class SaveDialog(BaseDialog):
             row: Номер строки для размещения.
         """
         self._password_frame: ttk.LabelFrame = ttk.LabelFrame(
-            parent, text="Пароль шифрования", padding="10"
+            parent, text="Encryption Password", padding="10"
         )
         self._password_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         self._password_frame.columnconfigure(0, weight=1)
@@ -333,9 +335,9 @@ class SaveDialog(BaseDialog):
         pwd_row.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         pwd_row.columnconfigure(0, weight=1)
 
-        ttk.Label(pwd_row, text="Пароль:").grid(row=0, column=0, sticky="w")
+        ttk.Label(pwd_row, text="Password:").grid(row=0, column=0, sticky="w")
 
-        self._password_var: tk.StringVar = tk.StringVar()
+        self._password_var: tk.StringVar = tk.StringVar(master=self)
         self._password_entry: ttk.Entry = ttk.Entry(
             pwd_row,
             textvariable=self._password_var,
@@ -361,9 +363,9 @@ class SaveDialog(BaseDialog):
         confirm_row.grid(row=1, column=0, sticky="ew")
         confirm_row.columnconfigure(0, weight=1)
 
-        ttk.Label(confirm_row, text="Подтвердите пароль:").grid(row=0, column=0, sticky="w")
+        ttk.Label(confirm_row, text="Confirm password:").grid(row=0, column=0, sticky="w")
 
-        self._confirm_var: tk.StringVar = tk.StringVar()
+        self._confirm_var: tk.StringVar = tk.StringVar(master=self)
         self._confirm_entry: ttk.Entry = ttk.Entry(
             confirm_row,
             textvariable=self._confirm_var,
@@ -398,7 +400,7 @@ class SaveDialog(BaseDialog):
         self._strength_bar.grid(row=0, column=0, sticky="ew", pady=(0, 2))
 
         # Strength label
-        self._strength_text_var: tk.StringVar = tk.StringVar(master=self, value="Введите пароль")
+        self._strength_text_var: tk.StringVar = tk.StringVar(master=self, value="Enter password")
         self._strength_label: ttk.Label = ttk.Label(
             strength_frame,
             textvariable=self._strength_text_var,
@@ -408,7 +410,7 @@ class SaveDialog(BaseDialog):
         self._strength_label.grid(row=1, column=0, sticky="w")
 
         # Feedback label
-        self._strength_feedback_var: tk.StringVar = tk.StringVar()
+        self._strength_feedback_var: tk.StringVar = tk.StringVar(master=self)
         self._strength_feedback: ttk.Label = ttk.Label(
             strength_frame,
             textvariable=self._strength_feedback_var,
@@ -425,13 +427,13 @@ class SaveDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        meta_frame = ttk.LabelFrame(parent, text="Метаданные документа", padding="10")
+        meta_frame = ttk.LabelFrame(parent, text="Document Metadata", padding="10")
         meta_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         meta_frame.columnconfigure(1, weight=1)
 
         # Title
-        ttk.Label(meta_frame, text="Заголовок:").grid(row=0, column=0, sticky="w", padx=(0, 5))
-        self._title_var: tk.StringVar = tk.StringVar()
+        ttk.Label(meta_frame, text="Title:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        self._title_var: tk.StringVar = tk.StringVar(master=self)
         self._title_entry: ttk.Entry = ttk.Entry(
             meta_frame,
             textvariable=self._title_var,
@@ -440,8 +442,8 @@ class SaveDialog(BaseDialog):
         self._title_entry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
 
         # Author
-        ttk.Label(meta_frame, text="Автор:").grid(row=1, column=0, sticky="w", padx=(0, 5))
-        self._author_var: tk.StringVar = tk.StringVar()
+        ttk.Label(meta_frame, text="Author:").grid(row=1, column=0, sticky="w", padx=(0, 5))
+        self._author_var: tk.StringVar = tk.StringVar(master=self)
         self._author_entry: ttk.Entry = ttk.Entry(
             meta_frame,
             textvariable=self._author_var,
@@ -450,7 +452,7 @@ class SaveDialog(BaseDialog):
         self._author_entry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         # Description
-        ttk.Label(meta_frame, text="Описание:").grid(row=2, column=0, sticky="nw", padx=(0, 5))
+        ttk.Label(meta_frame, text="Description:").grid(row=2, column=0, sticky="nw", padx=(0, 5))
         self._desc_text: tk.Text = tk.Text(
             meta_frame,
             height=3,
@@ -470,7 +472,7 @@ class SaveDialog(BaseDialog):
         size_frame = ttk.Frame(parent)
         size_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
 
-        ttk.Label(size_frame, text="Оценочный размер:").pack(side=tk.LEFT)
+        ttk.Label(size_frame, text="Estimated size:").pack(side=tk.LEFT)
 
         self._size_var: tk.StringVar = tk.StringVar(master=self, value="~ 0 KB")
         self._size_label: ttk.Label = ttk.Label(
@@ -502,7 +504,7 @@ class SaveDialog(BaseDialog):
         # Save button
         self._save_button: ttk.Button = ttk.Button(
             right_frame,
-            text="💾 Сохранить",
+            text="💾 Save",
             command=self._on_save,
         )
         self._save_button.pack(side=tk.LEFT, padx=(0, 5))
@@ -510,7 +512,7 @@ class SaveDialog(BaseDialog):
         # Cancel button
         self._cancel_button: ttk.Button = ttk.Button(
             right_frame,
-            text="❌ Отмена",
+            text="❌ Cancel",
             command=self._on_cancel,
         )
         self._cancel_button.pack(side=tk.LEFT)
@@ -588,7 +590,7 @@ class SaveDialog(BaseDialog):
         # Also disable/enable strength indicator
         if not enabled:
             self._strength_var.set(0)
-            self._strength_text_var.set("Шифрование отключено")
+            self._strength_text_var.set("Encryption disabled")
             self._strength_label.configure(foreground="gray")
             self._strength_feedback_var.set("")
 
@@ -612,7 +614,7 @@ class SaveDialog(BaseDialog):
             preset = SecurityPreset(preset_value)
             self._preset_desc_var.set(PRESET_LABELS.get(preset, preset_value))
         except ValueError:
-            self._preset_desc_var.set("Неизвестный пресет")
+            self._preset_desc_var.set("Unknown preset")
 
     def _on_password_change(self, event: Optional[tk.Event] = None) -> None:
         """Обработчик изменения пароля.
@@ -624,7 +626,7 @@ class SaveDialog(BaseDialog):
 
         if not password:
             self._strength_var.set(0)
-            self._strength_text_var.set("Введите пароль")
+            self._strength_text_var.set("Enter password")
             self._strength_label.configure(foreground="gray")
             self._strength_feedback_var.set("")
             return
@@ -633,7 +635,7 @@ class SaveDialog(BaseDialog):
         result: PasswordStrengthResult = self._password_hasher.check_password_strength(password)
 
         self._strength_var.set(result.score)
-        self._strength_text_var.set(f"Сложность: {STRENGTH_LABELS[result.strength]}")
+        self._strength_text_var.set(f"Strength: {STRENGTH_LABELS[result.strength]}")
         self._strength_label.configure(foreground=STRENGTH_COLORS[result.strength])
 
         # Show feedback
@@ -652,7 +654,7 @@ class SaveDialog(BaseDialog):
         """Обработчик кнопки обзора."""
         filename = filedialog.asksaveasfilename(
             parent=self,
-            title="Сохранить документ",
+            title="Save Document",
             defaultextension=".fxsd",
             initialfile=self._filename_var.get(),
             filetypes=[
@@ -681,13 +683,13 @@ class SaveDialog(BaseDialog):
         # Check filename
         filename = self._filename_var.get().strip()
         if not filename:
-            return False, "Введите имя файла"
+            return False, "Enter filename"
 
         # Check for invalid characters
         invalid_chars = '<>:"|?*'
         for char in invalid_chars:
             if char in filename:
-                return False, f"Имя файла содержит недопустимый символ: {char}"
+                return False, f"Filename contains invalid character: {char}"
 
         # Check encryption requirements
         if self._encrypt_var.get():
@@ -695,18 +697,18 @@ class SaveDialog(BaseDialog):
             confirm = self._confirm_var.get()
 
             if not password:
-                return False, "Введите пароль для шифрования"
+                return False, "Enter encryption password"
 
             if len(password) < 8:
-                return False, "Пароль должен содержать минимум 8 символов"
+                return False, "Password must be at least 8 characters"
 
             if password != confirm:
-                return False, "Пароли не совпадают"
+                return False, "Passwords do not match"
 
             # Check password strength (at least FAIR)
             strength_result = self._password_hasher.check_password_strength(password)
             if strength_result.strength == PasswordStrength.WEAK:
-                return False, "Пароль слишком слабый. " + " ".join(strength_result.feedback[:2])
+                return False, "Password is too weak. " + " ".join(strength_result.feedback[:2])
 
         return True, ""
 
@@ -715,7 +717,7 @@ class SaveDialog(BaseDialog):
         is_valid, error = self._validate()
         if not is_valid:
             messagebox.showerror(
-                "Ошибка валидации",
+                "Validation Error",
                 error,
                 parent=self,
             )
@@ -732,8 +734,8 @@ class SaveDialog(BaseDialog):
         # Check if file exists
         if path.exists():
             result = messagebox.askyesno(
-                "Файл существует",
-                f"Файл '{path.name}' уже существует. Перезаписать?",
+                "File Exists",
+                f"File '{path.name}' already exists. Overwrite?",
                 parent=self,
             )
             if not result:
@@ -804,7 +806,7 @@ class SaveFileDialog:
             Путь к файлу или None если отменено.
         """
         filename = filedialog.asksaveasfilename(
-            title="Сохранить документ",
+            title="Save Document",
             defaultextension=".fxsd",
             initialfile=default_name,
             filetypes=[

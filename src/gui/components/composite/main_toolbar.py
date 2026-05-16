@@ -74,7 +74,7 @@ class MainToolbar(BaseWidget):
         super().__init__(widget_id=widget_id, controller=controller)
 
         if button_commands is not None and not isinstance(button_commands, dict):
-            raise TypeError("button_commands должен быть словарём или None")
+            raise TypeError("button_commands must be a dict or None")
 
         self._button_commands: Optional[dict[str, Callable[[], None]]] = button_commands
         self._buttons: dict[str, ThemedButton] = {}
@@ -234,7 +234,7 @@ class MainToolbar(BaseWidget):
             >>> toolbar.set_button_enabled("print", True)
         """
         if button not in self._buttons:
-            raise ValueError(f"Кнопка '{button}' не найдена")
+            raise ValueError(f"Button '{button}' not found")
 
         self._buttons[button].set_enabled(enabled)
 

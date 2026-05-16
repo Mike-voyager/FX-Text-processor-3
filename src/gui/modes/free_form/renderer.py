@@ -22,9 +22,9 @@ from __future__ import annotations
 import tkinter as tk
 from typing import TYPE_CHECKING, Any, Callable, Final, Optional, Set, Tuple
 
+from src.gui.components.base.widget import BaseWidget
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
-from src.gui.components.base.widget import BaseWidget
 from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
 from src.gui.renderers.free_form_renderer import (
@@ -436,7 +436,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_cpi",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if cpi not in VALID_CPI_INT:
@@ -510,7 +510,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="render",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Делегируем базовому рендереру
@@ -532,7 +532,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         return self._base_renderer.get_content()
@@ -550,7 +550,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._base_renderer.set_text(content)
@@ -591,7 +591,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_format",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._base_renderer.apply_format(tag, start, end)
@@ -941,7 +941,7 @@ class FreeFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_line_double_height",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if line < 1:

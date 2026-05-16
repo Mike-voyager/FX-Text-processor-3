@@ -36,6 +36,7 @@ from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.security.mfa_gate import MFAGate
 
 if TYPE_CHECKING:
+    from src.controller.workflow_controller import WorkflowRole
     from src.gui.security.mode_manager import ModeManager
 
 logger: Final = logging.getLogger(__name__)
@@ -87,14 +88,15 @@ class RejectDialog(BaseDialog):
     """
 
     REJECT_OPTIONS: Final[list[tuple[str, str, str]]] = [
-        ("to_draft", "🔄 Return to DRAFT", "Form will be editable again"),
-        ("to_rejected", "⛔ Mark as REJECTED", "Final state, no further edits"),
+        ("to_draft", "DRAFT (back to author)", "Form will be returned to author for corrections"),
+        ("to_rejected", "REJECTED (terminal state)", "Final state, no further edits possible"),
     ]
 
     def __init__(
         self,
         parent: tk.Widget,
         current_status: FormStatus,
+        current_role: Optional[WorkflowRole] = None,
         on_reject: Optional[Callable[[FormStatus, str, Optional[dict[str, str]]], None]] = None,
         mode_manager: Optional["ModeManager"] = None,
     ) -> None:
@@ -103,6 +105,7 @@ class RejectDialog(BaseDialog):
         Args:
             parent: Родительский виджет.
             current_status: Текущий статус формы.
+            current_role: Текущая роль пользователя (для отображения).
             on_reject: Callback при подтверждении (status, reason, mfa_credentials).
             mode_manager: ModeManager для MFA-проверок.
         """
@@ -110,6 +113,7 @@ class RejectDialog(BaseDialog):
 
         self._parent: tk.Widget = parent
         self._current_status: FormStatus = current_status
+        self._current_role: Optional[WorkflowRole] = current_role
         self._on_reject_callback: Optional[
             Callable[[FormStatus, str, Optional[dict[str, str]]], None]
         ] = on_reject
@@ -196,7 +200,7 @@ class RejectDialog(BaseDialog):
 
         tk.Label(
             header_frame,
-            text="⚠️ Form Rejection",
+            text="⚠️ Reject Document",
             font=("Arial", 14, "bold"),
             bg=COLOR_BG,
             fg="#2c3e50",
@@ -210,6 +214,16 @@ class RejectDialog(BaseDialog):
             bg=COLOR_BG,
             fg="#7f8c8d",
         ).pack(anchor=tk.W, pady=(5, 0))
+
+        if self._current_role is not None:
+            role_text = f"Your role: {self._current_role.name}"
+            tk.Label(
+                header_frame,
+                text=role_text,
+                font=("Arial", 10, "bold"),
+                bg=COLOR_BG,
+                fg=COLOR_INFO,
+            ).pack(anchor=tk.W, pady=(5, 0))
 
     def _create_options_section(self, parent: tk.Widget) -> None:
         """Создаёт секцию выбора опции.
@@ -369,11 +383,11 @@ class RejectDialog(BaseDialog):
         )
         cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
 
-        # Confirm button
+        # Reject Document button (UI_SPEC §13.3)
         self._confirm_btn = tk.Button(
             btn_frame,
-            text="Confirm",
-            width=12,
+            text="🔴 Reject Document",
+            width=18,
             command=self._on_confirm,
             font=("Arial", 9, "bold"),
             bg=COLOR_DANGER,

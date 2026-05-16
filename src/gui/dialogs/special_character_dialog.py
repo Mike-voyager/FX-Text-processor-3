@@ -133,10 +133,30 @@ _PC866_CHARS: Final[tuple[tuple[str, str], ...]] = (
 )
 
 _BOX_SINGLE: Final[tuple[str, ...]] = (
-    "─", "│", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼",
+    "─",
+    "│",
+    "┌",
+    "┐",
+    "└",
+    "┘",
+    "├",
+    "┤",
+    "┬",
+    "┴",
+    "┼",
 )
 _BOX_DOUBLE: Final[tuple[str, ...]] = (
-    "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬",
+    "═",
+    "║",
+    "╔",
+    "╗",
+    "╚",
+    "╝",
+    "╠",
+    "╣",
+    "╦",
+    "╩",
+    "╬",
 )
 _MATH_CHARS: Final[tuple[tuple[str, str], ...]] = (
     ("≡", "Identical to"),
@@ -214,7 +234,7 @@ class SpecialCharacterDialog(BaseDialog):
             parent: Родительский виджет.
             initial_debug: Показывать вкладку ESC/P Controls по умолчанию.
         """
-        super().__init__(parent, title="Специальные символы", modal=True)
+        super().__init__(parent, title="Special Characters", modal=True)
 
         self._selected_char: str = ""
         self._selected_category: str = ""
@@ -276,14 +296,14 @@ class SpecialCharacterDialog(BaseDialog):
 
         self._status_label = ttk.Label(
             bottom_frame,
-            text="Выбран: (нет)",
+            text="Selected: (none)",
             font=(FONT_FAMILY, FONT_SIZE),
         )
         self._status_label.pack(side=tk.LEFT)
 
         debug_check = ttk.Checkbutton(
             bottom_frame,
-            text="Debug: показать ESC/P controls",
+            text="Debug: show ESC/P controls",
             variable=self._debug_var,
             command=self._on_debug_toggle,
         )
@@ -301,7 +321,7 @@ class SpecialCharacterDialog(BaseDialog):
 
         ttk.Button(
             btn_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
         ).pack(side=tk.RIGHT)
 
@@ -330,7 +350,10 @@ class SpecialCharacterDialog(BaseDialog):
             Созданная кнопка.
         """
         handler: Callable[[], None] = self._build_handler(
-            char_val, tab_name, description, is_control,
+            char_val,
+            tab_name,
+            description,
+            is_control,
         )
         btn = tk.Button(
             parent,
@@ -362,8 +385,10 @@ class SpecialCharacterDialog(BaseDialog):
         Returns:
             Функция-обработчик.
         """
+
         def handler() -> None:
             self._on_char_selected(char_val, tab_name, description, is_control)
+
         return handler
 
     def _create_char_tab(
@@ -388,7 +413,13 @@ class SpecialCharacterDialog(BaseDialog):
         col = 0
         for char_val, desc in chars:
             self._make_char_button(
-                tab, char_val, tab_name, desc, False, row, col,
+                tab,
+                char_val,
+                tab_name,
+                desc,
+                False,
+                row,
+                col,
             )
             col += 1
             if col >= wrap_after:
@@ -407,12 +438,15 @@ class SpecialCharacterDialog(BaseDialog):
         parent = ttk.Frame(notebook)
         notebook.add(parent, text=TAB_BOX_DRAWING)
 
-        single_label = ttk.Label(parent, text="Одинарная:")
+        single_label = ttk.Label(parent, text="Single:")
         single_label.grid(row=0, column=0, columnspan=BUTTONS_PER_ROW, sticky="w", pady=(5, 0))
 
         for idx, char_val in enumerate(_BOX_SINGLE):
             handler: Callable[[], None] = self._build_handler(
-                char_val, TAB_BOX_DRAWING, "Single line", False,
+                char_val,
+                TAB_BOX_DRAWING,
+                "Single line",
+                False,
             )
             btn = tk.Button(
                 parent,
@@ -425,12 +459,15 @@ class SpecialCharacterDialog(BaseDialog):
             )
             btn.grid(row=1, column=idx, padx=2, pady=2, sticky="nsew")
 
-        double_label = ttk.Label(parent, text="Двойная:")
+        double_label = ttk.Label(parent, text="Double:")
         double_label.grid(row=2, column=0, columnspan=BUTTONS_PER_ROW, sticky="w", pady=(10, 0))
 
         for idx, char_val in enumerate(_BOX_DOUBLE):
             handler = self._build_handler(
-                char_val, TAB_BOX_DRAWING, "Double line", False,
+                char_val,
+                TAB_BOX_DRAWING,
+                "Double line",
+                False,
             )
             btn = tk.Button(
                 parent,
@@ -501,9 +538,9 @@ class SpecialCharacterDialog(BaseDialog):
 
         if is_control:
             hex_str = " ".join(f"0x{b:02X}" for b in char.encode("latin1"))
-            status = f"Выбран: {description} ({hex_str})"
+            status = f"Selected: {description} ({hex_str})"
         else:
-            status = f"Выбран: {char} — {description}"
+            status = f"Selected: {char} — {description}"
 
         if self._status_label is not None:
             self._status_label.config(text=status)

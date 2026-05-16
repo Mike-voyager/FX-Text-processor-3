@@ -332,20 +332,24 @@ class TestSpatialIndexPerformance:
 
         root.update_idletasks()
 
+        # Search for a position that matches field_40 (col=40, row=40)
+        # to ensure both linear and indexed search break early fairly.
+        search_col, search_row = 40, 40
+
         # Linear search time
         start = time.perf_counter()
         for _ in range(100):
             # Simulate linear search
             for field in canvas._fields.values():
                 pos = field.position
-                if pos.col <= 40 < pos.col + pos.width:
+                if pos.col <= search_col < pos.col + pos.width:
                     break
         linear_time = (time.perf_counter() - start) * 1000
 
         # Spatial index time (using get_field_at which may be optimized)
         start = time.perf_counter()
         for _ in range(100):
-            result = canvas.get_field_at(40, 30)
+            result = canvas.get_field_at(search_col, search_row)
         index_time = (time.perf_counter() - start) * 1000
 
         # Index should be at least comparable to linear (not significantly slower)

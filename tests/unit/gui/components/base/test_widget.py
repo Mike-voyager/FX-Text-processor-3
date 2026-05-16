@@ -153,12 +153,12 @@ class TestBaseWidgetInitialization:
 
     def test_init_empty_widget_id_raises_error(self) -> None:
         """Пустой widget_id выбрасывает ValueError."""
-        with pytest.raises(ValueError, match="widget_id не может быть пустым"):
+        with pytest.raises(ValueError, match="widget_id cannot be empty"):
             ConcreteWidget(widget_id="")
 
     def test_init_whitespace_widget_id_raises_error(self) -> None:
         """Whitespace widget_id выбрасывает ValueError."""
-        with pytest.raises(ValueError, match="widget_id не может быть пустым"):
+        with pytest.raises(ValueError, match="widget_id cannot be empty"):
             ConcreteWidget(widget_id="   \t  ")
 
     def test_init_with_controller(self, mock_controller: MockController) -> None:
@@ -206,7 +206,7 @@ class TestBaseWidgetLifecycle:
         """Повторный mount() выбрасывает LifecycleError."""
         base_widget.mount(mock_tk_parent)
 
-        with pytest.raises(LifecycleError, match="уже смонтирован"):
+        with pytest.raises(LifecycleError, match="already mounted"):
             base_widget.mount(mock_tk_parent)
 
     def test_unmount_releases_resources(
@@ -221,17 +221,17 @@ class TestBaseWidgetLifecycle:
 
     def test_unmount_not_mounted_raises_error(self, base_widget: ConcreteWidget) -> None:
         """unmount() для не смонтированного виджета выбрасывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             base_widget.unmount()
 
     def test_mount_invalid_parent_type(self, base_widget: ConcreteWidget) -> None:
         """mount() с невалидным parent выбрасывает TypeError."""
-        with pytest.raises(TypeError, match="parent должен быть Tk виджет"):
+        with pytest.raises(TypeError, match="parent must be a Tk widget"):
             base_widget.mount("not_a_widget")
 
     def test_mount_with_none_parent(self, base_widget: ConcreteWidget) -> None:
         """mount() с None parent выбрасывает TypeError."""
-        with pytest.raises(TypeError, match="parent должен быть Tk виджет"):
+        with pytest.raises(TypeError, match="parent must be a Tk widget"):
             base_widget.mount(None)
 
 
@@ -359,14 +359,14 @@ class TestSmartBaseWidgetEditMode:
         self, smart_widget: ConcreteSmartWidget
     ) -> None:
         """enter_edit_mode() без mount() выбрасывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             smart_widget.enter_edit_mode()
 
     def test_exit_edit_mode_not_mounted_raises_error(
         self, smart_widget: ConcreteSmartWidget
     ) -> None:
         """exit_edit_mode() без mount() выбрасывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             smart_widget.exit_edit_mode()
 
 
@@ -566,7 +566,7 @@ class TestErrorMessages:
 
         assert "my_widget" in str(exc_info.value)
         # Проверяем что сообщение содержит ссылку на ошибку монтирования
-        assert "уже смонтирован" in str(exc_info.value)
+        assert "already mounted" in str(exc_info.value)
 
     def test_lifecycle_error_message_unmount_not_mounted(self) -> None:
         """Сообщение об ошибке при unmount не смонтированного."""
@@ -577,7 +577,7 @@ class TestErrorMessages:
 
         assert "my_widget" in str(exc_info.value)
         # Проверяем что сообщение содержит ссылку на то что виджет не смонтирован
-        assert "не смонтирован" in str(exc_info.value)
+        assert "not mounted" in str(exc_info.value)
 
 
 # ==============================================================================

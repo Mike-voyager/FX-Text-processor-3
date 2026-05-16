@@ -172,6 +172,36 @@ class BookmarkManager:
                 return new_bookmark
         return None
 
+    def rename_bookmark(self, old_name: str, new_name: str) -> Bookmark | None:
+        """Переименовывает закладку.
+
+        Args:
+            old_name: Текущее имя закладки.
+            new_name: Новое имя закладки.
+
+        Returns:
+            Переименованная закладка или None.
+
+        Raises:
+            ValueError: Если закладка с new_name уже существует.
+        """
+        for i, bm in enumerate(self._bookmarks):
+            if bm.name == old_name:
+                # Проверяем, что новое имя не занято другой закладкой
+                for other in self._bookmarks:
+                    if other.name == new_name and other.name != old_name:
+                        raise ValueError(f"Закладка '{new_name}' уже существует")
+                new_bookmark = Bookmark(
+                    name=new_name,
+                    paragraph_index=bm.paragraph_index,
+                    run_index=bm.run_index,
+                    offset=bm.offset,
+                    created_at=bm.created_at,
+                )
+                self._bookmarks[i] = new_bookmark
+                return new_bookmark
+        return None
+
     def clear(self) -> None:
         """Удаляет все закладки."""
         self._bookmarks.clear()

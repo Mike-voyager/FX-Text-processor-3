@@ -33,12 +33,12 @@ class ThemeColors:
     """Набор базовых цветов темы.
 
     Attributes:
-        bg: Цвет фона.
-        fg: Цвет текста.
+        bg: Color фона.
+        fg: Color текста.
         accent: Акцентный цвет.
-        error: Цвет ошибки.
-        warning: Цвет предупреждения.
-        success: Цвет успеха.
+        error: Color ошибки.
+        warning: Color предупреждения.
+        success: Color успеха.
     """
 
     bg: str
@@ -96,7 +96,7 @@ def apply_theme_to_widget(
 
     Args:
         widget: Целевой Tkinter виджет.
-        colors: Цветовая схема.
+        colors: Colorовая схема.
     """
     if not hasattr(widget, "configure"):
         return

@@ -177,7 +177,7 @@ class CryptoProfileDialog(BaseDialog):
         self._warning_label: Optional[tk.Label] = None
 
         # Configure window
-        self.title("🛡️ Профиль безопасности")
+        self.title("🛡️ Security Profile")
         self.resizable(False, False)
         self.configure(bg=COLOR_BG)
 
@@ -248,7 +248,7 @@ class CryptoProfileDialog(BaseDialog):
         # Title
         title_label = tk.Label(
             header_frame,
-            text="🛡️ Профиль безопасности",
+            text="🛡️ Security Profile",
             font=("TkDefaultFont", 14, "bold"),
             bg=COLOR_BG,
             fg=COLOR_TEXT_PRIMARY,
@@ -256,7 +256,7 @@ class CryptoProfileDialog(BaseDialog):
         title_label.pack(anchor=tk.W)
 
         # Current profile
-        current_text = f"Текущий: {self._current_profile.label()}"
+        current_text = f"Current: {self._current_profile.label()}"
 
         current_label = tk.Label(
             header_frame,
@@ -287,7 +287,7 @@ class CryptoProfileDialog(BaseDialog):
         # Title
         title_label = tk.Label(
             container,
-            text="Выберите профиль",
+            text="Select Profile",
             font=("TkDefaultFont", 11, "bold"),
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
@@ -403,7 +403,7 @@ class CryptoProfileDialog(BaseDialog):
         if config.floppy_optimized:
             self._create_badge(
                 parent,
-                "💾 Оптимизирован",
+                "💾 Optimized",
                 BADGE_FLOPPY_BG,
                 BADGE_FLOPPY_FG,
             )
@@ -412,7 +412,7 @@ class CryptoProfileDialog(BaseDialog):
         if not config.safe_for_new_systems:
             self._create_badge(
                 parent,
-                "⚠️ Небезопасно",
+                "⚠️ Unsafe",
                 BADGE_LEGACY_BG,
                 BADGE_LEGACY_FG,
             )
@@ -421,7 +421,7 @@ class CryptoProfileDialog(BaseDialog):
         if profile == CryptoProfile.PARANOID:
             self._create_badge(
                 parent,
-                "⚡ Медленнее",
+                "⚡ Slower",
                 BADGE_WARNING_BG,
                 BADGE_WARNING_FG,
             )
@@ -430,7 +430,7 @@ class CryptoProfileDialog(BaseDialog):
         if profile == CryptoProfile.PQC_PARANOID:
             self._create_badge(
                 parent,
-                "⚡ Очень медленно",
+                "⚡ Very Slow",
                 BADGE_WARNING_BG,
                 BADGE_WARNING_FG,
             )
@@ -447,8 +447,8 @@ class CryptoProfileDialog(BaseDialog):
         Args:
             parent: Родительский фрейм.
             text: Текст бейджа.
-            bg_color: Цвет фона.
-            fg_color: Цвет текста.
+            bg_color: Color фона.
+            fg_color: Color текста.
 
         Returns:
             Созданный лейбл-бейдж.
@@ -503,7 +503,7 @@ class CryptoProfileDialog(BaseDialog):
         # Title
         title_label = tk.Label(
             container,
-            text="Детали профиля",
+            text="Profile Details",
             font=("TkDefaultFont", 11, "bold"),
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
@@ -518,10 +518,10 @@ class CryptoProfileDialog(BaseDialog):
         self._details_widgets = {}
 
         detail_items = [
-            ("Шифрование:", "symmetric"),
-            ("Подпись:", "signing"),
+            ("Encryption:", "symmetric"),
+            ("Signing:", "signing"),
             ("KDF:", "kdf"),
-            ("Хеш:", "hash"),
+            ("Hash:", "hash"),
             ("Post-quantum:", "post_quantum"),
         ]
 
@@ -556,7 +556,7 @@ class CryptoProfileDialog(BaseDialog):
         # Description text
         desc_title = tk.Label(
             content_frame,
-            text="Описание:",
+            text="Description:",
             font=("TkDefaultFont", 9, "bold"),
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
@@ -590,7 +590,7 @@ class CryptoProfileDialog(BaseDialog):
         # Cancel button
         cancel_btn = tk.Button(
             button_frame,
-            text="❌ Отмена",
+            text="❌ Cancel",
             command=self._on_cancel,
             width=12,
         )
@@ -599,7 +599,7 @@ class CryptoProfileDialog(BaseDialog):
         # Apply button
         apply_btn = tk.Button(
             button_frame,
-            text="✓ Применить",
+            text="✓ Apply",
             command=self._apply_profile,
             width=12,
             bg=COLOR_ACCENT,
@@ -634,7 +634,7 @@ class CryptoProfileDialog(BaseDialog):
             "signing": config.signing_algorithm,
             "kdf": self._format_kdf(config),
             "hash": config.hash_algorithm.upper(),
-            "post_quantum": "Да" if config.post_quantum else "Нет",
+            "post_quantum": "Yes" if config.post_quantum else "No",
             "description": profile.description(),
         }
 
@@ -672,9 +672,9 @@ class CryptoProfileDialog(BaseDialog):
 
         if self._check_downgrade(self._selected_profile, self._current_profile):
             warning_text = (
-                "⚠️ Внимание: выбранный профиль менее безопасен, чем текущий. "
-                f"Уровень безопасности снизится с {SECURITY_LEVELS[self._current_profile]} "
-                f"до {SECURITY_LEVELS[self._selected_profile]}."
+                "⚠️ Warning: selected profile is less secure than the current one. "
+                f"Security level will decrease from {SECURITY_LEVELS[self._current_profile]} "
+                f"to {SECURITY_LEVELS[self._selected_profile]}."
             )
             self._warning_label.config(text=warning_text, fg=COLOR_WARNING)
         else:
@@ -720,7 +720,7 @@ class CryptoProfileDialog(BaseDialog):
                 if not mfa_result or not getattr(mfa_result, "verified", False):
                     messagebox.showwarning(
                         "MFA Required",
-                        "Для смены криптографического профиля требуется MFA верификация.",
+                        "MFA verification is required to change the cryptographic profile.",
                         parent=self,
                     )
                     return
@@ -729,7 +729,7 @@ class CryptoProfileDialog(BaseDialog):
                 logger.error(f"MFA challenge failed: {e}")
                 messagebox.showerror(
                     "MFA Error",
-                    f"Ошибка MFA верификации: {e}",
+                    f"MFA verification error: {e}",
                     parent=self,
                 )
                 return
@@ -737,10 +737,10 @@ class CryptoProfileDialog(BaseDialog):
         # Confirm downgrade
         if is_downgrade:
             confirm = messagebox.askyesno(
-                "Подтверждение",
-                f"Вы уверены, что хотите перейти на менее безопасный профиль?\n\n"
-                f"С '{self._current_profile.label()}' на '{self._selected_profile.label()}'\n\n"
-                f"Это снизит уровень защиты данных.",
+                "Confirm",
+                f"Are you sure you want to switch to a less secure profile?\n\n"
+                f"From '{self._current_profile.label()}' to '{self._selected_profile.label()}'\n\n"
+                f"This will reduce the data protection level.",
                 icon="warning",
                 parent=self,
             )

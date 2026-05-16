@@ -96,13 +96,13 @@ FILE_TYPE_ICONS: Final[dict[str, str]] = {
     ".fxsd": "📄",
     ".fxsd.enc": "🔒",
     ".fxstpl": "📋",
-    ".fxsblank": "📑",
+    ".fxsblank": "🔐",
     ".fxskeystore.enc": "🔐",
     ".fxssig": "✍",
     ".fxsconfig": "⚙",
     ".fxsbackup": "💾",
     ".fxsbundle.enc": "📦",
-    ".escp": "🖨",
+    ".escp": "🖨️",
     ".escps": "📜",
 }
 
@@ -272,7 +272,7 @@ class SideBar(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._tk_frame is None:
-            raise RuntimeError("SideBar не смонтирован")
+            raise RuntimeError("SideBar not mounted")
         return self._tk_frame
 
     def mount(self, parent: tk.Widget) -> tk.Widget:
@@ -663,7 +663,7 @@ class SideBar(BaseWidget):
             data_type=DATA_TYPE_DOCUMENT,
             data={"item_id": item_id, "file_path": file_path},
             preview_text=display_name,
-            allowed_operations=frozenset({DropOperation.MOVE, DropOperation.COPY}),
+            allowed_operations=[DropOperation.MOVE, DropOperation.COPY],
         )
 
         self._drag_drop_service.start_drag(
@@ -964,7 +964,10 @@ class SideBar(BaseWidget):
         popup.geometry("240x100")
         popup.resizable(False, False)
         popup.transient(self._tk_frame)  # type: ignore[call-overload]
-        popup.grab_set()
+        try:
+            popup.grab_set()
+        except tk.TclError:
+            pass
 
         # Center popup over current window
         self._tk_frame.update_idletasks()
@@ -974,7 +977,9 @@ class SideBar(BaseWidget):
 
         display_name, _ = self._tree_data.get(item_id, (item_id, None))
         msg = tk.Label(
-            popup, text=f'"{display_name}" в окно {target_window_id[:8]}...', font=("Helvetica", 10)
+            popup,
+            text=f'"{display_name}" to window {target_window_id[:8]}...',
+            font=("Helvetica", 10),
         )
         msg.pack(pady=(8, 4))
 

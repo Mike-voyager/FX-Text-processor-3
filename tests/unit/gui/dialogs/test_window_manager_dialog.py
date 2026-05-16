@@ -221,9 +221,9 @@ class TestWindowManagerDialogCreation:
         assert COLOR_HEADER == "#e9ecef"
         assert COLOR_BORDER == "#dee2e6"
         assert COLOR_TEXT == "#212529"
-        assert WINDOW_TYPE_MAIN == "Главное окно"
-        assert WINDOW_TYPE_DOCUMENT == "Документ"
-        assert WINDOW_TYPE_DIALOG == "Диалог"
+        assert WINDOW_TYPE_MAIN == "Main Window"
+        assert WINDOW_TYPE_DOCUMENT == "Document"
+        assert WINDOW_TYPE_DIALOG == "Dialog"
 
 
 # =============================================================================

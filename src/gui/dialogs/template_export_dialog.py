@@ -62,14 +62,14 @@ MAX_FLOPPY_SIZE: Final[int] = 1_340_000  # ~1.28MB usable on 1.44MB floppy
 
 # Categories for templates
 TEMPLATE_CATEGORIES: Final[list[str]] = [
-    "Общие",
-    "Бухгалтерия",
-    "Логистика",
+    "General",
+    "Accounting",
+    "Logistics",
     "HR",
-    "Производство",
-    "Управление",
-    "Специальные бланки",
-    "Другое",
+    "Production",
+    "Management",
+    "Special Blanks",
+    "Other",
 ]
 
 
@@ -140,7 +140,7 @@ class TemplateExportDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title("Экспорт шаблона")
+        self.title("Export Template")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -211,14 +211,14 @@ class TemplateExportDialog(BaseDialog):
 
         header = ttk.Label(
             header_frame,
-            text="📤 Экспорт шаблона формы",
+            text="📤 Export Form Template",
             font=("Helvetica", 14, "bold"),
         )
         header.pack(anchor="w")
 
         desc = ttk.Label(
             header_frame,
-            text="Сохраните форму как шаблон для повторного использования",
+            text="Save form as template for reuse",
             font=("Helvetica", 9),
             foreground="gray",
         )
@@ -226,17 +226,17 @@ class TemplateExportDialog(BaseDialog):
 
     def _create_metadata_section(self) -> None:
         """Создаёт секцию метаданных шаблона."""
-        meta_frame = ttk.LabelFrame(self._content_frame, text=" Метаданные шаблона ", padding="10")
+        meta_frame = ttk.LabelFrame(self._content_frame, text=" Template Metadata ", padding="10")
         meta_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Template name
-        ttk.Label(meta_frame, text="Название шаблона:*").grid(row=0, column=0, sticky="w", pady=5)
+        ttk.Label(meta_frame, text="Template name:*").grid(row=0, column=0, sticky="w", pady=5)
         self._name_var = tk.StringVar(master=self, value=self._form_data.get("name", ""))
         name_entry = ttk.Entry(meta_frame, textvariable=self._name_var, width=40)
         name_entry.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=5)
 
         # Version
-        ttk.Label(meta_frame, text="Версия:*").grid(row=1, column=0, sticky="w", pady=5)
+        ttk.Label(meta_frame, text="Version:*").grid(row=1, column=0, sticky="w", pady=5)
         self._version_var = tk.StringVar(master=self, value="1.0.0")
         version_entry = ttk.Entry(meta_frame, textvariable=self._version_var, width=15)
         version_entry.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=5)
@@ -245,14 +245,14 @@ class TemplateExportDialog(BaseDialog):
         ).grid(row=1, column=2, sticky="w", padx=(5, 0), pady=5)
 
         # Author
-        ttk.Label(meta_frame, text="Автор:").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(meta_frame, text="Author:").grid(row=2, column=0, sticky="w", pady=5)
         author_default = self._current_user or self._form_data.get("author", "")
         self._author_var = tk.StringVar(master=self, value=author_default)
         author_entry = ttk.Entry(meta_frame, textvariable=self._author_var, width=40)
         author_entry.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=5)
 
         # Description
-        ttk.Label(meta_frame, text="Описание:").grid(row=3, column=0, sticky="nw", pady=5)
+        ttk.Label(meta_frame, text="Description:").grid(row=3, column=0, sticky="nw", pady=5)
         self._desc_text = tk.Text(meta_frame, height=4, width=40, wrap=tk.WORD)
         self._desc_text.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=5)
         desc_default = self._form_data.get("description", "")
@@ -263,7 +263,7 @@ class TemplateExportDialog(BaseDialog):
 
     def _create_category_section(self) -> None:
         """Создаёт секцию выбора категории."""
-        cat_frame = ttk.LabelFrame(self._content_frame, text=" Категория ", padding="10")
+        cat_frame = ttk.LabelFrame(self._content_frame, text=" Category ", padding="10")
         cat_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._category_var = tk.StringVar(master=self, value=TEMPLATE_CATEGORIES[0])
@@ -278,13 +278,13 @@ class TemplateExportDialog(BaseDialog):
 
     def _create_signature_section(self) -> None:
         """Создаёт секцию подписи шаблона."""
-        sig_frame = ttk.LabelFrame(self._content_frame, text=" Безопасность ", padding="10")
+        sig_frame = ttk.LabelFrame(self._content_frame, text=" Security ", padding="10")
         sig_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._sign_var = tk.BooleanVar(master=self, value=False)
         sign_cb = ttk.Checkbutton(
             sig_frame,
-            text="🔏 Подписать шаблон (цифровая подпись Ed25519)",
+            text="🔏 Sign template (Ed25519 digital signature)",
             variable=self._sign_var,
             command=self._on_sign_toggle,
         )
@@ -292,7 +292,7 @@ class TemplateExportDialog(BaseDialog):
 
         self._sig_info_label = ttk.Label(
             sig_frame,
-            text="Подпись гарантирует целостность шаблона при распространении",
+            text="Signature ensures template integrity when distributing",
             font=("Helvetica", 8),
             foreground="gray",
             wraplength=500,
@@ -302,16 +302,16 @@ class TemplateExportDialog(BaseDialog):
     def _create_floppy_section(self) -> None:
         """Создаёт секцию предпросмотра оптимизации для дискеты."""
         floppy_frame = ttk.LabelFrame(
-            self._content_frame, text=" Оптимизация для дискеты ", padding="10"
+            self._content_frame, text=" Floppy Optimization ", padding="10"
         )
         floppy_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Original size
-        self._original_size_var = tk.StringVar(master=self, value="Исходный размер: вычисление...")
+        self._original_size_var = tk.StringVar(master=self, value="Original size: calculating...")
         ttk.Label(floppy_frame, textvariable=self._original_size_var).pack(anchor="w", pady=2)
 
         # Optimized size
-        self._optimized_size_var = tk.StringVar(master=self, value="Оптимизированный: -")
+        self._optimized_size_var = tk.StringVar(master=self, value="Optimized: -")
         ttk.Label(
             floppy_frame,
             textvariable=self._optimized_size_var,
@@ -319,7 +319,7 @@ class TemplateExportDialog(BaseDialog):
         ).pack(anchor="w", pady=2)
 
         # Savings
-        self._savings_var = tk.StringVar(master=self, value="Экономия: -")
+        self._savings_var = tk.StringVar(master=self, value="Savings: -")
         ttk.Label(
             floppy_frame,
             textvariable=self._savings_var,
@@ -327,7 +327,7 @@ class TemplateExportDialog(BaseDialog):
         ).pack(anchor="w", pady=2)
 
         # Status
-        self._floppy_status_var = tk.StringVar(master=self, value="Статус: анализ...")
+        self._floppy_status_var = tk.StringVar(master=self, value="Status: analyzing...")
         self._floppy_status_label = ttk.Label(
             floppy_frame,
             textvariable=self._floppy_status_var,
@@ -337,7 +337,7 @@ class TemplateExportDialog(BaseDialog):
 
     def _create_export_location_section(self) -> None:
         """Создаёт секцию выбора места сохранения."""
-        loc_frame = ttk.LabelFrame(self._content_frame, text=" Место сохранения ", padding="10")
+        loc_frame = ttk.LabelFrame(self._content_frame, text=" Save Location ", padding="10")
         loc_frame.pack(fill=tk.X, pady=(0, 10))
 
         path_frame = ttk.Frame(loc_frame)
@@ -347,7 +347,7 @@ class TemplateExportDialog(BaseDialog):
         path_entry = ttk.Entry(path_frame, textvariable=self._path_var, state="readonly")
         path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-        browse_btn = ttk.Button(path_frame, text="Обзор...", command=self._on_browse)
+        browse_btn = ttk.Button(path_frame, text="Browse...", command=self._on_browse)
         browse_btn.pack(side=tk.RIGHT)
 
     def _create_buttons(self) -> None:
@@ -356,14 +356,14 @@ class TemplateExportDialog(BaseDialog):
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         # Cancel button
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(
             side=tk.RIGHT, padx=(10, 0)
         )
 
         # Export button
         self._export_btn = ttk.Button(
             btn_frame,
-            text="📤 Экспортировать",
+            text="📤 Export",
             command=self._on_export,
         )
         self._export_btn.pack(side=tk.RIGHT)
@@ -380,9 +380,9 @@ class TemplateExportDialog(BaseDialog):
         """Обработчик кнопки 'Обзор'."""
         filename = filedialog.asksaveasfilename(
             parent=self,
-            title="Сохранить шаблон",
+            title="Save Template",
             defaultextension=".fxstpl",
-            filetypes=[("Шаблоны FX", "*.fxstpl"), ("Все файлы", "*.*")],
+            filetypes=[("FX Templates", "*.fxstpl"), ("All Files", "*.*")],
             initialfile=f"{self._name_var.get() or 'template'}.fxstpl",
         )
 
@@ -418,28 +418,28 @@ class TemplateExportDialog(BaseDialog):
         # Original size
         orig_mb = self._original_size / (1024 * 1024)
         self._original_size_var.set(
-            f"Исходный размер: {self._original_size:,} bytes ({orig_mb:.2f} MB)"
+            f"Original size: {self._original_size:,} bytes ({orig_mb:.2f} MB)"
         )
 
         # Optimized size
         opt_mb = analysis.optimized_size / (1024 * 1024)
         self._optimized_size_var.set(
-            f"Оптимизированный: {analysis.optimized_size:,} bytes ({opt_mb:.2f} MB)"
+            f"Optimized: {analysis.optimized_size:,} bytes ({opt_mb:.2f} MB)"
         )
 
         # Savings
         savings = self._original_size - analysis.optimized_size
         savings_pct = (savings / self._original_size * 100) if self._original_size > 0 else 0
-        self._savings_var.set(f"Экономия: {savings:,} bytes ({savings_pct:.1f}%)")
+        self._savings_var.set(f"Savings: {savings:,} bytes ({savings_pct:.1f}%)")
 
         # Status
         if analysis.fits_on_floppy:
             free_space = MAX_FLOPPY_SIZE - analysis.optimized_size
-            self._floppy_status_var.set(f"✅ Помещается на дискету ({free_space:,} bytes свободно)")
+            self._floppy_status_var.set(f"✅ Fits on floppy ({free_space:,} bytes free)")
             self._floppy_status_label.config(foreground=COLOR_SUCCESS)
         else:
             overflow = analysis.optimized_size - MAX_FLOPPY_SIZE
-            self._floppy_status_var.set(f"❌ Превышает лимит на {overflow:,} bytes")
+            self._floppy_status_var.set(f"❌ Exceeds limit by {overflow:,} bytes")
             self._floppy_status_label.config(foreground=COLOR_ERROR)
 
     def _create_template_object(self) -> FormTemplate:
@@ -479,19 +479,19 @@ class TemplateExportDialog(BaseDialog):
         """
         name = self._name_var.get().strip()
         if not name:
-            return "Название шаблона обязательно"
+            return "Template name is required"
 
         version = self._version_var.get().strip()
         if not version:
-            return "Версия обязательна"
+            return "Version is required"
 
         # Semantic versioning validation
         if not re.match(r"^\d+\.\d+\.\d+$", version):
-            return "Версия должна соответствовать формату semver (X.Y.Z)"
+            return "Version must match semver format (X.Y.Z)"
 
         path_str = self._path_var.get()
         if not path_str:
-            return "Выберите место сохранения"
+            return "Select a save location"
 
         return None
 
@@ -500,7 +500,7 @@ class TemplateExportDialog(BaseDialog):
         # Validate inputs
         error = self._validate_inputs()
         if error:
-            messagebox.showerror("Ошибка валидации", error, parent=self)
+            messagebox.showerror("Validation Error", error, parent=self)
             return
 
         try:
@@ -543,9 +543,7 @@ class TemplateExportDialog(BaseDialog):
 
         except Exception as e:
             logger.error(f"Template export failed: {e}")
-            messagebox.showerror(
-                "Ошибка экспорта", f"Не удалось экспортировать шаблон:\n{e}", parent=self
-            )
+            messagebox.showerror("Export Error", f"Failed to export template:\n{e}", parent=self)
 
     def _on_cancel(self) -> None:
         """Обработчик кнопки 'Отмена'."""

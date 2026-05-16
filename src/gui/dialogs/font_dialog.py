@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
 from dataclasses import dataclass
-from typing import Optional, Final
+from tkinter import ttk
+from typing import Final, Optional
 
 from src.gui.dialogs.base_dialog import BaseDialog
-from src.model.enums import FontFamily, CharactersPerInch, PrintQuality
+from src.model.enums import CharactersPerInch, FontFamily, PrintQuality
 
 logger: Final = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class FontDialog(BaseDialog):
             current_italic: Курсив.
             current_underline: Подчёркивание.
         """
-        super().__init__(parent, title="Настройка шрифта", modal=True)
+        super().__init__(parent, title="Font Settings", modal=True)
 
         self._current_family = current_family
         self._current_cpi = current_cpi
@@ -105,7 +105,7 @@ class FontDialog(BaseDialog):
         frame.pack(fill="both", expand=True)
 
         # Font Family
-        ttk.Label(frame, text="Семейство шрифта:").grid(row=0, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Font Family:").grid(row=0, column=0, sticky="w", pady=5)
         family_combo = ttk.Combobox(
             frame,
             textvariable=self._family_var,
@@ -116,7 +116,7 @@ class FontDialog(BaseDialog):
         family_combo.grid(row=0, column=1, sticky="ew", pady=5)
 
         # CPI
-        ttk.Label(frame, text="CPI (сим/дюйм):").grid(row=1, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="CPI (chars/inch):").grid(row=1, column=0, sticky="w", pady=5)
         cpi_combo = ttk.Combobox(
             frame,
             textvariable=self._cpi_var,
@@ -127,7 +127,7 @@ class FontDialog(BaseDialog):
         cpi_combo.grid(row=1, column=1, sticky="ew", pady=5)
 
         # Quality
-        ttk.Label(frame, text="Качество печати:").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Print Quality:").grid(row=2, column=0, sticky="w", pady=5)
         quality_combo = ttk.Combobox(
             frame,
             textvariable=self._quality_var,
@@ -138,12 +138,14 @@ class FontDialog(BaseDialog):
         quality_combo.grid(row=2, column=1, sticky="ew", pady=5)
 
         # Formatting
-        fmt_frame = ttk.LabelFrame(frame, text="Форматирование", padding=10)
+        fmt_frame = ttk.LabelFrame(frame, text="Formatting", padding=10)
         fmt_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
 
-        ttk.Checkbutton(fmt_frame, text="Жирный", variable=self._bold_var).pack(side="left", padx=5)
-        ttk.Checkbutton(fmt_frame, text="Курсив", variable=self._italic_var).pack(side="left", padx=5)
-        ttk.Checkbutton(fmt_frame, text="Подчёркивание", variable=self._underline_var).pack(
+        ttk.Checkbutton(fmt_frame, text="Bold", variable=self._bold_var).pack(side="left", padx=5)
+        ttk.Checkbutton(fmt_frame, text="Italic", variable=self._italic_var).pack(
+            side="left", padx=5
+        )
+        ttk.Checkbutton(fmt_frame, text="Underline", variable=self._underline_var).pack(
             side="left", padx=5
         )
 
@@ -152,7 +154,9 @@ class FontDialog(BaseDialog):
         btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
 
         ttk.Button(btn_frame, text="OK", command=self._on_ok, width=12).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel, width=12).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel, width=12).pack(
+            side="left", padx=5
+        )
 
         frame.columnconfigure(1, weight=1)
 

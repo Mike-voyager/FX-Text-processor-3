@@ -78,8 +78,8 @@ class FindReplaceDialog(BaseDialog):
         self._on_find: Optional[Callable[[str], None]] = on_find
 
         # State
-        self._search_var: tk.StringVar = tk.StringVar()
-        self._replace_var: tk.StringVar = tk.StringVar()
+        self._search_var: tk.StringVar = tk.StringVar(master=self)
+        self._replace_var: tk.StringVar = tk.StringVar(master=self)
         self._found_count: int = 0
         self._current_match: Optional[str] = None
 

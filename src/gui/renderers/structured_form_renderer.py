@@ -34,12 +34,12 @@ from src.documents.constructor.form_status import FormStatus, FormStatusManager
 from src.documents.types.document_type import DocumentMode
 from src.documents.types.type_schema import FieldDefinition, FieldType
 from src.gui.components.base.widget import BaseWidget
+from src.gui.components.factories.form_field_factory import create_form_field
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
 from src.gui.core.error_handler import GUIErrorHandler
 from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol, FormFieldProtocol
-from src.gui.components.factories.form_field_factory import create_form_field
 from src.gui.dialogs.reject_dialog import RejectDialog
 from src.gui.dialogs.role_switch_dialog import RoleSwitchDialog
 from src.gui.modes.structured_form.widgets import (
@@ -247,6 +247,7 @@ class StructuredFormRenderer(BaseWidget):
         self._thumbnails_per_viewport: int = 5  # Approximate visible count
         self._thumbnail_scroll_binding: Optional[str] = None
         self._scroll_update_pending: bool = False
+        self._scroll_update_after_id: Optional[str] = None
 
         # Main content area
         self._content_frame: Optional[tk.Frame] = None
@@ -321,7 +322,7 @@ class StructuredFormRenderer(BaseWidget):
         # Sidebar header
         sidebar_header = tk.Label(
             self._page_sidebar,
-            text="Страницы",
+            text="Pages",
             bg="#d0d0d0",
             font=("Arial", 10, "bold"),
         )
@@ -334,6 +335,11 @@ class StructuredFormRenderer(BaseWidget):
             highlightthickness=0,
         )
         self._sidebar_canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        self._sidebar_canvas.bind(
+            "<Destroy>",
+            lambda _e: self._cancel_scroll_update(),
+            add=True,
+        )
 
         # Add scrollbar for lazy loading
         self._sidebar_scrollbar = tk.Scrollbar(
@@ -366,7 +372,7 @@ class StructuredFormRenderer(BaseWidget):
         # Add page button
         add_btn = tk.Button(
             self._page_sidebar,
-            text="+ Добавить",
+            text="+ Add",
             command=self._on_add_page_click,
         )
         add_btn.pack(fill=tk.X, padx=2, pady=2)
@@ -498,7 +504,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="render",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._form_id = document.form_id
@@ -1245,7 +1251,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Convert FormPage list to PageData list
@@ -1278,7 +1284,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_command",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._command_stack is not None:
@@ -1323,7 +1329,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="hide_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Hide main content areas
@@ -1346,7 +1352,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="restore_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Restore main content areas - re-pack in correct order
@@ -1478,7 +1484,8 @@ class StructuredFormRenderer(BaseWidget):
                     if page.canvas._tk_widget is not None:
                         page.canvas._tk_widget.pack(fill=tk.BOTH, expand=True)
                 else:
-                    page.canvas.mount(self._canvas_frame)
+                    if self._canvas_frame is not None:
+                        page.canvas.mount(self._canvas_frame)
                     if page.canvas._tk_widget is not None:
                         page.canvas._tk_widget.pack(fill=tk.BOTH, expand=True)
                 self._current_canvas = page.canvas
@@ -1930,7 +1937,7 @@ class StructuredFormRenderer(BaseWidget):
         # Page number label
         label = tk.Label(
             frame,
-            text=f"Стр. {index + 1}",
+            text=f"Pg. {index + 1}",
             bg="#ffffff",
             font=("Arial", 8),
         )
@@ -2015,11 +2022,11 @@ class StructuredFormRenderer(BaseWidget):
             return cmd
 
         menu = tk.Menu(frame, tearoff=0)
-        menu.add_command(label="Дублировать", command=make_duplicate_cmd(index))
-        menu.add_command(label="Удалить", command=make_remove_cmd(index))
+        menu.add_command(label="Duplicate", command=make_duplicate_cmd(index))
+        menu.add_command(label="Delete", command=make_remove_cmd(index))
         menu.add_separator()
-        menu.add_command(label="Вверх", command=make_move_up_cmd(index))
-        menu.add_command(label="Вниз", command=make_move_down_cmd(index))
+        menu.add_command(label="Up", command=make_move_up_cmd(index))
+        menu.add_command(label="Down", command=make_move_down_cmd(index))
 
         def show_menu(event: tk.Event) -> None:
             menu.post(event.x_root, event.y_root)
@@ -2041,6 +2048,16 @@ class StructuredFormRenderer(BaseWidget):
 
         return frame
 
+    def _cancel_scroll_update(self) -> None:
+        """Отменяет pending after() для обновления sidebar."""
+        if self._scroll_update_after_id is not None and self._sidebar_canvas is not None:
+            try:
+                self._sidebar_canvas.after_cancel(self._scroll_update_after_id)
+            except tk.TclError:
+                pass
+            self._scroll_update_after_id = None
+        self._scroll_update_pending = False
+
     def _update_sidebar_after_scroll(self) -> None:
         """Обновляет sidebar после скролла с debounce.
 
@@ -2053,6 +2070,7 @@ class StructuredFormRenderer(BaseWidget):
 
         def do_update() -> None:
             self._scroll_update_pending = False
+            self._scroll_update_after_id = None
             old_range = self._visible_thumbnail_range
             new_range = self._get_visible_page_range()
 
@@ -2061,7 +2079,7 @@ class StructuredFormRenderer(BaseWidget):
 
         # Debounce: wait for scroll to settle
         if self._sidebar_canvas:
-            self._sidebar_canvas.after(50, do_update)
+            self._scroll_update_after_id = self._sidebar_canvas.after(50, do_update)
 
     def _setup_lazy_scroll_binding(self) -> None:
         """Настраивает binding для lazy loading при скролле sidebar."""
@@ -2526,9 +2544,13 @@ class StructuredFormRenderer(BaseWidget):
         """Показывает диалог отклонения формы."""
         if self._tk_frame is None:
             return
+        current_role = (
+            self._workflow_manager.current_role if self._workflow_manager is not None else None
+        )
         dialog = RejectDialog(
             parent=self._tk_frame,
             current_status=self._form_status,
+            current_role=current_role,
             on_reject=self._on_reject_confirmed,
         )
         result = dialog.show()
@@ -2639,7 +2661,7 @@ class StructuredFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_editor_state",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         return {

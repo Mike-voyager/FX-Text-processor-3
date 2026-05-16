@@ -207,8 +207,7 @@ class NotificationService(NotificationServiceProtocol):
         """
         if len(message) > MAX_MESSAGE_LENGTH:
             raise ValueError(
-                f"Сообщение превышает максимальную длину "
-                f"({MAX_MESSAGE_LENGTH} символов): {len(message)}"
+                f"Message exceeds maximum length ({MAX_MESSAGE_LENGTH} chars): {len(message)}"
             )
 
     def _validate_metadata(self, metadata: Optional[dict[str, Any]]) -> None:
@@ -228,18 +227,18 @@ class NotificationService(NotificationServiceProtocol):
             return
 
         if not isinstance(metadata, dict):
-            raise TypeError(f"Метаданные должны быть dict или None, получено: {type(metadata)}")
+            raise TypeError(f"Metadata must be dict or None, got: {type(metadata)}")
 
         for key, value in metadata.items():
             if callable(value):
                 raise ValueError(
-                    f"Метаданные содержат callable значение для ключа '{key}'. "
-                    f"Не допускается хранение функций или lambda."
+                    f"Metadata contains callable value for key '{key}'. "
+                    f"Storing functions or lambdas is not allowed."
                 )
             if isinstance(value, str) and ("eval(" in value or "exec(" in value):
                 raise ValueError(
-                    f"Метаданные содержат потенциально опасную строку для ключа '{key}'. "
-                    f"Не допускается eval/exec."
+                    f"Metadata contains potentially dangerous string for key '{key}'. "
+                    f"eval/exec is not allowed."
                 )
 
     def _validate_category(self, category: str) -> None:
@@ -253,8 +252,7 @@ class NotificationService(NotificationServiceProtocol):
         """
         if category not in VALID_CATEGORIES:
             raise ValueError(
-                f"Недопустимая категория '{category}'. "
-                f"Допустимые: {', '.join(sorted(VALID_CATEGORIES))}"
+                f"Invalid category '{category}'. Allowed: {', '.join(sorted(VALID_CATEGORIES))}"
             )
 
     def _cleanup_history(self) -> None:
@@ -447,8 +445,7 @@ class NotificationService(NotificationServiceProtocol):
         """
         if category is not None and category not in VALID_CATEGORIES:
             raise ValueError(
-                f"Недопустимая категория '{category}'. "
-                f"Допустимые: {', '.join(sorted(VALID_CATEGORIES))}"
+                f"Invalid category '{category}'. Allowed: {', '.join(sorted(VALID_CATEGORIES))}"
             )
 
         # Фильтрация уведомлений
@@ -474,13 +471,13 @@ class NotificationService(NotificationServiceProtocol):
             notification_id: Идентификатор уведомления.
 
         Raises:
-            KeyError: Если уведомление с таким ID не найдено.
+            KeyError: Если уведомление с таким ID not found.
 
         Example:
             >>> service.mark_as_read("550e8400-e29b-41d4-a716-446655440000")
         """
         if notification_id not in self._history:
-            raise KeyError(f"Уведомление с ID '{notification_id}' не найдено")
+            raise KeyError(f"Notification with ID '{notification_id}' not found")
 
         old_notification = self._history[notification_id]
 
@@ -517,8 +514,7 @@ class NotificationService(NotificationServiceProtocol):
         """
         if category is not None and category not in VALID_CATEGORIES:
             raise ValueError(
-                f"Недопустимая категория '{category}'. "
-                f"Допустимые: {', '.join(sorted(VALID_CATEGORIES))}"
+                f"Invalid category '{category}'. Allowed: {', '.join(sorted(VALID_CATEGORIES))}"
             )
 
         modified = False
@@ -565,8 +561,7 @@ class NotificationService(NotificationServiceProtocol):
         """
         if category is not None and category not in VALID_CATEGORIES:
             raise ValueError(
-                f"Недопустимая категория '{category}'. "
-                f"Допустимые: {', '.join(sorted(VALID_CATEGORIES))}"
+                f"Invalid category '{category}'. Allowed: {', '.join(sorted(VALID_CATEGORIES))}"
             )
 
         count = 0
@@ -619,7 +614,7 @@ class NotificationService(NotificationServiceProtocol):
             notification_id: Идентификатор уведомления.
 
         Returns:
-            Уведомление или None если не найдено.
+            Уведомление или None если not found.
 
         Example:
             >>> notification = service.get_notification("550e8400-e29b-41d4-a716-446655440000")

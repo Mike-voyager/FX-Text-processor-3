@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import re
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 from typing import Any, Callable, Dict, Final, List, Optional, Tuple, cast
 
 from src.gui.components.paper_toolbar import PaperConfig
@@ -45,7 +45,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -70,20 +70,20 @@ NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[\d]+\.?\d*$")
 
 # Отображаемые названия ориентаций
 ORIENTATION_DISPLAY: Final[Dict[Orientation, str]] = {
-    Orientation.PORTRAIT: "Книжная (Portrait)",
-    Orientation.LANDSCAPE: "Альбомная (Landscape)",
+    Orientation.PORTRAIT: "Portrait",
+    Orientation.LANDSCAPE: "Landscape",
 }
 
 # Отображаемые названия типов источников бумаги
 PAPER_SOURCE_DISPLAY: Final[Dict[str, str]] = {
-    "tractor": "Тракторная подача",
-    "manual": "Ручная подача",
-    "auto": "Автоматический выбор",
+    "tractor": "Tractor feed",
+    "manual": "Manual feed",
+    "auto": "Auto select",
 }
 
 # Отображаемые названия типов бумажных форм
 PAPER_FORM_DISPLAY: Final[Dict[str, str]] = {
-    "custom": "Произвольная",
+    "custom": "Custom",
     "tractor_full": "Tractor Full 210×305",
     "tractor_half": "Tractor Half 210×152.5",
     "tractor_triplet": "Tractor Triplet 210×101.6",
@@ -187,7 +187,7 @@ class PaperSetupDialog(BaseDialog):
         parent: tk.Tk | tk.Widget,
         initial_config: Optional[PaperConfig] = None,
         on_apply: Optional[Callable[[PaperConfig], None]] = None,
-        title: str = "Настройка страницы",
+        title: str = "Page Setup",
     ) -> None:
         """Инициализация диалога.
 
@@ -294,13 +294,13 @@ class PaperSetupDialog(BaseDialog):
     def _create_margins_tab(self) -> None:
         """Создаёт вкладку 'Отступы' (Margins)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Отступы")
+        self._notebook.add(tab, text="Margins")
 
         # Top margin
         self._create_validated_entry(
             tab,
             row=0,
-            label="Верхнее поле (мм):",
+            label="Top margin (mm):",
             var_name="top_margin",
             default=str(self._current_config.top_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -310,7 +310,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=1,
-            label="Нижнее поле (мм):",
+            label="Bottom margin (mm):",
             var_name="bottom_margin",
             default=str(self._current_config.bottom_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -320,7 +320,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=2,
-            label="Левое поле (мм):",
+            label="Left margin (mm):",
             var_name="left_margin",
             default=str(self._current_config.left_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -330,7 +330,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=3,
-            label="Правое поле (мм):",
+            label="Right margin (mm):",
             var_name="right_margin",
             default=str(self._current_config.right_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -340,7 +340,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=4,
-            label="Перфорация от верха (мм):",
+            label="Perforation from top (mm):",
             var_name="perforation_margin",
             default=str(self._current_config.perforation_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -350,12 +350,12 @@ class PaperSetupDialog(BaseDialog):
         preset_frame = tk.Frame(tab)
         preset_frame.grid(row=5, column=0, columnspan=3, pady=PADDING_LARGE)
 
-        tk.Label(preset_frame, text="Пресеты:").pack(side=tk.LEFT, padx=(0, PADDING_NORMAL))
+        tk.Label(preset_frame, text="Presets:").pack(side=tk.LEFT, padx=(0, PADDING_NORMAL))
 
         presets = [
-            ("Минимум", "2", "2", "2", "2"),
-            ("Стандарт", "10", "10", "10", "10"),
-            ("Широкие", "20", "20", "20", "20"),
+            ("Minimum", "2", "2", "2", "2"),
+            ("Standard", "10", "10", "10", "10"),
+            ("Wide", "20", "20", "20", "20"),
         ]
 
         def make_preset_handler(
@@ -379,13 +379,13 @@ class PaperSetupDialog(BaseDialog):
     def _create_paper_tab(self) -> None:
         """Создаёт вкладку 'Бумага' (Paper)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Бумага")
+        self._notebook.add(tab, text="Paper")
 
         # Paper size
         self._create_labeled_dropdown(
             tab,
             row=0,
-            label="Размер бумаги:",
+            label="Paper size:",
             var_name="paper_size",
             options=list(self._get_paper_size_options().keys()),
             default=self._paper_size_to_display(self._current_config.paper_size),
@@ -395,31 +395,31 @@ class PaperSetupDialog(BaseDialog):
         self._create_labeled_dropdown(
             tab,
             row=1,
-            label="Источник бумаги:",
+            label="Paper source:",
             var_name="paper_source",
             options=list(PAPER_SOURCE_DISPLAY.values()),
-            default=PAPER_SOURCE_DISPLAY.get(
-                self._current_config.paper_source, "Автоматический выбор"
-            ),
+            default=PAPER_SOURCE_DISPLAY.get(self._current_config.paper_source, "Auto select"),
         )
 
         # Paper form type
         self._create_labeled_dropdown(
             tab,
             row=2,
-            label="Тип бумаги:",
+            label="Paper type:",
             var_name="paper_form_type",
             options=list(PAPER_FORM_DISPLAY.values()),
-            default=PAPER_FORM_DISPLAY.get(self._current_config.paper_form_type, "Произвольная"),
+            default=PAPER_FORM_DISPLAY.get(self._current_config.paper_form_type, "Custom"),
         )
 
         # Perforation enabled
-        self._perforation_var = tk.BooleanVar(master=self, value=self._current_config.perforation_enabled)
+        self._perforation_var = tk.BooleanVar(
+            master=self, value=self._current_config.perforation_enabled
+        )
         perf_frame = tk.Frame(tab)
         perf_frame.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=PADDING_SMALL)
         perf_check = tk.Checkbutton(
             perf_frame,
-            text="Включить перфорацию",
+            text="Enable perforation",
             variable=self._perforation_var,
         )
         perf_check.pack(side=tk.LEFT)
@@ -430,13 +430,13 @@ class PaperSetupDialog(BaseDialog):
     def _create_layout_tab(self) -> None:
         """Создаёт вкладку 'Макет' (Layout)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Макет")
+        self._notebook.add(tab, text="Layout")
 
         # Orientation
         self._create_labeled_dropdown(
             tab,
             row=0,
-            label="Ориентация:",
+            label="Orientation:",
             var_name="orientation",
             options=[
                 ORIENTATION_DISPLAY[Orientation.PORTRAIT],
@@ -451,9 +451,9 @@ class PaperSetupDialog(BaseDialog):
         self._create_labeled_dropdown(
             tab,
             row=1,
-            label="Межстрочный интервал:",
+            label="Line spacing:",
             var_name="line_spacing",
-            options=['1/6" (6 LPI)', '1/8" (8 LPI)', "Произвольный"],
+            options=['1/6" (6 LPI)', '1/8" (8 LPI)', "Custom"],
             default=self._line_spacing_to_display(self._current_config.line_spacing),
         )
 
@@ -461,7 +461,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_labeled_dropdown(
             tab,
             row=2,
-            label="CPI (символов на дюйм):",
+            label="CPI (characters per inch):",
             var_name="cpi",
             options=["10 (Pica)", "12 (Elite)", "15 (Condensed)", "17 (Compressed)", "20 (Ultra)"],
             default=self._cpi_to_display(self._current_config.cpi),
@@ -473,7 +473,7 @@ class PaperSetupDialog(BaseDialog):
         skip_frame.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=PADDING_SMALL)
         skip_check = tk.Checkbutton(
             skip_frame,
-            text="Пропускать линии перфорации",
+            text="Skip perforation lines",
             variable=self._skip_var,
         )
         skip_check.pack(side=tk.LEFT)
@@ -483,7 +483,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             parent,
             row=start_row,
-            label="Ширина (мм):",
+            label="Width (mm):",
             var_name="custom_width",
             default=str(self._current_config.width_mm),
             validator=lambda v: validate_positive_float(v, MIN_DIMENSION_MM, MAX_DIMENSION_MM),
@@ -492,7 +492,7 @@ class PaperSetupDialog(BaseDialog):
         self._create_validated_entry(
             parent,
             row=start_row + 1,
-            label="Высота (мм):",
+            label="Height (mm):",
             var_name="custom_height",
             default=str(self._current_config.height_mm),
             validator=lambda v: validate_positive_float(v, MIN_DIMENSION_MM, MAX_DIMENSION_MM),
@@ -575,7 +575,7 @@ class PaperSetupDialog(BaseDialog):
         return entry
 
     def _create_buttons(self, parent: tk.Widget) -> None:
-        """Создаёт кнопки OK, Cancel, Apply.
+        """Создаёт кнопки OK, Cancel, Apply, Save as Preset.
 
         Args:
             parent: Родительский виджет.
@@ -588,10 +588,15 @@ class PaperSetupDialog(BaseDialog):
         ok_btn = tk.Button(btn_frame, text="OK", width=10, command=self._on_ok)
         ok_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
-        cancel_btn = tk.Button(btn_frame, text="Отмена", width=10, command=self._on_cancel)
+        cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=self._on_cancel)
         cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
-        apply_btn = tk.Button(btn_frame, text="Применить", width=10, command=self._on_apply_clicked)
+        save_preset_btn = tk.Button(
+            btn_frame, text="Save as Preset", width=14, command=self._on_save_preset
+        )
+        save_preset_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
+
+        apply_btn = tk.Button(btn_frame, text="Apply", width=10, command=self._on_apply_clicked)
         apply_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
     def _create_preview_canvas(self, parent: tk.Widget) -> None:
@@ -600,7 +605,7 @@ class PaperSetupDialog(BaseDialog):
         Args:
             parent: Родительский виджет.
         """
-        frame = tk.LabelFrame(parent, text="Превью", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
+        frame = tk.LabelFrame(parent, text="Preview", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
         frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
         self._preview_canvas = tk.Canvas(bg=_theme_color("paper_preview_bg"), highlightthickness=0)
@@ -617,16 +622,19 @@ class PaperSetupDialog(BaseDialog):
         """Перерисовывает preview canvas с учётом текущих значений."""
         if not hasattr(self, "_preview_canvas"):
             return
-        self._preview_canvas.delete("all")
+        try:
+            self._preview_canvas.delete("all")
+        except tk.TclError:
+            return
 
         # Получаем размеры
-        paper_size_display = self._vars.get("paper_size", tk.StringVar()).get()
+        paper_size_display = self._vars.get("paper_size", tk.StringVar(master=self)).get()
         size_options = self._get_paper_size_options()
         paper_size = size_options.get(paper_size_display, PaperSize.A4)
 
         if paper_size == PaperSize.CUSTOM:
-            width_val = self._vars.get("custom_width", tk.StringVar()).get()
-            height_val = self._vars.get("custom_height", tk.StringVar()).get()
+            width_val = self._vars.get("custom_width", tk.StringVar(master=self)).get()
+            height_val = self._vars.get("custom_height", tk.StringVar(master=self)).get()
             width_mm = (
                 validate_positive_float(width_val, MIN_DIMENSION_MM, MAX_DIMENSION_MM) or 210.0
             )
@@ -638,8 +646,8 @@ class PaperSetupDialog(BaseDialog):
             height_mm = paper_size.height_mm
 
         # Ориентация
-        orientation_display = self._vars.get("orientation", tk.StringVar()).get()
-        if "Альбомная" in orientation_display or "Landscape" in orientation_display:
+        orientation_display = self._vars.get("orientation", tk.StringVar(master=self)).get()
+        if orientation_display == ORIENTATION_DISPLAY[Orientation.LANDSCAPE]:
             width_mm, height_mm = height_mm, width_mm
 
         # Масштаб: адаптивно вписываем в 440×180 с отступами 20px
@@ -665,10 +673,10 @@ class PaperSetupDialog(BaseDialog):
         cy = (220 - rect_h) / 2
 
         # Поля
-        top_val = self._vars.get("top_margin", tk.StringVar()).get()
-        bottom_val = self._vars.get("bottom_margin", tk.StringVar()).get()
-        left_val = self._vars.get("left_margin", tk.StringVar()).get()
-        right_val = self._vars.get("right_margin", tk.StringVar()).get()
+        top_val = self._vars.get("top_margin", tk.StringVar(master=self)).get()
+        bottom_val = self._vars.get("bottom_margin", tk.StringVar(master=self)).get()
+        left_val = self._vars.get("left_margin", tk.StringVar(master=self)).get()
+        right_val = self._vars.get("right_margin", tk.StringVar(master=self)).get()
         top_m = (validate_positive_float(top_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0) * scale
         bottom_m = (
             validate_positive_float(bottom_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
@@ -677,7 +685,7 @@ class PaperSetupDialog(BaseDialog):
         right_m = (validate_positive_float(right_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0) * scale
 
         # Перфорация
-        perf_val = self._vars.get("perforation_margin", tk.StringVar()).get()
+        perf_val = self._vars.get("perforation_margin", tk.StringVar(master=self)).get()
         perf_mm = validate_positive_float(perf_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
         perf_y = perf_mm * scale
 
@@ -786,7 +794,7 @@ class PaperSetupDialog(BaseDialog):
             "Tractor Triplet (210×101.6 мм)": PaperSize.TRACTOR_TRIPLET,
             "Envelope DL (110×220 мм)": PaperSize.ENVELOPE_DL,
             "Envelope C5 (162×229 мм)": PaperSize.ENVELOPE_C5,
-            "Произвольный": PaperSize.CUSTOM,
+            "Custom": PaperSize.CUSTOM,
         }
 
     def _paper_size_to_display(self, size: PaperSize) -> str:
@@ -809,7 +817,7 @@ class PaperSetupDialog(BaseDialog):
             PaperSize.TRACTOR_TRIPLET: "Tractor Triplet (210×101.6 мм)",
             PaperSize.ENVELOPE_DL: "Envelope DL (110×220 мм)",
             PaperSize.ENVELOPE_C5: "Envelope C5 (162×229 мм)",
-            PaperSize.CUSTOM: "Произвольный",
+            PaperSize.CUSTOM: "Custom",
         }
         return mapping.get(size, "A4 (210×297 мм)")
 
@@ -827,7 +835,7 @@ class PaperSetupDialog(BaseDialog):
                 return key
         if "tractor" in display.lower():
             return "tractor"
-        elif "manual" in display.lower() or "ручная" in display.lower():
+        elif "manual" in display.lower():
             return "manual"
         return "auto"
 
@@ -888,7 +896,7 @@ class PaperSetupDialog(BaseDialog):
         mapping = {
             "1/6": '1/6" (6 LPI)',
             "1/8": '1/8" (8 LPI)',
-            "custom": "Произвольный",
+            "custom": "Custom",
         }
         return mapping.get(spacing, '1/6" (6 LPI)')
 
@@ -933,11 +941,11 @@ class PaperSetupDialog(BaseDialog):
         is_valid = True
 
         margin_fields = [
-            ("top_margin", "Верхнее поле"),
-            ("bottom_margin", "Нижнее поле"),
-            ("left_margin", "Левое поле"),
-            ("right_margin", "Правое поле"),
-            ("perforation_margin", "Перфорация"),
+            ("top_margin", "Top margin"),
+            ("bottom_margin", "Bottom margin"),
+            ("left_margin", "Left margin"),
+            ("right_margin", "Right margin"),
+            ("perforation_margin", "Perforation"),
         ]
 
         for var_name, label in margin_fields:
@@ -945,21 +953,21 @@ class PaperSetupDialog(BaseDialog):
                 value = self._vars[var_name].get()
                 result = validate_positive_float(value, MIN_MARGIN_MM, MAX_MARGIN_MM)
                 if result is None:
-                    self._error_labels[var_name].config(text="Недопустимое значение")
-                    errors.append(f"{label}: недопустимое значение")
+                    self._error_labels[var_name].config(text="Invalid value")
+                    errors.append(f"{label}: invalid value")
                     is_valid = False
                 else:
                     self._error_labels[var_name].config(text="")
 
         # Custom dimensions (если выбран custom)
-        paper_size_display = self._vars.get("paper_size", tk.StringVar()).get()
-        if "Произвольный" in paper_size_display:
-            for var_name, label in [("custom_width", "Ширина"), ("custom_height", "Высота")]:
+        paper_size_display = self._vars.get("paper_size", tk.StringVar(master=self)).get()
+        if "Custom" in paper_size_display:
+            for var_name, label in [("custom_width", "Width"), ("custom_height", "Height")]:
                 if var_name in self._vars:
                     value = self._vars[var_name].get()
                     result = validate_positive_float(value, MIN_DIMENSION_MM, MAX_DIMENSION_MM)
                     if result is None:
-                        errors.append(f"{label}: недопустимое значение")
+                        errors.append(f"{label}: invalid value")
                         is_valid = False
 
         return is_valid, errors
@@ -971,28 +979,28 @@ class PaperSetupDialog(BaseDialog):
             Сконфигурированный PaperConfig.
         """
         # Paper size
-        paper_size_display = self._vars.get("paper_size", tk.StringVar()).get()
+        paper_size_display = self._vars.get("paper_size", tk.StringVar(master=self)).get()
         size_options = self._get_paper_size_options()
         paper_size = size_options.get(paper_size_display, PaperSize.A4)
 
         # CPI
-        cpi_display = self._vars.get("cpi", tk.StringVar()).get()
+        cpi_display = self._vars.get("cpi", tk.StringVar(master=self)).get()
         cpi = self._extract_cpi_from_display(cpi_display)
 
         # Line spacing
-        spacing_display = self._vars.get("line_spacing", tk.StringVar()).get()
+        spacing_display = self._vars.get("line_spacing", tk.StringVar(master=self)).get()
         line_spacing = self._extract_line_spacing_from_display(spacing_display)
 
         # Paper source
-        source_display = self._vars.get("paper_source", tk.StringVar()).get()
+        source_display = self._vars.get("paper_source", tk.StringVar(master=self)).get()
         paper_source = self._extract_paper_source_from_display(source_display)
 
         # Paper form type
-        form_display = self._vars.get("paper_form_type", tk.StringVar()).get()
+        form_display = self._vars.get("paper_form_type", tk.StringVar(master=self)).get()
         paper_form_type = self._extract_paper_form_type_from_display(form_display)
 
         # Orientation
-        orientation_display = self._vars.get("orientation", tk.StringVar()).get()
+        orientation_display = self._vars.get("orientation", tk.StringVar(master=self)).get()
         orientation = self._extract_orientation_from_display(orientation_display)
 
         # Margins
@@ -1017,8 +1025,8 @@ class PaperSetupDialog(BaseDialog):
         width_mm = self._current_config.width_mm
         height_mm = self._current_config.height_mm
         if paper_size == PaperSize.CUSTOM:
-            width_val = self._vars.get("custom_width", tk.StringVar()).get()
-            height_val = self._vars.get("custom_height", tk.StringVar()).get()
+            width_val = self._vars.get("custom_width", tk.StringVar(master=self)).get()
+            height_val = self._vars.get("custom_height", tk.StringVar(master=self)).get()
             width_result = validate_positive_float(width_val, MIN_DIMENSION_MM, MAX_DIMENSION_MM)
             height_result = validate_positive_float(height_val, MIN_DIMENSION_MM, MAX_DIMENSION_MM)
             width_mm = width_result if width_result is not None else width_mm
@@ -1028,8 +1036,8 @@ class PaperSetupDialog(BaseDialog):
             height_mm = paper_size.height_mm
 
         # Checkbox values
-        perforation_enabled = getattr(self, "_perforation_var", tk.BooleanVar()).get()
-        skip_perforation = getattr(self, "_skip_var", tk.BooleanVar()).get()
+        perforation_enabled = getattr(self, "_perforation_var", tk.BooleanVar(master=self)).get()
+        skip_perforation = getattr(self, "_skip_var", tk.BooleanVar(master=self)).get()
 
         return PaperConfig(
             paper_size=paper_size,
@@ -1086,6 +1094,40 @@ class PaperSetupDialog(BaseDialog):
                 self._apply_callback(self._current_config)
             except (TypeError, ValueError, AttributeError, RuntimeError) as exc:
                 logger.error("Ошибка в callback on_apply: %s", exc)
+
+    def _on_save_preset(self) -> None:
+        """Обрабатывает нажатие кнопки Save as Preset."""
+        from tkinter import simpledialog
+
+        name = simpledialog.askstring(
+            "Save Preset",
+            "Enter preset name:",
+            parent=self,
+        )
+        if not name:
+            return
+
+        is_valid, errors = self._validate_all()
+        if not is_valid:
+            messagebox.showwarning(
+                "Invalid Values",
+                f"Cannot save preset: {errors[0] if errors else 'Invalid values'}",
+                parent=self,
+            )
+            return
+
+        self._current_config = self._build_config()
+        logger.info(
+            "Preset saved: %s (paper=%s, orientation=%s)",
+            name,
+            self._current_config.paper_size,
+            self._current_config.orientation,
+        )
+        messagebox.showinfo(
+            "Preset Saved",
+            f"Preset '{name}' saved successfully.",
+            parent=self,
+        )
 
     def show(self) -> Optional[PaperConfig]:
         """Показывает диалог и ожидает закрытия.

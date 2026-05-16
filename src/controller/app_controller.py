@@ -11,8 +11,9 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
 
 from src.documents.printing.document_renderer import DocumentRenderer
@@ -200,7 +201,9 @@ class AppController:
         # Если путь не указан, показываем диалог
         if path is None:
             selected_path = OpenFileDialog.show(
-                parent=self._main_window.get_root() if self._main_window else None,
+                parent=cast(Optional[tk.Widget], self._main_window.get_root())
+                if self._main_window
+                else None,
             )
             if selected_path is None:
                 self._logger.debug("Диалог открытия отменён")
@@ -301,7 +304,9 @@ class AppController:
             initialfile = document.metadata.title if document else None
 
             selected_path = SaveFileDialog.show(
-                parent=self._main_window.get_root() if self._main_window else None,
+                parent=cast(Optional[tk.Widget], self._main_window.get_root())
+                if self._main_window
+                else None,
                 default_name=initialfile or "document.fxsd",
             )
             if selected_path is None:
@@ -334,7 +339,7 @@ class AppController:
 
         # Удаляем из MainWindow
         if self._main_window:
-            self._main_window.remove_document(document.id)
+            self._main_window.remove_document(str(document.id))
 
         # Закрываем через менеджер
         self._document_manager.close(document.id)
@@ -404,8 +409,13 @@ class AppController:
             self._notification.error("Печать", "Сервис печати недоступен")
             return False
 
+        if self._main_window is None:
+            return False
+        root = self._main_window.get_root()
+        if root is None:
+            return False
+
         document = controller.get_document()
-        theme = self._main_window.get_theme() if self._main_window else "classic_green"
 
         from src.documents.printing.document_renderer import DocumentRenderer
         from src.escp.commands import ESC_INIT_PRINTER
@@ -415,7 +425,7 @@ class AppController:
         renderer = DocumentRenderer()
 
         dialog = PrintDialog(
-            parent=self._main_window.get_root() if self._main_window else None,
+            parent=cast(tk.Widget, root),
             printer_manager=printer_manager,
             document=document,
             document_renderer=renderer,
@@ -468,15 +478,21 @@ class AppController:
             self._notification.warning("Предпросмотр", "Нет активного документа")
             return False
 
+        if self._main_window is None:
+            return False
+        root = self._main_window.get_root()
+        if root is None:
+            return False
+
         document = controller.get_document()
-        theme = self._main_window.get_theme() if self._main_window else "classic_green"
+        theme = self._main_window.get_theme()
 
         from src.documents.printing.document_renderer import DocumentRenderer
 
         renderer = DocumentRenderer()
 
         dialog = PrintPreviewDialog(
-            parent=self._main_window.get_root() if self._main_window else None,
+            parent=cast(tk.Widget, root),
             document=document,
             document_renderer=renderer,
             theme=theme,
@@ -534,7 +550,9 @@ class AppController:
 
         # Показываем диалог выбора пути
         selected_path = SaveFileDialog.show(
-            parent=self._main_window.get_root() if self._main_window else None,
+            parent=cast(Optional[tk.Widget], self._main_window.get_root())
+            if self._main_window
+            else None,
             default_name=str(default_path),
         )
         if selected_path is None:
@@ -578,21 +596,15 @@ class AppController:
         if unsaved:
             # Показываем диалог для каждого несохранённого документа
             for _doc_id, controller in unsaved:
-                document = controller.get_document()
-                name = document.metadata.title if document else "Без названия"
+                root = self._main_window.get_root() if self._main_window else None
+                result = SaveChangesDialog.show(parent=cast(Optional[tk.Widget], root))
 
-                dialog = SaveChangesDialog(
-                    parent=self._main_window.get_root() if self._main_window else None,
-                    document_name=name,
-                )
-                result = dialog.ask()
-
-                if result is True:
+                if result == "yes":
                     # Сохранить
                     if not controller.save():
                         self._notification.error("Ошибка", "Не удалось сохранить документ")
                         return False
-                elif result is False:
+                elif result == "no":
                     # Не сохранять - продолжаем
                     pass
                 else:
@@ -722,9 +734,6 @@ class AppController:
             return
 
         try:
-            theme = (
-                self._main_window.get_theme() if self._main_window is not None else "classic_green"
-            )
             dialog = PrintDialog(
                 parent=root,  # type: ignore[arg-type]
                 printer_manager=printer_manager,
@@ -842,18 +851,28 @@ class AppController:
         confirm_var = tk.StringVar(master=dialog)
 
         tk.Label(dialog, text="Текущий пароль:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(dialog, textvariable=old_var, show="*", width=25).grid(row=0, column=1, padx=10, pady=5)
+        tk.Entry(dialog, textvariable=old_var, show="*", width=25).grid(  # noqa: E501
+            row=0, column=1, padx=10, pady=5,
+        )
 
         tk.Label(dialog, text="Новый пароль:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(dialog, textvariable=new_var, show="*", width=25).grid(row=1, column=1, padx=10, pady=5)
+        tk.Entry(dialog, textvariable=new_var, show="*", width=25).grid(  # noqa: E501
+            row=1, column=1, padx=10, pady=5,
+        )
 
         tk.Label(dialog, text="Подтверждение:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(dialog, textvariable=confirm_var, show="*", width=25).grid(row=2, column=1, padx=10, pady=5)
+        tk.Entry(dialog, textvariable=confirm_var, show="*", width=25).grid(  # noqa: E501
+            row=2, column=1, padx=10, pady=5,
+        )
 
         result_label = tk.Label(dialog, text="", fg="blue")
         result_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5)
 
-        password_service = getattr(self._auth_service, "password_service", None) if self._auth_service else None
+        password_service = (
+            getattr(self._auth_service, "password_service", None)
+            if self._auth_service
+            else None
+        )
 
         def do_change() -> None:
             old_pw = old_var.get()
@@ -906,7 +925,21 @@ class AppController:
         from src.gui.dialogs.backup_codes_dialog import BackupCodesDialog
 
         root = self._main_window.get_root()
+        if root is None:
+            return
         dialog = BackupCodesDialog(parent=root, user_id=user_id)
+        dialog.show()
+
+    def _show_health_check_dialog(self) -> None:
+        """Показывает диалог проверки здоровья безопасности."""
+        if self._main_window is None:
+            return
+        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+
+        root = self._main_window.get_root()
+        if root is None:
+            return
+        dialog = HealthCheckDialog(parent=root)
         dialog.show()
 
     def _show_about_dialog(self) -> None:
@@ -916,6 +949,8 @@ class AppController:
         from tkinter import messagebox
 
         root = self._main_window.get_root()
+        if root is None:
+            return
         messagebox.showinfo(
             "О FX Text Processor 3",
             "FX Text Processor 3\nVersion: 3.0.0\n"
@@ -1148,9 +1183,18 @@ class AppController:
             self._show_about_dialog()
             return None
 
-        # ── Navigation / Structure ─────────────────────────────────────────
+        if action in ("text_changed", "format_toggled", "cursor_moved"):
+            # Editor event notifications — currently no-op at controller level
+            return None
+
         if action == "section_selected":
             self._logger.debug(f"Section selected: {kwargs.get('section_id')}")
+            return None
+        if action == "cpi_changed":
+            self._logger.debug(f"CPI changed: {kwargs.get('cpi')}")
+            return None
+        if action in ("sidebar_collapsed", "panel_collapsed", "sidebar_expanded", "panel_expanded"):
+            self._logger.debug(f"Panel event: {action}")
             return None
         if action == "tree_item_selected":
             self._logger.debug(f"Tree item selected: {kwargs.get('item_id')}")

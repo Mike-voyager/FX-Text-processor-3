@@ -26,6 +26,8 @@ from src.gui.renderers.free_form_renderer import (
     FreeFormDocument,
     FreeFormRenderer,
     MAX_TEXT_LENGTH,
+    PRINTER_FONT_CONFIG,
+    PrinterFontMode,
     TEXT_BG_COLOR,
     TEXT_FG_COLOR,
     VALID_CPI_INT,
@@ -770,6 +772,114 @@ class TestEmbeddedImages:
         renderer._cleanup()
 
         assert len(renderer._embedded_images) == 0
+
+
+# =============================================================================
+# TEST: Printer Font Mode
+# =============================================================================
+
+
+class TestPrinterFontMode:
+    """Тесты режимов шрифта принтера."""
+
+    def test_default_font_mode_is_draft(self, free_form_renderer: FreeFormRenderer) -> None:
+        """По умолчанию режим DRAFT."""
+        assert free_form_renderer._printer_font_mode == PrinterFontMode.DRAFT
+
+    def test_set_printer_font_mode_roman(self, free_form_renderer: FreeFormRenderer) -> None:
+        """set_printer_font_mode() переключает на ROMAN."""
+        free_form_renderer.set_printer_font_mode(PrinterFontMode.ROMAN)
+
+        assert free_form_renderer._printer_font_mode == PrinterFontMode.ROMAN
+        assert free_form_renderer._font_family == PRINTER_FONT_CONFIG[PrinterFontMode.ROMAN][0]
+
+    def test_set_printer_font_mode_sans_serif(self, free_form_renderer: FreeFormRenderer) -> None:
+        """set_printer_font_mode() переключает на SANS_SERIF."""
+        free_form_renderer.set_printer_font_mode(PrinterFontMode.SANS_SERIF)
+
+        assert free_form_renderer._printer_font_mode == PrinterFontMode.SANS_SERIF
+        assert free_form_renderer._font_family == PRINTER_FONT_CONFIG[PrinterFontMode.SANS_SERIF][0]
+
+    def test_set_printer_font_mode_invalid_raises(self, free_form_renderer: FreeFormRenderer) -> None:
+        """set_printer_font_mode() с невалидным режимом вызывает ValueError."""
+        with pytest.raises(ValueError, match="Недопустимый режим шрифта"):
+            free_form_renderer.set_printer_font_mode("invalid_mode")
+
+    def test_set_printer_font_mode_before_mount(self, tk_root: tk.Tk) -> None:
+        """set_printer_font_mode() работает до mount."""
+        renderer = FreeFormRenderer(widget_id="test_font_mode")
+        renderer.set_printer_font_mode(PrinterFontMode.ROMAN)
+        renderer.mount(tk_root)
+
+        assert renderer._font_family == PRINTER_FONT_CONFIG[PrinterFontMode.ROMAN][0]
+        renderer.unmount()
+
+    def test_printer_font_config_mapping(self) -> None:
+        """PRINTER_FONT_CONFIG содержит ожидаемые режимы."""
+        assert PrinterFontMode.DRAFT in PRINTER_FONT_CONFIG
+        assert PrinterFontMode.ROMAN in PRINTER_FONT_CONFIG
+        assert PrinterFontMode.SANS_SERIF in PRINTER_FONT_CONFIG
+
+    def test_is_valid_mode(self) -> None:
+        """PrinterFontMode.is_valid() распознаёт допустимые режимы."""
+        assert PrinterFontMode.is_valid(PrinterFontMode.DRAFT) is True
+        assert PrinterFontMode.is_valid(PrinterFontMode.ROMAN) is True
+        assert PrinterFontMode.is_valid(PrinterFontMode.SANS_SERIF) is True
+        assert PrinterFontMode.is_valid("invalid") is False
+
+
+# =============================================================================
+# TEST: CodepageValidator Integration
+# =============================================================================
+
+
+class TestCodepageValidatorIntegration:
+    """Тесты интеграции CodepageValidator в FreeFormRenderer."""
+
+    def test_set_text_replaces_invalid_chars(self, free_form_renderer: FreeFormRenderer) -> None:
+        """set_text() заменяет несовместимые с PC866 символы."""
+        free_form_renderer.set_text("ёлка — test")
+
+        text = free_form_renderer.get_text()
+        assert "ё" not in text
+        assert "—" not in text
+        assert text == "елка - test"
+
+    def test_insert_text_replaces_invalid_chars(self, free_form_renderer: FreeFormRenderer) -> None:
+        """insert_text() заменяет несовместимые с PC866 символы."""
+        free_form_renderer.set_text("Hello ")
+        free_form_renderer.insert_text("end", "мир—")
+
+        text = free_form_renderer.get_text()
+        assert "—" not in text
+        assert text == "Hello мир-"
+
+    def test_render_document_fixes_invalid_chars(self, free_form_renderer: FreeFormRenderer) -> None:
+        """render() применяет замены к содержимому документа."""
+        doc = FreeFormDocument(content="Ёлка №1", cpi=10)
+        free_form_renderer.render(doc)
+
+        text = free_form_renderer.get_text()
+        assert "Ё" not in text
+        assert "№" not in text
+        assert text == "Елка N1"
+
+    def test_paste_at_cursor_fixes_invalid_chars(self, free_form_renderer: FreeFormRenderer) -> None:
+        """paste_at_cursor() заменяет несовместимые символы."""
+        free_form_renderer.set_text("")
+        success = free_form_renderer.paste_at_cursor("€100")
+
+        assert success is True
+        text = free_form_renderer.get_text()
+        assert "€" not in text
+        assert text == "EUR100"
+
+    def test_valid_chars_preserved(self, free_form_renderer: FreeFormRenderer) -> None:
+        """Валидные PC866 символы не изменяются."""
+        original = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+        free_form_renderer.set_text(original)
+
+        assert free_form_renderer.get_text() == original
 
 
 if __name__ == "__main__":

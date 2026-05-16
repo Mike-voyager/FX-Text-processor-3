@@ -72,7 +72,7 @@ class TestToolbarSection:
         """Дублирующая кнопка вызывает ValueError."""
         section = ToolbarSection(widget_id="test_section")
         section.add_button("save", "💾", "Сохранить", lambda: None)
-        with pytest.raises(ValueError, match="уже существует"):
+        with pytest.raises(ValueError, match="already exists"):
             section.add_button("save", "💾", "Сохранить", lambda: None)
 
     def test_add_button_non_callable_raises(self) -> None:
@@ -91,7 +91,7 @@ class TestToolbarSection:
     def test_remove_unknown_button_raises(self) -> None:
         """Удаление несуществующей кнопки вызывает ValueError."""
         section = ToolbarSection(widget_id="test_section")
-        with pytest.raises(ValueError, match="не найдена"):
+        with pytest.raises(ValueError, match="not found"):
             section.remove_button("missing")
 
     def test_set_button_enabled(self, tk_root: tk.Tk) -> None:

@@ -114,7 +114,7 @@ class ExcelImportWidget(BaseFieldWidget):
     def _on_import_click(self) -> None:
         """Обработчик нажатия кнопки импорта."""
         file_path_str = filedialog.askopenfilename(
-            title="Выберите файл для импорта",
+            title="Select file to import",
             filetypes=[
                 ("Excel files", "*.xlsx *.xls"),
                 ("CSV files", "*.csv"),
@@ -150,9 +150,9 @@ class ExcelImportWidget(BaseFieldWidget):
                 return self._read_csv_columns(file_path)
             if suffix in (".xlsx", ".xls"):
                 return self._read_excel_columns(file_path)
-            messagebox.showerror("Ошибка", f"Неподдерживаемый формат файла: {suffix}")
+            messagebox.showerror("Error", f"Unsupported file format: {suffix}")
         except Exception as exc:  # noqa: BLE001
-            messagebox.showerror("Ошибка", f"Не удалось прочитать файл: {exc}")
+            messagebox.showerror("Error", f"Failed to read file: {exc}")
 
         return None
 
@@ -188,8 +188,8 @@ class ExcelImportWidget(BaseFieldWidget):
             import openpyxl
         except ImportError:
             messagebox.showerror(
-                "Ошибка",
-                "Для работы с Excel требуется установить openpyxl.",
+                "Error",
+                "openpyxl is required for Excel support.",
             )
             raise
 
@@ -212,18 +212,21 @@ class ExcelImportWidget(BaseFieldWidget):
             columns: Список имён колонок из файла.
         """
         if not columns:
-            messagebox.showwarning("Предупреждение", "Файл не содержит колонок.")
+            messagebox.showwarning("Warning", "File contains no columns.")
             return
 
         dialog = tk.Toplevel(self._parent)
-        dialog.title("Сопоставление колонок")
+        dialog.title("Column Mapping")
         top = self._parent.winfo_toplevel()
         dialog.transient(top)
-        dialog.grab_set()
+        try:
+            dialog.grab_set()
+        except tk.TclError:
+            pass
 
         tk.Label(
             dialog,
-            text="Доступные колонки:",
+            text="Available columns:",
             font=("TkDefaultFont", 10, "bold"),
         ).pack(anchor=tk.W, padx=8, pady=(8, 2))
 
@@ -236,7 +239,7 @@ class ExcelImportWidget(BaseFieldWidget):
 
         tk.Label(
             dialog,
-            text="Сопоставление:",
+            text="Mapping:",
             font=("TkDefaultFont", 10, "bold"),
         ).pack(anchor=tk.W, padx=8, pady=(0, 4))
 
@@ -247,7 +250,7 @@ class ExcelImportWidget(BaseFieldWidget):
 
             tk.Label(row, text=f"{field_id} →", font=("TkDefaultFont", 9)).pack(side=tk.LEFT)
 
-            var = tk.StringVar()
+            var = tk.StringVar(master=row)
             combo = ttk.Combobox(
                 row,
                 textvariable=var,
@@ -267,7 +270,7 @@ class ExcelImportWidget(BaseFieldWidget):
 
             if self._status_label is not None:
                 self._status_label.config(
-                    text=f"Импорт: {len(mapping)} полей сопоставлено",
+                    text=f"Import: {len(mapping)} fields mapped",
                     fg="green",
                 )
 

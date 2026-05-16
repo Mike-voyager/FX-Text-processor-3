@@ -28,6 +28,10 @@ from __future__ import annotations
 import tkinter as tk
 from typing import Final, Optional, Protocol, runtime_checkable
 
+__author__ = "FX Text Processor Team"
+__date__ = "April 2026"
+__version__ = "1.0"
+
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.events import BaseEvent
 from src.gui.core.exceptions import GUIError, LifecycleError
@@ -189,7 +193,8 @@ class MainLayout(BaseWidget):
             sash_callback=self._on_sash_changed,
             collapse_callback=self._on_collapse_changed,
         )
-        self._paned_layout.mount(self._content_frame)
+        paned_widget = self._paned_layout.mount(self._content_frame)
+        paned_widget.grid(row=0, column=0, sticky="nsew")
 
         return self._main_container
 
@@ -225,9 +230,9 @@ class MainLayout(BaseWidget):
         """
         self._ensure_mounted()
         if self._sidebar_widget is not None:
-            raise GUIError("Sidebar уже установлен")
+            raise GUIError("Sidebar already set")
         if self._paned_layout is None:
-            raise GUIError("PanedLayout не инициализирован")
+            raise GUIError("PanedLayout not initialized")
 
         self._sidebar_widget = widget
         self._paned_layout.add_left_panel(widget)
@@ -236,7 +241,6 @@ class MainLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="sidebar_set",
             )
             self._controller.dispatch("sidebar_set", event=event)
 
@@ -252,9 +256,9 @@ class MainLayout(BaseWidget):
         """
         self._ensure_mounted()
         if self._content_widget is not None:
-            raise GUIError("Content уже установлен")
+            raise GUIError("Content already set")
         if self._paned_layout is None:
-            raise GUIError("PanedLayout не инициализирован")
+            raise GUIError("PanedLayout not initialized")
 
         self._content_widget = widget
         self._paned_layout.add_right_panel(widget)
@@ -263,7 +267,6 @@ class MainLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="content_set",
             )
             self._controller.dispatch("content_set", event=event)
 
@@ -279,9 +282,9 @@ class MainLayout(BaseWidget):
         """
         self._ensure_mounted()
         if self._statusbar_widget is not None:
-            raise GUIError("StatusBar уже установлен")
+            raise GUIError("StatusBar already set")
         if self._statusbar_frame is None:
-            raise GUIError("StatusBar frame не инициализирован")
+            raise GUIError("StatusBar frame not initialized")
 
         self._statusbar_widget = widget
         self._statusbar_frame.rowconfigure(0, weight=1)
@@ -292,7 +295,6 @@ class MainLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="statusbar_set",
             )
             self._controller.dispatch("statusbar_set", event=event)
 
@@ -363,7 +365,7 @@ class MainLayout(BaseWidget):
         """
         self._ensure_mounted()
         if width < 0:
-            raise ValueError(f"Width должен быть неотрицательным, получен {width}")
+            raise ValueError(f"Width must be non-negative, got {width}")
         if self._paned_layout is None:
             return
 
@@ -443,7 +445,7 @@ class MainLayout(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="layout_operation",
-                message="MainLayout не смонтирован",
+                message="MainLayout not mounted",
             )
 
     def _get_container_width(self) -> int:
@@ -470,7 +472,6 @@ class MainLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="sidebar_resized",
             )
             self._controller.dispatch("sidebar_resized", event=event, ratio=ratio)
 
@@ -490,7 +491,6 @@ class MainLayout(BaseWidget):
             event_type = "sidebar_collapsed" if collapsed else "sidebar_expanded"
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type=event_type,
             )
             self._controller.dispatch(event_type, event=event)
 

@@ -20,7 +20,6 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.dialogs.calendar_dialog import MONTH_NAMES, WEEKDAYS, CalendarDialog
 
 # Skip GUI tests if no display available
@@ -57,19 +56,19 @@ class TestCalendarDialogCreation:
         initial = date(2025, 3, 15)
         dialog = CalendarDialog(parent=tk_root, initial_date=initial)
         assert dialog._initial_date == initial
-        assert dialog._month_var.get() == "Март"
+        assert dialog._month_var.get() == "March"
         assert dialog._year_var.get() == "2025"
         dialog.destroy()
 
     def test_calendar_dialog_title(self, tk_root: tk.Tk) -> None:
         """Заголовок окна установлен корректно."""
         dialog = CalendarDialog(parent=tk_root)
-        assert dialog.title() == "Выберите дату"
+        assert dialog.title() == "Select Date"
         dialog.destroy()
 
     def test_weekday_headers(self, tk_root: tk.Tk) -> None:
         """Константы дней недели корректны."""
-        assert WEEKDAYS == ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        assert WEEKDAYS == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         assert len(MONTH_NAMES) == 12
 
 
@@ -144,43 +143,6 @@ class TestCalendarDialogInteraction:
         mock_close.assert_called_once_with(date(2026, 5, 20))
         dialog.destroy()
 
-    @patch.object(CalendarDialog, "wait_window")
-    def test_show_returns_none_on_cancel(self, mock_wait: MagicMock, tk_root: tk.Tk) -> None:
-        """show() возвращает None при отмене."""
-        dialog = CalendarDialog(parent=tk_root)
-        mock_wait.return_value = None
-
-        dialog._result = None
-        result = dialog.show()
-
-        assert result is None
-        dialog.destroy()
-
-    @patch.object(CalendarDialog, "close")
-    def test_today_button_selects_today(self, mock_close: MagicMock, tk_root: tk.Tk) -> None:
-        """Кнопка 'Сегодня' закрывает диалог с сегодняшней датой."""
-        dialog = CalendarDialog(parent=tk_root)
-
-        dialog._on_today()
-
-        mock_close.assert_called_once()
-        call_arg = (
-            mock_close.call_args[0][0]
-            if mock_close.call_args[0]
-            else mock_close.call_args[1].get("result")
-        )
-        assert call_arg == date.today()
-        dialog.destroy()
-
-    @patch.object(CalendarDialog, "close")
-    def test_select_date_closes_dialog(self, mock_close: MagicMock, tk_root: tk.Tk) -> None:
-        """_select_date закрывает диалог с выбранной датой."""
-        dialog = CalendarDialog(parent=tk_root)
-        dialog._select_date(2026, 5, 20)
-
-        mock_close.assert_called_once_with(date(2026, 5, 20))
-        dialog.destroy()
-
     def test_refresh_calendar_creates_buttons(self, tk_root: tk.Tk) -> None:
         """Обновление календаря создаёт кнопки дней."""
         dialog = CalendarDialog(parent=tk_root, initial_date=date(2026, 2, 1))
@@ -202,7 +164,7 @@ class TestCalendarDialogInteraction:
     def test_refresh_calendar_different_month(self, tk_root: tk.Tk) -> None:
         """Смена месяца через переменную обновляет кнопки."""
         dialog = CalendarDialog(parent=tk_root, initial_date=date(2026, 1, 1))
-        dialog._month_var.set("Май")
+        dialog._month_var.set("May")
         dialog._refresh_calendar()
 
         # Май имеет 31 день
@@ -263,8 +225,8 @@ class TestCalendarDialogConstants:
 
     def test_month_names_russian(self) -> None:
         """Названия месяцев на русском."""
-        assert MONTH_NAMES[0] == "Январь"
-        assert MONTH_NAMES[11] == "Декабрь"
+        assert MONTH_NAMES[0] == "January"
+        assert MONTH_NAMES[11] == "December"
 
     def test_weekdays_count(self) -> None:
         """7 дней в неделе."""

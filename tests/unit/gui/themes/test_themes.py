@@ -369,7 +369,7 @@ class TestApplyToWidget:
         Expected:
             - TypeError при передаче не-виджета
         """
-        with pytest.raises(TypeError, match="widget должен быть tk.Widget"):
+        with pytest.raises(TypeError, match="widget должен быть tk.BaseWidget"):
             theme_manager.apply_to_widget("not a widget")  # type: ignore[arg-type]
 
     def test_apply_to_button(self, theme_manager: ThemeManager, tk_root: tk.Tk) -> None:

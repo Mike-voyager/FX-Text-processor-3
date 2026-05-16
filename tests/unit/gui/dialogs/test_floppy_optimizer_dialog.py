@@ -11,13 +11,13 @@ Version: 1.0
 from __future__ import annotations
 
 import sys
+import tkinter as tk
 import types
 from pathlib import Path
 from typing import Any, Generator, cast
 from unittest.mock import patch
 
 import pytest
-import tkinter as tk
 
 # Add src to path before importing
 project_root = Path("/home/Mike/Dev/FX-Text-processor/FX-Text-processor-3")
@@ -69,7 +69,7 @@ def large_data() -> bytes:
 def dialog_with_small_data(root: tk.Widget, small_data: bytes) -> Generator[Any, None, None]:
     """Фикстура для диалога с малыми данными."""
     dialog = FloppyOptimizerDialog(parent=root, template_data=small_data)
-    yield dialog  
+    yield dialog
     try:
         dialog.destroy()
     except tk.TclError:
@@ -80,7 +80,7 @@ def dialog_with_small_data(root: tk.Widget, small_data: bytes) -> Generator[Any,
 def dialog_with_large_data(root: tk.Widget, large_data: bytes) -> Generator[Any, None, None]:
     """Фикстура для диалога с большими данными."""
     dialog = FloppyOptimizerDialog(parent=root, template_data=large_data)
-    yield dialog  
+    yield dialog
     try:
         dialog.destroy()
     except tk.TclError:
@@ -172,7 +172,7 @@ class TestFloppyOptimizerDialogSizePanel:
 
         # Check that current size variable exists and contains data
         current_text = dialog._current_var.get()
-        assert "Current" in current_text or "размер" in current_text.lower()
+        assert "Current" in current_text
 
     def test_size_panel_shows_optimized(self, dialog_with_small_data: Any) -> None:
         """Отображение оптимизированного размера."""
@@ -180,7 +180,7 @@ class TestFloppyOptimizerDialogSizePanel:
 
         # Check that optimized size variable exists
         optimized_text = dialog._optimized_var.get()
-        assert "optimization" in optimized_text.lower() or "оптимизац" in optimized_text.lower() or "-" in optimized_text
+        assert "optimization" in optimized_text.lower() or "-" in optimized_text
 
     def test_savings_calculation(self, dialog_with_small_data: Any) -> None:
         """Расчёт экономии при оптимизации."""
@@ -188,7 +188,7 @@ class TestFloppyOptimizerDialogSizePanel:
 
         # Check savings variable
         savings_text = dialog._savings_var.get()
-        assert "Savings" in savings_text or "Экономия" in savings_text or "-" in savings_text
+        assert "Savings" in savings_text or "-" in savings_text
 
 
 @pytest.mark.gui

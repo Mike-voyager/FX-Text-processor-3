@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable, Final, Optional, Set, Tuple
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
+from src.gui.components.codepage_validator import CodepageValidator
 from src.gui.components.format_toolbar import FormatToolbar
 from src.gui.components.paper_visualization import (
     LineProperties,
@@ -76,10 +77,10 @@ TEXT_BG_COLOR: Final[str] = "white"
 """Фоновый цвет текстового поля."""
 
 TEXT_FG_COLOR: Final[str] = "black"
-"""Цвет текста."""
+"""Color текста."""
 
 TEXT_SELECT_BG: Final[str] = "#0078D7"
-"""Цвет выделения (Windows blue)."""
+"""Color выделения (Windows blue)."""
 
 MAX_TEXT_LENGTH: Final[int] = 100_000
 """Максимальная длина текста (security: DoS protection)."""
@@ -89,7 +90,7 @@ SHADOW_ROW_BG: Final[str] = "#f0f0f0"
 """Фоновый цвет shadow row (строка после double-height)."""
 
 SHADOW_ROW_FG: Final[str] = "#cccccc"
-"""Цвет текста shadow row."""
+"""Color текста shadow row."""
 
 # Subscript / Superscript offsets
 SUBSCRIPT_OFFSET: Final[int] = -3
@@ -100,6 +101,42 @@ SUPERSCRIPT_OFFSET: Final[int] = 3
 
 SCRIPT_FONT_DELTA: Final[int] = -2
 """Изменение размера шрифта для script (subscript/superscript)."""
+
+
+# =============================================================================
+# PRINTER FONT MODES (UI_SPEC §4.2)
+# =============================================================================
+
+
+class PrinterFontMode:
+    """Режимы шрифтов принтера FX-890.
+
+    | Режим | Шрифт в UI | ESC/P команда |
+    |-------|------------|---------------|
+    | DRAFT | Courier New 10cpi | ESC x 0 |
+    | ROMAN | Courier New Bold | ESC x 1 + ESC k 0 |
+    | SANS_SERIF | Arial Monospace | ESC x 1 + ESC k 1 |
+    """
+
+    DRAFT: Final[str] = "draft"
+    ROMAN: Final[str] = "roman"
+    SANS_SERIF: Final[str] = "sans_serif"
+
+    _VALID: Final[frozenset[str]] = frozenset({DRAFT, ROMAN, SANS_SERIF})
+
+    @classmethod
+    def is_valid(cls, mode: str) -> bool:
+        """Проверяет, является ли режим допустимым."""
+        return mode in cls._VALID
+
+
+# Mapping: mode -> (font_family, weight)
+PRINTER_FONT_CONFIG: Final[dict[str, Tuple[str, str]]] = {
+    PrinterFontMode.DRAFT: ("Courier New", "normal"),
+    PrinterFontMode.ROMAN: ("Courier New", "bold"),
+    PrinterFontMode.SANS_SERIF: ("Arial", "normal"),
+}
+
 
 # CPI to pixel width mapping (approximate for 96 DPI)
 CPI_PIXEL_WIDTH: Final[dict[int, int]] = {
@@ -259,6 +296,8 @@ class FreeFormRenderer(BaseWidget):
         # Font configuration
         self._font_family: str = DEFAULT_FONT_FAMILY
         self._font_size: int = 12
+        self._printer_font_mode: str = PrinterFontMode.DRAFT
+        self._codepage_validator = CodepageValidator()
 
         # Paper visualization
         self._paper_viz: Optional[PaperVisualizationWidget] = None
@@ -287,7 +326,7 @@ class FreeFormRenderer(BaseWidget):
         self._tk_frame = tk.Frame(parent, bg=TEXT_BG_COLOR)
 
         # Create text widget with monospace font
-        self._font_family = self._get_available_monospace_font()
+        self._font_family = self._resolve_font_family()
         font = (self._font_family, self._font_size)
 
         self._tk_text = tk.Text(
@@ -359,36 +398,42 @@ class FreeFormRenderer(BaseWidget):
 
         return self._tk_frame
 
-    def _get_available_monospace_font(self) -> str:
-        """Возвращает доступный monospace шрифт.
+    def _resolve_font_family(self) -> str:
+        """Возвращает шрифт для текущего режима принтера.
 
         Returns:
-            Имя доступного шрифта (Courier, Consolas или fallback).
+            Имя шрифта из PRINTER_FONT_CONFIG или DEFAULT_FONT_FAMILY.
         """
-        try:
-            # Try to use font module if available
-            available = (
-                self._tk_frame.winfo_toplevel().tk.call("font", "families")
-                if self._tk_frame
-                else []
-            )
-            font_families = [str(f).lower() for f in available]
+        config = PRINTER_FONT_CONFIG.get(self._printer_font_mode)
+        if config is None:
+            return DEFAULT_FONT_FAMILY
+        family, _weight = config
+        return family
 
-            if "courier" in font_families:
-                return "Courier"
-            elif "consolas" in font_families:
-                return "Consolas"
-            elif "monospace" in font_families:
-                return "Monospace"
-            elif "courier new" in font_families:
-                return "Courier New"
-        except (KeyError, AttributeError, tk.TclError) as e:
-            # Theme/UI error: log as WARNING and fallback
-            logging.getLogger(__name__).warning("Font lookup error: %s", e)
-        except Exception as e:
-            logging.getLogger(__name__).debug("Unexpected font lookup error: %s", e)
+    def set_printer_font_mode(self, mode: str) -> None:
+        """Устанавливает режим шрифта принтера и обновляет UI.
 
-        return DEFAULT_FONT_FAMILY
+        Args:
+            mode: Режим шрифта ("draft", "roman", "sans_serif").
+
+        Raises:
+            ValueError: Если режим недопустим.
+
+        Example:
+            >>> renderer.set_printer_font_mode(PrinterFontMode.ROMAN)
+        """
+        if not PrinterFontMode.is_valid(mode):
+            valid_modes = ", ".join(sorted(PrinterFontMode._VALID))
+            raise ValueError(f"Недопустимый режим шрифта: {mode}. Allowed: {valid_modes}")
+
+        self._printer_font_mode = mode
+        self._font_family = self._resolve_font_family()
+
+        if self._is_mounted and self._tk_text is not None:
+            self._tk_text.config(font=(self._font_family, self._font_size))
+            self._configure_format_tags()
+
+        logger.debug("Режим шрифта принтера изменён на: %s", mode)
 
     def _configure_format_tags(self) -> None:
         """Настраивает теги форматирования tk.Text.
@@ -752,14 +797,18 @@ class FreeFormRenderer(BaseWidget):
     def _handle_char_insert(self, char: str) -> None:
         """Обрабатывает вставку символа.
 
+        Валидирует символ на совместимость с PC866 и применяет
+        замены для несовместимых символов перед вставкой.
+
         Args:
             char: Символ для вставки.
         """
         if self._tk_text is None or self._command_stack is None:
             return
 
+        validated_char = self._codepage_validator.fix_all(char)
         cursor = self._tk_text.index(tk.INSERT)
-        cmd = InsertTextCommand(self._tk_text, char, cursor)
+        cmd = InsertTextCommand(self._tk_text, validated_char, cursor)
         self._command_stack.execute(cmd)
 
     # =============================================================================
@@ -814,7 +863,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="render",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._render_to_text_widget(document)
@@ -836,7 +885,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="display_document",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # SmartEdit: игнорируем внешние обновления во время редактирования
@@ -864,6 +913,7 @@ class FreeFormRenderer(BaseWidget):
 
         # Set text content
         safe_content = document.content[:MAX_TEXT_LENGTH]
+        safe_content = self._codepage_validator.fix_all(safe_content)
         self._tk_text.insert("1.0", safe_content)
         self._current_text = safe_content
 
@@ -954,7 +1004,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_editor_state",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         line, col = self.get_cursor_position()
@@ -1016,7 +1066,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_text",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         return self._tk_text.get("1.0", "end-1c")
@@ -1050,11 +1100,14 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_text",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Security: truncate long text
         safe_text = text[:MAX_TEXT_LENGTH]
+
+        # Validate PC866 compatibility
+        safe_text = self._codepage_validator.fix_all(safe_text)
 
         if self._command_stack is not None:
             # Clear current text via command
@@ -1091,7 +1144,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_cursor_position",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         idx = self._tk_text.index(tk.INSERT)
@@ -1116,11 +1169,11 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_cursor_position",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if line < 1 or column < 1:
-            raise ValueError("Строка и столбец должны быть >= 1")
+            raise ValueError("Строка и колонка должны быть >= 1")
 
         # tk.Text uses 0-based columns
         idx = f"{line}.{column - 1}"
@@ -1148,7 +1201,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_selection",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         try:
@@ -1178,13 +1231,14 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="insert_text",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._command_stack is None:
             raise RuntimeError("CommandStack not set")
 
         safe_text = text[:MAX_TEXT_LENGTH]
+        safe_text = self._codepage_validator.fix_all(safe_text)
         cmd = InsertTextCommand(self._tk_text, safe_text, position)
         self._command_stack.execute(cmd)
 
@@ -1208,7 +1262,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="delete_text",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._command_stack is None:
@@ -1231,7 +1285,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="insert_text_at_cursor",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._command_stack is None:
@@ -1443,7 +1497,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_cpi",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if cpi not in VALID_CPI_INT:
@@ -1499,13 +1553,14 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_format",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         valid_tags = {
             "bold",
             "italic",
             "underline",
+            "strikethrough",
             "bold_italic",
             "double_height",
             "subscript",
@@ -1540,7 +1595,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="remove_format",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._tk_text.tag_remove(tag, start, end)
@@ -1672,7 +1727,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_text_for_export",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         full_text = self._tk_text.get("1.0", "end-1c")
@@ -1745,7 +1800,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_formatting",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         formatting: list[FormatRange] = []
@@ -1788,7 +1843,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="wipe_sensitive_data",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Clear text
@@ -1822,7 +1877,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="hide_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._content_hidden:
@@ -1862,7 +1917,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="restore_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if not self._content_hidden:
@@ -1907,7 +1962,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_command",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Execute command through CommandStack
@@ -2058,7 +2113,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="focus",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._tk_text.focus_set()
@@ -2076,7 +2131,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="select_all",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._tk_text.tag_add(tk.SEL, "1.0", tk.END)
@@ -2096,7 +2151,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="clear_selection",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._tk_text.tag_remove(tk.SEL, "1.0", tk.END)
@@ -2119,7 +2174,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="copy_selection",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         selection = self.get_selection()
@@ -2176,7 +2231,7 @@ class FreeFormRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="paste_at_cursor",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._command_stack is None:
@@ -2230,4 +2285,6 @@ __all__: list[str] = [
     "FreeFormDocument",
     "FormatRange",
     "VALID_CPI_INT",
+    "PrinterFontMode",
+    "PRINTER_FONT_CONFIG",
 ]

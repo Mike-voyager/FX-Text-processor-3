@@ -126,7 +126,7 @@ class PerDocumentController:
         Returns:
             True если можно отменить последнее действие
         """
-        return self._command_history.can_undo()
+        return self._command_history.can_undo(self._document.id)
 
     def can_redo(self) -> bool:
         """Проверяет возможность повтора.
@@ -134,7 +134,7 @@ class PerDocumentController:
         Returns:
             True если можно повторить отменённое действие
         """
-        return self._command_history.can_redo()
+        return self._command_history.can_redo(self._document.id)
 
     def undo(self) -> bool:
         """Отменяет последнее действие.
@@ -335,7 +335,10 @@ class PerDocumentController:
         Returns:
             Список позиций найденных совпадений
         """
-        result = self._find_replace.find(text, **options)
+        from src.services.find_replace_service import SearchOptions
+
+        search_options = SearchOptions(**options)
+        result = self._find_replace.find(self._document, text, search_options)
         if result.success:
             return [m.start_offset for m in result.matches]
         return []
@@ -346,7 +349,7 @@ class PerDocumentController:
         Returns:
             Позиция следующего совпадения или None
         """
-        result = self._find_replace.find_next()
+        result = self._find_replace.find_next(self._document, "")
         if result.success and result.matches:
             return result.matches[0].start_offset
         return None
@@ -362,7 +365,12 @@ class PerDocumentController:
         Returns:
             Количество замен
         """
-        result = self._find_replace.replace_all(old_text, new_text, **options)
+        from src.services.find_replace_service import SearchOptions
+
+        search_options = SearchOptions(**options)
+        result = self._find_replace.replace_all(
+            self._document, old_text, new_text, search_options
+        )
         if result.replaced_count > 0:
             self._is_modified = True
         return result.replaced_count

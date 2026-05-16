@@ -14,19 +14,17 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.gui.dialogs.crypto_profile_dialog import (
     COLOR_ACCENT,
     COLOR_BG,
     COLOR_CARD_BG,
     COLOR_ERROR,
     COLOR_WARNING,
+    SECURITY_LEVELS,
     CryptoProfileDialog,
     ProfileSelectionResult,
-    SECURITY_LEVELS,
     show_crypto_profile_dialog,
 )
-from src.gui.security.mfa_gate import MFAResult
 from src.security.crypto.service.profiles import (
     CryptoProfile,
     get_profile_config,
@@ -179,7 +177,7 @@ class TestCryptoProfileDialogDowngrade:
         if dialog._warning_label is not None:
             warning_text = dialog._warning_label.cget("text")
             assert len(warning_text) > 0
-            assert "менее безопасен" in warning_text.lower() or "Внимание" in warning_text
+            assert "less secure" in warning_text.lower() or "Warning" in warning_text
 
         dialog.destroy()
 
@@ -264,7 +262,7 @@ class TestCryptoProfileDialogDetails:
         pq_widget = dialog._details_widgets.get("post_quantum")
         if pq_widget is not None:
             text = pq_widget.cget("text")
-            assert "Да" in text
+            assert "Yes" in text
 
         dialog.destroy()
 

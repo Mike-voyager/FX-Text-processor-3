@@ -19,12 +19,11 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
 from dataclasses import dataclass
-from typing import Optional, Final
+from tkinter import ttk
+from typing import Final, Optional
 
 from src.gui.dialogs.base_dialog import BaseDialog
-from src.model.enums import Alignment, LineSpacing
 
 logger: Final = logging.getLogger(__name__)
 
@@ -81,7 +80,7 @@ class ParagraphDialog(BaseDialog):
             current_space_before: Пробел до абзаца (mm).
             current_space_after: Пробел после абзаца (mm).
         """
-        super().__init__(parent, title="Настройка абзаца", modal=True)
+        super().__init__(parent, title="Paragraph Settings", modal=True)
 
         self._alignment_var = tk.StringVar(master=self, value=current_alignment)
         self._first_indent_var = tk.IntVar(master=self, value=current_first_indent)
@@ -106,7 +105,7 @@ class ParagraphDialog(BaseDialog):
         frame.pack(fill="both", expand=True)
 
         # Alignment
-        ttk.Label(frame, text="Выравнивание:").grid(row=0, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Alignment:").grid(row=0, column=0, sticky="w", pady=5)
         align_combo = ttk.Combobox(
             frame,
             textvariable=self._alignment_var,
@@ -117,26 +116,26 @@ class ParagraphDialog(BaseDialog):
         align_combo.grid(row=0, column=1, sticky="ew", pady=5)
 
         # Indents
-        indent_frame = ttk.LabelFrame(frame, text="Отступы", padding=10)
+        indent_frame = ttk.LabelFrame(frame, text="Indents", padding=10)
         indent_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=8)
 
-        ttk.Label(indent_frame, text="Первая строка (chars):").grid(row=0, column=0, sticky="w")
-        ttk.Spinbox(indent_frame, from_=0, to_=20, textvariable=self._first_indent_var, width=8).grid(
-            row=0, column=1, padx=5
-        )
+        ttk.Label(indent_frame, text="First line (chars):").grid(row=0, column=0, sticky="w")
+        ttk.Spinbox(
+            indent_frame, from_=0, to=20, textvariable=self._first_indent_var, width=8
+        ).grid(row=0, column=1, padx=5)
 
-        ttk.Label(indent_frame, text="Левый (chars):").grid(row=1, column=0, sticky="w")
-        ttk.Spinbox(indent_frame, from_=0, to_=20, textvariable=self._left_indent_var, width=8).grid(
+        ttk.Label(indent_frame, text="Left (chars):").grid(row=1, column=0, sticky="w")
+        ttk.Spinbox(indent_frame, from_=0, to=20, textvariable=self._left_indent_var, width=8).grid(
             row=1, column=1, padx=5
         )
 
-        ttk.Label(indent_frame, text="Правый (chars):").grid(row=2, column=0, sticky="w")
-        ttk.Spinbox(indent_frame, from_=0, to_=20, textvariable=self._right_indent_var, width=8).grid(
-            row=2, column=1, padx=5
-        )
+        ttk.Label(indent_frame, text="Right (chars):").grid(row=2, column=0, sticky="w")
+        ttk.Spinbox(
+            indent_frame, from_=0, to=20, textvariable=self._right_indent_var, width=8
+        ).grid(row=2, column=1, padx=5)
 
         # Line spacing
-        ttk.Label(frame, text="Межстрочный интервал:").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Line spacing:").grid(row=2, column=0, sticky="w", pady=5)
         ls_combo = ttk.Combobox(
             frame,
             textvariable=self._line_spacing_var,
@@ -147,16 +146,16 @@ class ParagraphDialog(BaseDialog):
         ls_combo.grid(row=2, column=1, sticky="ew", pady=5)
 
         # Spacing
-        space_frame = ttk.LabelFrame(frame, text="Пробелы", padding=10)
+        space_frame = ttk.LabelFrame(frame, text="Spacing", padding=10)
         space_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=8)
 
-        ttk.Label(space_frame, text="До (mm):").grid(row=0, column=0, sticky="w")
-        ttk.Spinbox(space_frame, from_=0, to_=50, textvariable=self._space_before_var, width=8).grid(
+        ttk.Label(space_frame, text="Before (mm):").grid(row=0, column=0, sticky="w")
+        ttk.Spinbox(space_frame, from_=0, to=50, textvariable=self._space_before_var, width=8).grid(
             row=0, column=1, padx=5
         )
 
-        ttk.Label(space_frame, text="После (mm):").grid(row=1, column=0, sticky="w")
-        ttk.Spinbox(space_frame, from_=0, to_=50, textvariable=self._space_after_var, width=8).grid(
+        ttk.Label(space_frame, text="After (mm):").grid(row=1, column=0, sticky="w")
+        ttk.Spinbox(space_frame, from_=0, to=50, textvariable=self._space_after_var, width=8).grid(
             row=1, column=1, padx=5
         )
 
@@ -165,7 +164,9 @@ class ParagraphDialog(BaseDialog):
         btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
 
         ttk.Button(btn_frame, text="OK", command=self._on_ok, width=12).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel, width=12).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel, width=12).pack(
+            side="left", padx=5
+        )
 
         frame.columnconfigure(1, weight=1)
 

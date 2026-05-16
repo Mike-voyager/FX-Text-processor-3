@@ -1,32 +1,58 @@
-"""Команды для вставки штрих-кодов и QR-кодов в tk.Text виджет.
+"""Команды для вставки штрих-кодов и QR-кодов в редактор.
 
-Реализует undo/redo поддержку для вставки:
-- InsertBarcodeCommand: вставка PhotoImage штрих-кода через image_create
-- InsertQRCommand: вставка PhotoImage QR-кода через image_create
-- InsertPlaceholderCommand: вставка текстового placeholder (wrapper над InsertTextCommand)
+Реализует паттерн Command для операций со штрих-кодами:
+- InsertBarcodeCommand: Вставка штрих-кода как изображения.
+- InsertQRCommand: Вставка QR-кода как изображения.
+- InsertPlaceholderCommand: Вставка текстового placeholder для штрих-кода.
 
 Security:
-    - Очистка ссылок на PhotoImage при undo для предотвращения утечек памяти
-    - Ограничение длины описания команды через MAX_DESCRIPTION_LENGTH
+    - marker_type и data обрезаются для защиты от DoS.
+    - Проверка типа виджета (должен быть tk.Text).
 
 Example:
-    >>> from src.gui.core.commands.barcode_commands import InsertBarcodeCommand
-    >>> cmd = InsertBarcodeCommand(text_widget, photo_image, "1.0")
-    >>> stack.execute(cmd)
-    >>> stack.undo()  # Удаляет изображение и очищает ссылку
+    >>> cmd = InsertPlaceholderCommand(text_widget, "QR", "https://example.com", "1.0")
+    >>> cmd.execute()
+    >>> cmd.undo()
 
 Version: 1.0
-Date: May 2026
+Date: April 2026
 """
 
 from __future__ import annotations
 
 import tkinter as tk
-import uuid
-from typing import Optional
+from typing import Final
 
 from src.gui.core.commands.command import Command
-from src.gui.core.commands.text_commands import InsertTextCommand
+
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+MAX_MARKER_TYPE_LENGTH: Final[int] = 20
+"""Максимальная длина типа маркера (security: DoS protection)."""
+
+MAX_DATA_LENGTH: Final[int] = 50
+"""Максимальная длина данных placeholder (security: DoS protection)."""
+
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+
+def _validate_text_widget(widget: tk.Text) -> None:
+    """Проверяет, что виджет является tk.Text.
+
+    Args:
+        widget: Виджет для проверки.
+
+    Raises:
+        ValueError: Если виджет не является экземпляром tk.Text.
+    """
+    if not isinstance(widget, tk.Text):
+        raise ValueError("Виджет должен быть tk.Text")
+
 
 # =============================================================================
 # INSERT BARCODE COMMAND
@@ -34,96 +60,70 @@ from src.gui.core.commands.text_commands import InsertTextCommand
 
 
 class InsertBarcodeCommand(Command):
-    """Команда вставки изображения штрих-кода в tk.Text виджет.
-
-    Создаёт встроенное изображение через image_create и поддерживает
-    undo/redo через удаление по сохранённым индексам.
+    """Команда вставки штрих-кода как изображения.
 
     Attributes:
-        _text_widget: Целевой tk.Text виджет.
-        _image: PhotoImage для вставки.
-        _position: Начальная позиция вставки (expression).
-        _name: Уникальное имя anchor изображения.
-        _start_index: Реальный индекс после выполнения.
-        _end_index: Конечный индекс для удаления (start + 1 char).
+        _text_widget: Виджет tk.Text.
+        _image: Изображение штрих-кода (tk.PhotoImage).
+        _index: Позиция вставки.
+        _start_index: Начальная позиция после вставки.
+        _end_index: Конечная позиция после вставки.
 
     Example:
-        >>> cmd = InsertBarcodeCommand(widget, photo, "1.0")
-        >>> stack.execute(cmd)
-        >>> stack.undo()  # Удаляет изображение
+        >>> cmd = InsertBarcodeCommand(text_widget, photo_image, "1.0")
+        >>> cmd.execute()
+        >>> cmd.undo()  # Удаляет изображение
     """
 
     def __init__(
         self,
         text_widget: tk.Text,
         image: tk.PhotoImage,
-        position: str,
+        index: str,
     ) -> None:
         """Инициализация команды вставки штрих-кода.
 
         Args:
-            text_widget: Целевой tk.Text виджет.
-            image: Сгенерированное PhotoImage.
-            position: Позиция вставки (например, "1.0" или tk.INSERT).
+            text_widget: Виджет tk.Text.
+            image: Изображение штрих-кода (tk.PhotoImage).
+            index: Позиция вставки.
 
         Raises:
             ValueError: Если text_widget не является tk.Text.
         """
-        if not isinstance(text_widget, tk.Text):
-            widget_type = type(text_widget).__name__
-            raise ValueError(f"text_widget должен быть tk.Text, получен {widget_type}")
-
-        super().__init__(description=f"Insert barcode image at {position}")
-
+        super().__init__("Insert barcode image")
+        _validate_text_widget(text_widget)
         self._text_widget: tk.Text = text_widget
-        self._image: Optional[tk.PhotoImage] = image
-        self._position: str = position
-        self._name: str = f"barcode_{uuid.uuid4().hex}"
-        self._start_index: Optional[str] = None
-        self._end_index: Optional[str] = None
+        self._image: tk.PhotoImage | None = image
+        self._index: str = index
+        self._start_index: str | None = None
+        self._end_index: str | None = None
 
     def execute(self) -> None:
-        """Выполняет вставку изображения штрих-кода.
-
-        Сохраняет реальный индекс вставки и конечный индекс для
-        последующего удаления при undo.
+        """Вставляет изображение штрих-кода в текстовый виджет.
 
         Side Effects:
-            - Вставляет image в _text_widget
-            - Устанавливает _start_index и _end_index
+            - Устанавливает _start_index и _end_index.
+            - Устанавливает _is_executed = True.
         """
-        super().execute()
-
-        assert self._image is not None, "PhotoImage не должен быть None при execute()"
-
-        # Разрешаем позицию в реальный индекс
-        self._start_index = self._text_widget.index(self._position)
-
-        self._text_widget.image_create(
-            self._start_index,
-            image=self._image,
-            name=self._name,
-        )
-
-        # Изображение занимает 1 символ
-        self._end_index = f"{self._start_index} + 1 chars"
+        self._start_index = self._index
+        assert self._image is not None
+        self._text_widget.image_create(self._index, image=self._image)
+        self._end_index = self._text_widget.index(f"{self._index} + 1 chars")
+        self._is_executed = True
 
     def undo(self) -> None:
-        """Отменяет вставку изображения штрих-кода.
-
-        Удаляет встроенное изображение по сохранённому диапазону
-        и очищает ссылку на PhotoImage для GC.
+        """Удаляет вставленное изображение.
 
         Raises:
-            RuntimeError: Если execute() не был вызван.
+            RuntimeError: Если команда не была выполнена.
         """
-        if self._start_index is None or self._end_index is None:
+        if not self._is_executed:
             raise RuntimeError("execute() должен быть вызван перед undo()")
-
-        super().undo()
-
-        self._text_widget.delete(self._start_index, self._end_index)
+        if self._start_index is not None and self._end_index is not None:
+            self._text_widget.delete(self._start_index, self._end_index)
         self._image = None
+        self._is_executed = False
 
 
 # =============================================================================
@@ -132,87 +132,70 @@ class InsertBarcodeCommand(Command):
 
 
 class InsertQRCommand(Command):
-    """Команда вставки изображения QR-кода в tk.Text виджет.
-
-    Аналогична InsertBarcodeCommand, но для QR-кодов.
+    """Команда вставки QR-кода как изображения.
 
     Attributes:
-        _text_widget: Целевой tk.Text виджет.
-        _image: PhotoImage для вставки.
-        _position: Начальная позиция вставки.
-        _name: Уникальное имя anchor изображения.
-        _start_index: Реальный индекс после выполнения.
-        _end_index: Конечный индекс для удаления.
+        _text_widget: Виджет tk.Text.
+        _image: Изображение QR-кода (tk.PhotoImage).
+        _index: Позиция вставки.
+        _start_index: Начальная позиция после вставки.
+        _end_index: Конечная позиция после вставки.
 
     Example:
-        >>> cmd = InsertQRCommand(widget, photo, "1.0")
-        >>> stack.execute(cmd)
-        >>> stack.undo()
+        >>> cmd = InsertQRCommand(text_widget, photo_image, "1.0")
+        >>> cmd.execute()
+        >>> cmd.undo()  # Удаляет QR изображение
     """
 
     def __init__(
         self,
         text_widget: tk.Text,
         image: tk.PhotoImage,
-        position: str,
+        index: str,
     ) -> None:
         """Инициализация команды вставки QR-кода.
 
         Args:
-            text_widget: Целевой tk.Text виджет.
-            image: Сгенерированное PhotoImage.
-            position: Позиция вставки.
+            text_widget: Виджет tk.Text.
+            image: Изображение QR-кода (tk.PhotoImage).
+            index: Позиция вставки.
 
         Raises:
             ValueError: Если text_widget не является tk.Text.
         """
-        if not isinstance(text_widget, tk.Text):
-            widget_type = type(text_widget).__name__
-            raise ValueError(f"text_widget должен быть tk.Text, получен {widget_type}")
-
-        super().__init__(description=f"Insert QR image at {position}")
-
+        super().__init__("Insert QR image")
+        _validate_text_widget(text_widget)
         self._text_widget: tk.Text = text_widget
-        self._image: Optional[tk.PhotoImage] = image
-        self._position: str = position
-        self._name: str = f"qr_{uuid.uuid4().hex}"
-        self._start_index: Optional[str] = None
-        self._end_index: Optional[str] = None
+        self._image: tk.PhotoImage | None = image
+        self._index: str = index
+        self._start_index: str | None = None
+        self._end_index: str | None = None
 
     def execute(self) -> None:
-        """Выполняет вставку изображения QR-кода.
+        """Вставляет изображение QR-кода в текстовый виджет.
 
         Side Effects:
-            - Вставляет image в _text_widget
-            - Устанавливает _start_index и _end_index
+            - Устанавливает _start_index и _end_index.
+            - Устанавливает _is_executed = True.
         """
-        super().execute()
-
-        assert self._image is not None, "PhotoImage не должен быть None при execute()"
-
-        self._start_index = self._text_widget.index(self._position)
-
-        self._text_widget.image_create(
-            self._start_index,
-            image=self._image,
-            name=self._name,
-        )
-
-        self._end_index = f"{self._start_index} + 1 chars"
+        self._start_index = self._index
+        assert self._image is not None
+        self._text_widget.image_create(self._index, image=self._image)
+        self._end_index = self._text_widget.index(f"{self._index} + 1 chars")
+        self._is_executed = True
 
     def undo(self) -> None:
-        """Отменяет вставку изображения QR-кода.
+        """Удаляет вставленное QR изображение.
 
         Raises:
-            RuntimeError: Если execute() не был вызван.
+            RuntimeError: Если команда не была выполнена.
         """
-        if self._start_index is None or self._end_index is None:
+        if not self._is_executed:
             raise RuntimeError("execute() должен быть вызван перед undo()")
-
-        super().undo()
-
-        self._text_widget.delete(self._start_index, self._end_index)
+        if self._start_index is not None and self._end_index is not None:
+            self._text_widget.delete(self._start_index, self._end_index)
         self._image = None
+        self._is_executed = False
 
 
 # =============================================================================
@@ -221,21 +204,19 @@ class InsertQRCommand(Command):
 
 
 class InsertPlaceholderCommand(Command):
-    """Команда вставки placeholder текста штрих-кода или QR-кода.
-
-    Обёртка над InsertTextCommand для вставки маркера вида
-    ┇BARCODE:TYPE:DATA┇ или ┇QR:DATA┇.
+    """Команда вставки текстового placeholder для штрих-кода.
 
     Attributes:
-        _text_widget: Целевой tk.Text виджет.
-        _placeholder_text: Текст placeholder для вставки.
-        _position: Позиция вставки.
-        _inner: Внутренняя команда InsertTextCommand.
+        _text_widget: Виджет tk.Text.
+        _marker_type: Тип маркера (например, "BARCODE:CODE128").
+        _data: Данные для штрих-кода.
+        _index: Позиция вставки.
+        _end_index: Конечная позиция после вставки.
 
     Example:
-        >>> cmd = InsertPlaceholderCommand(widget, "BARCODE", "CODE128", "123", "1.0")
-        >>> stack.execute(cmd)
-        >>> stack.undo()
+        >>> cmd = InsertPlaceholderCommand(text_widget, "QR", "https://example.com", "1.0")
+        >>> cmd.execute()
+        >>> cmd.undo()  # Удаляет placeholder
     """
 
     def __init__(
@@ -243,75 +224,62 @@ class InsertPlaceholderCommand(Command):
         text_widget: tk.Text,
         marker_type: str,
         data: str,
-        position: str,
+        index: str,
     ) -> None:
         """Инициализация команды вставки placeholder.
 
         Args:
-            text_widget: Целевой tk.Text виджет.
-            marker_type: Тип маркера ("BARCODE" или "QR").
-            data: Данные для кодирования.
-            position: Позиция вставки.
+            text_widget: Виджет tk.Text.
+            marker_type: Тип маркера (например, "BARCODE:CODE128").
+            data: Данные для штрих-кода.
+            index: Позиция вставки.
 
         Raises:
             ValueError: Если text_widget не является tk.Text.
         """
-        if not isinstance(text_widget, tk.Text):
-            widget_type = type(text_widget).__name__
-            raise ValueError(f"text_widget должен быть tk.Text, получен {widget_type}")
-
-        safe_marker = marker_type[:20]
-        safe_data = data[:50]
-        preview = f"┇{safe_marker}:{safe_data}┇"
-        super().__init__(description=f'Insert placeholder "{preview}" at {position}')
-
+        super().__init__(f"Insert placeholder {marker_type}")
+        _validate_text_widget(text_widget)
         self._text_widget: tk.Text = text_widget
-        self._marker_type: str = safe_marker
-        self._data: str = safe_data
-        self._position: str = position
-        self._inner: Optional[InsertTextCommand] = None
+        self._marker_type: str = marker_type[:MAX_MARKER_TYPE_LENGTH]
+        self._data: str = data[:MAX_DATA_LENGTH]
+        self._index: str = index
+        self._end_index: str | None = None
 
     def execute(self) -> None:
-        """Выполняет вставку placeholder текста.
+        """Вставляет placeholder текст в виджет.
 
-        Создаёт InsertTextCommand и выполняет её для вставки
-        маркера в текстовый виджет.
+        Формат: ┇{marker_type}:{data}┇
 
         Side Effects:
-            - Создаёт и выполняет внутреннюю InsertTextCommand
+            - Устанавливает _end_index.
+            - Устанавливает _is_executed = True.
         """
-        super().execute()
-
-        placeholder_text = f"┇{self._marker_type}:{self._data}┇"
-        self._inner = InsertTextCommand(
-            self._text_widget,
-            placeholder_text,
-            self._position,
-        )
-        self._inner.execute()
+        placeholder = f"┇{self._marker_type}:{self._data}┇"
+        self._text_widget.insert(self._index, placeholder)
+        self._end_index = self._text_widget.index(f"{self._index} + {len(placeholder)} chars")
+        self._is_executed = True
 
     def undo(self) -> None:
-        """Отменяет вставку placeholder текста.
-
-        Делегирует undo внутренней InsertTextCommand.
+        """Удаляет вставленный placeholder.
 
         Raises:
-            RuntimeError: Если execute() не был вызван.
+            RuntimeError: Если команда не была выполнена.
         """
-        if self._inner is None:
+        if not self._is_executed:
             raise RuntimeError("execute() должен быть вызван перед undo()")
-
-        super().undo()
-        self._inner.undo()
+        if self._end_index is not None:
+            self._text_widget.delete(self._index, self._end_index)
+        self._is_executed = False
 
 
 # =============================================================================
 # MODULE EXPORTS
 # =============================================================================
 
-
 __all__: list[str] = [
     "InsertBarcodeCommand",
     "InsertQRCommand",
     "InsertPlaceholderCommand",
+    "MAX_MARKER_TYPE_LENGTH",
+    "MAX_DATA_LENGTH",
 ]

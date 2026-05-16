@@ -11,13 +11,10 @@ Security: CRITICAL-002
 from __future__ import annotations
 
 from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 from src.gui.dialogs.auto_lock_settings_dialog import (
-    AutoLockSettingsDialog,
-    AutoLockSettingsResult,
     COLOR_ACCENT,
     COLOR_BG,
     COLOR_ERROR,
@@ -27,6 +24,8 @@ from src.gui.dialogs.auto_lock_settings_dialog import (
     DIALOG_WIDTH,
     IDLE_UPDATE_INTERVAL,
     TIMEOUT_PRESETS,
+    AutoLockSettingsDialog,
+    AutoLockSettingsResult,
 )
 from src.security.lock.session_lock_manager import LockConfig
 
@@ -84,7 +83,9 @@ class TestAutoLockSettingsDialogCreation:
         assert dialog._modified is False
         dialog.destroy()
 
-    def test_dialog_creation_with_service(self, root, default_config, mock_auto_lock_service) -> None:
+    def test_dialog_creation_with_service(
+        self, root, default_config, mock_auto_lock_service
+    ) -> None:
         """Проверка создания с auto_lock_service."""
         dialog = AutoLockSettingsDialog(
             parent=root,
@@ -108,12 +109,12 @@ class TestAutoLockSettingsDialogCreation:
     def test_timeout_presets(self) -> None:
         """Проверка пресетов таймаута."""
         assert len(TIMEOUT_PRESETS) == 6
-        assert TIMEOUT_PRESETS[0] == ("1 мин", 1)
+        assert TIMEOUT_PRESETS[0] == ("1 min", 1)
         assert TIMEOUT_PRESETS[1] == ("5", 5)
         assert TIMEOUT_PRESETS[2] == ("15", 15)
         assert TIMEOUT_PRESETS[3] == ("30", 30)
         assert TIMEOUT_PRESETS[4] == ("60", 60)
-        assert TIMEOUT_PRESETS[5] == ("Никогда", 0)
+        assert TIMEOUT_PRESETS[5] == ("Never", 0)
 
 
 class TestAutoLockSettingsDialogTimeoutSlider:
@@ -164,7 +165,7 @@ class TestAutoLockSettingsDialogTimeoutSlider:
         # Проверяем что метка обновлена
         if dialog._timeout_label is not None:
             text = dialog._timeout_label.cget("text")
-            assert "30" in text or "минут" in text
+            assert "30" in text or "minute" in text
 
         dialog.destroy()
 
@@ -176,11 +177,11 @@ class TestAutoLockSettingsDialogTimeoutSlider:
         )
 
         # Проверяем различные значения
-        assert dialog._format_timeout(0) == "Никогда"
-        assert dialog._format_timeout(1) == "1 минута"
-        assert dialog._format_timeout(2) == "2 минуты"
-        assert dialog._format_timeout(5) == "5 минут"
-        assert dialog._format_timeout(15) == "15 минут"
+        assert dialog._format_timeout(0) == "Never"
+        assert dialog._format_timeout(1) == "1 minute"
+        assert dialog._format_timeout(2) == "2 minutes"
+        assert dialog._format_timeout(5) == "5 minutes"
+        assert dialog._format_timeout(15) == "15 minutes"
 
         dialog.destroy()
 
@@ -430,7 +431,7 @@ class TestAutoLockSettingsDialogMFA:
         # Проверяем что предупреждение отображается
         if dialog._warning_label is not None:
             text = dialog._warning_label.cget("text")
-            assert "⚠️" in text or "Без MFA" in text
+            assert "⚠️" in text or "without MFA" in text
 
         dialog.destroy()
 
@@ -488,7 +489,7 @@ class TestAutoLockSettingsDialogIdle:
         # Проверяем что статус обновлён
         if dialog._status_label is not None:
             text = dialog._status_label.cget("text")
-            assert "Статус:" in text or "Активна" in text or "мин" in text
+            assert "Status:" in text or "Active" in text or "min" in text
 
         # Отменяем таймер
         if dialog._idle_timer_id is not None:
@@ -509,7 +510,7 @@ class TestAutoLockSettingsDialogIdle:
         # Проверяем что статус показывает "Сервис недоступен"
         if dialog._status_label is not None:
             text = dialog._status_label.cget("text")
-            assert "Сервис недоступен" in text or "Статус:" in text
+            assert "Service unavailable" in text or "Status:" in text
 
         # Отменяем таймер
         if dialog._idle_timer_id is not None:
@@ -647,7 +648,7 @@ class TestAutoLockSettingsDialogHelpers:
         # Проверяем что метка обновлена
         if dialog._timeout_label is not None:
             text = dialog._timeout_label.cget("text")
-            assert "45" in text or "минут" in text
+            assert "45" in text or "minute" in text
 
         dialog.destroy()
 

@@ -164,7 +164,7 @@ class PageSidebar(BaseWidget):
 
         self._header_label = tk.Label(
             header_frame,
-            text="Страницы",
+            text="Pages",
             bg="#d0d0d0",
             font=("Arial", 10, "bold"),
         )
@@ -202,7 +202,7 @@ class PageSidebar(BaseWidget):
 
         self._add_button = tk.Button(
             footer_frame,
-            text="+ Добавить",
+            text="+ Add",
             command=self._on_add_click,
             font=("Arial", 9),
         )
@@ -256,7 +256,7 @@ class PageSidebar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_pages",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._pages = list(pages)
@@ -275,7 +275,7 @@ class PageSidebar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="add_page",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._pages.append(page)
@@ -317,7 +317,7 @@ class PageSidebar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="select_page",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if not (0 <= index < len(self._pages)):
@@ -408,7 +408,7 @@ class PageSidebar(BaseWidget):
         # Page number label
         label = tk.Label(
             frame,
-            text=f"Стр. {index + 1}",
+            text=f"Pg. {index + 1}",
             bg=bg_color,
             fg=fg_color,
             font=("Arial", 8),
@@ -485,7 +485,7 @@ class PageSidebar(BaseWidget):
         Args:
             canvas: Canvas для рисования.
             profile: Профиль бумаги.
-            bg_color: Цвет фона.
+            bg_color: Color фона.
         """
         canvas.delete("all")
 
@@ -573,26 +573,26 @@ class PageSidebar(BaseWidget):
         """
         menu = tk.Menu(self._tk_frame, tearoff=0)
         menu.add_command(
-            label="Выбрать",
+            label="Select",
             command=lambda: self._on_thumbnail_click(index),
         )
         menu.add_separator()
         menu.add_command(
-            label="Дублировать",
+            label="Duplicate",
             command=lambda: self._on_page_duplicate_cb_call(index),
         )
         menu.add_command(
-            label="Удалить",
+            label="Delete",
             command=lambda: self._on_page_remove_cb_call(index),
         )
         menu.add_separator()
         menu.add_command(
-            label="Вверх",
+            label="Up",
             command=lambda: self._move_page_up(index),
             state=tk.NORMAL if index > 0 else tk.DISABLED,
         )
         menu.add_command(
-            label="Вниз",
+            label="Down",
             command=lambda: self._move_page_down(index),
             state=tk.NORMAL if index < len(self._pages) - 1 else tk.DISABLED,
         )

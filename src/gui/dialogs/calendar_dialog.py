@@ -22,21 +22,21 @@ from typing import Callable, Optional, cast
 from src.gui.dialogs.base_dialog import BaseDialog
 
 MONTH_NAMES: list[str] = [
-    "Январь",
-    "Февраль",
-    "Март",
-    "Апрель",
-    "Май",
-    "Июнь",
-    "Июль",
-    "Август",
-    "Сентябрь",
-    "Октябрь",
-    "Ноябрь",
-    "Декабрь",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ]
 
-WEEKDAYS: list[str] = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+WEEKDAYS: list[str] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 class CalendarDialog(BaseDialog):
@@ -75,7 +75,7 @@ class CalendarDialog(BaseDialog):
         toplevel = cast(tk.Widget, parent.winfo_toplevel())
         super().__init__(
             toplevel,
-            title="Выберите дату",
+            title="Select Date",
             modal=True,
             center_on_parent=True,
         )
@@ -98,11 +98,11 @@ class CalendarDialog(BaseDialog):
         header_frame = tk.Frame(self)
         header_frame.pack(fill=tk.X, pady=5)
 
-        tk.Label(header_frame, text="Месяц:").pack(side=tk.LEFT, padx=5)
+        tk.Label(header_frame, text="Month:").pack(side=tk.LEFT, padx=5)
         month_menu = tk.OptionMenu(header_frame, self._month_var, *MONTH_NAMES)
         month_menu.pack(side=tk.LEFT, padx=2)
 
-        tk.Label(header_frame, text="Год:").pack(side=tk.LEFT, padx=(10, 5))
+        tk.Label(header_frame, text="Year:").pack(side=tk.LEFT, padx=(10, 5))
         year_spin = tk.Spinbox(
             header_frame,
             from_=1900,
@@ -126,14 +126,14 @@ class CalendarDialog(BaseDialog):
             ).grid(row=0, column=i, padx=1, pady=1)
 
         # Кнопка обновления календаря
-        tk.Button(self, text="Обновить", command=self._refresh_calendar).pack(pady=2)
+        tk.Button(self, text="Refresh", command=self._refresh_calendar).pack(pady=2)
 
         # Нижние кнопки
         bottom_frame = tk.Frame(self)
         bottom_frame.pack(fill=tk.X, pady=5)
 
-        tk.Button(bottom_frame, text="Сегодня", command=self._on_today).pack(side=tk.LEFT, padx=5)
-        tk.Button(bottom_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT, padx=5)
+        tk.Button(bottom_frame, text="Today", command=self._on_today).pack(side=tk.LEFT, padx=5)
+        tk.Button(bottom_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT, padx=5)
 
     def _refresh_calendar(self) -> None:
         """Обновляет отображение календаря при изменении месяца/года."""

@@ -23,14 +23,14 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any, Callable, Final, Optional
 
-from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.gui.dialogs.base_dialog import BaseDialog
+from src.security.crypto.core.exceptions import AuthError, CryptoError
 
 # External deps
 try:
     import pyotp
 except ImportError:  # pragma: no cover
-    pyotp = None  # type: ignore
+    pyotp = None
 
 logger: Final = logging.getLogger(__name__)
 
@@ -490,7 +490,7 @@ class TOTPSetupDialog(BaseDialog):
                 # Save TOTP secret to KeyStore
                 self._save_totp_secret()
 
-                self.after(1000, self._complete_setup)
+                self._after_ids.append(self.after(1000, self._complete_setup))
             else:
                 self._show_error("Invalid code. Please try again.")
                 logger.warning("TOTP verification failed: invalid code")

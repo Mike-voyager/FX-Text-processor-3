@@ -64,7 +64,7 @@ RULER_FG_COLOR: Final[str] = "#333333"
 RULER_TICK_COLOR: Final[str] = "#666666"
 RULER_HIGHLIGHT_COLOR: Final[str] = "#0078d4"
 
-# Цвета маркеров табуляторов
+# Colorа маркеров табуляторов
 TAB_MARKER_COLOR: Final[str] = "#c41e3a"  # Красный для маркеров
 TAB_MARKER_ACTIVE_COLOR: Final[str] = "#0078d4"  # Синий для активного
 TAB_MARKER_HOVER_COLOR: Final[str] = "#ff6b6b"  # Светло-красный для hover
@@ -136,7 +136,7 @@ class Ruler(BaseWidget):
         super().__init__(widget_id=widget_id, controller=controller)
 
         if initial_cpi not in VALID_CPI_VALUES:
-            raise ValueError(f"Недопустимое значение CPI: {initial_cpi}")
+            raise ValueError(f"Invalid CPI value: {initial_cpi}")
 
         self._on_click = on_click
         self._on_tabs_changed = on_tabs_changed
@@ -676,7 +676,7 @@ class Ruler(BaseWidget):
 
         # Добавляем заголовок
         self._context_menu.add_command(
-            label=f"Табулятор: поз. {tab.position}",
+            label=f"Tab: pos. {tab.position}",
             state=tk.DISABLED,
         )
         self._context_menu.add_separator()
@@ -702,13 +702,13 @@ class Ruler(BaseWidget):
             )
 
         self._context_menu.add_cascade(
-            label="Изменить тип",
+            label="Change type",
             menu=type_menu,
         )
 
         self._context_menu.add_separator()
         self._context_menu.add_command(
-            label="Удалить",
+            label="Delete",
             command=lambda: self._delete_tab(tab),
         )
 
@@ -797,7 +797,6 @@ class Ruler(BaseWidget):
             except Exception as exc:
                 logger.exception("Ошибка в callback on_tabs_changed: %s", exc)
 
-
         # Отправляем через контроллер
         if self._controller is not None:
             self._controller.dispatch(
@@ -829,7 +828,7 @@ class Ruler(BaseWidget):
             >>> ruler.set_cpi(15)  # Condensed
         """
         if cpi not in VALID_CPI_VALUES:
-            raise ValueError(f"Недопустимое значение CPI: {cpi}")
+            raise ValueError(f"Invalid CPI value: {cpi}")
 
         if cpi == self._cpi:
             return
@@ -862,7 +861,7 @@ class Ruler(BaseWidget):
             >>> ruler.set_width_chars(132)  # Wide
         """
         if chars <= 0:
-            raise ValueError(f"Ширина должна быть положительной: {chars}")
+            raise ValueError(f"Width must be positive: {chars}")
 
         if chars == self._width_chars:
             return

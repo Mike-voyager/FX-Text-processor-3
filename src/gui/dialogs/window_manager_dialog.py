@@ -23,6 +23,7 @@ Date: April 11, 2026
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
@@ -35,6 +36,8 @@ from src.gui.services.sync_service import (
     SyncService,
 )
 from src.gui.services.window_manager import WindowInfo, WindowManager
+
+logger = logging.getLogger(__name__)
 
 # UI Constants
 DIALOG_WIDTH: Final[int] = 600
@@ -49,9 +52,9 @@ COLOR_BORDER: Final[str] = "#dee2e6"
 COLOR_TEXT: Final[str] = "#212529"
 
 # Window type labels
-WINDOW_TYPE_MAIN: Final[str] = "Главное окно"
-WINDOW_TYPE_DOCUMENT: Final[str] = "Документ"
-WINDOW_TYPE_DIALOG: Final[str] = "Диалог"
+WINDOW_TYPE_MAIN: Final[str] = "Main Window"
+WINDOW_TYPE_DOCUMENT: Final[str] = "Document"
+WINDOW_TYPE_DIALOG: Final[str] = "Dialog"
 
 
 class WindowManagerDialog(BaseDialog):
@@ -91,7 +94,7 @@ class WindowManagerDialog(BaseDialog):
             *args: Дополнительные аргументы для Toplevel.
             **kwargs: Дополнительные именованные аргументы.
         """
-        super().__init__(parent, *args, modal=True, **kwargs)
+        super().__init__(parent, *args, **kwargs)
 
         self._parent: tk.Tk = parent
         self._window_manager: WindowManager = window_manager
@@ -107,7 +110,7 @@ class WindowManagerDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна диалога."""
-        self.title("Window Manager")
+        self.title("Manage Windows")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -123,6 +126,7 @@ class WindowManagerDialog(BaseDialog):
         self.geometry(f"+{x}+{y}")
 
         # Bind ESC to close
+        self.bind("<Escape>", lambda _: self._close())
 
     def _setup_sync_subscription(self) -> None:
         """Настраивает подписку на обновления списка окон."""
@@ -140,7 +144,7 @@ class WindowManagerDialog(BaseDialog):
             message: Сообщение синхронизации.
         """
         # Обновляем список окон в главном потоке
-        self.after(0, self._load_window_list)
+        self._after_ids.append(self.after(0, self._load_window_list))
 
     def _create_ui(self) -> None:
         """Создаёт UI компоненты диалога."""
@@ -170,7 +174,7 @@ class WindowManagerDialog(BaseDialog):
         # Title
         title = ttk.Label(
             parent,
-            text="Window Manager",
+            text="Manage Windows",
             font=("Helvetica", 14, "bold"),
         )
         title.grid(row=0, column=0, sticky="w", pady=(0, 10))
@@ -182,7 +186,7 @@ class WindowManagerDialog(BaseDialog):
             parent: Родительский фрейм.
         """
         # Treeview frame with label
-        tree_frame = ttk.LabelFrame(parent, text="Open windows", padding="10")
+        tree_frame = ttk.LabelFrame(parent, text="Open windows:", padding="10")
         tree_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
@@ -198,9 +202,9 @@ class WindowManagerDialog(BaseDialog):
         )
 
         # Configure headings
-        self._tree.heading("title", text="Заголовок")
-        self._tree.heading("document", text="Документ")
-        self._tree.heading("type", text="Тип")
+        self._tree.heading("title", text="Title")
+        self._tree.heading("document", text="Document")
+        self._tree.heading("type", text="Type")
 
         # Configure column widths
         self._tree.column("title", width=200, minwidth=150)
@@ -229,16 +233,44 @@ class WindowManagerDialog(BaseDialog):
             parent: Родительский фрейм.
         """
         button_frame = ttk.Frame(parent)
-        button_frame.grid(row=2, column=0, sticky="ew")
+        button_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
         button_frame.columnconfigure(0, weight=1)
+
+        # Arrange section (per UI_SPEC §15.1)
+        arrange_frame = ttk.LabelFrame(button_frame, text="Arrange", padding="5")
+        arrange_frame.grid(row=0, column=0, sticky="w", padx=(0, 10))
+
+        ttk.Button(
+            arrange_frame,
+            text="Tile Horizontally",
+            command=self._tile_horizontal,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+        ttk.Button(
+            arrange_frame,
+            text="Tile Vertically",
+            command=self._tile_vertical,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+        ttk.Button(
+            arrange_frame,
+            text="Cascade",
+            command=self._cascade,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+        ttk.Button(
+            arrange_frame,
+            text="Minimize All",
+            command=self._minimize_all,
+        ).pack(side=tk.LEFT)
 
         # Left side - individual actions
         left_buttons = ttk.Frame(button_frame)
-        left_buttons.grid(row=0, column=0, sticky="w")
+        left_buttons.grid(row=1, column=0, sticky="w", pady=(10, 0))
 
         self._bring_to_front_button = ttk.Button(
             left_buttons,
-            text="⬆️ На передний план",
+            text="Bring to Front",
             command=self._bring_to_front,
             state=tk.DISABLED,
         )
@@ -246,7 +278,7 @@ class WindowManagerDialog(BaseDialog):
 
         self._minimize_button = ttk.Button(
             left_buttons,
-            text="🗕 Свернуть",
+            text="Minimize",
             command=self._minimize_selected,
             state=tk.DISABLED,
         )
@@ -254,35 +286,35 @@ class WindowManagerDialog(BaseDialog):
 
         self._close_button = ttk.Button(
             left_buttons,
-            text="❌ Закрыть",
+            text="Close",
             command=self._close_selected,
             state=tk.DISABLED,
         )
         self._close_button.pack(side=tk.LEFT)
 
-        # Middle - group operations
+        # Middle - group operations + New Window
         middle_buttons = ttk.Frame(button_frame)
-        middle_buttons.grid(row=0, column=1, sticky="ew", padx=(20, 0))
+        middle_buttons.grid(row=1, column=1, sticky="ew", padx=(20, 0), pady=(10, 0))
 
         ttk.Button(
             middle_buttons,
-            text="🗕 Свернуть все",
-            command=self._minimize_all,
+            text="New Window",
+            command=self._new_window,
         ).pack(side=tk.LEFT, padx=(0, 5))
 
         ttk.Button(
             middle_buttons,
-            text="🗙 Закрыть все кроме главного",
+            text="Close All Except Main",
             command=self._close_all_except_main,
         ).pack(side=tk.LEFT)
 
         # Right side - Close dialog button
         self._close_dialog_button = ttk.Button(
             button_frame,
-            text="Закрыть диалог",
+            text="Close",
             command=self._close,
         )
-        self._close_dialog_button.grid(row=0, column=2, sticky="e")
+        self._close_dialog_button.grid(row=1, column=2, sticky="e", pady=(10, 0))
 
     def _load_window_list(self) -> None:
         """Загружает и отображает список окон."""
@@ -294,10 +326,20 @@ class WindowManagerDialog(BaseDialog):
         self._current_selection = None
         self._update_button_states()
 
+        # Determine active window (highest z_order)
+        active_window_id: Optional[str] = None
+        if self._window_list:
+            active_window_id = max(
+                self._window_list, key=lambda w: getattr(w, "z_order", 0)
+            ).window_id
+
         # Populate treeview
         for window_info in self._window_list:
             window_type = self._get_window_type(window_info)
             document = self._get_document_display(window_info)
+            title = window_info.title
+            if window_info.window_id == active_window_id:
+                title = f"{title} (active)"
 
             # Use window_id as iid for easy lookup
             self._tree.insert(
@@ -305,7 +347,7 @@ class WindowManagerDialog(BaseDialog):
                 tk.END,
                 iid=window_info.window_id,
                 values=(
-                    window_info.title,
+                    title,
                     document,
                     window_type,
                 ),
@@ -411,8 +453,8 @@ class WindowManagerDialog(BaseDialog):
         # Don't allow closing the main window via this dialog
         if self._window_manager.is_main_window(self._current_selection):
             messagebox.showwarning(
-                "Невозможно закрыть",
-                "Главное окно нельзя закрыть через менеджер окон.",
+                "Cannot Close",
+                "Main window cannot be closed via Window Manager.",
                 parent=self,
             )
             return
@@ -436,14 +478,30 @@ class WindowManagerDialog(BaseDialog):
         """Закрывает все окна кроме главного."""
         # Ask for confirmation
         result = messagebox.askyesno(
-            "Подтверждение",
-            "Закрыть все окна кроме главного?\nНесохранённые изменения будут потеряны.",
+            "Confirmation",
+            "Close all windows except main?\nUnsaved changes will be lost.",
             parent=self,
         )
         if result:
             count = self._window_manager.close_all_except_main()
             if count > 0:
                 self._load_window_list()  # Refresh the list
+
+    def _tile_horizontal(self) -> None:
+        """Располагает окна горизонтально (stub)."""
+        logger.info("Tile Horizontally requested")
+
+    def _tile_vertical(self) -> None:
+        """Располагает окна вертикально (stub)."""
+        logger.info("Tile Vertically requested")
+
+    def _cascade(self) -> None:
+        """Каскадное расположение окон (stub)."""
+        logger.info("Cascade requested")
+
+    def _new_window(self) -> None:
+        """Создаёт новое окно (stub)."""
+        logger.info("New Window requested")
 
     def _close(self) -> None:
         """Закрывает диалог."""

@@ -31,8 +31,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Optional, Protocol, Type, TypeVar, cast
 
-from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.security.audit import AuditEventType, AuditLog
+from src.security.crypto.core.exceptions import AuthError, CryptoError
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -217,10 +217,12 @@ class MFAMethodSelectorDialog(tk.Toplevel):
         self._status_label: Optional[tk.Label] = None
         self._method_var: tk.StringVar = tk.StringVar(value=MFAMethod.TOTP.value)
         self._verify_btn: Optional[tk.Button] = None
+        self._after_ids: list[str] = []
 
         self._setup_window(parent)
         self._create_ui()
         self._center_window(parent)
+        self.bind("<Destroy>", lambda _e: self._cancel_afters(), add=True)
 
     # ------------------------------------------------------------------
     # Window setup
@@ -232,7 +234,10 @@ class MFAMethodSelectorDialog(tk.Toplevel):
         self.transient(cast(tk.Wm, parent))
         self.resizable(False, False)
         self.configure(bg=COLOR_BG)
-        self.grab_set()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
 
     def _center_window(self, parent: tk.Widget) -> None:
         """Центрирует окно относительно родителя."""
@@ -272,7 +277,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
         # Description
         desc = tk.Label(
             main_frame,
-            text="Для выполнения операции требуется MFA верификация.",
+            text="MFA verification is required for this operation.",
             font=("Arial", 9),
             bg=COLOR_BG,
             fg="#666666",
@@ -307,7 +312,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
         """Создаёт селектор метода MFA."""
         method_frame = tk.LabelFrame(
             parent,
-            text=" Метод верификации ",
+            text=" Verification method ",
             bg=COLOR_BG,
             fg="#333333",
             font=("Arial", 9, "bold"),
@@ -341,7 +346,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         fido2_hint = tk.Label(
             fido2_frame,
-            text="(требуется устройство)",
+            text="(device required)",
             font=("Arial", 8, "italic"),
             bg=COLOR_BG,
             fg=COLOR_DISABLED,
@@ -364,7 +369,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         totp_label = tk.Label(
             totp_frame,
-            text="TOTP (6-значный код)",
+            text="TOTP (6-digit code)",
             font=("Arial", 9),
             bg=COLOR_BG,
             fg="#333333",
@@ -387,7 +392,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         backup_label = tk.Label(
             backup_frame,
-            text="Резервный код",
+            text="Backup Code",
             font=("Arial", 9),
             bg=COLOR_BG,
             fg="#333333",
@@ -401,7 +406,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         self._code_label = tk.Label(
             entry_frame,
-            text="Введите 6-значный код:",
+            text="Enter 6-digit code:",
             font=("Arial", 9),
             bg=COLOR_BG,
             fg="#333333",
@@ -428,7 +433,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         cancel_btn = tk.Button(
             btn_frame,
-            text="Отмена",
+            text="Cancel",
             width=12,
             command=self._on_cancel,
             font=("Arial", 9),
@@ -437,7 +442,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         self._verify_btn = tk.Button(
             btn_frame,
-            text="Подтвердить",
+            text="Confirm",
             width=12,
             command=self._on_verify,
             font=("Arial", 9, "bold"),
@@ -457,9 +462,9 @@ class MFAMethodSelectorDialog(tk.Toplevel):
 
         if self._code_label is not None:
             if method == MFAMethod.TOTP.value:
-                self._code_label.config(text="Введите 6-значный код:")
+                self._code_label.config(text="Enter 6-digit code:")
             else:
-                self._code_label.config(text="Введите резервный код (XXXX-XXXX):")
+                self._code_label.config(text="Enter backup code (XXXX-XXXX):")
 
         if self._status_label is not None:
             self._status_label.config(text="")
@@ -521,7 +526,7 @@ class MFAMethodSelectorDialog(tk.Toplevel):
             logger.warning("Failed to mark MFA satisfied: %s", e)
 
         self._show_success("Верификация успешна!")
-        self.after(500, self.destroy)
+        self._after_ids.append(self.after(500, self.destroy))
 
     def _on_cancel(self) -> None:
         """Обработчик отмены."""
@@ -531,6 +536,23 @@ class MFAMethodSelectorDialog(tk.Toplevel):
             error_message="MFA verification cancelled",
         )
         self.destroy()
+
+    def _cancel_afters(self) -> None:
+        """Отменяет все зарегистрированные after() таймеры."""
+        for after_id in self._after_ids:
+            try:
+                self.after_cancel(after_id)
+            except tk.TclError:
+                pass
+        self._after_ids.clear()
+
+    def destroy(self) -> None:
+        """Уничтожает окно с отменой таймеров."""
+        self._cancel_afters()
+        try:
+            super().destroy()
+        except tk.TclError:
+            pass
 
     def _show_error(self, message: str) -> None:
         """Показывает сообщение об ошибке."""
@@ -652,7 +674,11 @@ class MFAGate:
             try:
                 self._auth_service.mark_mfa_satisfied()
             except (AuthError, CryptoError) as e:
-                logger.critical("Failed to mark MFA satisfied (security error): %s", e, exc_info=True)
+                logger.critical(
+                    "Failed to mark MFA satisfied (security error): %s",
+                    e,
+                    exc_info=True,
+                )
             except Exception as e:
                 logger.warning("Failed to mark MFA satisfied: %s", e, exc_info=True)
             self._log_mfa_success(

@@ -45,7 +45,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -63,20 +63,20 @@ MAX_MARGIN_MM: Final[float] = 500.0
 NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[\d]+\.?\d*$")
 
 ORIENTATION_DISPLAY: Final[Dict[Orientation, str]] = {
-    Orientation.PORTRAIT: "Книжная (Portrait)",
-    Orientation.LANDSCAPE: "Альбомная (Landscape)",
+    Orientation.PORTRAIT: "Portrait",
+    Orientation.LANDSCAPE: "Landscape",
 }
 
 PAPER_SIZE_DISPLAY: Final[Dict[PaperSize, str]] = {
-    PaperSize.A4: "A4 (210×297 мм)",
-    PaperSize.A3: "A3 (297×420 мм)",
-    PaperSize.LETTER: "Letter (8.5×11 дюймов)",
-    PaperSize.LEGAL: "Legal (8.5×14 дюймов)",
-    PaperSize.TRACTOR_FULL: "Tractor Full (210×305 мм)",
-    PaperSize.TRACTOR_HALF: "Tractor Half (210×152.5 мм)",
-    PaperSize.TRACTOR_TRIPLET: "Tractor Triplet (210×101.6 мм)",
-    PaperSize.ENVELOPE_DL: "Envelope DL (110×220 мм)",
-    PaperSize.ENVELOPE_C5: "Envelope C5 (162×229 мм)",
+    PaperSize.A4: "A4 (210×297 mm)",
+    PaperSize.A3: "A3 (297×420 mm)",
+    PaperSize.LETTER: "Letter (8.5×11 inches)",
+    PaperSize.LEGAL: "Legal (8.5×14 inches)",
+    PaperSize.TRACTOR_FULL: "Tractor Full (210×305 mm)",
+    PaperSize.TRACTOR_HALF: "Tractor Half (210×152.5 mm)",
+    PaperSize.TRACTOR_TRIPLET: "Tractor Triplet (210×101.6 mm)",
+    PaperSize.ENVELOPE_DL: "Envelope DL (110×220 mm)",
+    PaperSize.ENVELOPE_C5: "Envelope C5 (162×229 mm)",
 }
 
 LINE_SPACING_DISPLAY: Final[List[str]] = [
@@ -213,7 +213,7 @@ class PageSetupDialog(BaseDialog):
         initial_config: Optional[PageSetupConfig] = None,
         paper_format_service: Optional[PaperFormatService] = None,
         on_apply: Optional[Callable[[PageSetupConfig], None]] = None,
-        title: str = "Настройка страницы",
+        title: str = "Page Setup",
     ) -> None:
         """Инициализация диалога.
 
@@ -267,12 +267,12 @@ class PageSetupDialog(BaseDialog):
     def _create_margins_tab(self) -> None:
         """Создаёт вкладку 'Отступы' (Margins)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Отступы")
+        self._notebook.add(tab, text="Margins")
 
         self._create_validated_entry(
             tab,
             row=0,
-            label="Верхнее поле (мм):",
+            label="Top Margin (mm):",
             var_name="top_margin",
             default=str(self._current_config.top_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -281,7 +281,7 @@ class PageSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=1,
-            label="Нижнее поле (мм):",
+            label="Bottom Margin (mm):",
             var_name="bottom_margin",
             default=str(self._current_config.bottom_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -290,7 +290,7 @@ class PageSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=2,
-            label="Левое поле (мм):",
+            label="Left Margin (mm):",
             var_name="left_margin",
             default=str(self._current_config.left_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -299,7 +299,7 @@ class PageSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=3,
-            label="Правое поле (мм):",
+            label="Right Margin (mm):",
             var_name="right_margin",
             default=str(self._current_config.right_margin_mm),
             validator=lambda v: validate_positive_float(v, MIN_MARGIN_MM, MAX_MARGIN_MM),
@@ -308,12 +308,12 @@ class PageSetupDialog(BaseDialog):
         preset_frame = tk.Frame(tab)
         preset_frame.grid(row=4, column=0, columnspan=3, pady=PADDING_LARGE)
 
-        tk.Label(preset_frame, text="Пресеты:").pack(side=tk.LEFT, padx=(0, PADDING_NORMAL))
+        tk.Label(preset_frame, text="Presets:").pack(side=tk.LEFT, padx=(0, PADDING_NORMAL))
 
         presets = [
-            ("Минимум", "2", "2", "2", "2"),
-            ("Стандарт", "20", "20", "20", "20"),
-            ("Широкие", "30", "30", "30", "30"),
+            ("Minimum", "2", "2", "2", "2"),
+            ("Standard", "20", "20", "20", "20"),
+            ("Wide", "30", "30", "30", "30"),
         ]
 
         def make_preset_handler(
@@ -335,12 +335,12 @@ class PageSetupDialog(BaseDialog):
     def _create_paper_tab(self) -> None:
         """Создаёт вкладку 'Бумага' (Paper)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Бумага")
+        self._notebook.add(tab, text="Paper")
 
         self._create_labeled_dropdown(
             tab,
             row=0,
-            label="Размер бумаги:",
+            label="Paper Size:",
             var_name="paper_size",
             options=list(PAPER_SIZE_DISPLAY.values()),
             default=PAPER_SIZE_DISPLAY.get(
@@ -351,7 +351,7 @@ class PageSetupDialog(BaseDialog):
         self._create_labeled_dropdown(
             tab,
             row=1,
-            label="Ориентация:",
+            label="Orientation:",
             var_name="orientation",
             options=list(ORIENTATION_DISPLAY.values()),
             default=ORIENTATION_DISPLAY.get(
@@ -362,12 +362,12 @@ class PageSetupDialog(BaseDialog):
     def _create_layout_tab(self) -> None:
         """Создаёт вкладку 'Макет' (Layout)."""
         tab = tk.Frame(self._notebook, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
-        self._notebook.add(tab, text="Макет")
+        self._notebook.add(tab, text="Layout")
 
         self._create_labeled_dropdown(
             tab,
             row=0,
-            label="Межстрочный интервал:",
+            label="Line Spacing:",
             var_name="line_spacing",
             options=LINE_SPACING_DISPLAY,
             default=LINE_SPACING_DISPLAY[self._current_config.line_spacing_index]
@@ -378,7 +378,7 @@ class PageSetupDialog(BaseDialog):
         self._create_validated_entry(
             tab,
             row=1,
-            label="Пропуск перфорации (строк):",
+            label="Skip Perforation (lines):",
             var_name="skip_perforation",
             default=str(self._current_config.skip_perforation),
             validator=self._validate_skip_perforation,
@@ -480,7 +480,7 @@ class PageSetupDialog(BaseDialog):
         return entry
 
     def _create_buttons(self, parent: tk.Widget) -> None:
-        """Создаёт кнопки OK, Cancel, Apply.
+        """Создаёт кнопки OK, Cancel, Apply, Default.
 
         Args:
             parent: Родительский виджет.
@@ -493,10 +493,13 @@ class PageSetupDialog(BaseDialog):
         ok_btn = tk.Button(btn_frame, text="OK", width=10, command=self._on_ok)
         ok_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
-        cancel_btn = tk.Button(btn_frame, text="Отмена", width=10, command=self._on_cancel)
+        cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=self._on_cancel)
         cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
-        apply_btn = tk.Button(btn_frame, text="Применить", width=10, command=self._on_apply_clicked)
+        default_btn = tk.Button(btn_frame, text="Default", width=10, command=self._on_default)
+        default_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
+
+        apply_btn = tk.Button(btn_frame, text="Apply", width=10, command=self._on_apply_clicked)
         apply_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
     def _create_preview_canvas(self, parent: tk.Widget) -> None:
@@ -505,7 +508,7 @@ class PageSetupDialog(BaseDialog):
         Args:
             parent: Родительский виджет.
         """
-        frame = tk.LabelFrame(parent, text="Превью", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
+        frame = tk.LabelFrame(parent, text="Preview", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
         frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
         self._preview_canvas = tk.Canvas(
@@ -547,8 +550,8 @@ class PageSetupDialog(BaseDialog):
         width_mm = self._current_config.paper_size.width_mm
         height_mm = self._current_config.paper_size.height_mm
 
-        orientation_display = self._vars.get("orientation", tk.StringVar()).get()
-        if "Альбомная" in orientation_display or "Landscape" in orientation_display:
+        orientation_display = self._vars.get("orientation", tk.StringVar(master=self)).get()
+        if "Landscape" in orientation_display:
             width_mm, height_mm = height_mm, width_mm
 
         canvas_w = 440
@@ -567,23 +570,17 @@ class PageSetupDialog(BaseDialog):
         cx = (canvas_w - rect_w) / 2
         cy = (canvas_h - rect_h) / 2
 
-        top_val = self._vars.get("top_margin", tk.StringVar()).get()
-        bottom_val = self._vars.get("bottom_margin", tk.StringVar()).get()
-        left_val = self._vars.get("left_margin", tk.StringVar()).get()
-        right_val = self._vars.get("right_margin", tk.StringVar()).get()
+        top_val = self._vars.get("top_margin", tk.StringVar(master=self)).get()
+        bottom_val = self._vars.get("bottom_margin", tk.StringVar(master=self)).get()
+        left_val = self._vars.get("left_margin", tk.StringVar(master=self)).get()
+        right_val = self._vars.get("right_margin", tk.StringVar(master=self)).get()
 
-        top_m = (
-            validate_positive_float(top_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
-        ) * scale
+        top_m = (validate_positive_float(top_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0) * scale
         bottom_m = (
             validate_positive_float(bottom_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
         ) * scale
-        left_m = (
-            validate_positive_float(left_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
-        ) * scale
-        right_m = (
-            validate_positive_float(right_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0
-        ) * scale
+        left_m = (validate_positive_float(left_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0) * scale
+        right_m = (validate_positive_float(right_val, MIN_MARGIN_MM, MAX_MARGIN_MM) or 0.0) * scale
 
         self._preview_canvas.create_rectangle(
             cx, cy, cx + rect_w, cy + rect_h, outline=_theme_color("tab_border"), width=2
@@ -627,17 +624,15 @@ class PageSetupDialog(BaseDialog):
         Returns:
             Сконфигурированный PageSetupConfig.
         """
-        paper_size_display = self._vars.get("paper_size", tk.StringVar()).get()
+        paper_size_display = self._vars.get("paper_size", tk.StringVar(master=self)).get()
         paper_size = next(
             (ps for ps, display in PAPER_SIZE_DISPLAY.items() if display == paper_size_display),
             PaperSize.A4,
         )
 
-        orientation_display = self._vars.get("orientation", tk.StringVar()).get()
+        orientation_display = self._vars.get("orientation", tk.StringVar(master=self)).get()
         orientation = (
-            Orientation.LANDSCAPE
-            if "Альбомная" in orientation_display or "Landscape" in orientation_display
-            else Orientation.PORTRAIT
+            Orientation.LANDSCAPE if "Landscape" in orientation_display else Orientation.PORTRAIT
         )
 
         def get_float(var_name: str, default: float) -> float:
@@ -653,13 +648,13 @@ class PageSetupDialog(BaseDialog):
         left_margin = get_float("left_margin", self._current_config.left_margin_mm)
         right_margin = get_float("right_margin", self._current_config.right_margin_mm)
 
-        line_spacing_display = self._vars.get("line_spacing", tk.StringVar()).get()
+        line_spacing_display = self._vars.get("line_spacing", tk.StringVar(master=self)).get()
         try:
             line_spacing_index = LINE_SPACING_DISPLAY.index(line_spacing_display)
         except ValueError:
             line_spacing_index = 0
 
-        skip_val = self._vars.get("skip_perforation", tk.StringVar()).get()
+        skip_val = self._vars.get("skip_perforation", tk.StringVar(master=self)).get()
         skip_perforation = self._validate_skip_perforation(skip_val) or 0
 
         return PageSetupConfig(
@@ -695,6 +690,59 @@ class PageSetupDialog(BaseDialog):
         """Обрабатывает нажатие кнопки Cancel."""
         self.close(result=None)
 
+    def _on_default(self) -> None:
+        """Сбрасывает настройки к значениям по умолчанию."""
+        default = PageSetupConfig()
+        self._current_config = PageSetupConfig(
+            paper_size=default.paper_size,
+            orientation=default.orientation,
+            top_margin_mm=default.top_margin_mm,
+            bottom_margin_mm=default.bottom_margin_mm,
+            left_margin_mm=default.left_margin_mm,
+            right_margin_mm=default.right_margin_mm,
+            line_spacing_index=default.line_spacing_index,
+            skip_perforation=default.skip_perforation,
+        )
+
+        # Update UI variables
+        if "top_margin" in self._vars:
+            self._vars["top_margin"].set(str(default.top_margin_mm))
+        if "bottom_margin" in self._vars:
+            self._vars["bottom_margin"].set(str(default.bottom_margin_mm))
+        if "left_margin" in self._vars:
+            self._vars["left_margin"].set(str(default.left_margin_mm))
+        if "right_margin" in self._vars:
+            self._vars["right_margin"].set(str(default.right_margin_mm))
+
+        paper_size_display = PAPER_SIZE_DISPLAY.get(
+            default.paper_size, PAPER_SIZE_DISPLAY[PaperSize.A4]
+        )
+        if "paper_size" in self._vars:
+            self._vars["paper_size"].set(paper_size_display)
+
+        orientation_display = ORIENTATION_DISPLAY.get(
+            default.orientation, ORIENTATION_DISPLAY[Orientation.PORTRAIT]
+        )
+        if "orientation" in self._vars:
+            self._vars["orientation"].set(orientation_display)
+
+        if default.line_spacing_index < len(LINE_SPACING_DISPLAY):
+            if "line_spacing" in self._vars:
+                self._vars["line_spacing"].set(LINE_SPACING_DISPLAY[default.line_spacing_index])
+        else:
+            if "line_spacing" in self._vars:
+                self._vars["line_spacing"].set(LINE_SPACING_DISPLAY[0])
+
+        if "skip_perforation" in self._vars:
+            self._vars["skip_perforation"].set(str(default.skip_perforation))
+
+        # Clear errors
+        for label in self._error_labels.values():
+            label.config(text="")
+
+        self._update_preview()
+        logger.info("Page setup reset to defaults")
+
     def _on_apply_clicked(self) -> None:
         """Обрабатывает нажатие кнопки Apply."""
         is_valid, errors = self._validate_all()
@@ -720,10 +768,10 @@ class PageSetupDialog(BaseDialog):
         is_valid = True
 
         margin_fields = [
-            ("top_margin", "Верхнее поле"),
-            ("bottom_margin", "Нижнее поле"),
-            ("left_margin", "Левое поле"),
-            ("right_margin", "Правое поле"),
+            ("top_margin", "Top Margin"),
+            ("bottom_margin", "Bottom Margin"),
+            ("left_margin", "Left Margin"),
+            ("right_margin", "Right Margin"),
         ]
 
         for var_name, label in margin_fields:
@@ -731,8 +779,8 @@ class PageSetupDialog(BaseDialog):
                 value = self._vars[var_name].get()
                 result = validate_positive_float(value, MIN_MARGIN_MM, MAX_MARGIN_MM)
                 if result is None:
-                    self._error_labels[var_name].config(text="Недопустимое значение")
-                    errors.append(f"{label}: недопустимое значение")
+                    self._error_labels[var_name].config(text="Invalid value")
+                    errors.append(f"{label}: invalid value")
                     is_valid = False
                 else:
                     self._error_labels[var_name].config(text="")

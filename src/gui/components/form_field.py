@@ -37,7 +37,6 @@ from typing import Any, Callable, Optional
 
 from src.documents.types.type_schema import FieldDefinition, FieldType
 from src.gui.themes import ThemeManager, get_theme_manager
-from src.services.autocomplete_service import AutocompleteService
 
 
 class FormField(ttk.Frame):
@@ -74,7 +73,7 @@ class FormField(ttk.Frame):
         parent: tk.Widget,
         field_def: FieldDefinition,
         document_index: str,
-        autocomplete_service: Optional[AutocompleteService] = None,
+        autocomplete_service: Optional[Any] = None,
         on_change: Optional[Callable[[str, Any], None]] = None,
         on_validate: Optional[Callable[[str, bool, Optional[str]], None]] = None,
     ) -> None:
@@ -92,7 +91,7 @@ class FormField(ttk.Frame):
 
         self._field_def: FieldDefinition = field_def
         self._document_index: str = document_index
-        self._autocomplete_service: Optional[AutocompleteService] = autocomplete_service
+        self._autocomplete_service: Optional[Any] = autocomplete_service
         self._on_change: Optional[Callable[[str, Any], None]] = on_change
         self._on_validate: Optional[Callable[[str, bool, Optional[str]], None]] = on_validate
         self._theme_manager: ThemeManager = get_theme_manager()
@@ -930,6 +929,7 @@ class FormField(ttk.Frame):
         """Показывает диалог выбора даты и обновляет поле при выборе."""
         # Lazy import для разрыва circular import components → dialogs → renderers → components
         from src.gui.dialogs.calendar_dialog import CalendarDialog
+
         current = self._value if isinstance(self._value, date) else None
         dialog = CalendarDialog(parent=self, initial_date=current)
         result = dialog.show()

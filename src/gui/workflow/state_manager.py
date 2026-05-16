@@ -355,7 +355,7 @@ class WorkflowStateManager:
             if not self._is_allowed_transition(current_state.value, target_state.value):
                 return TransitionResult(
                     success=False,
-                    error_message="Переход недоступен в Simple Mode",
+                    error_message="Transition not available in Simple Mode",
                 )
 
         # Check if transition is valid via backend
@@ -491,7 +491,7 @@ class WorkflowStateManager:
             logger.warning("Workflow transition state error: %s", e)
             return TransitionResult(
                 success=False,
-                error_message=f"Ошибка состояния: {str(e)}",
+                error_message=f"State error: {str(e)}",
             )
         except Exception as e:
             logging.exception("Unexpected error during transition execution: %s", e)

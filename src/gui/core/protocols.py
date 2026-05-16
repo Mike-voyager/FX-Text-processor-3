@@ -833,7 +833,7 @@ class WindowManagerProtocol(Protocol):
             window_id: Идентификатор окна.
 
         Returns:
-            Окно tk.Toplevel или None если не найдено.
+            Окно tk.Toplevel или None если not found.
 
         Example:
             >>> window = wm.get_window("window_001")

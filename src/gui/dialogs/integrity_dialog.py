@@ -23,7 +23,7 @@ from tkinter import ttk
 from typing import Any, Final, Optional
 
 from src.gui.dialogs.base_dialog import BaseDialog
-from src.gui.themes import ThemeRegistry
+from src.gui.themes import ThemeNotFoundError, ThemeRegistry
 from src.security.integrity import AppIntegrityChecker, ConfigIntegrityChecker
 from src.security.integrity.models import ConfigSignatureResult, IntegrityCheckResult
 
@@ -37,11 +37,11 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
-    except (AttributeError, KeyError, RuntimeError, ThemeRegistry.ThemeNotFoundError):
+    except (AttributeError, KeyError, RuntimeError, ThemeNotFoundError):
         return "#333333"
 
 
@@ -175,7 +175,7 @@ class IntegrityDialog(BaseDialog):
 
         Args:
             text: Текст для добавления.
-            color: Цвет текста.
+            color: Color текста.
         """
         current = self._status_var.get()
         if current:
@@ -249,7 +249,7 @@ class IntegrityDialog(BaseDialog):
     def show(self) -> None:
         """Показывает диалог и запускает проверки."""
         # Schedule checks after dialog is visible
-        self.after(100, self._run_checks)
+        self._after_ids.append(self.after(100, self._run_checks))
         self.wait_window()
 
     def get_app_result(self) -> Optional[IntegrityCheckResult]:

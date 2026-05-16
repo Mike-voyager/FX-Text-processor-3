@@ -14,13 +14,15 @@ Example:
 
 from __future__ import annotations
 
-import tkinter as tk
 import logging
+import tkinter as tk
 from io import BytesIO
 from typing import Any, Callable, Optional
 
 from src.documents.types.type_schema import FieldDefinition
 from src.gui.modes.structured_form.widgets.base_field_widget import BaseFieldWidget
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class QRWidget(BaseFieldWidget):

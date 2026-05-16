@@ -1,23 +1,17 @@
-"""Базовые виджеты GUI.
+"""Базовые классы виджетов GUI для FX Text Processor 3.
 
-Модуль определяет базовые классы для всех GUI компонентов FX Text Processor 3:
-- BaseWidget: "глупый" виджет без локального состояния
-- SmartBaseWidget: виджет с локальным состоянием редактирования
-
-Все виджеты используют explicit lifecycle management (mount/unmount) и
-не содержат бизнес-логики — только callbacks к Controller.
+Предоставляет:
+- BaseWidget: "глупый" виджет с явным жизненным циклом mount/unmount.
+- SmartBaseWidget: виджет с локальным состоянием редактирования.
 
 Example:
-    >>> widget = BaseWidget(widget_id="btn_save", controller=my_controller)
-    >>> tk_widget = widget.mount(parent_frame)
-    >>> widget.is_mounted()
-    True
-    >>> widget.unmount()
-    >>> widget.is_mounted()
-    False
+    >>> from src.gui.components.base.widget import BaseWidget
+    >>> class MyButton(BaseWidget):
+    ...     def _create_tk_widget(self, parent):
+    ...         return tk.Button(parent, text="Click")
 
 Version: 1.0
-Date: April 2026
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -28,10 +22,17 @@ from typing import Any, Optional
 
 from src.gui.core.events import MountEvent, UnmountEvent
 from src.gui.core.exceptions import LifecycleError
-from src.gui.core.protocols import (
-    ControllerProtocol,
-    EventProtocol,
-)
+from src.gui.core.protocols import ControllerProtocol, EventProtocol
+
+__author__ = "FX Text Processor Team"
+__date__ = "May 2026"
+__version__ = "1.0"
+
+__all__ = [
+    "BaseWidget",
+    "SmartBaseWidget",
+]
+
 
 # =============================================================================
 # BASE WIDGET
@@ -39,39 +40,42 @@ from src.gui.core.protocols import (
 
 
 class BaseWidget(ABC):
-    """Базовый "глупый" виджет без локального состояния.
+    """Базовый "глупый" виджет с явным жизненным циклом.
 
-    Реализует WidgetProtocol, обеспечивая explicit lifecycle management:
-    mount() → handle_event() → unmount().
+    Реализует :class:`WidgetProtocol` через структурное подтипирование.
+    Все конкретные виджеты должны реализовать абстрактный метод
+    :meth:`_create_tk_widget`.
 
     Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        controller: Ссылка на контроллер для callbacks.
+        widget_id: Уникальный идентификатор виджета в иерархии GUI.
 
     Example:
-        >>> class MyButton(BaseWidget):
-        ...     def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
-        ...         return tk.Button(parent, text="Click")
-        >>> button = MyButton(widget_id="btn_1", controller=ctrl)
-        >>> button.mount(parent)
+        >>> class MyLabel(BaseWidget):
+        ...     def _create_tk_widget(self, parent):
+        ...         return tk.Label(parent, text="Hello")
+        >>> w = MyLabel(widget_id="lbl_01")
+        >>> isinstance(w, BaseWidget)
+        True
     """
 
     def __init__(
         self,
         widget_id: str,
         controller: Optional[ControllerProtocol] = None,
+        **kwargs: Any,
     ) -> None:
         """Инициализация базового виджета.
 
         Args:
             widget_id: Уникальный идентификатор виджета.
-            controller: Опциональная ссылка на контроллер для callbacks.
+            controller: Опциональная ссылка на контроллер.
+            **kwargs: Дополнительные параметры (зарезервированы).
 
         Raises:
-            ValueError: Если widget_id пустой или None.
+            ValueError: Если ``widget_id`` пустой или содержит только пробелы.
         """
         if not widget_id or not widget_id.strip():
-            raise ValueError("widget_id не может быть пустым")
+            raise ValueError("widget_id cannot be empty")
 
         self._widget_id: str = widget_id
         self._controller: Optional[ControllerProtocol] = controller
@@ -83,147 +87,16 @@ class BaseWidget(ABC):
         """Уникальный идентификатор виджета.
 
         Returns:
-            Строковый идентификатор виджета.
+            Строка идентификатора.
         """
         return self._widget_id
 
-    def is_mounted(self) -> bool:
-        """Проверяет, смонтирован ли виджет.
-
-        Returns:
-            True если виджет смонтирован и активен.
-
-        Example:
-            >>> widget.is_mounted()
-            False
-            >>> widget.mount(parent)
-            >>> widget.is_mounted()
-            True
-        """
-        return self._is_mounted
-
-    def mount(self, parent: Any) -> tk.Widget:
+    def mount(self, parent: tk.Widget) -> tk.Widget:
         """Монтирует виджет в родительский контейнер.
 
-        Создаёт Tkinter виджет, настраивает bindings, отправляет MountEvent.
-        Вызывается один раз при создании виджета.
-
-        Args:
-            parent: Родительский Tkinter виджет или Tk root.
-
-        Returns:
-            Созданный Tkinter виджет.
-
-        Raises:
-            LifecycleError: Если виджет уже смонтирован.
-            TypeError: Если parent не является валидным Tk виджетом.
-
-        Example:
-            >>> root = tk.Tk()
-            >>> frame = tk.Frame(root)
-            >>> tk_widget = widget.mount(frame)
-            >>> tk_widget.pack()
-        """
-        if self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="mount",
-                message=f"Виджет '{self._widget_id}' уже смонтирован",
-            )
-
-        # Check if parent is a valid tk widget (including Tk root)
-        if not hasattr(parent, "winfo_exists"):
-            raise TypeError(f"parent должен быть Tk виджет, получен {type(parent).__name__}")
-
-        # Создаём Tkinter виджет через абстрактный метод
-        self._tk_widget = self._create_tk_widget(parent)
-
-        # Настраиваем event bindings
-        self._setup_bindings()
-
-        self._is_mounted = True
-
-        # Отправляем MountEvent если есть контроллер
-        if self._controller is not None:
-            mount_event = MountEvent(
-                widget_id=self._widget_id,
-                event_type="mount",
-                parent_widget=str(parent),
-            )
-            self._controller.dispatch("widget_mounted", event=mount_event)
-
-        return self._tk_widget
-
-    def unmount(self) -> None:
-        """Демонтирует виджет и освобождает ресурсы.
-
-        Удаляет Tkinter виджет, отписывается от событий, очищает ссылки.
-        После вызова виджет не может быть использован повторно.
-
-        Security:
-            При демонтировании sensitive виджетов выполняется
-            очистка ссылок и ресурсов через _cleanup().
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
-
-        Example:
-            >>> widget.unmount()
-            >>> # Виджет больше не доступен
-        """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="unmount",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
-            )
-
-        # Выполняем cleanup перед уничтожением
-        self._cleanup()
-
-        # Отправляем UnmountEvent если есть контроллер
-        if self._controller is not None:
-            unmount_event = UnmountEvent(
-                widget_id=self._widget_id,
-                event_type="unmount",
-            )
-            self._controller.dispatch("widget_unmounted", event=unmount_event)
-
-        # Уничтожаем Tkinter виджет
-        if self._tk_widget is not None:
-            try:
-                self._tk_widget.destroy()
-            except tk.TclError:
-                # Виджет уже уничтожен
-                pass
-            self._tk_widget = None
-
-        self._is_mounted = False
-
-    def handle_event(self, event: EventProtocol) -> bool:
-        """Обрабатывает входящее событие.
-
-        Args:
-            event: Событие для обработки (реализует EventProtocol).
-
-        Returns:
-            True если событие было обработано (consumed),
-            False для передачи события дальше.
-
-        Example:
-            >>> result = widget.handle_event(click_event)
-            >>> if result:
-            ...     print("Событие обработано")
-        """
-        # Базовая реализация — передаём событие дальше
-        # Подклассы могут переопределить для обработки
-        return False
-
-    @abstractmethod
-    def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
-        """Создаёт фактический Tkinter виджет.
-
-        Абстрактный метод, который должен быть реализован подклассами.
+        Создаёт Tkinter виджет через :meth:`_create_tk_widget`,
+        настраивает привязки событий и отправляет
+        :class:`MountEvent` через контроллер.
 
         Args:
             parent: Родительский Tkinter виджет.
@@ -231,48 +104,120 @@ class BaseWidget(ABC):
         Returns:
             Созданный Tkinter виджет.
 
-        Example:
-            >>> def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
-            ...     return tk.Button(parent, text="Click")
+        Raises:
+            TypeError: Если ``parent`` не является Tkinter виджетом.
+            LifecycleError: Если виджет уже смонтирован.
         """
-        ...
+        if self._is_mounted:
+            raise LifecycleError(
+                widget_id=self._widget_id,
+                operation="mount",
+                message=f"Widget '{self._widget_id}' already mounted",
+            )
+
+        if parent is None or not hasattr(parent, "winfo_exists"):
+            raise TypeError("parent must be a Tk widget")
+
+        self._tk_widget = self._create_tk_widget(parent)
+        self._setup_bindings()
+        self._is_mounted = True
+
+        if self._controller is not None:
+            event = MountEvent(widget_id=self._widget_id)
+            self._controller.dispatch("widget_mounted", event=event)
+
+        return self._tk_widget
+
+    def unmount(self) -> None:
+        """Демонтирует виджет и освобождает ресурсы.
+
+        Вызывает :meth:`_cleanup`, уничтожает Tkinter виджет и отправляет
+        :class:`UnmountEvent` через контроллер.
+
+        Raises:
+            LifecycleError: Если виджет не был смонтирован.
+        """
+        if not self._is_mounted:
+            raise LifecycleError(
+                widget_id=self._widget_id,
+                operation="unmount",
+                message=f"Widget '{self._widget_id}' not mounted",
+            )
+
+        self._cleanup()
+
+        if self._tk_widget is not None:
+            try:
+                self._tk_widget.destroy()
+            except tk.TclError:
+                pass
+            self._tk_widget = None
+
+        self._is_mounted = False
+
+        if self._controller is not None:
+            event = UnmountEvent(widget_id=self._widget_id)
+            self._controller.dispatch("widget_unmounted", event=event)
+
+    def handle_event(self, event: EventProtocol) -> bool:
+        """Обрабатывает входящее событие.
+
+        Базовая реализация всегда возвращает ``False`` — событие
+        передаётся дальше по цепочке.
+
+        Args:
+            event: Событие для обработки.
+
+        Returns:
+            ``True`` если событие обработано, иначе ``False``.
+        """
+        return False
+
+    def is_mounted(self) -> bool:
+        """Проверяет, смонтирован ли виджет.
+
+        Returns:
+            ``True`` если виджет смонтирован и активен.
+        """
+        return self._is_mounted
+
+    def apply_theme(self) -> None:  # noqa: B027
+        """Применяет текущую тему оформления к виджету.
+
+        Базовая реализация — пустой хук.
+        Переопределяется в наследниках для применения тем.
+        """
+        pass
+
+    @abstractmethod
+    def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
+        """Создаёт Tkinter виджет.
+
+        Абстрактный метод, который должен быть реализован
+        в каждом конкретном виджете.
+
+        Args:
+            parent: Родительский Tkinter виджет.
+
+        Returns:
+            Созданный Tkinter виджет.
+        """
 
     def _setup_bindings(self) -> None:  # noqa: B027
-        """Настраивает event bindings для Tkinter виджета.
+        """Настраивает привязки событий после создания виджета.
 
-        Вызывается после создания виджета в mount().
-        Подклассы могут переопределить для добавления специфичных bindings.
-
-        Example:
-            >>> def _setup_bindings(self) -> None:
-            ...     if self._tk_widget is not None:
-            ...         self._tk_widget.bind('<Button-1>', self._on_click)
+        Базовая реализация — пустой хук.
+        Переопределяется в наследниках для подключения обработчиков.
         """
-        # Базовая реализация — ничего не делает
-        # Подклассы добавляют свои bindings
         pass
 
     def _cleanup(self) -> None:  # noqa: B027
-        """Выполняет очистку ресурсов перед демонтированием.
+        """Очищает ресурсы перед демонтированием.
 
-        Вызывается в unmount() перед уничтожением Tkinter виджета.
-        Подклассы должны переопределить для очистки:
-        - Отписка от событий
-        - Очистка sensitive данных
-        - Освобождение внешних ресурсов
-
-        Security:
-            При работе с чувствительными данными должен выполняться
-            secure_zero для очистки памяти.
-
-        Example:
-            >>> def _cleanup(self) -> None:
-            ...     if self._tk_widget is not None:
-            ...         self._tk_widget.unbind('<Button-1>')
-            ...     self._secret_data = None
+        Базовая реализация — пустой хук.
+        Переопределяется в наследниках для освобождения
+        дополнительных ресурсов (отписка от событий, очистка ссылок).
         """
-        # Базовая реализация — ничего не делает
-        # Подклассы добавляют свою очистку
         pass
 
 
@@ -281,57 +226,38 @@ class BaseWidget(ABC):
 # =============================================================================
 
 
-class SmartBaseWidget(BaseWidget):
-    """Базовый "умный" виджет с локальным состоянием редактирования.
+class SmartBaseWidget(BaseWidget, ABC):
+    """Виджет с локальным состоянием редактирования.
 
-    Реализует SmartWidgetProtocol, добавляя режим редактирования:
-    - VIEW_MODE: отображение значения из модели
-    - EDIT_MODE: локальное редактирование, sync отключен
-
-    Используется для компонентов, требующих локального состояния
-    (Text, Entry и т.д.) с явным входом/выходом в режим редактирования.
+    Расширяет :class:`BaseWidget`, добавляя режим редактирования
+    с явным входом/выходом и синхронизацией с моделью.
+    Реализует :class:`SmartWidgetProtocol` через структурное подтипирование.
 
     Attributes:
-        widget_id: Унаследован от BaseWidget.
-        controller: Унаследован от BaseWidget.
-        is_editing: Флаг режима редактирования (True = EDIT_MODE).
+        is_editing: Флаг режима редактирования (``True`` = EDIT_MODE).
 
     Example:
-        >>> class SmartTextEditor(SmartBaseWidget):
-        ...     def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
-        ...         return tk.Text(parent)
-        ...     def get_edit_value(self) -> str:
-        ...         return self._tk_widget.get('1.0', tk.END) if self._tk_widget else ""
-        ...     def set_edit_value(self, value: str) -> None:
-        ...         if self._tk_widget:
-        ...             self._tk_widget.delete('1.0', tk.END)
-        ...             self._tk_widget.insert('1.0', value)
-        ...     def sync_to_model(self) -> bool:
-        ...         if self.has_changes():
-        ...             value = self.get_edit_value()
-        ...             self._controller.dispatch("text_changed", text=value)
-        ...             return True
-        ...         return False
-        >>> editor = SmartTextEditor(widget_id="doc_editor", controller=ctrl)
-        >>> editor.enter_edit_mode()
-        >>> editor.is_editing
-        True
-        >>> editor.set_edit_value("Hello")
-        >>> editor.exit_edit_mode()
+        >>> class SmartEntry(SmartBaseWidget):
+        ...     def _create_tk_widget(self, parent): ...
+        ...     def sync_to_model(self): ...
+        ...     def get_edit_value(self): ...
+        ...     def set_edit_value(self, value): ...
     """
 
     def __init__(
         self,
         widget_id: str,
         controller: Optional[ControllerProtocol] = None,
+        **kwargs: Any,
     ) -> None:
-        """Инициализация smart виджета.
+        """Инициализация smart-виджета.
 
         Args:
             widget_id: Уникальный идентификатор виджета.
-            controller: Опциональная ссылка на контроллер для callbacks.
+            controller: Опциональная ссылка на контроллер.
+            **kwargs: Дополнительные параметры.
         """
-        super().__init__(widget_id=widget_id, controller=controller)
+        super().__init__(widget_id=widget_id, controller=controller, **kwargs)
         self._is_editing: bool = False
         self._initial_value: str = ""
 
@@ -340,34 +266,24 @@ class SmartBaseWidget(BaseWidget):
         """Флаг режима редактирования.
 
         Returns:
-            True если виджет находится в режиме редактирования (EDIT_MODE),
-            False если в режиме просмотра (VIEW_MODE).
+            ``True`` если виджет находится в режиме редактирования.
         """
         return self._is_editing
 
     def enter_edit_mode(self) -> None:
         """Входит в режим редактирования.
 
-        В этом режиме виджет работает автономно:
-        - Сохраняется начальное значение для сравнения
-        - Отключается синхронизация с моделью
-        - Пользователь может свободно редактировать
-
-        Note:
-            Метод вызывается при FocusIn или явном входе в редактирование.
+        Сохраняет начальное значение для последующего сравнения
+        при выходе из режима.
 
         Raises:
             LifecycleError: Если виджет не смонтирован.
-
-        Example:
-            >>> editor.enter_edit_mode()
-            >>> # Пользователь редактирует текст
         """
         if not self._is_mounted:
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="enter_edit_mode",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         self._is_editing = True
@@ -376,73 +292,49 @@ class SmartBaseWidget(BaseWidget):
     def exit_edit_mode(self) -> None:
         """Выходит из режима редактирования.
 
-        При выходе из режима:
-        - Сравнивается текущее значение с начальным
-        - Если есть изменения — вызывается sync_to_model()
-        - Возобновляется синхронизация с моделью
-
-        Note:
-            Метод вызывается при FocusOut или явном выходе из редактирования.
-            Если значение изменилось — автоматически вызывается sync_to_model().
+        При наличии изменений вызывает :meth:`sync_to_model`.
 
         Raises:
             LifecycleError: Если виджет не смонтирован.
-
-        Example:
-            >>> editor.exit_edit_mode()
-            >>> # Если текст изменился, sync_to_model() вызван автоматически
         """
         if not self._is_mounted:
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="exit_edit_mode",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         self._is_editing = False
 
-        # Синхронизируем с моделью если были изменения
         if self.has_changes():
             self.sync_to_model()
+
+    def has_changes(self) -> bool:
+        """Проверяет, изменилось ли значение с момента входа в edit mode.
+
+        Returns:
+            ``True`` если значение изменилось, иначе ``False``.
+        """
+        return self.get_edit_value() != self._initial_value
 
     @abstractmethod
     def sync_to_model(self) -> bool:
         """Синхронизирует локальное состояние с моделью.
 
-        Передаёт текущее значение виджета в Controller через callback.
-        Создаёт Command для undo/redo менеджера.
+        Передаёт текущее значение виджета в контроллер/модель.
 
         Returns:
-            True если синхронизация выполнена (значение изменилось),
-            False если изменений не было.
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
-
-        Example:
-            >>> changed = editor.sync_to_model()
-            >>> if changed:
-            ...     print("Модель обновлена, undo добавлен в историю")
+            ``True`` если синхронизация выполнена (значение изменилось),
+            ``False`` если изменений не было.
         """
-        ...
 
     @abstractmethod
     def get_edit_value(self) -> str:
         """Возвращает текущее значение в режиме редактирования.
 
         Returns:
-            Текущее значение виджета (строка).
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
-
-        Example:
-            >>> editor.enter_edit_mode()
-            >>> # Пользователь ввёл "Hello"
-            >>> editor.get_edit_value()
-            'Hello'
+            Текущее значение виджета.
         """
-        ...
 
     @abstractmethod
     def set_edit_value(self, value: str) -> None:
@@ -450,49 +342,4 @@ class SmartBaseWidget(BaseWidget):
 
         Args:
             value: Новое значение для виджета.
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
-
-        Note:
-            Метод не синхронизируется с моделью — только локальное изменение.
-
-        Example:
-            >>> editor.set_edit_value("New text")
-            >>> editor.get_edit_value()
-            'New text'
         """
-        ...
-
-    def has_changes(self) -> bool:
-        """Проверяет, изменилось ли значение с момента входа в edit mode.
-
-        Сравнивает текущее значение с начальным значением, сохранённым
-        при вызове enter_edit_mode().
-
-        Returns:
-            True если значение изменилось, иначе False.
-
-        Example:
-            >>> editor.enter_edit_mode()
-            >>> editor.set_edit_value("New value")
-            >>> editor.has_changes()
-            True
-        """
-        current_value = self.get_edit_value()
-        return current_value != self._initial_value
-
-
-# =============================================================================
-# MODULE EXPORTS
-# =============================================================================
-
-
-__all__: list[str] = [
-    "BaseWidget",
-    "SmartBaseWidget",
-]
-
-__version__ = "1.0.0"
-__author__ = "Mike Voyager"
-__date__ = "2026-04-01"

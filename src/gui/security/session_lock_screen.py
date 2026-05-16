@@ -91,7 +91,9 @@ class SessionLockScreen(tk.Toplevel):
         self._auto_lock_label: Optional[tk.Label] = None
 
         self._bind_ids: dict[str, str] = {}
+        self._after_ids: list[str] = []
         self._setup_window()
+        self.bind("<Destroy>", lambda _e: self._cancel_afters(), add=True)
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна блокировки.
@@ -118,7 +120,9 @@ class SessionLockScreen(tk.Toplevel):
 
     def _sync_geometry(self) -> None:
         """Синхронизирует размер и позицию lock screen с родительским окном."""
-        self.geometry(f"{self._parent.winfo_width()}x{self._parent.winfo_height()}+{self._parent.winfo_x()}+{self._parent.winfo_y()}")
+        self.geometry(
+            f"{self._parent.winfo_width()}x{self._parent.winfo_height()}+{self._parent.winfo_x()}+{self._parent.winfo_y()}"
+        )
 
     def _on_parent_configure(self, _event: Any) -> None:
         """Обработчик изменения размера/позиции родительского окна."""
@@ -162,8 +166,20 @@ class SessionLockScreen(tk.Toplevel):
         и захватывает фокус.
         """
         self._create_ui()
-        self.grab_set()
-        self.focus_force()
+        try:
+            self.grab_set()
+            self.focus_force()
+        except tk.TclError:
+            pass
+
+    def _cancel_afters(self) -> None:
+        """Отменяет все зарегистрированные after() таймеры."""
+        for after_id in self._after_ids:
+            try:
+                self.after_cancel(after_id)
+            except tk.TclError:
+                pass
+        self._after_ids.clear()
 
     def hide(self) -> None:
         """Скрывает экран блокировки.
@@ -302,7 +318,7 @@ class SessionLockScreen(tk.Toplevel):
         if result:
             # Success: clear custom error and destroy
             self._show_error("")
-            self.after(200, self.hide)
+            self._after_ids.append(self.after(200, self.hide))
         else:
             # Failure: show error label
             self._show_error("Invalid credentials")
@@ -330,6 +346,7 @@ class SessionLockScreen(tk.Toplevel):
 
     def destroy(self) -> None:
         """Переопределённый destroy для очистки credentials и отвязки событий."""
+        self._cancel_afters()
         self.wipe_credentials()
         # Unbind parent events to prevent zombies
         try:
@@ -338,7 +355,10 @@ class SessionLockScreen(tk.Toplevel):
         except tk.TclError:
             pass
         self._bind_ids.clear()
-        super().destroy()
+        try:
+            super().destroy()
+        except tk.TclError:
+            pass
 
 
 # Module exports

@@ -135,7 +135,7 @@ class TestPrintDialog:
             print_queue=mock_print_queue,
             theme="classic_green",
         )
-        assert dialog.title() == "Печать"
+        assert dialog.title() == "Print"
         tabs = dialog.notebook.tabs()
         assert len(tabs) == 4
         dialog.destroy()
@@ -201,7 +201,7 @@ class TestPrintDialog:
             document_renderer=mock_document_renderer,
             print_queue=mock_print_queue,
         )
-        dialog._settings_vars["adapter"].set("Все")
+        dialog._settings_vars["adapter"].set("All")
         dialog._update_printer_list()
 
         values = dialog.printer_combo["values"]
@@ -239,7 +239,7 @@ class TestPrintDialog:
         assert result.settings.priority == PrintPriority.HIGH
         assert result.settings.page_by_page is True
         assert result.settings.printer_id == "cups:FX-890"
-        assert result.settings.adapter_id == "Все"
+        assert result.settings.adapter_id == "All"
         dialog.destroy()
 
     def test_cancel_returns_none(
@@ -307,7 +307,7 @@ class TestPrintPreviewDialog:
             document_renderer=mock_document_renderer,
             theme="classic_green",
         )
-        assert dialog.title() == "Предпросмотр печати"
+        assert dialog.title() == "Print Preview"
         dialog.destroy()
 
     def test_close_returns_none(

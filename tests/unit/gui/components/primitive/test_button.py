@@ -13,22 +13,20 @@ Note:
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any
+from collections.abc import Iterator
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
-
 from src.gui.components.primitive.button import ThemedButton
-from src.gui.core.exceptions import LifecycleError
-
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
 
 
-@pytest.fixture
-def tk_app() -> tk.Tk:
+@pytest.fixture  # type: ignore[misc]
+def tk_app() -> Iterator[tk.Tk]:
     """Fixture: создаёт корневое окно Tk."""
     root = tk.Tk()
     root.withdraw()  # Скрываем окно
@@ -36,7 +34,7 @@ def tk_app() -> tk.Tk:
     root.destroy()
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def parent_frame(tk_app: tk.Tk) -> tk.Frame:
     """Fixture: создаёт родительский фрейм."""
     frame = tk.Frame(tk_app)
@@ -44,7 +42,7 @@ def parent_frame(tk_app: tk.Tk) -> tk.Frame:
     return frame
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def mock_command() -> MagicMock:
     """Fixture: создаёт мок command."""
     return MagicMock()
@@ -114,7 +112,9 @@ class TestThemedButtonText:
         button.set_text("New")
         assert button.get_text() == "New"
 
-    def test_set_text_updates_tk_widget(self, parent_frame: tk.Frame, mock_command: MagicMock) -> None:
+    def test_set_text_updates_tk_widget(
+        self, parent_frame: tk.Frame, mock_command: MagicMock
+    ) -> None:
         """Тест: set_text() обновляет Tkinter виджет."""
         button = ThemedButton(
             widget_id="test",
@@ -205,7 +205,7 @@ class TestThemedButtonCommand:
     """Тесты для вызова команды кнопки."""
 
     def test_command_executed_on_click(
-        self, tk_app: tk.Tk, mock_command: MagicMock
+        self, parent_frame: tk.Frame, mock_command: MagicMock
     ) -> None:
         """Тест: команда вызывается при нажатии."""
         button = ThemedButton(
@@ -213,15 +213,15 @@ class TestThemedButtonCommand:
             text="Test",
             command=mock_command,
         )
-        tk_widget = button.mount(tk_app)
+        tk_widget = button.mount(parent_frame)
 
         # Имитируем нажатие кнопки через invoke
-        tk_widget.invoke()
+        cast(tk.Button, tk_widget).invoke()
 
         mock_command.assert_called_once()
 
     def test_command_not_executed_when_disabled(
-        self, tk_app: tk.Tk, mock_command: MagicMock
+        self, parent_frame: tk.Frame, mock_command: MagicMock
     ) -> None:
         """Тест: команда не вызывается когда кнопка отключена."""
         button = ThemedButton(
@@ -229,7 +229,7 @@ class TestThemedButtonCommand:
             text="Test",
             command=mock_command,
         )
-        button.mount(tk_app)
+        button.mount(parent_frame)
         button.set_enabled(False)
 
         # Команда не должна быть вызвана
@@ -278,9 +278,7 @@ class TestThemedButtonLifecycle:
         button.unmount()
         assert button.is_mounted() is False
 
-    def test_mount_returns_tk_widget(
-        self, parent_frame: tk.Frame, mock_command: MagicMock
-    ) -> None:
+    def test_mount_returns_tk_widget(self, parent_frame: tk.Frame, mock_command: MagicMock) -> None:
         """Тест: mount() возвращает Tkinter виджет."""
         button = ThemedButton(
             widget_id="test",

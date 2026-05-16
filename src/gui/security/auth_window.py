@@ -92,8 +92,8 @@ class AuthWindow:
         self._on_cancel_callback: Optional[Callable[[], None]] = on_cancel
 
         self._window: Optional[tk.Toplevel] = None
-        self._password_var = tk.StringVar()
-        self._mfa_method = tk.StringVar(value=MFASelection.FIDO2.value)
+        self._password_var = tk.StringVar(master=self._parent)
+        self._mfa_method = tk.StringVar(master=self._parent, value=MFASelection.FIDO2.value)
         self._password_visible = False
         self._theme_manager = get_theme_manager()
         self._mfa_gate: Optional[MFAGate] = None
@@ -120,16 +120,19 @@ class AuthWindow:
         """Регистрирует диалоги MFA для работы с MFAGate."""
         try:
             from src.gui.dialogs.mfa_method_selector_dialog import MFAMethodSelectorDialog
-            
+
             # Регистрация диалогов для методов MFA
             # В реальной реализации здесь будут специализированные диалоги
             # Сейчас используем универсальный MFAMethodSelectorDialog
-            self._mfa_gate.register_dialog("totp", MFAMethodSelectorDialog)
-            self._mfa_gate.register_dialog("fido2", MFAMethodSelectorDialog)
-            self._mfa_gate.register_dialog("backup_code", MFAMethodSelectorDialog)
+            if self._mfa_gate is not None:
+                self._mfa_gate.register_dialog("totp", MFAMethodSelectorDialog)  # type: ignore[arg-type]
+                self._mfa_gate.register_dialog("fido2", MFAMethodSelectorDialog)  # type: ignore[arg-type]
+                self._mfa_gate.register_dialog("backup_code", MFAMethodSelectorDialog)  # type: ignore[arg-type]
         except ImportError:
             # Если диалог не найден, продолжаем без регистрации
-            logging.getLogger(__name__).warning("MFAMethodSelectorDialog not found for registration")
+            logging.getLogger(__name__).warning(
+                "MFAMethodSelectorDialog not found for registration",
+            )
 
     def show(self) -> None:
         """Показывает окно модально.
@@ -142,14 +145,20 @@ class AuthWindow:
             # Окно отображается модально
         """
         if self._window is not None and self._window.winfo_exists():
-            self._window.lift()
+            try:
+                self._window.lift()
+            except tk.TclError:
+                pass
             return
 
         self._window = tk.Toplevel(self._parent)
         self._window.title("FX Text Processor 3 - Вход в систему")
         self._window.resizable(False, False)
         self._window.transient(self._parent)
-        self._window.grab_set()
+        try:
+            self._window.grab_set()
+        except tk.TclError:
+            pass
 
         # Применяем тему
         self._apply_theme_to_window()
@@ -453,7 +462,7 @@ class AuthWindow:
         }
         return names.get(method, method.value)
 
-    def _on_mfa_method_changed(self, *args) -> None:
+    def _on_mfa_method_changed(self, *args: Any) -> None:
         """Обработчик изменения метода MFA."""
         if self._mfa_method.get() == MFASelection.FIDO2.value:
             # Показываем индикатор касания для FIDO2

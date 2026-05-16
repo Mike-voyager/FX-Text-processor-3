@@ -110,10 +110,13 @@ class OptionsEditorDialog(tk.Toplevel):
         self._status_label: Optional[tk.Label] = None
 
         # Configure window
-        title = f"Опции поля: {field_id}" if field_id else "Редактор опций"
+        title = f"Field Options: {field_id}" if field_id else "Options Editor"
         self.title(title)
         self.transient(cast(tk.Wm, parent))
-        self.grab_set()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
 
         # Set size and position
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
@@ -173,7 +176,7 @@ class OptionsEditorDialog(tk.Toplevel):
         header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
         # Title
-        title_text = f"Редактирование опций для: {self._field_id}"
+        title_text = f"Editing options for: {self._field_id}"
         label = tk.Label(
             header,
             text=title_text,
@@ -186,7 +189,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Description
         desc = tk.Label(
             header,
-            text="Добавьте опции для выпадающего списка или группы радиокнопок",
+            text="Add options for dropdown or radio group",
             bg=COLOR_HEADER,
             font=("Arial", 9),
             fg="#555555",
@@ -203,7 +206,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Frame for treeview
         list_frame = tk.LabelFrame(
             parent,
-            text="Список опций",
+            text="Option List",
             bg=COLOR_BG,
             font=("Arial", 9, "bold"),
         )
@@ -222,9 +225,9 @@ class OptionsEditorDialog(tk.Toplevel):
         )
 
         # Configure columns
-        self._tree.heading("value", text="Значение (value)")
-        self._tree.heading("label_ru", text="Метка (RU)")
-        self._tree.heading("label_en", text="Метка (EN)")
+        self._tree.heading("value", text="Value")
+        self._tree.heading("label_ru", text="Label (RU)")
+        self._tree.heading("label_en", text="Label (EN)")
 
         self._tree.column("value", width=150, anchor=tk.W)
         self._tree.column("label_ru", width=150, anchor=tk.W)
@@ -253,7 +256,7 @@ class OptionsEditorDialog(tk.Toplevel):
         """
         editor_frame = tk.LabelFrame(
             parent,
-            text="Редактирование опции",
+            text="Edit Option",
             bg=COLOR_BG,
             font=("Arial", 9, "bold"),
         )
@@ -263,7 +266,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Value
         tk.Label(
             editor_frame,
-            text="Значение:*",
+            text="Value:*",
             bg=COLOR_BG,
             anchor=tk.W,
         ).grid(row=0, column=0, sticky="w", padx=5, pady=5)
@@ -274,7 +277,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Label RU
         tk.Label(
             editor_frame,
-            text="Метка (RU):*",
+            text="Label (RU):*",
             bg=COLOR_BG,
             anchor=tk.W,
         ).grid(row=1, column=0, sticky="w", padx=5, pady=5)
@@ -285,7 +288,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Label EN
         tk.Label(
             editor_frame,
-            text="Метка (EN):",
+            text="Label (EN):",
             bg=COLOR_BG,
             anchor=tk.W,
         ).grid(row=2, column=0, sticky="w", padx=5, pady=5)
@@ -300,7 +303,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Add button
         add_btn = tk.Button(
             btn_frame,
-            text="➕ Добавить",
+            text="➕ Add",
             command=self._on_add,
             bg="#28a745",
             fg="white",
@@ -310,7 +313,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Update button
         update_btn = tk.Button(
             btn_frame,
-            text="💾 Обновить",
+            text="💾 Update",
             command=self._on_update,
             bg="#007bff",
             fg="white",
@@ -320,7 +323,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Delete button
         delete_btn = tk.Button(
             btn_frame,
-            text="🗑️ Удалить",
+            text="🗑️ Delete",
             command=self._on_delete,
             bg="#dc3545",
             fg="white",
@@ -352,7 +355,7 @@ class OptionsEditorDialog(tk.Toplevel):
 
         up_btn = tk.Button(
             move_frame,
-            text="⬆️ Вверх",
+            text="⬆️ Up",
             command=self._on_move_up,
             width=10,
         )
@@ -360,7 +363,7 @@ class OptionsEditorDialog(tk.Toplevel):
 
         down_btn = tk.Button(
             move_frame,
-            text="⬇️ Вниз",
+            text="⬇️ Down",
             command=self._on_move_down,
             width=10,
         )
@@ -369,7 +372,7 @@ class OptionsEditorDialog(tk.Toplevel):
         # Cancel button
         cancel_btn = tk.Button(
             button_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
             width=10,
         )
@@ -475,17 +478,17 @@ class OptionsEditorDialog(tk.Toplevel):
             Кортеж (is_valid, error_message).
         """
         if not value:
-            return False, "Значение (value) обязательно"
+            return False, "Value is required"
 
         if not label_ru:
-            return False, "Метка на русском (label_ru) обязательна"
+            return False, "Label (RU) is required"
 
         # Check for duplicates
         for i, opt in enumerate(self._options):
             if i == exclude_index:
                 continue
             if opt.value == value:
-                return False, f"Значение '{value}' уже существует"
+                return False, f"Value '{value}' already exists"
 
         return True, ""
 
@@ -505,7 +508,7 @@ class OptionsEditorDialog(tk.Toplevel):
         self._clear_editor()
 
         if self._status_label:
-            self._status_label.config(text="Опция добавлена", fg="#28a745")
+            self._status_label.config(text="Option added", fg="#28a745")
 
     def _on_update(self) -> None:
         """Обработчик нажатия кнопки Обновить."""
@@ -515,7 +518,7 @@ class OptionsEditorDialog(tk.Toplevel):
         selection = self._tree.selection()
         if not selection:
             if self._status_label:
-                self._status_label.config(text="Выберите опцию для обновления")
+                self._status_label.config(text="Select an option to update")
             return
 
         index = int(selection[0])
@@ -535,7 +538,7 @@ class OptionsEditorDialog(tk.Toplevel):
         self._refresh_list()
 
         if self._status_label:
-            self._status_label.config(text="Опция обновлена", fg="#28a745")
+            self._status_label.config(text="Option updated", fg="#28a745")
 
     def _on_delete(self) -> None:
         """Обработчик нажатия кнопки Удалить."""
@@ -545,7 +548,7 @@ class OptionsEditorDialog(tk.Toplevel):
         selection = self._tree.selection()
         if not selection:
             if self._status_label:
-                self._status_label.config(text="Выберите опцию для удаления")
+                self._status_label.config(text="Select an option to delete")
             return
 
         index = int(selection[0])
@@ -555,8 +558,8 @@ class OptionsEditorDialog(tk.Toplevel):
         # Confirm deletion
         option = self._options[index]
         if not messagebox.askyesno(
-            "Подтверждение",
-            f'Удалить опцию "{option.label_ru}" ({option.value})?',
+            "Confirm",
+            f'Delete option "{option.label_ru}" ({option.value})?',
             parent=self,
         ):
             return
@@ -567,7 +570,7 @@ class OptionsEditorDialog(tk.Toplevel):
         self._clear_editor()
 
         if self._status_label:
-            self._status_label.config(text="Опция удалена", fg="#28a745")
+            self._status_label.config(text="Option deleted", fg="#28a745")
 
     def _on_move_up(self) -> None:
         """Обработчик нажатия кнопки Вверх."""
@@ -621,8 +624,8 @@ class OptionsEditorDialog(tk.Toplevel):
         for i, opt in enumerate(self._options):
             if not opt.value or not opt.label_ru:
                 messagebox.showerror(
-                    "Ошибка",
-                    f"Опция {i + 1} не заполнена полностью",
+                    "Error",
+                    f"Option {i + 1} is incomplete",
                     parent=self,
                 )
                 return

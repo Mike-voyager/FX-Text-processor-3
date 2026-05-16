@@ -95,7 +95,7 @@ class MFAVerificationDialog(BaseDialog):
             on_verify: Callback при успешной верификации.
         """
         # Delayed initialization for MFAGate pattern
-        self._parent: Optional[tk.Widget] = parent
+        self._parent = parent  # type: ignore[assignment]
         self._auth_controller: Optional[AuthController] = auth_controller
         self._user_id: str = user_id
         self._verify_callback: Optional[Callable[[dict[str, Any]], None]] = on_verify
@@ -115,7 +115,7 @@ class MFAVerificationDialog(BaseDialog):
         if parent is not None:
             self._initialize_ui(parent)
 
-    def _initialize_ui(self, parent: tk.Widget) -> None:
+    def _initialize_ui(self, parent: tk.Misc) -> None:
         """Инициализирует UI компоненты.
 
         Args:
@@ -171,8 +171,8 @@ class MFAVerificationDialog(BaseDialog):
 
         # Description
         desc_text = (
-            "Для разблокировки сессии требуется MFA верификация.\n"
-            "Введите код из вашего аутентификатора."
+            "MFA verification is required to unlock the session.\n"
+            "Enter the code from your authenticator."
         )
         desc_label = tk.Label(
             main_frame,
@@ -396,7 +396,7 @@ class MFAVerificationDialog(BaseDialog):
             self._verify_callback(self._result)
 
         # Close after delay
-        self.after(800, self.destroy)
+        self._after_ids.append(self.after(800, self.destroy))
 
     def _on_cancel(self) -> None:
         """Обработчик отмены."""

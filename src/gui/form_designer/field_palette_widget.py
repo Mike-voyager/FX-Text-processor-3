@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from src.documents.constructor.field_palette import (
     FieldPalette,
@@ -221,7 +221,7 @@ class FieldPaletteWidget(BaseWidget):
 
         label = tk.Label(
             self._mode_frame,
-            text="Режим:",
+            text="Mode:",
             bg="#f5f5f5",
             font=("Helvetica", 9, "bold"),
         )
@@ -731,7 +731,8 @@ class FieldPaletteWidget(BaseWidget):
             rel_x = event.x_root - x
             rel_y = event.y_root - y
 
-            self._on_field_drag_end(self._drag_data.field_type, rel_x, rel_y)
+            field_type = cast(FieldType, self._drag_data.field_type)
+            self._on_field_drag_end(field_type, rel_x, rel_y)
 
         # Очищаем
         self._cleanup_drag()

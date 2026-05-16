@@ -74,7 +74,8 @@ class InlineRadioGroupField(BaseField):
         self._required: bool = required
         self._readonly: bool = readonly
         self._options: tuple[str, ...] = options or ()
-        self._var: tk.StringVar = tk.StringVar(master=self, value=self._options[0] if self._options else "")
+        initial_value = self._options[0] if self._options else ""
+        self._var: tk.StringVar = tk.StringVar(master=self, value=initial_value)
         self._radiobuttons: list[tk.Radiobutton] = []
         self._buttons_frame: Optional[tk.Frame] = None
 

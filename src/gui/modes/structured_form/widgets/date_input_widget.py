@@ -54,9 +54,9 @@ class DateInputWidget(BaseFieldWidget):
             on_validate: Callback при валидации.
         """
         super().__init__(parent, field_def, on_change, on_validate)
-        self._day_var: tk.StringVar = tk.StringVar()
-        self._month_var: tk.StringVar = tk.StringVar()
-        self._year_var: tk.StringVar = tk.StringVar()
+        self._day_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
+        self._month_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
+        self._year_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
         self._format: str = "DD.MM.YYYY"
         self._day_spinbox: Optional[tk.Spinbox] = None
         self._month_spinbox: Optional[tk.Spinbox] = None

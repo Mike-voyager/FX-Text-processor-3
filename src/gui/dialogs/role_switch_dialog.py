@@ -82,8 +82,8 @@ class RoleSwitchDialog(BaseDialog):
         self._selected_role: Optional["WorkflowRole"] = None
         self._free_mode = free_mode_enabled
         self._mfa_required = False
-        self._on_role_selected = on_role_selected
-        self._on_cancel = on_cancel
+        self._on_role_selected_callback = on_role_selected
+        self._on_cancel_callback = on_cancel
 
         self._result: Optional[Tuple["WorkflowRole", bool, bool]] = None
 
@@ -93,7 +93,7 @@ class RoleSwitchDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title("Смена роли")
+        self.title("Role Switch")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -134,14 +134,14 @@ class RoleSwitchDialog(BaseDialog):
         """Создаёт заголовок."""
         header = ttk.Label(
             parent,
-            text="Смена роли в workflow",
+            text="Role Switch in Workflow",
             font=("Helvetica", 14, "bold"),
         )
         header.pack(anchor="w", pady=(0, PADDING_NORMAL))
 
         description = ttk.Label(
             parent,
-            text="Выберите новую роль для выполнения операций",
+            text="Select a new role to perform operations",
             foreground="gray",
         )
         description.pack(anchor="w", pady=(0, PADDING_NORMAL))
@@ -184,7 +184,7 @@ class RoleSwitchDialog(BaseDialog):
         """Создаёт отображение текущей роли."""
         from src.gui.workflow.constants import ROLE_COLORS, ROLE_ICONS, ROLE_NAMES_RU
 
-        current_frame = ttk.LabelFrame(parent, text="Текущая роль", padding=PADDING_NORMAL)
+        current_frame = ttk.LabelFrame(parent, text="Current Role", padding=PADDING_NORMAL)
         current_frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
         current_str = (
@@ -219,10 +219,10 @@ class RoleSwitchDialog(BaseDialog):
         """Создаёт селектор ролей с радио-кнопками."""
         from src.gui.workflow.constants import ROLE_COLORS, ROLE_ICONS, ROLE_NAMES_RU
 
-        selector_frame = ttk.LabelFrame(parent, text="Выберите новую роль", padding=PADDING_NORMAL)
+        selector_frame = ttk.LabelFrame(parent, text="Select New Role", padding=PADDING_NORMAL)
         selector_frame.pack(fill=tk.BOTH, expand=True, pady=(0, PADDING_NORMAL))
 
-        self._role_var: tk.StringVar = tk.StringVar()
+        self._role_var: tk.StringVar = tk.StringVar(master=self)
 
         # Create radio button for each role
         for role_value, role_name in ROLE_NAMES_RU.items():
@@ -278,7 +278,7 @@ class RoleSwitchDialog(BaseDialog):
 
         self._mfa_label = tk.Label(
             self._mfa_frame,
-            text="🔐 Для смены роли требуется MFA",
+            text="🔐 MFA is required to switch roles",
             bg=COLOR_WARNING_BG,
             fg="#856404",
             font=("Helvetica", 10),
@@ -293,7 +293,7 @@ class RoleSwitchDialog(BaseDialog):
         # Cancel button
         self._cancel_btn = ttk.Button(
             btn_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
         )
         self._cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
@@ -301,7 +301,7 @@ class RoleSwitchDialog(BaseDialog):
         # Apply button
         self._apply_btn = ttk.Button(
             btn_frame,
-            text="Применить",
+            text="Apply",
             command=self._on_apply,
         )
         self._apply_btn.pack(side=tk.RIGHT)
@@ -366,9 +366,7 @@ class RoleSwitchDialog(BaseDialog):
         if requires_mfa:
             self._mfa_frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL), before=self._apply_btn.master)
             if self._free_mode:
-                self._mfa_label.config(
-                    text="🔐 Режим свободного переключения: MFA требуется для любой роли"
-                )
+                self._mfa_label.config(text="🔐 Free switching mode: MFA is required for any role")
         else:
             self._mfa_frame.pack_forget()
 
@@ -384,8 +382,8 @@ class RoleSwitchDialog(BaseDialog):
         # Check if role actually changed
         if selected_role_str == current_str:
             messagebox.showinfo(
-                "Информация",
-                "Выбрана текущая роль. Изменений не требуется.",
+                "Information",
+                "Current role is selected. No changes needed.",
                 parent=self,
             )
             self._on_cancel()
@@ -398,8 +396,8 @@ class RoleSwitchDialog(BaseDialog):
 
         self._result = (selected_role, self._free_mode, self._mfa_required)
 
-        if self._on_role_selected:
-            self._on_role_selected(selected_role, self._free_mode)
+        if self._on_role_selected_callback:
+            self._on_role_selected_callback(selected_role, self._free_mode)
 
         self.destroy()
 
@@ -407,8 +405,8 @@ class RoleSwitchDialog(BaseDialog):
         """Обработчик отмены."""
         self._result = None
 
-        if self._on_cancel:
-            self._on_cancel()
+        if self._on_cancel_callback:
+            self._on_cancel_callback()
 
         self.destroy()
 

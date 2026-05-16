@@ -37,9 +37,9 @@ class TestGUIError:
 
     def test_with_message(self) -> None:
         """GUIError с сообщением."""
-        error = GUIError("Тестовая ошибка")
-        assert str(error) == "Тестовая ошибка"
-        assert error.message == "Тестовая ошибка"
+        error = GUIError("Test error")
+        assert str(error) == "Test error"
+        assert error.message == "Test error"
 
     def test_without_message(self) -> None:
         """GUIError без сообщения."""
@@ -78,8 +78,8 @@ class TestWidgetRegistryError:
 
     def test_with_message(self) -> None:
         """WidgetRegistryError с сообщением."""
-        error = WidgetRegistryError("Ошибка реестра")
-        assert str(error) == "Ошибка реестра"
+        error = WidgetRegistryError("Registry error")
+        assert str(error) == "Registry error"
 
     def test_without_message(self) -> None:
         """WidgetRegistryError без сообщения."""
@@ -108,7 +108,7 @@ class TestWidgetNotFoundError:
         assert error.widget_id == "submit_btn"
         assert "submit_btn" in str(error)
         assert "button" in str(error)
-        assert "не найден" in str(error)
+        assert "not found" in str(error)
 
     def test_with_widget_type_only(self) -> None:
         """WidgetNotFoundError только с widget_type."""
@@ -116,7 +116,7 @@ class TestWidgetNotFoundError:
         assert error.widget_type == "label"
         assert error.widget_id is None
         assert "label" in str(error)
-        assert "не найден" in str(error)
+        assert "not found" in str(error)
 
     def test_with_widget_id_only(self) -> None:
         """WidgetNotFoundError только с widget_id."""
@@ -124,23 +124,23 @@ class TestWidgetNotFoundError:
         assert error.widget_type is None
         assert error.widget_id == "my_widget"
         assert "my_widget" in str(error)
-        assert "не найден" in str(error)
+        assert "not found" in str(error)
 
     def test_without_any_params(self) -> None:
         """WidgetNotFoundError без параметров."""
         error = WidgetNotFoundError()
         assert error.widget_type is None
         assert error.widget_id is None
-        assert str(error) == "Виджет не найден в реестре"
+        assert str(error) == "Widget not found in registry"
 
     def test_with_custom_message(self) -> None:
         """WidgetNotFoundError с кастомным сообщением."""
         error = WidgetNotFoundError(
             widget_type="button",
             widget_id="btn_1",
-            message="Кастомное сообщение об ошибке",
+            message="Custom error message",
         )
-        assert str(error) == "Кастомное сообщение об ошибке"
+        assert str(error) == "Custom error message"
         assert error.widget_type == "button"
         assert error.widget_id == "btn_1"
 
@@ -148,15 +148,15 @@ class TestWidgetNotFoundError:
         """Проверка форматирования сообщения."""
         # Полное сообщение
         error = WidgetNotFoundError(widget_type="input", widget_id="username")
-        assert "Виджет 'username' типа 'input' не найден в реестре" == str(error)
+        assert "Widget 'username' of type 'input' not found in registry" == str(error)
 
         # Только тип
         error = WidgetNotFoundError(widget_type="label")
-        assert "Виджет типа 'label' не найден в реестре" == str(error)
+        assert "Widget of type 'label' not found in registry" == str(error)
 
         # Только id
         error = WidgetNotFoundError(widget_id="my_id")
-        assert "Виджет 'my_id' не найден в реестре" == str(error)
+        assert "Widget 'my_id' not found in registry" == str(error)
 
 
 # ==============================================================================
@@ -193,7 +193,7 @@ class TestWidgetCreationError:
         assert error.factory_name == "ButtonFactory"
         assert "button_primary" in str(error)
         assert "ButtonFactory" in str(error)
-        assert "Не удалось создать виджет" in str(error)
+        assert "Failed to create widget" in str(error)
 
     def test_with_widget_type_only(self) -> None:
         """WidgetCreationError только с widget_type."""
@@ -207,21 +207,21 @@ class TestWidgetCreationError:
         error = WidgetCreationError()
         assert error.widget_type is None
         assert error.factory_name is None
-        assert str(error) == "Не удалось создать виджет"
+        assert str(error) == "Failed to create widget"
 
     def test_message_formatting(self) -> None:
         """Проверка форматирования сообщения."""
         # Полное сообщение
         error = WidgetCreationError(widget_type="editor", factory_name="Factory")
-        assert "Не удалось создать виджет 'editor' в фабрике 'Factory'" == str(error)
+        assert "Failed to create widget 'editor' in factory 'Factory'" == str(error)
 
         # Только тип
         error = WidgetCreationError(widget_type="label")
-        assert "Не удалось создать виджет 'label'" == str(error)
+        assert "Failed to create widget 'label'" == str(error)
 
         # Ничего
         error = WidgetCreationError()
-        assert "Не удалось создать виджет" == str(error)
+        assert "Failed to create widget" == str(error)
 
 
 # ==============================================================================
@@ -255,7 +255,7 @@ class TestProtocolValidationError:
         assert error.implementation == "MyWidget"
         assert "MyWidget" in str(error)
         assert "WidgetProtocol" in str(error)
-        assert "не реализует" in str(error)
+        assert "does not implement" in str(error)
 
     def test_with_implementation_only(self) -> None:
         """ProtocolValidationError только с implementation."""
@@ -269,17 +269,17 @@ class TestProtocolValidationError:
         error = ProtocolValidationError()
         assert error.protocol_name is None
         assert error.implementation is None
-        assert str(error) == "не соответствует Protocol интерфейсу"
+        assert str(error) == "does not conform to Protocol interface"
 
     def test_message_formatting(self) -> None:
         """Проверка форматирования сообщения."""
         # Полное сообщение
         error = ProtocolValidationError(protocol_name="WidgetProtocol", implementation="MyClass")
-        assert "'MyClass' не реализует Protocol 'WidgetProtocol'" == str(error)
+        assert "'MyClass' does not implement Protocol 'WidgetProtocol'" == str(error)
 
         # Только implementation
         error = ProtocolValidationError(implementation="TestClass")
-        assert "'TestClass' не соответствует Protocol интерфейсу" == str(error)
+        assert "'TestClass' does not conform to Protocol interface" == str(error)
 
 
 # ==============================================================================
@@ -333,21 +333,21 @@ class TestLifecycleError:
         error = LifecycleError()
         assert error.widget_id is None
         assert error.operation is None
-        assert str(error) == "Ошибка жизненного цикла виджета"
+        assert str(error) == "Widget lifecycle error"
 
     def test_message_formatting(self) -> None:
         """Проверка форматирования сообщения."""
         # Полное сообщение
         error = LifecycleError(widget_id="view_1", operation="mount")
-        assert "Ошибка mount для виджета 'view_1'" == str(error)
+        assert "Error during mount for widget 'view_1'" == str(error)
 
         # Только operation
         error = LifecycleError(operation="unmount")
-        assert "Ошибка операции unmount" == str(error)
+        assert "Error during operation unmount" == str(error)
 
         # Только widget_id
         error = LifecycleError(widget_id="widget_1")
-        assert "Ошибка жизненного цикла виджета 'widget_1'" == str(error)
+        assert "Widget lifecycle error for 'widget_1'" == str(error)
 
 
 # ==============================================================================
@@ -405,24 +405,24 @@ class TestEventHandlingError:
         assert error.event_type is None
         assert error.widget_id is None
         assert error.handler_name is None
-        assert str(error) == "Ошибка обработки события"
+        assert str(error) == "Error handling event"
 
     def test_message_formatting(self) -> None:
         """Проверка форматирования сообщения."""
         # Полное сообщение
         error = EventHandlingError(event_type="click", widget_id="btn_1", handler_name="on_click")
         assert (
-            "Ошибка обработки события 'click' в обработчике 'on_click' "
-            "для виджета 'btn_1'" == str(error)
+            "Error handling event 'click' in handler 'on_click' "
+            "for widget 'btn_1'" == str(error)
         )
 
         # Только event_type и handler_name
         error = EventHandlingError(event_type="change", handler_name="on_change")
-        assert "Ошибка обработки события 'change' в обработчике 'on_change'" == str(error)
+        assert "Error handling event 'change' in handler 'on_change'" == str(error)
 
         # Только event_type
         error = EventHandlingError(event_type="focus")
-        assert "Ошибка обработки события 'focus'" == str(error)
+        assert "Error handling event 'focus'" == str(error)
 
 
 # ==============================================================================

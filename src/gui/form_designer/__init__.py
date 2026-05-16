@@ -47,6 +47,7 @@ __all__: list[str] = [
     "MIN_ZOOM",
     "MAX_ZOOM",
     "DEFAULT_ZOOM",
+    "FieldInfo",
     "FieldPaletteWidget",
     "DragMode",
     "DragData",

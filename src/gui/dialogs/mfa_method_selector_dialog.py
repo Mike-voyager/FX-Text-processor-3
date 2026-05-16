@@ -177,7 +177,15 @@ class MFAMethodSelectorDialog(BaseDialog):
             role_label.pack(anchor=tk.W, pady=(2, 0))
 
     def _create_method_selector(self, parent: tk.Widget) -> None:
-        """Создаёт селектор метода MFA."""
+        """Создаёт селектор метода MFA в двухколоночном layout.
+
+        Layout (UI_SPEC §3.6):
+            [🔐 FIDO2]          [⏱️ TOTP]
+            Touch your key      Enter 6-digit code
+
+            [📝 Backup Code]
+            Enter one-time code
+        """
         method_frame = tk.LabelFrame(
             parent,
             text="Select verification method:",
@@ -188,9 +196,13 @@ class MFAMethodSelectorDialog(BaseDialog):
         )
         method_frame.pack(fill=tk.X, pady=(0, 15))
 
-        # FIDO2 option
-        fido2_frame = tk.Frame(method_frame, bg=COLOR_BG)
-        fido2_frame.pack(fill=tk.X, pady=2)
+        # Row 1: FIDO2 + TOTP side by side
+        row1_frame = tk.Frame(method_frame, bg=COLOR_BG)
+        row1_frame.pack(fill=tk.X, pady=2)
+
+        # FIDO2 option (left)
+        fido2_frame = tk.Frame(row1_frame, bg=COLOR_BG)
+        fido2_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         fido2_radio = tk.Radiobutton(
             fido2_frame,
@@ -201,7 +213,7 @@ class MFAMethodSelectorDialog(BaseDialog):
             bg=COLOR_BG,
             selectcolor=COLOR_INFO,
         )
-        fido2_radio.pack(side=tk.LEFT)
+        fido2_radio.pack(anchor=tk.W)
 
         fido2_hint = tk.Label(
             fido2_frame,
@@ -210,11 +222,11 @@ class MFAMethodSelectorDialog(BaseDialog):
             bg=COLOR_BG,
             fg="#7f8c8d",
         )
-        fido2_hint.pack(side=tk.LEFT, padx=(10, 0))
+        fido2_hint.pack(anchor=tk.W, padx=(20, 0))
 
-        # TOTP option
-        totp_frame = tk.Frame(method_frame, bg=COLOR_BG)
-        totp_frame.pack(fill=tk.X, pady=2)
+        # TOTP option (right)
+        totp_frame = tk.Frame(row1_frame, bg=COLOR_BG)
+        totp_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         totp_radio = tk.Radiobutton(
             totp_frame,
@@ -225,7 +237,7 @@ class MFAMethodSelectorDialog(BaseDialog):
             bg=COLOR_BG,
             selectcolor=COLOR_INFO,
         )
-        totp_radio.pack(side=tk.LEFT)
+        totp_radio.pack(anchor=tk.W)
 
         totp_hint = tk.Label(
             totp_frame,
@@ -234,14 +246,14 @@ class MFAMethodSelectorDialog(BaseDialog):
             bg=COLOR_BG,
             fg="#7f8c8d",
         )
-        totp_hint.pack(side=tk.LEFT, padx=(10, 0))
+        totp_hint.pack(anchor=tk.W, padx=(20, 0))
 
-        # Backup Code option
-        backup_frame = tk.Frame(method_frame, bg=COLOR_BG)
-        backup_frame.pack(fill=tk.X, pady=2)
+        # Row 2: Backup Code
+        row2_frame = tk.Frame(method_frame, bg=COLOR_BG)
+        row2_frame.pack(fill=tk.X, pady=(8, 2))
 
         backup_radio = tk.Radiobutton(
-            backup_frame,
+            row2_frame,
             text="📝 Backup Code",
             variable=self._method,
             value="backup",
@@ -249,16 +261,16 @@ class MFAMethodSelectorDialog(BaseDialog):
             bg=COLOR_BG,
             selectcolor=COLOR_INFO,
         )
-        backup_radio.pack(side=tk.LEFT)
+        backup_radio.pack(anchor=tk.W)
 
         backup_hint = tk.Label(
-            backup_frame,
+            row2_frame,
             text="Enter one-time code",
             font=("Arial", 9),
             bg=COLOR_BG,
             fg="#7f8c8d",
         )
-        backup_hint.pack(side=tk.LEFT, padx=(10, 0))
+        backup_hint.pack(anchor=tk.W, padx=(20, 0))
 
     def _create_token_entry(self, parent: tk.Widget) -> None:
         """Создаёт поле ввода токена."""
@@ -288,6 +300,8 @@ class MFAMethodSelectorDialog(BaseDialog):
 
     def _on_token_key_release(self, event: tk.Event) -> None:
         """Обработчик отпускания клавиши в поле токена."""
+        if self._token_entry is None:
+            return
         if self._method.get() == "totp":
             # Auto-advance logic for TOTP (6 digits)
             current_text = self._token_entry.get()
@@ -326,6 +340,8 @@ class MFAMethodSelectorDialog(BaseDialog):
 
     def _on_verify(self) -> None:
         """Обработчик нажатия кнопки подтверждения."""
+        if self._token_entry is None:
+            return
         token = self._token_entry.get().strip()
         method = self._method.get()
 
@@ -361,7 +377,7 @@ class MFAMethodSelectorDialog(BaseDialog):
             self._verify_btn.config(state=tk.DISABLED, text="Processing...")
 
         # Call completion callback after short delay
-        self.after(1000, self._complete_verification)
+        self._after_ids.append(self.after(1000, self._complete_verification))
 
     def _on_cancel(self) -> None:
         """Обработчик отмены."""

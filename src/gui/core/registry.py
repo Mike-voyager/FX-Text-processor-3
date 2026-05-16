@@ -95,13 +95,13 @@ class WidgetCategory(str, Enum):
             'Контейнер'
         """
         labels = {
-            WidgetCategory.CONTAINER: "Контейнер",
-            WidgetCategory.INPUT: "Ввод данных",
-            WidgetCategory.DISPLAY: "Отображение",
-            WidgetCategory.DIALOG: "Диалог",
-            WidgetCategory.MENU: "Меню",
-            WidgetCategory.TOOLBAR: "Панель инструментов",
-            WidgetCategory.CUSTOM: "Пользовательский",
+            WidgetCategory.CONTAINER: "Container",
+            WidgetCategory.INPUT: "Input",
+            WidgetCategory.DISPLAY: "Display",
+            WidgetCategory.DIALOG: "Dialog",
+            WidgetCategory.MENU: "Menu",
+            WidgetCategory.TOOLBAR: "Toolbar",
+            WidgetCategory.CUSTOM: "Custom",
         }
         return labels[self]
 
@@ -126,8 +126,7 @@ class WidgetCategory(str, Enum):
             return cls[value.upper()]
         except KeyError:
             raise ValueError(
-                f"Неизвестная категория виджета: {value}. "
-                f"Допустимые значения: {[c.value for c in cls]}"
+                f"Unknown widget category: {value}. Valid values: {[c.value for c in cls]}"
             ) from None
 
 
@@ -160,9 +159,9 @@ class WidgetComplexity(str, Enum):
             Локализованное название
         """
         labels = {
-            WidgetComplexity.PRIMITIVE: "Примитив",
-            WidgetComplexity.COMPOUND: "Составной",
-            WidgetComplexity.COMPOSITE: "Комплексный",
+            WidgetComplexity.PRIMITIVE: "Primitive",
+            WidgetComplexity.COMPOUND: "Compound",
+            WidgetComplexity.COMPOSITE: "Composite",
         }
         return labels[self]
 
@@ -183,8 +182,7 @@ class WidgetComplexity(str, Enum):
             return cls[value.upper()]
         except KeyError:
             raise ValueError(
-                f"Неизвестный уровень сложности: {value}. "
-                f"Допустимые значения: {[c.value for c in cls]}"
+                f"Unknown complexity level: {value}. Valid values: {[c.value for c in cls]}"
             ) from None
 
 
@@ -248,31 +246,28 @@ class WidgetMetadata:
         """
         # Валидация version
         if not self.version or not self.version.strip():
-            raise ValueError("version не может быть пустым")
+            raise ValueError("version cannot be empty")
 
         # Валидация author
         if not self.author or not self.author.strip():
-            raise ValueError("author не может быть пустым")
+            raise ValueError("author cannot be empty")
 
         # Валидация description
         if not self.description or not self.description.strip():
-            raise ValueError("description не может быть пустым")
+            raise ValueError("description cannot be empty")
 
         # Валидация supported_events
         if not isinstance(self.supported_events, set):
             raise TypeError(
-                f"supported_events должен быть Set[str], получено "
-                f"{type(self.supported_events).__name__}"
+                f"supported_events must be Set[str], got {type(self.supported_events).__name__}"
             )
 
         # Валидация типов событий
         for event in self.supported_events:
             if not isinstance(event, str):
-                raise TypeError(
-                    f"Все события должны быть строками, получено {type(event).__name__}"
-                )
+                raise TypeError(f"All events must be strings, got {type(event).__name__}")
             if not event.strip():
-                raise ValueError("Имя события не может быть пустой строкой")
+                raise ValueError("Event name cannot be empty")
 
     def __hash__(self) -> int:
         """Хеш по ключевым полям виджета."""
@@ -516,26 +511,24 @@ class WidgetRegistry:
         with self._lock:
             # Валидация widget_type
             if not widget_type or not widget_type.strip():
-                raise WidgetRegistryError("Тип виджета не может быть пустым")
+                raise WidgetRegistryError("widget type cannot be empty")
 
             widget_type = widget_type.strip()
 
             # Проверка дубликатов
             if widget_type in self._registry:
                 raise WidgetRegistryError(
-                    f"Виджет '{widget_type}' уже зарегистрирован. "
-                    f"Используйте unregister() для удаления старой регистрации."
+                    f"Widget '{widget_type}' is already registered. "
+                    f"Use unregister() to remove the existing registration."
                 )
 
             # Валидация factory
             if not callable(factory):
-                raise TypeError(f"factory должна быть callable, получено {type(factory).__name__}")
+                raise TypeError(f"factory must be callable, got {type(factory).__name__}")
 
             # Валидация metadata
             if not isinstance(metadata, WidgetMetadata):
-                raise TypeError(
-                    f"metadata должна быть WidgetMetadata, получено {type(metadata).__name__}"
-                )
+                raise TypeError(f"metadata must be WidgetMetadata, got {type(metadata).__name__}")
 
             # Валидация соответствия Protocol
             if validate:
@@ -578,7 +571,7 @@ class WidgetRegistry:
                 raise ProtocolValidationError(
                     protocol_name="WidgetProtocol",
                     implementation=type(instance).__name__,
-                    message=f"Экземпляр {type(instance).__name__} не реализует WidgetProtocol",
+                    message=f"Instance {type(instance).__name__} does not implement WidgetProtocol",
                 )
 
             logger.debug(f"Protocol validation passed: {widget_type} -> WidgetProtocol")
@@ -590,7 +583,7 @@ class WidgetRegistry:
             raise ProtocolValidationError(
                 protocol_name="WidgetProtocol",
                 implementation=factory.__name__ if hasattr(factory, "__name__") else str(factory),
-                message=f"Не удалось валидировать WidgetProtocol для {widget_type}: {e}",
+                message=f"Failed to validate WidgetProtocol for {widget_type}: {e}",
             ) from e
 
     def create(self, widget_type: str, **kwargs: Any) -> Any:
@@ -620,8 +613,8 @@ class WidgetRegistry:
                 available = ", ".join(sorted(self._registry.keys())[:5])
                 raise WidgetNotFoundError(
                     widget_type=widget_type,
-                    message=f"Виджет '{widget_type}' не найден в реестре. "
-                    f"Доступные (первые 5): {available}...",
+                    message=f"Widget '{widget_type}' not found in registry. "
+                    f"Available (first 5): {available}...",
                 )
 
             entry = self._registry[widget_type]
@@ -641,7 +634,7 @@ class WidgetRegistry:
                 raise WidgetCreationError(
                     widget_type=widget_type,
                     factory_name=factory_name,
-                    message=f"Не удалось создать экземпляр {widget_type}: {e}",
+                    message=f"Failed to create instance {widget_type}: {e}",
                     cause=e,
                 ) from e
 
@@ -666,7 +659,7 @@ class WidgetRegistry:
             if widget_type not in self._registry:
                 raise WidgetNotFoundError(
                     widget_type=widget_type,
-                    message=f"Виджет '{widget_type}' не найден в реестре",
+                    message=f"Widget '{widget_type}' not found in registry",
                 )
             return self._registry[widget_type].metadata
 
@@ -871,7 +864,7 @@ class WidgetRegistry:
             if widget_type not in self._registry:
                 raise WidgetNotFoundError(
                     widget_type=widget_type,
-                    message=f"Виджет '{widget_type}' не найден в реестре",
+                    message=f"Widget '{widget_type}' not found in registry",
                 )
 
             del self._registry[widget_type]

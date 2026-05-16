@@ -68,7 +68,7 @@ class TemplatePreviewWidget(tk.Frame):
     def _create_ui(self) -> None:
         """Создаёт UI компоненты."""
         # Header — название шаблона
-        self._name_var = tk.StringVar(master=self, value="Шаблон не выбран")
+        self._name_var = tk.StringVar(master=self, value="No template selected")
         header = tk.Label(
             self,
             textvariable=self._name_var,
@@ -192,7 +192,7 @@ class TemplatePreviewWidget(tk.Frame):
         """
         self._template_data = template_data
 
-        name = template_data.get("name", "Без названия")
+        name = template_data.get("name", "Untitled")
         self._name_var.set(str(name))
 
         fields = template_data.get("fields", 0)

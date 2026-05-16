@@ -104,7 +104,7 @@ class TestWindowSyncIndicator:
         """Неизвестный статус вызывает ValueError."""
         ind = WindowSyncIndicator()
         ind.mount(tk_root)
-        with pytest.raises(ValueError, match="Неизвестный статус"):
+        with pytest.raises(ValueError, match="Unknown sync status"):
             ind.set_status("unknown")
 
     def test_set_status_before_mount(self) -> None:
@@ -302,7 +302,7 @@ class TestTabSyncIndicator:
         }
         tsi._on_sync_message(msg)
         assert tsi.indicator.status == SyncStatus.SYNCED
-        assert "Последняя синхронизация" in tsi.indicator._tooltip_text
+        assert "Last sync" in tsi.indicator._tooltip_text
         tsi.unmount()
 
     def test_unmount_unregisters_handler(self, tk_root: tk.Tk, mock_sync_service: MagicMock) -> None:
@@ -326,39 +326,39 @@ class TestTabSyncIndicator:
 class TestTitleBarSyncDecorator:
     """Тесты декоратора заголовка окна."""
 
-    def test_update_title_adds_prefix(self, tk_root: tk.Tk) -> None:
-        """update_title() добавляет префикс статуса."""
+    def test_update_title_adds_suffix(self, tk_root: tk.Tk) -> None:
+        """update_title() добавляет суффикс статуса."""
         tk_root.title("Document.fxsd - FX Text Processor 3")
         TitleBarSyncDecorator.update_title(tk_root, SyncStatus.SYNCED)
-        assert tk_root.title().startswith("[●] ")
+        assert tk_root.title().endswith(" [●] Synced")
 
-    def test_clear_title_removes_prefix(self, tk_root: tk.Tk) -> None:
-        """clear_title() убирает префикс."""
-        tk_root.title("[●] Document.fxsd - FX Text Processor 3")
+    def test_clear_title_removes_suffix(self, tk_root: tk.Tk) -> None:
+        """clear_title() убирает суффикс."""
+        tk_root.title("Document.fxsd - FX Text Processor 3 [●] Synced")
         TitleBarSyncDecorator.clear_title(tk_root)
-        assert not tk_root.title().startswith("[●]")
+        assert "[●]" not in tk_root.title()
         assert "Document.fxsd" in tk_root.title()
 
     def test_multiple_updates(self, tk_root: tk.Tk) -> None:
-        """Повторные вызовы не дублируют префиксы."""
+        """Повторные вызовы не дублируют суффиксы."""
         tk_root.title("Doc.fxsd")
         TitleBarSyncDecorator.update_title(tk_root, SyncStatus.OFFLINE)
         TitleBarSyncDecorator.update_title(tk_root, SyncStatus.SYNCING)
         title = tk_root.title()
-        assert title.startswith("[⟳] ")
-        # Только один префикс
+        assert title.endswith(" [⟳] Syncing...")
+        # Только один суффикс
         assert title.count("[") == 1
 
     def test_invalid_status_raises(self, tk_root: tk.Tk) -> None:
         """Неизвестный статус вызывает ValueError."""
-        with pytest.raises(ValueError, match="Неизвестный статус"):
+        with pytest.raises(ValueError, match="Unknown status"):
             TitleBarSyncDecorator.update_title(tk_root, "invalid")
 
-    def test_get_status_prefix(self) -> None:
-        """get_status_prefix() возвращает корректную строку."""
-        prefix = TitleBarSyncDecorator.get_status_prefix(SyncStatus.CONFLICT)
-        assert prefix == "[⚠] "
-        assert TitleBarSyncDecorator.get_status_prefix("unknown") == ""
+    def test_get_status_suffix(self) -> None:
+        """get_status_suffix() возвращает корректную строку."""
+        suffix = TitleBarSyncDecorator.get_status_suffix(SyncStatus.CONFLICT)
+        assert suffix == " [⚠] Conflict"
+        assert TitleBarSyncDecorator.get_status_suffix("unknown") == ""
 
 
 # =============================================================================

@@ -340,7 +340,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
             PIL Image или None.
         """
         try:
-            from barcode import EAN8, EAN13, ITF, UPCA, Codabar, Code39, Code128
+            from barcode import CODABAR, EAN8, EAN13, ITF, UPCA, Code39, Code128
             from barcode.writer import ImageWriter
             from PIL import Image
 
@@ -352,7 +352,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
                 "EAN8": EAN8,
                 "UPC": UPCA,
                 "ITF": ITF,
-                "CODABAR": Codabar,
+                "CODABAR": CODABAR,
             }
 
             barcode_class = type_map.get(barcode_type)
@@ -386,7 +386,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
 
             # Resize to target dimensions
             if img.width != width or img.height != height:
-                img = img.resize((width, height), Image.LANCZOS)
+                img = img.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined,assignment]
 
             return img
 
@@ -694,14 +694,16 @@ class PlaceholderBarcodeRenderer(BarcodeCanvasRenderer):
         for i in range(10):
             line_width = 3 + (i % 3) * 2
             line_id = self._canvas.create_line(
-                line_start + i * 8,
-                icon_y - 15,
-                line_start + i * 8 + line_width,
-                icon_y - 15,
-                line_start + i * 8 + line_width,
-                icon_y + 15,
-                line_start + i * 8,
-                icon_y + 15,
+                [
+                    line_start + i * 8,
+                    icon_y - 15,
+                    line_start + i * 8 + line_width,
+                    icon_y - 15,
+                    line_start + i * 8 + line_width,
+                    icon_y + 15,
+                    line_start + i * 8,
+                    icon_y + 15,
+                ],
                 fill="#333333",
                 width=1,
                 tags=(BARCODE_TAG, PLACEHOLDER_TAG),

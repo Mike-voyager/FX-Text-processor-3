@@ -41,9 +41,9 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, Final, Optional
 
-from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.model.document import DocumentMetadata
+from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.services.protocols.template_security import (
     TrustChainServiceProtocol,
     TrustStatus,
@@ -69,9 +69,9 @@ COLOR_GRAY: Final[str] = "#6c757d"  # Gray
 
 # Signature status display
 SIGNATURE_STATUS: Final[dict[Optional[bool], tuple[str, str, str]]] = {
-    True: ("✓", "Подпись действительна", COLOR_SUCCESS),
-    False: ("⚠️", "Подпись невалидна", COLOR_WARNING),
-    None: ("❌", "Подпись отсутствует", COLOR_GRAY),
+    True: ("✓", "Signature valid", COLOR_SUCCESS),
+    False: ("⚠️", "Signature invalid", COLOR_WARNING),
+    None: ("❌", "No signature", COLOR_GRAY),
 }
 
 # File type icons
@@ -149,7 +149,7 @@ class OpenDialog(BaseDialog):
         document_service: Any,
         trust_chain_verifier: Optional[TrustChainServiceProtocol] = None,
         *,
-        title: str = "Открыть документ",
+        title: str = "Open Document",
         initial_dir: Optional[Path] = None,
     ) -> None:
         """Инициализация диалога открытия документа.
@@ -229,7 +229,7 @@ class OpenDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        file_frame = ttk.LabelFrame(parent, text="Выбор файла", padding="10")
+        file_frame = ttk.LabelFrame(parent, text="File Selection", padding="10")
         file_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         file_frame.columnconfigure(0, weight=1)
 
@@ -238,7 +238,7 @@ class OpenDialog(BaseDialog):
         path_row.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         path_row.columnconfigure(0, weight=1)
 
-        self._path_var: tk.StringVar = tk.StringVar()
+        self._path_var: tk.StringVar = tk.StringVar(master=self)
         self._path_entry: ttk.Entry = ttk.Entry(
             path_row,
             textvariable=self._path_var,
@@ -250,7 +250,7 @@ class OpenDialog(BaseDialog):
         # Browse button
         self._browse_button: ttk.Button = ttk.Button(
             path_row,
-            text="📁 Обзор...",
+            text="📁 Browse...",
             command=self._on_browse,
         )
         self._browse_button.grid(row=0, column=1)
@@ -258,7 +258,7 @@ class OpenDialog(BaseDialog):
         # Filter info
         self._filter_label: ttk.Label = ttk.Label(
             file_frame,
-            text="Поддерживаемые форматы: .fxsd, .fxsd.enc, .fxstpl",
+            text="Supported formats: .fxsd, .fxsd.enc, .fxstpl",
             foreground="gray",
             font=("Helvetica", 8),
         )
@@ -271,7 +271,7 @@ class OpenDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        preview_frame = ttk.LabelFrame(parent, text="Предпросмотр", padding="10")
+        preview_frame = ttk.LabelFrame(parent, text="Preview", padding="10")
         preview_frame.grid(row=row, column=0, sticky="nsew", pady=(0, 10))
         preview_frame.columnconfigure(1, weight=1)
 
@@ -284,7 +284,7 @@ class OpenDialog(BaseDialog):
         self._icon_label.grid(row=0, column=0, rowspan=4, padx=(0, 15))
 
         # Title
-        ttk.Label(preview_frame, text="Заголовок:", font=("Helvetica", 9, "bold")).grid(
+        ttk.Label(preview_frame, text="Title:", font=("Helvetica", 9, "bold")).grid(
             row=0, column=1, sticky="w"
         )
         self._title_var: tk.StringVar = tk.StringVar(master=self, value="—")
@@ -296,7 +296,7 @@ class OpenDialog(BaseDialog):
         self._title_label.grid(row=0, column=2, sticky="w", padx=(5, 0))
 
         # Author
-        ttk.Label(preview_frame, text="Автор:", font=("Helvetica", 9, "bold")).grid(
+        ttk.Label(preview_frame, text="Author:", font=("Helvetica", 9, "bold")).grid(
             row=1, column=1, sticky="w"
         )
         self._author_var: tk.StringVar = tk.StringVar(master=self, value="—")
@@ -308,7 +308,7 @@ class OpenDialog(BaseDialog):
         self._author_label.grid(row=1, column=2, sticky="w", padx=(5, 0))
 
         # Created date
-        ttk.Label(preview_frame, text="Создан:", font=("Helvetica", 9, "bold")).grid(
+        ttk.Label(preview_frame, text="Created:", font=("Helvetica", 9, "bold")).grid(
             row=2, column=1, sticky="w"
         )
         self._created_var: tk.StringVar = tk.StringVar(master=self, value="—")
@@ -336,7 +336,7 @@ class OpenDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        sig_frame = ttk.LabelFrame(parent, text="Проверка подписи", padding="10")
+        sig_frame = ttk.LabelFrame(parent, text="Signature Verification", padding="10")
         sig_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         sig_frame.columnconfigure(0, weight=1)
 
@@ -344,7 +344,7 @@ class OpenDialog(BaseDialog):
         self._verify_var: tk.BooleanVar = tk.BooleanVar(master=self, value=True)
         self._verify_check: ttk.Checkbutton = ttk.Checkbutton(
             sig_frame,
-            text="✓ Проверить подпись при открытии",
+            text="✓ Verify signature on open",
             variable=self._verify_var,
             command=self._on_verify_toggle,
         )
@@ -355,7 +355,7 @@ class OpenDialog(BaseDialog):
         status_row.grid(row=1, column=0, sticky="ew", pady=(5, 0))
         status_row.columnconfigure(1, weight=1)
 
-        ttk.Label(status_row, text="Статус:", font=("Helvetica", 9, "bold")).grid(
+        ttk.Label(status_row, text="Status:", font=("Helvetica", 9, "bold")).grid(
             row=0, column=0, sticky="w"
         )
 
@@ -367,7 +367,7 @@ class OpenDialog(BaseDialog):
         )
         self._status_icon_label.grid(row=0, column=1, sticky="w", padx=(5, 0))
 
-        self._status_text_var: tk.StringVar = tk.StringVar(master=self, value="Подпись отсутствует")
+        self._status_text_var: tk.StringVar = tk.StringVar(master=self, value="No signature")
         self._status_text_label: ttk.Label = ttk.Label(
             status_row,
             textvariable=self._status_text_var,
@@ -383,11 +383,11 @@ class OpenDialog(BaseDialog):
             parent: Родительский фрейм.
             row: Номер строки для размещения.
         """
-        chain_frame = ttk.LabelFrame(parent, text="Цепочка доверия", padding="10")
+        chain_frame = ttk.LabelFrame(parent, text="Trust Chain", padding="10")
         chain_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         chain_frame.columnconfigure(0, weight=1)
 
-        self._chain_var: tk.StringVar = tk.StringVar(master=self, value="Цепочка доверия недоступна")
+        self._chain_var: tk.StringVar = tk.StringVar(master=self, value="Trust chain unavailable")
         self._chain_label: ttk.Label = ttk.Label(
             chain_frame,
             textvariable=self._chain_var,
@@ -419,7 +419,7 @@ class OpenDialog(BaseDialog):
         # Open button
         self._open_button: ttk.Button = ttk.Button(
             right_frame,
-            text="📂 Открыть",
+            text="📂 Open",
             command=self._on_open,
             state=tk.DISABLED,
         )
@@ -428,7 +428,7 @@ class OpenDialog(BaseDialog):
         # Cancel button
         self._cancel_button: ttk.Button = ttk.Button(
             right_frame,
-            text="❌ Отмена",
+            text="❌ Cancel",
             command=self._on_cancel,
         )
         self._cancel_button.pack(side=tk.LEFT)
@@ -443,7 +443,7 @@ class OpenDialog(BaseDialog):
 
         filename = filedialog.askopenfilename(
             parent=self,
-            title="Выберите файл для открытия",
+            title="Select a file to open",
             initialdir=str(self._initial_dir),
             filetypes=filetypes,
         )
@@ -480,7 +480,7 @@ class OpenDialog(BaseDialog):
         icon = "📄"
         if path.suffix == ".enc" or str(path).endswith(".fxsd.enc"):
             icon = "🔒"
-            self._encrypted_var.set("🔒 Документ зашифрован")
+            self._encrypted_var.set("🔒 Document is encrypted")
         elif path.suffix == ".fxstpl":
             icon = "📋"
             self._encrypted_var.set("")
@@ -579,10 +579,6 @@ class OpenDialog(BaseDialog):
             created=datetime.fromtimestamp(stat.st_ctime),
         )
 
-
-
-
-
     def _verify_signature(self, path: Path) -> None:
         """Верифицирует подпись файла.
 
@@ -613,7 +609,7 @@ class OpenDialog(BaseDialog):
             # Verification failed
             logger.warning("Signature verification error: %s", e)
             self._update_signature_status(False)
-            self._chain_var.set(f"Ошибка верификации: {str(e)[:50]}")
+            self._chain_var.set(f"Verification error: {str(e)[:50]}")
 
     def _update_signature_status(self, is_valid: Optional[bool]) -> None:
         """Обновляет индикатор статуса подписи.
@@ -634,19 +630,19 @@ class OpenDialog(BaseDialog):
             result: Результат верификации.
         """
         if result is None:
-            self._chain_var.set("Цепочка доверия недоступна")
+            self._chain_var.set("Trust chain unavailable")
             return
 
         if result.can_trust:
             self._chain_var.set(
-                f"✅ Доверенный ключ: {result.signing_key_id[:20]}... "
-                f"(глубина цепочки: {result.chain_depth})"
+                f"✅ Trusted key: {result.signing_key_id[:20]}... "
+                f"(chain depth: {result.chain_depth})"
             )
         elif result.errors:
-            error_msg = result.errors[0][:50] if result.errors else "Ошибка"
+            error_msg = result.errors[0][:50] if result.errors else "Error"
             self._chain_var.set(f"⚠️ {error_msg}")
         else:
-            self._chain_var.set(f"Статус: {result.trust_status.label()}")
+            self._chain_var.set(f"Status: {result.trust_status.label()}")
 
     def _on_verify_toggle(self) -> None:
         """Обрабатывает переключение проверки подписи."""
@@ -658,24 +654,24 @@ class OpenDialog(BaseDialog):
         elif not enabled:
             # Reset to no verification status
             self._status_icon_var.set("⏸")
-            self._status_text_var.set("Проверка отключена")
+            self._status_text_var.set("Verification disabled")
             self._status_text_label.configure(foreground=COLOR_GRAY)
-            self._chain_var.set("Проверка подписи отключена")
+            self._chain_var.set("Signature verification disabled")
 
     def _on_open(self) -> None:
         """Обрабатывает нажатие кнопки открытия."""
         if not self._selected_path:
             messagebox.showerror(
-                "Ошибка",
-                "Выберите файл для открытия",
+                "Error",
+                "Select a file to open",
                 parent=self,
             )
             return
 
         if not self._selected_path.exists():
             messagebox.showerror(
-                "Ошибка",
-                f"Файл не найден: {self._selected_path}",
+                "Error",
+                f"File not found: {self._selected_path}",
                 parent=self,
             )
             return
@@ -690,8 +686,8 @@ class OpenDialog(BaseDialog):
                     else "Неизвестная ошибка"
                 )
                 result = messagebox.askyesno(
-                    "⚠️ Предупреждение",
-                    f"Подпись файла недействительна:\n{error_msg}\n\nОткрыть файл в любом случае?",
+                    "⚠️ Warning",
+                    f"File signature is invalid:\n{error_msg}\n\nOpen the file anyway?",
                     parent=self,
                 )
                 if not result:
@@ -775,17 +771,17 @@ class TrustChainVerifier:
         try:
             chain = self._trust_service.get_trust_chain(key_id)
             if not chain:
-                return "Цепочка доверия не найдена"
+                return "Trust chain not found"
 
             root = [link for link in chain if link.is_root()]
             if root:
                 root_name = root[0].metadata.get("name", "Root")
-                return f"Цепочка от {root_name}, глубина: {len(chain)}"
-            return f"Цепочка доверия, глубина: {len(chain)}"
+                return f"Chain from {root_name}, depth: {len(chain)}"
+            return f"Trust chain, depth: {len(chain)}"
         except (AuthError, CryptoError) as e:
-            return f"Ошибка безопасности цепочки: {str(e)[:50]}"
+            return f"Chain security error: {str(e)[:50]}"
         except (OSError, FileNotFoundError, ValueError) as e:
-            return f"Ошибка получения цепочки: {str(e)[:50]}"
+            return f"Chain retrieval error: {str(e)[:50]}"
 
 
 class OpenFileDialog:
@@ -817,7 +813,7 @@ class OpenFileDialog:
         initial_dir = default_dir or Path.home() / "Documents"
 
         filename = filedialog.askopenfilename(
-            title="Открыть документ",
+            title="Open Document",
             initialdir=str(initial_dir),
             filetypes=[
                 ("FX Text Documents", "*.fxsd *.fxsd.enc"),

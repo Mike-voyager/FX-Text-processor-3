@@ -21,9 +21,7 @@ import sys
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
-from tkinter import ttk
-from typing import Any, Optional
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -47,6 +45,14 @@ from src.services.protocols.template_security import (
 )
 from src.services.template_manager import FormTemplate
 
+# Minimal valid template content used in tests
+_MINIMAL_TEMPLATE = (
+    'FXSTPL\n1.0\n'
+    '{"template_id": "tpl-1", "name": "Test", "name_ru": "Test", '
+    '"version": "1.0", "doc_type": "TEST", "pages": [], '
+    '"created_at": "2026-04-01T00:00:00", '
+    '"modified_at": "2026-04-01T00:00:00"}'
+)
 
 # =============================================================================
 # FIXTURES
@@ -261,7 +267,7 @@ class TestDialogCreation:
         open_dialog: OpenDialog,
     ) -> None:
         """Тест конфигурации окна."""
-        assert open_dialog.title() == "Открыть документ"
+        assert open_dialog.title() == "Open Document"
         # Window should be transient
         assert open_dialog.winfo_exists()
 
@@ -343,7 +349,7 @@ class TestFileFiltering:
         """Тест что выбор шаблона .fxstpl работает корректно."""
         test_file = tmp_path / "test.fxstpl"
         # Create minimal valid template file
-        test_file.write_text('FXSTPL\n1.0\n{"template_id": "tpl-1", "name": "Test", "name_ru": "Тест", "version": "1.0", "doc_type": "TEST", "pages": [], "created_at": "2026-04-01T00:00:00", "modified_at": "2026-04-01T00:00:00"}')
+        test_file.write_text(_MINIMAL_TEMPLATE)
 
         open_dialog._select_file(test_file)
 
@@ -375,7 +381,7 @@ class TestSignatureVerification:
         open_dialog._verify_var.set(False)
         open_dialog._on_verify_toggle()
 
-        assert "Проверка отключена" in open_dialog._status_text_var.get()
+        assert "Verification disabled" in open_dialog._status_text_var.get()
 
     def test_toggle_verification_on_triggers_verification(
         self,
@@ -386,7 +392,7 @@ class TestSignatureVerification:
         """Тест что включение проверки запускает верификацию."""
         # First select a file
         test_file = tmp_path / "test.fxstpl"
-        test_file.write_text('FXSTPL\n1.0\n{"template_id": "tpl-1", "name": "Test", "name_ru": "Тест", "version": "1.0", "doc_type": "TEST", "pages": [], "created_at": "2026-04-01T00:00:00", "modified_at": "2026-04-01T00:00:00"}')
+        test_file.write_text(_MINIMAL_TEMPLATE)
 
         open_dialog._select_file(test_file)
         mock_trust_service.verify_template.assert_called_once()
@@ -399,7 +405,7 @@ class TestSignatureVerification:
         open_dialog._update_signature_status(True)
 
         assert open_dialog._status_icon_var.get() == "✓"
-        assert "действительна" in open_dialog._status_text_var.get().lower()
+        assert "valid" in open_dialog._status_text_var.get().lower()
 
     def test_signature_status_invalid(
         self,
@@ -409,7 +415,7 @@ class TestSignatureVerification:
         open_dialog._update_signature_status(False)
 
         assert open_dialog._status_icon_var.get() == "⚠️"
-        assert "невалидна" in open_dialog._status_text_var.get().lower()
+        assert "invalid" in open_dialog._status_text_var.get().lower()
 
     def test_signature_status_missing(
         self,
@@ -419,7 +425,7 @@ class TestSignatureVerification:
         open_dialog._update_signature_status(None)
 
         assert open_dialog._status_icon_var.get() == "❌"
-        assert "отсутствует" in open_dialog._status_text_var.get().lower()
+        assert "no signature" in open_dialog._status_text_var.get().lower()
 
     def test_verify_without_trust_service(
         self,
@@ -435,7 +441,7 @@ class TestSignatureVerification:
         )
 
         test_file = tmp_path / "test.fxstpl"
-        test_file.write_text('FXSTPL\n1.0\n{"template_id": "tpl-1", "name": "Test", "name_ru": "Тест", "version": "1.0", "doc_type": "TEST", "pages": [], "created_at": "2026-04-01T00:00:00", "modified_at": "2026-04-01T00:00:00"}')
+        test_file.write_text(_MINIMAL_TEMPLATE)
 
         dialog._select_file(test_file)
         # Should not raise, just update to None status
@@ -543,8 +549,8 @@ class TestTrustChainDisplay:
 
         open_dialog._update_trust_chain_info(result)
 
-        assert "Доверенный ключ" in open_dialog._chain_var.get()
-        assert "глубина цепочки: 2" in open_dialog._chain_var.get()
+        assert "Trusted key" in open_dialog._chain_var.get()
+        assert "chain depth: 2" in open_dialog._chain_var.get()
 
     def test_trust_chain_info_with_errors(
         self,
@@ -571,7 +577,7 @@ class TestTrustChainDisplay:
         """Тест отображения когда результат None."""
         open_dialog._update_trust_chain_info(None)
 
-        assert "недоступна" in open_dialog._chain_var.get()
+        assert "unavailable" in open_dialog._chain_var.get()
 
     def test_trust_chain_info_revoked(
         self,
@@ -588,7 +594,7 @@ class TestTrustChainDisplay:
 
         open_dialog._update_trust_chain_info(result)
 
-        assert "Отозванный" in open_dialog._chain_var.get() or "Отозван" in open_dialog._chain_var.get()
+        assert "Status:" in open_dialog._chain_var.get()
 
 
 # =============================================================================
@@ -628,7 +634,7 @@ class TestTrustChainVerifier:
 
         summary = verifier.get_trust_chain_summary("key-abc")
 
-        assert "глубина" in summary.lower()
+        assert "depth" in summary.lower()
         mock_trust_service.get_trust_chain.assert_called_once_with("key-abc")
 
     def test_get_trust_chain_summary_empty(self, mock_trust_service: Mock) -> None:
@@ -638,7 +644,7 @@ class TestTrustChainVerifier:
 
         summary = verifier.get_trust_chain_summary("unknown-key")
 
-        assert "не найдена" in summary.lower()
+        assert "not found" in summary.lower()
 
 
 # =============================================================================
@@ -693,19 +699,19 @@ class TestConstants:
         """Тест константы для валидной подписи."""
         icon, text, color = SIGNATURE_STATUS[True]
         assert icon == "✓"
-        assert "действительна" in text
+        assert "valid" in text
 
     def test_signature_status_invalid(self) -> None:
         """Тест константы для невалидной подписи."""
         icon, text, color = SIGNATURE_STATUS[False]
         assert icon == "⚠️"
-        assert "невалидна" in text
+        assert "invalid" in text
 
     def test_signature_status_missing(self) -> None:
         """Тест константы для отсутствующей подписи."""
         icon, text, color = SIGNATURE_STATUS[None]
         assert icon == "❌"
-        assert "отсутствует" in text
+        assert "no signature" in text.lower()
 
     def test_dialog_dimensions(self) -> None:
         """Тест размеров диалога."""
@@ -775,7 +781,7 @@ class TestOpenCancelButtons:
         )
 
         test_file = tmp_path / "test.fxstpl"
-        test_file.write_text('FXSTPL\n1.0\n{"template_id": "tpl-1", "name": "Test", "name_ru": "Тест", "version": "1.0", "doc_type": "TEST", "pages": [], "created_at": "2026-04-01T00:00:00", "modified_at": "2026-04-01T00:00:00"}')
+        test_file.write_text(_MINIMAL_TEMPLATE)
 
         open_dialog._select_file(test_file)
         open_dialog._on_open()
@@ -824,7 +830,7 @@ class TestOpenCancelButtons:
         open_dialog._on_open()
 
         mock_showerror.assert_called_once()
-        assert "Выберите файл" in str(mock_showerror.call_args)
+        assert "Select a file" in str(mock_showerror.call_args)
 
     @patch("src.gui.dialogs.open_dialog.messagebox.showerror")
     def test_on_open_nonexistent_file(self, mock_showerror: Mock, open_dialog: OpenDialog) -> None:
@@ -834,10 +840,16 @@ class TestOpenCancelButtons:
         open_dialog._on_open()
 
         mock_showerror.assert_called_once()
-        assert "не найден" in str(mock_showerror.call_args) or "not found" in str(mock_showerror.call_args).lower()
+        assert "not found" in str(mock_showerror.call_args).lower()
 
     @patch("src.gui.dialogs.open_dialog.messagebox.askyesno")
-    def test_on_open_with_valid_signature(self, mock_askyesno: Mock, open_dialog: OpenDialog, mock_trust_service: Mock, tmp_path: Path) -> None:
+    def test_on_open_with_valid_signature(
+        self,
+        mock_askyesno: Mock,
+        open_dialog: OpenDialog,
+        mock_trust_service: Mock,
+        tmp_path: Path,
+    ) -> None:
         """Тест что при валидной подписи файл открывается без предупреждения."""
         # Set up valid signature
         mock_trust_service.verify_template.return_value = TrustVerificationResult(
@@ -849,7 +861,7 @@ class TestOpenCancelButtons:
         )
 
         test_file = tmp_path / "test.fxstpl"
-        test_file.write_text('FXSTPL\n1.0\n{"template_id": "tpl-1", "name": "Test", "name_ru": "Тест", "version": "1.0", "doc_type": "TEST", "pages": [], "created_at": "2026-04-01T00:00:00", "modified_at": "2026-04-01T00:00:00"}')
+        test_file.write_text(_MINIMAL_TEMPLATE)
 
         open_dialog._select_file(test_file)
 
@@ -869,8 +881,8 @@ class TestOpenCancelButtons:
         open_dialog._verify_var.set(False)
         open_dialog._on_verify_toggle()
 
-        assert "Проверка отключена" in open_dialog._status_text_var.get()
-        assert "отключена" in open_dialog._chain_var.get()
+        assert "Verification disabled" in open_dialog._status_text_var.get()
+        assert "disabled" in open_dialog._chain_var.get()
 
     def test_select_file_updates_path(self, open_dialog: OpenDialog, tmp_path: Path) -> None:
         """Тест что выбор файла обновляет путь в UI."""

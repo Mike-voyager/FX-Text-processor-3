@@ -23,6 +23,7 @@ from src.gui.modes.base import BaseModeRenderer
 from src.gui.modes.protocols import (
     DocumentModeRendererProtocol,
     ModeContext,
+    ModeState,
     ModeSwitchEvent,
     ModeToolbarProtocol,
 )
@@ -31,6 +32,7 @@ __all__: list[str] = [
     "BaseModeRenderer",
     "DocumentModeRendererProtocol",
     "ModeContext",
+    "ModeState",
     "ModeSwitchEvent",
     "ModeToolbarProtocol",
 ]

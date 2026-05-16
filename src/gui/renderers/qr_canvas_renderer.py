@@ -381,7 +381,7 @@ class SoftwareQRRenderer(QRCanvasRenderer):
 
             # Resize to target size
             if img.width != target_size or img.height != target_size:
-                img = img.resize((target_size, target_size), Image.LANCZOS)
+                img = img.resize((target_size, target_size), Image.LANCZOS)  # type: ignore[attr-defined]
 
             return img
 

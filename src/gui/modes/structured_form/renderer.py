@@ -29,9 +29,9 @@ from typing import TYPE_CHECKING, Any, Callable, Final, Optional
 from src.documents.constructor.form_constructor import ValidationReport
 from src.documents.constructor.form_status import FormStatus
 from src.documents.types.type_schema import FieldDefinition
+from src.gui.components.base.widget import BaseWidget
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
-from src.gui.components.base.widget import BaseWidget
 from src.gui.core.error_handler import GUIErrorHandler
 from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
@@ -301,7 +301,7 @@ class StructuredFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="render",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._current_document = document
@@ -328,7 +328,7 @@ class StructuredFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_content",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._inner_renderer is not None:
@@ -355,7 +355,7 @@ class StructuredFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="validate",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._inner_renderer is not None:
@@ -376,7 +376,7 @@ class StructuredFormModeRenderer(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="apply_command",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if self._inner_renderer is not None:

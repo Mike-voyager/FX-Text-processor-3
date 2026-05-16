@@ -18,9 +18,10 @@ if TYPE_CHECKING:
 try:
     import tkinter as tk
     from tkinter import ttk
+
     from src.gui.dialogs.special_character_dialog import (
-        SpecialCharResult,
         SpecialCharacterDialog,
+        SpecialCharResult,
     )
     TKINTER_AVAILABLE = True
 except ImportError:
@@ -54,7 +55,7 @@ class TestSpecialCharacterDialogCreation:
         """Проверка заголовка диалога."""
         dialog = SpecialCharacterDialog(parent=root)
         try:
-            assert dialog.title() == "Специальные символы"
+            assert dialog.title() == "Special Characters"
         finally:
             dialog.destroy()
 

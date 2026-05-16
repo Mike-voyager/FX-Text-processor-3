@@ -239,7 +239,7 @@ class PreviewPanel(BaseWidget):
         # Page label
         self._page_label = tk.Label(
             nav_frame,
-            text="Страница 1/1",
+            text="Page 1/1",
             bg="#e0e0e0",
             width=15,
         )
@@ -368,7 +368,7 @@ class PreviewPanel(BaseWidget):
             return
 
         self._visual_frame = tk.Frame(self._notebook, bg="#ffffff")
-        self._notebook.add(self._visual_frame, text="Визуальный предпросмотр")
+        self._notebook.add(self._visual_frame, text="Visual Preview")
 
         # Configure grid
         self._visual_frame.rowconfigure(0, weight=1)
@@ -411,7 +411,7 @@ class PreviewPanel(BaseWidget):
             return
 
         self._hex_frame = tk.Frame(self._notebook, bg=PREVIEW_BG_COLOR)
-        self._notebook.add(self._hex_frame, text="Hex дамп")
+        self._notebook.add(self._hex_frame, text="Hex Dump")
 
         # Configure grid
         self._hex_frame.rowconfigure(0, weight=1)
@@ -534,7 +534,7 @@ class PreviewPanel(BaseWidget):
         """Обновляет метку текущей страницы."""
         if self._page_label is not None and self._current_data is not None:
             self._page_label.config(
-                text=f"Страница {self._current_page}/{self._current_data.total_pages}"
+                text=f"Page {self._current_page}/{self._current_data.total_pages}"
             )
 
     def _render_visual_preview(self) -> None:

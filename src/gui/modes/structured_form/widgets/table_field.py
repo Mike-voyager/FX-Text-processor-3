@@ -99,7 +99,7 @@ class TableField(BaseField):
         self._btn_remove = tk.Button(toolbar, text="-", width=3, command=self._on_remove_row)
         self._btn_remove.pack(side=tk.LEFT)
 
-        self._row_label = tk.Label(toolbar, text="Строк: 0")
+        self._row_label = tk.Label(toolbar, text="Rows: 0")
         self._row_label.pack(side=tk.LEFT, padx=(10, 0))
 
         # Скроллируемый контейнер
@@ -276,7 +276,7 @@ class TableField(BaseField):
 
     def _update_row_count(self) -> None:
         """Обновляет индикатор количества строк."""
-        self._row_label.config(text=f"Строк: {len(self._row_frames)}")
+        self._row_label.config(text=f"Rows: {len(self._row_frames)}")
 
     def get_value(self) -> list[list[str]]:
         """Возвращает данные таблицы как список строк.

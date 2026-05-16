@@ -14,16 +14,15 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.gui.dialogs.backup_codes_dialog import (
-    BackupCodeDisplay,
-    BackupCodesDialog,
     CODE_MASK,
     COLOR_FG,
     COLOR_USED,
     DIALOG_HEIGHT,
     DIALOG_WIDTH,
     TOTAL_CODES,
+    BackupCodeDisplay,
+    BackupCodesDialog,
 )
 from src.gui.security.mfa_gate import MFAResult
 
@@ -132,14 +131,19 @@ class TestBackupCodesDialogLoadCodes:
             "ttl_seconds": 7776000,
             "codes": [
                 {"id": "code_001", "code": "ABCD-1234", "used": False},
-                {"id": "code_002", "code": "EFGH-5678", "used": True, "used_at": "2026-01-01T00:00:00"},
+                {
+                    "id": "code_002",
+                    "code": "EFGH-5678",
+                    "used": True,
+                    "used_at": "2026-01-01T00:00:00",
+                },
             ],
         }
-        
+
         # Создаём фейковый модуль с mock функцией
         mock_module = MagicMock()
         mock_module.get_backup_codes_status.return_value = mock_status
-        
+
         with patch.dict("sys.modules", {"src.security.auth.code_service": mock_module}):
             dialog = BackupCodesDialog(
                 parent=root,
@@ -224,7 +228,7 @@ class TestBackupCodesDialogVisibility:
         # Проверяем что текст кнопки изменился
         if dialog._toggle_btn is not None:
             button_text = dialog._toggle_btn.cget("text")
-            assert "Скрыть" in button_text or "Показать" in button_text
+            assert "Hide" in button_text or "Show" in button_text
 
         dialog.destroy()
 
@@ -292,7 +296,7 @@ class TestBackupCodesDialogClipboard:
         # Проверяем что показано сообщение об ошибке
         if dialog._notification_label is not None:
             text = dialog._notification_label.cget("text")
-            assert "Нет доступных" in text or "ошибка" in text.lower()
+            assert "No available" in text or "error" in text.lower()
 
         dialog.destroy()
 
@@ -347,7 +351,10 @@ class TestBackupCodesDialogMFA:
         """Тест регенерации без MFA gate."""
         # Создаём фейковый модуль с mock функцией
         mock_module = MagicMock()
-        mock_module.issue_backup_codes_for_user.return_value = {"success": True, "codes": ["NEW1-1111"]}
+        mock_module.issue_backup_codes_for_user.return_value = {
+            "success": True,
+            "codes": ["NEW1-1111"],
+        }
 
         dialog = BackupCodesDialog(
             parent=root,
@@ -462,7 +469,7 @@ class TestBackupCodesDialogStatus:
         # Проверяем что дата отображается
         if dialog._expiry_label is not None:
             expiry_text = dialog._expiry_label.cget("text")
-            assert "Действительны до" in expiry_text or "2026" in expiry_text or "2025" in expiry_text
+            assert "Valid until" in expiry_text or "2026" in expiry_text or "2025" in expiry_text
 
         dialog.destroy()
 
@@ -474,12 +481,12 @@ class TestBackupCodesDialogStatus:
         )
 
         # Показываем успешное сообщение
-        dialog._show_status("Коды успешно сгенерированы!", is_error=False)
+        dialog._show_status("Codes generated successfully!", is_error=False)
 
         # Проверяем что сообщение отображается
         assert dialog._notification_label is not None
         text = dialog._notification_label.cget("text")
-        assert text == "Коды успешно сгенерированы!"
+        assert text == "Codes generated successfully!"
 
         dialog.destroy()
 
@@ -491,12 +498,12 @@ class TestBackupCodesDialogStatus:
         )
 
         # Показываем сообщение об ошибке
-        dialog._show_status("Ошибка генерации кодов", is_error=True)
+        dialog._show_status("Code generation error", is_error=True)
 
         # Проверяем что сообщение отображается
         assert dialog._notification_label is not None
         text = dialog._notification_label.cget("text")
-        assert text == "Ошибка генерации кодов"
+        assert text == "Code generation error"
 
         dialog.destroy()
 

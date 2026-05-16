@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk, messagebox
 from dataclasses import dataclass
-from typing import Optional, Final
+from tkinter import messagebox, ttk
+from typing import Final, Optional
 
 from src.gui.dialogs.base_dialog import BaseDialog
+from src.security.crypto.core.metadata import AlgorithmCategory
 from src.security.crypto.core.registry import AlgorithmRegistry
 
 logger: Final = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class DigitalSignatureDialog(BaseDialog):
             document_id: ID документа для подписи/верификации.
             default_algorithm: Алгоритм по умолчанию.
         """
-        super().__init__(parent, title="Цифровая подпись", modal=True)
+        super().__init__(parent, title="Digital Signature", modal=True)
 
         self._document_id = document_id
         self._action_var = tk.StringVar(master=self, value="sign")
@@ -82,13 +83,10 @@ class DigitalSignatureDialog(BaseDialog):
         """
         try:
             registry = AlgorithmRegistry.get_instance()
-            # Get all algorithms from the registry
-            algorithms = []
-            for algo_id in registry.list_ids():
-                meta = registry.get_metadata(algo_id)
-                if meta and meta.category == "signature":
-                    algorithms.append(algo_id)
-            return algorithms if algorithms else ["Ed25519", "Ed448", "RSA-PSS-2048", "RSA-PSS-4096"]
+            algorithms = registry.list_by_category(AlgorithmCategory.SIGNATURE)
+            if algorithms:
+                return algorithms
+            return ["Ed25519", "Ed448", "RSA-PSS-2048", "RSA-PSS-4096"]
         except Exception:
             # Fallback if registry not available
             return ["Ed25519", "Ed448", "RSA-PSS-2048", "RSA-PSS-4096"]
@@ -105,18 +103,18 @@ class DigitalSignatureDialog(BaseDialog):
         frame.pack(fill="both", expand=True)
 
         # Action selection
-        action_frame = ttk.LabelFrame(frame, text="Действие", padding=10)
+        action_frame = ttk.LabelFrame(frame, text="Action", padding=10)
         action_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
 
-        ttk.Radiobutton(action_frame, text="Подписать документ", variable=self._action_var, value="sign").pack(
-            side="left", padx=10
-        )
         ttk.Radiobutton(
-            action_frame, text="Проверить подпись", variable=self._action_var, value="verify"
+            action_frame, text="Sign Document", variable=self._action_var, value="sign"
+        ).pack(side="left", padx=10)
+        ttk.Radiobutton(
+            action_frame, text="Verify Signature", variable=self._action_var, value="verify"
         ).pack(side="left", padx=10)
 
         # Algorithm selection
-        ttk.Label(frame, text="Алгоритм подписи:").grid(row=1, column=0, sticky="w", pady=8)
+        ttk.Label(frame, text="Signature Algorithm:").grid(row=1, column=0, sticky="w", pady=8)
         algo_combo = ttk.Combobox(
             frame,
             textvariable=self._algorithm_var,
@@ -127,19 +125,19 @@ class DigitalSignatureDialog(BaseDialog):
         algo_combo.grid(row=1, column=1, sticky="ew", pady=8)
 
         # Info
-        info_frame = ttk.LabelFrame(frame, text="Информация", padding=10)
+        info_frame = ttk.LabelFrame(frame, text="Information", padding=10)
         info_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
 
         info_text = (
-            "Ed25519 — быстрый, компактный (64 байт)\n"
-            "RSA-PSS-4096 — классический, длинный ключ\n"
-            "ML-DSA-65 — постквантовый (требует liboqs)"
+            "Ed25519 — fast, compact (64 bytes)\n"
+            "RSA-PSS-4096 — classic, long key\n"
+            "ML-DSA-65 — post-quantum (requires liboqs)"
         )
         ttk.Label(info_frame, text=info_text, justify="left").pack(anchor="w")
 
         # Document ID display
         if self._document_id:
-            ttk.Label(frame, text=f"Документ: {self._document_id}").grid(
+            ttk.Label(frame, text=f"Document: {self._document_id}").grid(
                 row=3, column=0, columnspan=2, sticky="w", pady=5
             )
 
@@ -147,10 +145,12 @@ class DigitalSignatureDialog(BaseDialog):
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
 
-        ttk.Button(btn_frame, text="Выполнить", command=self._on_execute, width=14).pack(
+        ttk.Button(btn_frame, text="Execute", command=self._on_execute, width=14).pack(
             side="left", padx=5
         )
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel, width=12).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel, width=12).pack(
+            side="left", padx=5
+        )
 
         frame.columnconfigure(1, weight=1)
 
@@ -160,7 +160,7 @@ class DigitalSignatureDialog(BaseDialog):
         algorithm = self._algorithm_var.get()
 
         if not algorithm:
-            messagebox.showwarning("Предупреждение", "Выберите алгоритм подписи", parent=self)
+            messagebox.showwarning("Warning", "Please select a signature algorithm", parent=self)
             return
 
         result = DigitalSignatureResult(action=action, algorithm=algorithm)

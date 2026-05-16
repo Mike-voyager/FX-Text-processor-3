@@ -67,7 +67,7 @@ class WindowInfo:
         """Ссылка на виджет окна (алиас для toplevel)."""
         return self.toplevel
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.document_path is not None:
             doc_id = str(self.document_path)
             if doc_id not in self.documents:
@@ -209,7 +209,7 @@ class WindowManager:
             window_id: Идентификатор окна для удаления.
 
         Raises:
-            KeyError: Если окно с таким ID не найдено.
+            KeyError: Если окно с таким ID not found.
 
         Example:
             >>> manager.unregister_window(window_id)
@@ -226,7 +226,7 @@ class WindowManager:
             window_id: Идентификатор окна.
 
         Returns:
-            Ссылка на Toplevel/Tk или None если окно не найдено.
+            Ссылка на Toplevel/Tk или None если окно not found.
 
         Example:
             >>> window = manager.get_window(window_id)
@@ -247,14 +247,14 @@ class WindowManager:
             window_id: Идентификатор окна.
 
         Raises:
-            KeyError: Если окно не найдено.
+            KeyError: Если окно not found.
 
         Example:
             >>> manager.bring_to_front(window_id)
         """
         info = self._windows.get(window_id)
         if info is None:
-            raise KeyError(f"Окно с ID '{window_id}' не найдено")
+            raise KeyError(f"Window with ID '{window_id}' not found")
 
         # Обновляем Z-order
         old_info = self._windows[window_id]
@@ -273,8 +273,11 @@ class WindowManager:
         self._windows[window_id] = new_info
 
         # Выводим на передний план
-        info.toplevel.lift()
-        info.toplevel.focus_force()
+        try:
+            info.toplevel.lift()
+            info.toplevel.focus_force()
+        except tk.TclError:
+            pass
 
     def update_window_title(self, window_id: str, new_title: str) -> bool:
         """Обновляет заголовок зарегистрированного окна.
@@ -286,7 +289,7 @@ class WindowManager:
             new_title: Новый заголовок.
 
         Returns:
-            True если заголовок обновлён, False если окно не найдено.
+            True если заголовок обновлён, False если окно not found.
 
         Example:
             >>> manager.update_window_title(window_id, "New Title")
@@ -480,7 +483,7 @@ class WindowManager:
             window_id: Идентификатор окна.
 
         Returns:
-            WindowInfo или None если окно не найдено.
+            WindowInfo или None если окно not found.
         """
         return self._windows.get(window_id)
 

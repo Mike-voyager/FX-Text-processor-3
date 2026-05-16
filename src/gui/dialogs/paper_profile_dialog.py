@@ -123,14 +123,14 @@ class PaperProfileDialog(BaseDialog):
 
         # Variables
         self._profile_vars: Dict[str, tk.Variable] = {}
-        self._tear_off_var: tk.BooleanVar = tk.BooleanVar()
+        self._tear_off_var: tk.BooleanVar = tk.BooleanVar(master=self)
         self._tear_off_check: Optional[tk.Checkbutton] = None
         self._tear_off_info: Optional[tk.Label] = None
         self._printable_label: tk.Label = tk.Label(self)
         self._recalc_btn: tk.Button = tk.Button(self)
 
         # Configure window
-        self.title("Выбор профиля бумаги")
+        self.title("Select Paper Profile")
         self.resizable(True, True)
 
         # Create UI
@@ -195,7 +195,7 @@ class PaperProfileDialog(BaseDialog):
         Returns:
             Фрейм с tiles избранных.
         """
-        frame = tk.LabelFrame(self, text="Избранные", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
+        frame = tk.LabelFrame(self, text="Favorites", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
 
         # Grid: 2 rows × 3 columns
         for row in range(FAVORITES_ROWS):
@@ -359,7 +359,7 @@ class PaperProfileDialog(BaseDialog):
         Returns:
             Фрейм с деревом профилей.
         """
-        frame = tk.LabelFrame(parent, text="Все профили", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
+        frame = tk.LabelFrame(parent, text="All Profiles", padx=PADDING_NORMAL, pady=PADDING_NORMAL)
 
         # Treeview
         self._tree = ttk.Treeview(
@@ -369,9 +369,9 @@ class PaperProfileDialog(BaseDialog):
             selectmode="browse",
             height=15,
         )
-        self._tree.heading("#0", text="Категория")
-        self._tree.heading("name", text="Название")
-        self._tree.heading("size", text="Размер")
+        self._tree.heading("#0", text="Category")
+        self._tree.heading("name", text="Name")
+        self._tree.heading("size", text="Size")
         self._tree.column("#0", width=120, stretch=False)
         self._tree.column("name", width=180)
         self._tree.column("size", width=100)
@@ -402,9 +402,9 @@ class PaperProfileDialog(BaseDialog):
 
         # Categories
         categories: Dict[str, Tuple[str, str]] = {
-            "continuous": ("Непрерывные формы", COLOR_CATEGORY_CONTINUOUS),
-            "sheet": ("Листовая подача", COLOR_CATEGORY_SHEET),
-            "envelope": ("Конверты", COLOR_CATEGORY_ENVELOPE),
+            "continuous": ("Continuous Forms", COLOR_CATEGORY_CONTINUOUS),
+            "sheet": ("Sheet Feed", COLOR_CATEGORY_SHEET),
+            "envelope": ("Envelopes", COLOR_CATEGORY_ENVELOPE),
         }
 
         favorites_ids = {p.id for p in self._service.get_favorites()}
@@ -464,7 +464,7 @@ class PaperProfileDialog(BaseDialog):
         """
         frame = tk.LabelFrame(
             parent,
-            text="Параметры профиля",
+            text="Profile Parameters",
             padx=PADDING_NORMAL,
             pady=PADDING_NORMAL,
             width=280,
@@ -472,25 +472,25 @@ class PaperProfileDialog(BaseDialog):
         frame.pack_propagate(False)
 
         # Name
-        tk.Label(frame, text="Название:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        self._profile_vars["name"] = tk.StringVar()
+        tk.Label(frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        self._profile_vars["name"] = tk.StringVar(master=self)
         tk.Entry(frame, textvariable=self._profile_vars["name"], width=20, state="readonly").grid(
             row=0, column=1, sticky=tk.W, pady=2
         )
 
         # Paper Type
-        tk.Label(frame, text="Тип:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self._profile_vars["paper_type"] = tk.StringVar()
+        tk.Label(frame, text="Type:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self._profile_vars["paper_type"] = tk.StringVar(master=self)
         tk.Entry(
             frame, textvariable=self._profile_vars["paper_type"], width=20, state="readonly"
         ).grid(row=1, column=1, sticky=tk.W, pady=2)
 
         # Dimensions
-        dim_frame = tk.LabelFrame(frame, text="Размеры (мм)", padx=5, pady=5)
+        dim_frame = tk.LabelFrame(frame, text="Dimensions (mm)", padx=5, pady=5)
         dim_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW, pady=PADDING_SMALL)
 
-        tk.Label(dim_frame, text="Ширина:").grid(row=0, column=0, sticky=tk.W)
-        self._profile_vars["width"] = tk.StringVar()
+        tk.Label(dim_frame, text="Width:").grid(row=0, column=0, sticky=tk.W)
+        self._profile_vars["width"] = tk.StringVar(master=self)
         tk.Spinbox(
             dim_frame,
             textvariable=self._profile_vars["width"],
@@ -500,8 +500,8 @@ class PaperProfileDialog(BaseDialog):
             command=self._on_dimension_change,
         ).grid(row=0, column=1, sticky=tk.W, padx=(5, 0))
 
-        tk.Label(dim_frame, text="Высота:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self._profile_vars["height"] = tk.StringVar()
+        tk.Label(dim_frame, text="Height:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self._profile_vars["height"] = tk.StringVar(master=self)
         tk.Spinbox(
             dim_frame,
             textvariable=self._profile_vars["height"],
@@ -512,12 +512,12 @@ class PaperProfileDialog(BaseDialog):
         ).grid(row=1, column=1, sticky=tk.W, padx=(5, 0), pady=2)
 
         # Margins
-        margins_frame = tk.LabelFrame(frame, text="Поля (мм)", padx=5, pady=5)
+        margins_frame = tk.LabelFrame(frame, text="Margins (mm)", padx=5, pady=5)
         margins_frame.grid(row=3, column=0, columnspan=2, sticky=tk.EW, pady=PADDING_SMALL)
 
         # Left
-        tk.Label(margins_frame, text="Левое:").grid(row=0, column=0, sticky=tk.W)
-        self._profile_vars["left_margin"] = tk.DoubleVar()
+        tk.Label(margins_frame, text="Left:").grid(row=0, column=0, sticky=tk.W)
+        self._profile_vars["left_margin"] = tk.DoubleVar(master=self)
         tk.Spinbox(
             margins_frame,
             textvariable=self._profile_vars["left_margin"],
@@ -529,8 +529,8 @@ class PaperProfileDialog(BaseDialog):
         ).grid(row=0, column=1, sticky=tk.W, padx=(5, 0))
 
         # Right
-        tk.Label(margins_frame, text="Правое:").grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
-        self._profile_vars["right_margin"] = tk.DoubleVar()
+        tk.Label(margins_frame, text="Right:").grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
+        self._profile_vars["right_margin"] = tk.DoubleVar(master=self)
         tk.Spinbox(
             margins_frame,
             textvariable=self._profile_vars["right_margin"],
@@ -542,8 +542,8 @@ class PaperProfileDialog(BaseDialog):
         ).grid(row=0, column=3, sticky=tk.W, padx=(5, 0))
 
         # Top
-        tk.Label(margins_frame, text="Верх:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self._profile_vars["top_margin"] = tk.DoubleVar()
+        tk.Label(margins_frame, text="Top:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self._profile_vars["top_margin"] = tk.DoubleVar(master=self)
         tk.Spinbox(
             margins_frame,
             textvariable=self._profile_vars["top_margin"],
@@ -555,8 +555,8 @@ class PaperProfileDialog(BaseDialog):
         ).grid(row=1, column=1, sticky=tk.W, padx=(5, 0), pady=2)
 
         # Bottom
-        tk.Label(margins_frame, text="Низ:").grid(row=1, column=2, sticky=tk.W, padx=(10, 0))
-        self._profile_vars["bottom_margin"] = tk.DoubleVar()
+        tk.Label(margins_frame, text="Bottom:").grid(row=1, column=2, sticky=tk.W, padx=(10, 0))
+        self._profile_vars["bottom_margin"] = tk.DoubleVar(master=self)
         tk.Spinbox(
             margins_frame,
             textvariable=self._profile_vars["bottom_margin"],
@@ -568,27 +568,27 @@ class PaperProfileDialog(BaseDialog):
         ).grid(row=1, column=3, sticky=tk.W, padx=(5, 0), pady=2)
 
         # Tear-off checkbox (only for continuous)
-        self._tear_off_var = tk.BooleanVar()
+        self._tear_off_var = tk.BooleanVar(master=self)
         self._tear_off_check = tk.Checkbutton(
             frame,
-            text="Отрывная перфорация",
+            text="Tear-off perforation",
             variable=self._tear_off_var,
             command=self._on_tear_off_change,
         )
         self._tear_off_check.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=2)
 
         self._tear_off_info = tk.Label(
-            frame, text="(+10мм к боковым полям)", font=("Arial", 8), fg="gray"
+            frame, text="(+10mm to side margins)", font=("Arial", 8), fg="gray"
         )
         self._tear_off_info.grid(row=5, column=0, columnspan=2, sticky=tk.W)
 
         # Defaults
-        defaults_frame = tk.LabelFrame(frame, text="По умолчанию", padx=5, pady=5)
+        defaults_frame = tk.LabelFrame(frame, text="Defaults", padx=5, pady=5)
         defaults_frame.grid(row=6, column=0, columnspan=2, sticky=tk.EW, pady=PADDING_SMALL)
 
         # CPI
         tk.Label(defaults_frame, text="CPI:").grid(row=0, column=0, sticky=tk.W)
-        self._profile_vars["cpi"] = tk.IntVar()
+        self._profile_vars["cpi"] = tk.IntVar(master=self)
         cpi_combo = ttk.Combobox(
             defaults_frame,
             textvariable=self._profile_vars["cpi"],
@@ -601,7 +601,7 @@ class PaperProfileDialog(BaseDialog):
 
         # LPI
         tk.Label(defaults_frame, text="LPI:").grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
-        self._profile_vars["lpi"] = tk.IntVar()
+        self._profile_vars["lpi"] = tk.IntVar(master=self)
         lpi_combo = ttk.Combobox(
             defaults_frame,
             textvariable=self._profile_vars["lpi"],
@@ -613,19 +613,19 @@ class PaperProfileDialog(BaseDialog):
         lpi_combo.bind("<<ComboboxSelected>>", lambda e: self._update_printable_display())
 
         # Font
-        tk.Label(defaults_frame, text="Шрифт:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self._profile_vars["font"] = tk.StringVar()
+        tk.Label(defaults_frame, text="Font:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self._profile_vars["font"] = tk.StringVar(master=self)
         font_combo = ttk.Combobox(
             defaults_frame,
             textvariable=self._profile_vars["font"],
-            values=[f.localized_name("ru") for f in FontFamily],
+            values=[f.localized_name("en") for f in FontFamily],
             width=15,
             state="readonly",
         )
         font_combo.grid(row=1, column=1, columnspan=3, sticky=tk.W, padx=(5, 0), pady=2)
 
         # Printable area display
-        printable_frame = tk.LabelFrame(frame, text="Печатная область", padx=5, pady=5)
+        printable_frame = tk.LabelFrame(frame, text="Printable Area", padx=5, pady=5)
         printable_frame.grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=PADDING_SMALL)
 
         self._printable_label = tk.Label(
@@ -638,7 +638,7 @@ class PaperProfileDialog(BaseDialog):
 
         # Recalculate button
         self._recalc_btn = tk.Button(
-            frame, text="↻ Пересчитать", command=self._update_printable_display
+            frame, text="↻ Recalculate", command=self._update_printable_display
         )
         self._recalc_btn.grid(row=8, column=0, columnspan=2, pady=PADDING_SMALL)
 
@@ -680,7 +680,7 @@ class PaperProfileDialog(BaseDialog):
         name_var.set(profile.name_ru)
 
         paper_type_var = cast(tk.StringVar, self._profile_vars["paper_type"])
-        paper_type_var.set(profile.paper_type.localized_name("ru"))
+        paper_type_var.set(profile.paper_type.localized_name("en"))
 
         width_var = cast(tk.StringVar, self._profile_vars["width"])
         width_var.set(str(int(profile.width_mm)))
@@ -707,7 +707,7 @@ class PaperProfileDialog(BaseDialog):
         lpi_var.set(profile.default_lpi)
 
         font_var = cast(tk.StringVar, self._profile_vars["font"])
-        font_var.set(profile.default_font.localized_name("ru"))
+        font_var.set(profile.default_font.localized_name("en"))
 
         self._tear_off_var.set(profile.tear_off_perforation)
 
@@ -798,7 +798,7 @@ class PaperProfileDialog(BaseDialog):
 
         # Manage Favorites button (left)
         manage_btn = tk.Button(
-            btn_frame, text="⚙️ Управление избранным", command=self._open_manage_favorites
+            btn_frame, text="⚙️ Manage Favorites", command=self._open_manage_favorites
         )
         manage_btn.pack(side=tk.LEFT)
 
@@ -810,11 +810,11 @@ class PaperProfileDialog(BaseDialog):
         ok_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
         # Cancel button
-        cancel_btn = tk.Button(btn_frame, text="Отмена", width=10, command=self._on_cancel)
+        cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=self._on_cancel)
         cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
 
         # Apply button
-        apply_btn = tk.Button(btn_frame, text="Применить", width=10, command=self._on_apply)
+        apply_btn = tk.Button(btn_frame, text="Apply", width=10, command=self._on_apply)
         apply_btn.pack(side=tk.RIGHT)
 
     def _on_ok(self) -> None:
@@ -919,7 +919,7 @@ class ManageFavoritesDialog(BaseDialog):
         self._service = service
         self._selected: List[str] = []
 
-        self.title("Управление избранным")
+        self.title("Manage Favorites")
         self.resizable(False, False)
 
         self._listbox: tk.Listbox = tk.Listbox(self)
@@ -943,7 +943,7 @@ class ManageFavoritesDialog(BaseDialog):
 
         # Instructions
         favorites_str = str(MAX_FAVORITES)
-        tk.Label(frame, text=f"Выберите до {favorites_str} профилей:", anchor=tk.W).pack(
+        tk.Label(frame, text=f"Select up to {favorites_str} profiles:", anchor=tk.W).pack(
             fill=tk.X, pady=(0, PADDING_SMALL)
         )
 
@@ -979,10 +979,10 @@ class ManageFavoritesDialog(BaseDialog):
 
         tk.Frame(btn_frame).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        tk.Button(btn_frame, text="Отмена", width=10, command=self.destroy).pack(
+        tk.Button(btn_frame, text="Cancel", width=10, command=self.destroy).pack(
             side=tk.RIGHT, padx=(PADDING_SMALL, 0)
         )
-        tk.Button(btn_frame, text="Сохранить", width=10, command=self._on_save).pack(side=tk.RIGHT)
+        tk.Button(btn_frame, text="Save", width=10, command=self._on_save).pack(side=tk.RIGHT)
 
     def _on_save(self) -> None:
         """Сохраняет изменения."""
@@ -992,8 +992,8 @@ class ManageFavoritesDialog(BaseDialog):
 
         if len(selected_ids) > MAX_FAVORITES:
             messagebox.showwarning(
-                "Слишком много",
-                f"Можно выбрать не более {MAX_FAVORITES} профилей.",
+                "Too Many",
+                f"You can select at most {MAX_FAVORITES} profiles.",
             )
             return
 

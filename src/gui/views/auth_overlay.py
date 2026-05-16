@@ -42,11 +42,11 @@ class AuthOverlay(BaseWidget):
     Поддерживает три метода второго фактора: FIDO2, TOTP, Backup Code.
 
     Attributes:
-        OVERLAY_BG: Цвет фона overlay (тёмно-синий).
-        FORM_BG: Цвет фона формы (немного светлее).
-        FG: Цвет текста (светлый).
-        ERROR_FG: Цвет текста ошибки (красный).
-        SUCCESS_FG: Цвет текста успеха (зелёный).
+        OVERLAY_BG: Color фона overlay (тёмно-синий).
+        FORM_BG: Color фона формы (немного светлее).
+        FG: Color текста (светлый).
+        ERROR_FG: Color текста ошибки (красный).
+        SUCCESS_FG: Color текста успеха (зелёный).
 
     Security:
         - Пароль скрывается (show="•")
@@ -189,13 +189,16 @@ class AuthOverlay(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if not self._is_mounted or self._overlay_frame is None:
-            raise RuntimeError("AuthOverlay не смонтирован. Вызовите mount() сначала.")
+            raise RuntimeError("AuthOverlay not mounted. Call mount() first.")
 
         if self._is_visible:
             return
 
         self._overlay_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self._overlay_frame.lift()
+        try:
+            self._overlay_frame.lift()
+        except tk.TclError:
+            pass
         self._is_visible = True
 
         self.set_status("Enter credentials", "info")
@@ -280,7 +283,9 @@ class AuthOverlay(BaseWidget):
             factor_credential = token
         elif method == MFAForm.METHOD_FIDO2:
             # FIDO2 требует аппаратного security key — используйте Security → FIDO2 Setup
-            self.set_status("FIDO2: используйте диалог настройки FIDO2 (Security → FIDO2 Setup)", "error")
+            self.set_status(
+                "FIDO2: используйте диалог настройки FIDO2 (Security → FIDO2 Setup)", "error"
+            )
             return False
 
         self.set_status("Authenticating...", "info")
@@ -307,6 +312,7 @@ class AuthOverlay(BaseWidget):
         except (OSError, ValueError, RuntimeError) as e:
             # Log authentication error without exposing sensitive info
             import logging
+
             logging.error("Authentication failed: %s", e)
             self.set_status("Authentication failed", "error")
             return False
@@ -348,6 +354,7 @@ class AuthOverlay(BaseWidget):
 
         except (OSError, ValueError, RuntimeError) as e:
             import logging
+
             logging.error("FIDO2 authentication failed: %s", e)
             self.set_status("FIDO2 authentication failed", "error")
             return False

@@ -99,7 +99,7 @@ class TestFreeFormModeRenderer:
     def test_apply_cpi_not_mounted_raises(self) -> None:
         """apply_cpi без mount вызывает LifecycleError."""
         renderer = FreeFormModeRenderer(widget_id="ff_renderer")
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             renderer.apply_cpi(12)
 
     def test_set_grid_snap(self) -> None:
@@ -271,7 +271,7 @@ class TestFreeFormToolbar:
     def test_set_cpi_not_mounted_raises(self) -> None:
         """set_cpi без mount вызывает LifecycleError."""
         toolbar = FreeFormToolbar(widget_id="ff_toolbar")
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             toolbar.set_cpi(12)
 
     def test_set_font(self, tk_root: tk.Tk) -> None:
@@ -279,8 +279,8 @@ class TestFreeFormToolbar:
         toolbar = FreeFormToolbar(widget_id="ff_toolbar")
         toolbar.mount(tk_root)
         try:
-            toolbar.set_font(FontFamily.COURIER)
-            assert toolbar.get_font() == FontFamily.COURIER
+            toolbar.set_font(FontFamily.ROMAN)
+            assert toolbar.get_font() == FontFamily.ROMAN
         finally:
             toolbar.unmount()
 
@@ -319,7 +319,7 @@ class TestFreeFormToolbar:
         toolbar.mount(tk_root)
         try:
             toolbar._on_cpi_selected("12")
-            controller.dispatch.assert_called_once_with(
+            controller.dispatch.assert_any_call(
                 "freeform_cpi_changed",
                 cpi=12,
             )

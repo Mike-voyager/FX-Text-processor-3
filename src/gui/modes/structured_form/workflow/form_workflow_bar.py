@@ -38,7 +38,7 @@ class FormWorkflowBar(BaseWidget):
     Поддерживает MFA-gated переходы для критичных операций.
 
     Attributes:
-        STATUS_COLORS: Цвета для каждого статуса.
+        STATUS_COLORS: Colorа для каждого статуса.
         STATUS_ORDER: Порядок статусов в цепочке.
 
     Example:
@@ -209,7 +209,7 @@ class FormWorkflowBar(BaseWidget):
             _reject_status: FormStatus = FormStatus.REJECTED
             reject_btn = tk.Button(
                 frame,
-                text="Отклонить",
+                text="Reject",
                 bg=self.STATUS_COLORS[FormStatus.REJECTED],
                 fg="white",
                 font=("TkDefaultFont", 9, "bold"),
@@ -224,7 +224,7 @@ class FormWorkflowBar(BaseWidget):
         if not allowed and FormStatus.REJECTED not in self._get_allowed_transitions_internal():
             msg = tk.Label(
                 frame,
-                text="Нет доступных переходов",
+                text="No available transitions",
                 fg="#7f8c8d",
                 font=("TkDefaultFont", 9, "italic"),
             )
@@ -242,13 +242,13 @@ class FormWorkflowBar(BaseWidget):
             Текст для кнопки перехода.
         """
         texts: dict[FormStatus, str] = {
-            FormStatus.DRAFT: "На доработку",
-            FormStatus.FILLED: "Заполнить",
-            FormStatus.VALIDATED: "Проверить",
-            FormStatus.SIGNED: "Подписать",
-            FormStatus.PRINTED: "Напечатать",
-            FormStatus.ARCHIVED: "Архивировать",
-            FormStatus.REJECTED: "Отклонить",
+            FormStatus.DRAFT: "Rework",
+            FormStatus.FILLED: "Fill",
+            FormStatus.VALIDATED: "Validate",
+            FormStatus.SIGNED: "Sign",
+            FormStatus.PRINTED: "Print",
+            FormStatus.ARCHIVED: "Archive",
+            FormStatus.REJECTED: "Reject",
         }
         return texts.get(new_status, new_status.localized_name)
 
@@ -381,7 +381,10 @@ class FormWorkflowBar(BaseWidget):
         dialog.title("🔒 Подтверждение MFA")
         dialog.geometry("350x280")
         dialog.transient(self._parent.winfo_toplevel())
-        dialog.grab_set()
+        try:
+            dialog.grab_set()
+        except tk.TclError:
+            pass
         dialog.resizable(False, False)
 
         # Center dialog
@@ -396,23 +399,26 @@ class FormWorkflowBar(BaseWidget):
         # Header
         header_frame = tk.Frame(dialog, bg="#2c3e50", padx=10, pady=10)
         header_frame.pack(fill=tk.X)
+        transition_text = (
+            f"Transition: {self._current_status.localized_name} → {target_status.localized_name}"
+        )
         tk.Label(
             header_frame,
-            text=f"Переход: {self._current_status.localized_name} → {target_status.localized_name}",
+            text=transition_text,
             fg="white",
             bg="#2c3e50",
             font=("TkDefaultFont", 10, "bold"),
         ).pack()
         tk.Label(
             header_frame,
-            text="Требуется многофакторная аутентификация",
+            text="Multi-factor authentication required",
             fg="#ecf0f1",
             bg="#2c3e50",
             font=("TkDefaultFont", 9),
         ).pack()
 
         # Method selection
-        method_frame = tk.LabelFrame(dialog, text="Выберите метод", padx=10, pady=10)
+        method_frame = tk.LabelFrame(dialog, text="Select method", padx=10, pady=10)
         method_frame.pack(fill=tk.X, padx=10, pady=10)
 
         methods = [
@@ -436,7 +442,7 @@ class FormWorkflowBar(BaseWidget):
         input_frame = tk.Frame(dialog, padx=20, pady=5)
         input_frame.pack(fill=tk.X)
 
-        input_label = tk.Label(input_frame, text="Код TOTP:", font=("TkDefaultFont", 9))
+        input_label = tk.Label(input_frame, text="TOTP Code:", font=("TkDefaultFont", 9))
         input_label.pack(side=tk.LEFT)
 
         input_entry = tk.Entry(input_frame, width=15, font=("TkDefaultFont", 10))
@@ -452,15 +458,15 @@ class FormWorkflowBar(BaseWidget):
             input_entry.delete(0, tk.END)
 
             if method == "fido2":
-                input_label.config(text="Статус:")
+                input_label.config(text="Status:")
                 input_entry.config(state="readonly")
-                input_entry.insert(0, "Ожидание касания...")
+                input_entry.insert(0, "Waiting for touch...")
                 # В реальности здесь был бы вызов FIDO2 API
             elif method == "totp":
-                input_label.config(text="Код TOTP:")
+                input_label.config(text="TOTP code:")
                 input_entry.config(state="normal", show="")
             elif method == "backup":
-                input_label.config(text="Код:")
+                input_label.config(text="Code:")
                 input_entry.config(state="normal", show="*")
 
         selected_method.trace_add("write", update_input_field)
@@ -476,12 +482,12 @@ class FormWorkflowBar(BaseWidget):
                 success = True
             elif method == "totp":
                 if len(token) != 6 or not token.isdigit():
-                    status_label.config(text="❌ TOTP должен быть 6 цифр")
+                    status_label.config(text="❌ TOTP must be 6 digits")
                     return
                 success = True  # Симуляция
             elif method == "backup":
                 if len(token) < 8:
-                    status_label.config(text="❌ Код слишком короткий")
+                    status_label.config(text="❌ Code too short")
                     return
                 success = True  # Симуляция
 
@@ -500,7 +506,7 @@ class FormWorkflowBar(BaseWidget):
         btn_frame.pack()
         tk.Button(
             btn_frame,
-            text="✓ Подтвердить",
+            text="✓ Confirm",
             command=on_confirm,
             bg="#27ae60",
             fg="white",
@@ -509,7 +515,7 @@ class FormWorkflowBar(BaseWidget):
         ).pack(side=tk.LEFT, padx=5)
         tk.Button(
             btn_frame,
-            text="✗ Отмена",
+            text="✗ Cancel",
             command=on_cancel,
             font=("TkDefaultFont", 9),
             padx=15,
@@ -567,7 +573,7 @@ class FormWorkflowBar(BaseWidget):
                 _reject_status: FormStatus = FormStatus.REJECTED
                 reject_btn = tk.Button(
                     self._transition_frame,
-                    text="Отклонить",
+                    text="Reject",
                     bg=self.STATUS_COLORS[FormStatus.REJECTED],
                     fg="white",
                     font=("TkDefaultFont", 9, "bold"),
@@ -582,7 +588,7 @@ class FormWorkflowBar(BaseWidget):
             if not allowed and FormStatus.REJECTED not in self._get_allowed_transitions_internal():
                 msg = tk.Label(
                     self._transition_frame,
-                    text="Нет доступных переходов",
+                    text="No available transitions",
                     fg="#7f8c8d",
                     font=("TkDefaultFont", 9, "italic"),
                 )

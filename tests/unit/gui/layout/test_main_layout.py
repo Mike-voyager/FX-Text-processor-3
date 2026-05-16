@@ -129,8 +129,8 @@ class TestMainLayoutMountUnmount:
         assert mounted_main_layout._paned_layout is None
 
     def test_unmount_not_mounted_raises_error(self, main_layout: MainLayout) -> None:
-        """unmount() для не смонтированного вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        """unmount() для not mountedного вызывает LifecycleError."""
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.unmount()
 
 
@@ -154,7 +154,7 @@ class TestSetSidebar:
         self, main_layout: MainLayout, tk_root: tk.Tk
     ) -> None:
         """set_sidebar() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.set_sidebar(tk.Frame(tk_root))
 
     def test_set_sidebar_twice_raises_error(
@@ -163,7 +163,7 @@ class TestSetSidebar:
         """Повторное set_sidebar() вызывает GUIError."""
         mounted_main_layout.set_sidebar(tk.Frame(tk_root))
 
-        with pytest.raises(GUIError, match="Sidebar уже установлен"):
+        with pytest.raises(GUIError, match="Sidebar already set"):
             mounted_main_layout.set_sidebar(tk.Frame(tk_root))
 
 
@@ -187,7 +187,7 @@ class TestSetContent:
         self, main_layout: MainLayout, tk_root: tk.Tk
     ) -> None:
         """set_content() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.set_content(tk.Frame(tk_root))
 
     def test_set_content_twice_raises_error(
@@ -196,7 +196,7 @@ class TestSetContent:
         """Повторное set_content() вызывает GUIError."""
         mounted_main_layout.set_content(tk.Frame(tk_root))
 
-        with pytest.raises(GUIError, match="Content уже установлен"):
+        with pytest.raises(GUIError, match="Content already set"):
             mounted_main_layout.set_content(tk.Frame(tk_root))
 
 
@@ -220,7 +220,7 @@ class TestSetStatusbar:
         self, main_layout: MainLayout, tk_root: tk.Tk
     ) -> None:
         """set_statusbar() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.set_statusbar(tk.Frame(tk_root))
 
     def test_set_statusbar_twice_raises_error(
@@ -229,7 +229,7 @@ class TestSetStatusbar:
         """Повторное set_statusbar() вызывает GUIError."""
         mounted_main_layout.set_statusbar(tk.Frame(tk_root))
 
-        with pytest.raises(GUIError, match="StatusBar уже установлен"):
+        with pytest.raises(GUIError, match="StatusBar already set"):
             mounted_main_layout.set_statusbar(tk.Frame(tk_root))
 
 
@@ -275,14 +275,14 @@ class TestCollapseExpandSidebar:
         self, main_layout: MainLayout
     ) -> None:
         """collapse_sidebar() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.collapse_sidebar()
 
     def test_expand_sidebar_not_mounted_raises_error(
         self, main_layout: MainLayout
     ) -> None:
         """expand_sidebar() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             main_layout.expand_sidebar()
 
 
@@ -309,7 +309,7 @@ class TestSidebarWidthGetSet:
         self, mounted_main_layout: MainLayout
     ) -> None:
         """set_sidebar_width() с отрицательным значением вызывает ValueError."""
-        with pytest.raises(ValueError, match="Width должен быть неотрицательным"):
+        with pytest.raises(ValueError, match="Width must be non-negative"):
             mounted_main_layout.set_sidebar_width(-10)
 
     def test_set_sidebar_width_updates_ratio(

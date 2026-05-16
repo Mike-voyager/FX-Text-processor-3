@@ -671,7 +671,7 @@ class TestAdditionalEdgeCases:
         Проверяет, что попытка удалить несуществующий обработчик
         приводит к исключению.
         """
-        with pytest.raises(KeyError, match="не найден"):
+        with pytest.raises(KeyError, match="not found"):
             sync_service.unregister_handler("nonexistent-handler-id")
 
     def test_handler_with_none_data(

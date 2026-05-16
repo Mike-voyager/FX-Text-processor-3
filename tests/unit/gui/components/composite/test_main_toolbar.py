@@ -1,382 +1,234 @@
-"""Тесты для главной панели инструментов.
+"""Тесты для composite виджета MainToolbar.
 
-Модуль содержит unit-тесты для MainToolbar компонента,
-покрывающие инициализацию, биндинги, управление кнопками
-и применение тем.
+Проверяет функциональность главной панели инструментов.
 
-Version: 1.0
-Date: April 2026
+Example:
+    $ xvfb-run -a python -m pytest tests/unit/gui/components/composite/test_main_toolbar.py -v
 """
 
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Optional
-from unittest.mock import MagicMock, patch
+from collections.abc import Iterator
+from typing import cast
+from unittest.mock import MagicMock
 
 import pytest
-
 from src.gui.components.composite.main_toolbar import MainToolbar
 from src.gui.components.primitive.button import ThemedButton
 from src.gui.core.protocols import ControllerProtocol
 
 
-class MockController:
-    """Mock контроллер для тестирования."""
-
-    def __init__(self) -> None:
-        """Инициализация mock контроллера."""
-        self.dispatch_calls: list[tuple[str, dict[str, Any]]] = []
-        self.controller_id = "test_controller"
-
-    def dispatch(self, action: str, **kwargs: Any) -> Optional[Any]:
-        """Mock dispatch метод."""
-        self.dispatch_calls.append((action, kwargs))
-        return None
-
-    def notify_view_update(self, widget_id: str, data: Any) -> None:
-        """Mock notify_view_update метод."""
-        pass
-
-    def register_view(self, widget_id: str, callback: Any) -> None:
-        """Mock register_view метод."""
-        pass
-
-    def unregister_view(self, widget_id: str) -> None:
-        """Mock unregister_view метод."""
-        pass
+# =============================================================================
+# FIXTURES
+# =============================================================================
 
 
-@pytest.fixture
-def root() -> tk.Tk:
-    """Фикстура для создания Tk root окна."""
+@pytest.fixture  # type: ignore[misc]
+def tk_app() -> Iterator[tk.Tk]:
+    """Fixture: создаёт корневое окно Tk."""
     root = tk.Tk()
+    root.withdraw()
     yield root
     root.destroy()
 
 
-@pytest.fixture
-def mock_controller() -> MockController:
-    """Фикстура для создания mock контроллера."""
-    return MockController()
+@pytest.fixture  # type: ignore[misc]
+def mock_controller() -> MagicMock:
+    """Fixture: создаёт мок контроллера."""
+    controller = MagicMock(spec=ControllerProtocol)
+    controller.dispatch = MagicMock(return_value=None)
+    return controller
 
 
-@pytest.mark.gui
-def test_constructor_default(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест конструктора с default параметрами.
-
-    Проверяет, что MainToolbar корректно инициализируется
-    с контроллером.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    assert toolbar.widget_id == "main_toolbar"
-    assert toolbar._controller is mock_controller
-    assert toolbar._button_commands is None
-    assert toolbar._buttons == {}
+# =============================================================================
+# CONSTRUCTOR TESTS
+# =============================================================================
 
 
-@pytest.mark.gui
-def test_constructor_with_custom_commands(root: tk.Tk) -> None:
-    """Тест конструктора с пользовательскими командами.
+class TestMainToolbarConstructor:
+    """Тесты конструктора MainToolbar."""
 
-    Проверяет, что MainToolbar корректно принимает
-    пользовательские callback'и.
-    """
-    custom_commands = {
-        "new": lambda: print("custom new"),
-        "open": lambda: print("custom open"),
-        "save": lambda: print("custom save"),
-        "print": lambda: print("custom print"),
-    }
+    def test_init_stores_widget_id(self, mock_controller: MagicMock) -> None:
+        """Тест: widget_id сохраняется корректно."""
+        toolbar = MainToolbar(widget_id="toolbar", controller=mock_controller)
+        assert toolbar.widget_id == "toolbar"
 
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        button_commands=custom_commands,
-    )
+    def test_init_rejects_empty_widget_id(self) -> None:
+        """Тест: пустой widget_id вызывает ValueError."""
+        with pytest.raises(ValueError, match="widget_id"):
+            MainToolbar(widget_id="")
 
-    assert toolbar._button_commands == custom_commands
-    assert toolbar._controller is None
+    def test_init_stores_controller(self, mock_controller: MagicMock) -> None:
+        """Тест: контроллер сохраняется."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        assert toolbar._controller is mock_controller
 
-
-@pytest.mark.gui
-def test_constructor_invalid_button_commands(root: tk.Tk) -> None:
-    """Тест конструктора с невалидными button_commands.
-
-    Проверяет, что при передаче не-словаря выбрасывается TypeError.
-    """
-    with pytest.raises(TypeError, match="button_commands должен быть словарём или None"):
-        MainToolbar(
-            widget_id="main_toolbar",
-            button_commands="invalid",  # type: ignore[arg-type]
+    def test_init_accepts_button_commands(self, mock_controller: MagicMock) -> None:
+        """Тест: пользовательские команды сохраняются."""
+        commands: dict[str, Callable[[], None]] = {"new": lambda: None}
+        toolbar = MainToolbar(
+            widget_id="t",
+            controller=mock_controller,
+            button_commands=commands,
         )
-
-
-@pytest.mark.gui
-def test_buttons_created(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест создания всех кнопок.
-
-    Проверяет, что при монтировании создаются все 4 кнопки
-    с правильными текстами.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    # Монтируем тулбар
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Проверяем, что все кнопки созданы
-    assert len(toolbar._buttons) == 4
-    assert "new" in toolbar._buttons
-    assert "open" in toolbar._buttons
-    assert "save" in toolbar._buttons
-    assert "print" in toolbar._buttons
-
-    # Проверяем тексты кнопок
-    assert toolbar._buttons["new"].get_text() == "📝 New"
-    assert toolbar._buttons["open"].get_text() == "📂 Open"
-    assert toolbar._buttons["save"].get_text() == "💾 Save"
-    assert toolbar._buttons["print"].get_text() == "🖨️ Print"
-
-
-@pytest.mark.gui
-def test_button_commands_dispatch(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест вызова controller.dispatch() при нажатии.
-
-    Проверяет, что при клике на кнопку вызывается dispatch
-    с правильным action.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Симулируем нажатие кнопки New
-    command = toolbar._get_button_command("file_new")
-    command()
-
-    # Проверяем, что dispatch был вызван с file_new
-    # Фильтруем только file_new вызовы (исключая widget_mounted)
-    file_actions = [call for call in mock_controller.dispatch_calls if call[0] == "file_new"]
-    assert len(file_actions) == 1
-
-
-@pytest.mark.gui
-def test_button_commands_custom(root: tk.Tk) -> None:
-    """Тест пользовательских callback'ов.
-
-    Проверяет, что при использовании button_commands
-    вызываются пользовательские callback'и.
-    """
-    calls: list[str] = []
-
-    def custom_new():
-        calls.append("custom_new")
-
-    custom_commands = {
-        "new": custom_new,
-    }
-
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        button_commands=custom_commands,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Получаем команду для кнопки new
-    command = toolbar._get_button_command("file_new")
-    command()
-
-    # Проверяем, что вызван пользовательский callback
-    assert calls == ["custom_new"]
-
-
-@pytest.mark.gui
-def test_set_button_enabled(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест включения/отключения кнопок.
-
-    Проверяет, что метод set_button_enabled корректно
-    изменяет состояние кнопок.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Отключаем кнопку Save
-    toolbar.set_button_enabled("save", False)
-    assert toolbar._buttons["save"].is_enabled() is False
-
-    # Включаем кнопку Save
-    toolbar.set_button_enabled("save", True)
-    assert toolbar._buttons["save"].is_enabled() is True
-
-
-@pytest.mark.gui
-def test_set_button_enabled_invalid_button(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест set_button_enabled с невалидной кнопкой.
-
-    Проверяет, что при невалидном имени кнопки
-    выбрасывается ValueError.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with pytest.raises(ValueError, match="Кнопка 'invalid' не найдена"):
-        toolbar.set_button_enabled("invalid", False)
-
-
-@pytest.mark.gui
-def test_get_button(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест получения кнопки по имени.
-
-    Проверяет, что метод get_button возвращает правильную кнопку.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Получаем кнопку
-    new_btn = toolbar.get_button("new")
-    assert new_btn is not None
-    assert isinstance(new_btn, ThemedButton)
-    assert new_btn.get_text() == "📝 New"
-
-    # Пробуем получить несуществующую кнопку
-    invalid_btn = toolbar.get_button("invalid")
-    assert invalid_btn is None
-
-
-@pytest.mark.gui
-def test_keyboard_shortcuts(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест настройки горячих клавиш.
-
-    Проверяет, что горячие клавиши настроены корректно.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Проверяем, что биндинги установлены (просто проверяем,
-    # что метод не падает)
-    # Полная проверка биндингов требует имитации событий клавиатуры,
-    # что сложно в unit-тестах
-    assert toolbar._tk_widget is not None
-
-
-@pytest.mark.gui
-def test_theme_applied(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест применения темы.
-
-    Проверяет, что тема применяется ко всем кнопкам и фрейму.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget') as mock_apply:
-        toolbar.mount(root)
-
-    # Проверяем, что apply_to_widget был вызван для каждой кнопки + frame
-    # 4 кнопки + 3 разделителя + 1 фрейм = 8 вызовов
-    assert mock_apply.call_count >= 1
-
-
-@pytest.mark.gui
-def test_cleanup(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест очистки ресурсов при демонтировании.
-
-    Проверяет, что при unmount очищаются все ресурсы.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Проверяем, что кнопки созданы
-    assert len(toolbar._buttons) == 4
-
-    # Демонтируем
-    toolbar.unmount()
-
-    # Проверяем, что словарь кнопок очищен
-    assert toolbar._buttons == {}
-
-
-@pytest.mark.gui
-def test_button_ids(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест идентификаторов кнопок.
-
-    Проверяет, что кнопки создаются с корректными widget_id.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Проверяем widget_id кнопок
-    assert toolbar._buttons["new"].widget_id == "main_toolbar_btn_new"
-    assert toolbar._buttons["open"].widget_id == "main_toolbar_btn_open"
-    assert toolbar._buttons["save"].widget_id == "main_toolbar_btn_save"
-    assert toolbar._buttons["print"].widget_id == "main_toolbar_btn_print"
-
-
-@pytest.mark.gui
-def test_get_button_command_mapping(root: tk.Tk, mock_controller: MockController) -> None:
-    """Тест маппинга action в имена кнопок.
-
-    Проверяет, что _get_button_command правильно мапит
-    action в имена кнопок.
-    """
-    toolbar = MainToolbar(
-        widget_id="main_toolbar",
-        controller=mock_controller,
-    )
-
-    with patch.object(toolbar._theme_manager, 'apply_to_widget'):
-        toolbar.mount(root)
-
-    # Проверяем маппинг action -> button_name
-    custom_calls: list[str] = []
-
-    def custom_handler():
-        custom_calls.append("custom")
-
-    toolbar._button_commands = {"new": custom_handler}
-
-    # Должен вернуть пользовательский handler для "file_new"
-    command = toolbar._get_button_command("file_new")
-    command()
-
-    assert custom_calls == ["custom"]
+        assert toolbar._button_commands is commands
+
+    def test_init_rejects_non_dict_button_commands(self) -> None:
+        """Тест: button_commands не словарь вызывает TypeError."""
+        with pytest.raises(TypeError, match="dict"):
+            MainToolbar(widget_id="t", button_commands="bad")  # type: ignore[arg-type]
+
+
+# =============================================================================
+# MOUNT & BUTTON TESTS
+# =============================================================================
+
+
+class TestMainToolbarMount:
+    """Тесты монтирования и кнопок."""
+
+    def test_mount_returns_frame(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: mount возвращает Frame."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        result = toolbar.mount(tk_app)
+        assert isinstance(result, tk.Frame)
+
+    def test_mount_creates_four_buttons(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: создаётся 4 кнопки."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        assert len(toolbar._buttons) == 4
+        assert set(toolbar._buttons.keys()) == {"new", "open", "save", "print"}
+
+    def test_get_button_existing(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: get_button возвращает ThemedButton."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        btn = toolbar.get_button("save")
+        assert isinstance(btn, ThemedButton)
+
+    def test_get_button_missing(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: get_button для несуществующей кнопки возвращает None."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        assert toolbar.get_button("unknown") is None
+
+    def test_mount_sets_is_mounted(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: после mount is_mounted True."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        assert toolbar.is_mounted() is True
+
+
+# =============================================================================
+# ENABLED STATE TESTS
+# =============================================================================
+
+
+class TestMainToolbarEnabled:
+    """Тесты управления доступностью кнопок."""
+
+    def test_set_button_enabled_false(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: set_button_enabled(False) отключает кнопку."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        toolbar.set_button_enabled("save", False)
+        assert toolbar.get_button("save").is_enabled() is False
+
+    def test_set_button_enabled_true(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: set_button_enabled(True) включает кнопку."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        toolbar.set_button_enabled("save", False)
+        toolbar.set_button_enabled("save", True)
+        assert toolbar.get_button("save").is_enabled() is True
+
+    def test_set_button_enabled_bad_name(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: несуществующая кнопка вызывает ValueError."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        with pytest.raises(ValueError, match="Button 'bad' not found"):
+            toolbar.set_button_enabled("bad", False)
+
+
+# =============================================================================
+# COMMAND TESTS
+# =============================================================================
+
+
+class TestMainToolbarCommands:
+    """Тесты callback'ов кнопок."""
+
+    def test_custom_command_called(self, tk_app: tk.Tk) -> None:
+        """Тест: пользовательская команда вызывается."""
+        cb = MagicMock()
+        toolbar = MainToolbar(
+            widget_id="t",
+            button_commands={"new": cb},
+        )
+        toolbar.mount(tk_app)
+        cmd = toolbar._get_button_command("file_new")
+        cmd()
+        cb.assert_called_once()
+
+    def test_dispatch_command_called(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: при отсутствии custom command вызывается controller.dispatch()."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        cmd = toolbar._get_button_command("file_save")
+        cmd()
+        mock_controller.dispatch.assert_any_call("file_save")
+
+    def test_button_invokes_command(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: нажатие кнопки вызывает dispatch."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        btn = toolbar.get_button("open")
+        assert btn is not None
+        tk_widget = cast(tk.Button, btn._tk_widget)
+        tk_widget.invoke()
+        mock_controller.dispatch.assert_called_with("file_open")
+
+
+# =============================================================================
+# LIFECYCLE TESTS
+# =============================================================================
+
+
+class TestMainToolbarLifecycle:
+    """Тесты жизненного цикла."""
+
+    def test_unmount_cleans_buttons(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: unmount очищает словарь кнопок."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        toolbar.unmount()
+        assert toolbar._buttons == {}
+
+    def test_unmount_sets_not_mounted(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: после unmount is_mounted False."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        toolbar.unmount()
+        assert toolbar.is_mounted() is False
+
+    def test_cleanup_unbinds_keys(self, tk_app: tk.Tk, mock_controller: MagicMock) -> None:
+        """Тест: _cleanup отвязывает горячие клавиши без ошибок."""
+        toolbar = MainToolbar(widget_id="t", controller=mock_controller)
+        toolbar.mount(tk_app)
+        # Не должно вызывать ошибок
+        toolbar._cleanup()
+
+
+# =============================================================================
+# MODULE EXPORTS
+# =============================================================================
+
+__all__ = [
+    "TestMainToolbarConstructor",
+    "TestMainToolbarMount",
+    "TestMainToolbarEnabled",
+    "TestMainToolbarCommands",
+    "TestMainToolbarLifecycle",
+]

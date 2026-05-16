@@ -46,10 +46,10 @@ class Role(Enum):
     def display_name(self) -> str:
         """Возвращает локализованное название роли."""
         names: dict[Role, str] = {
-            Role.OPERATOR: "Оператор",
-            Role.EDITOR: "Редактор",
-            Role.SUPERVISOR: "Супервизор",
-            Role.SIGNATORY: "Подписант",
+            Role.OPERATOR: "Operator",
+            Role.EDITOR: "Editor",
+            Role.SUPERVISOR: "Supervisor",
+            Role.SIGNATORY: "Signatory",
         }
         return names.get(self, self.value)
 
@@ -128,7 +128,7 @@ class FieldCommentWidget:
 
     Attributes:
         SEVERITY_ICONS: Иконки для уровней важности.
-        SEVERITY_COLORS: Цвета для уровней важности.
+        SEVERITY_COLORS: Colorа для уровней важности.
 
     Example:
         >>> widget = FieldCommentWidget(
@@ -251,14 +251,20 @@ class FieldCommentWidget:
     def _show_popup(self) -> None:
         """Открывает popup окно с комментариями."""
         if self._popup is not None and self._popup.winfo_exists():
-            self._popup.lift()
+            try:
+                self._popup.lift()
+            except tk.TclError:
+                pass
             return
 
         self._popup = tk.Toplevel(self._parent)
-        self._popup.title(f"Комментарии к полю: {self._field_id}")
+        self._popup.title(f"Field Comments: {self._field_id}")
         self._popup.geometry("450x500")
         self._popup.transient(self._parent.winfo_toplevel())
-        self._popup.grab_set()
+        try:
+            self._popup.grab_set()
+        except tk.TclError:
+            pass
         self._popup.resizable(True, True)
 
         # Центрируем окно
@@ -278,7 +284,7 @@ class FieldCommentWidget:
         header_frame = tk.Frame(self._popup, bg="#2c3e50", padx=10, pady=10)
         header_frame.pack(fill=tk.X)
 
-        header_text = f"Комментарии ({self.unresolved_count} неразрешённых)"
+        header_text = f"Comments ({self.unresolved_count} unresolved)"
         tk.Label(
             header_frame,
             text=header_text,
@@ -289,7 +295,7 @@ class FieldCommentWidget:
 
         tk.Label(
             header_frame,
-            text=f"Поле: {self._field_id}",
+            text=f"Field: {self._field_id}",
             fg="#bdc3c7",
             bg="#2c3e50",
             font=("TkDefaultFont", 9),
@@ -324,14 +330,14 @@ class FieldCommentWidget:
         self._refresh_comments_display()
 
         # Add comment section
-        add_frame = tk.LabelFrame(self._popup, text="Добавить комментарий", padx=10, pady=10)
+        add_frame = tk.LabelFrame(self._popup, text="Add Comment", padx=10, pady=10)
         add_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
 
         # Severity selector
         severity_frame = tk.Frame(add_frame)
         severity_frame.pack(fill=tk.X, pady=(0, 5))
 
-        tk.Label(severity_frame, text="Важность:").pack(side=tk.LEFT)
+        tk.Label(severity_frame, text="Severity:").pack(side=tk.LEFT)
 
         self._severity_var.set(Severity.INFO.value)
         for sev in Severity:
@@ -359,8 +365,8 @@ class FieldCommentWidget:
             if not text:
                 if self._popup is not None:
                     messagebox.showwarning(
-                        "Пустой комментарий",
-                        "Пожалуйста, введите текст комментария.",
+                        "Empty Comment",
+                        "Please enter comment text.",
                         parent=self._popup,
                     )
                 return
@@ -371,7 +377,7 @@ class FieldCommentWidget:
 
         tk.Button(
             btn_frame,
-            text="Добавить",
+            text="Add",
             command=on_add_click,
             bg="#27ae60",
             fg="white",
@@ -380,7 +386,7 @@ class FieldCommentWidget:
 
         tk.Button(
             btn_frame,
-            text="Закрыть",
+            text="Close",
             command=self._popup.destroy,
             font=("TkDefaultFont", 9),
         ).pack(side=tk.RIGHT)
@@ -406,7 +412,7 @@ class FieldCommentWidget:
         if not self._comments:
             tk.Label(
                 self._comments_frame,
-                text="Нет комментариев",
+                text="No comments",
                 fg="#7f8c8d",
                 font=("TkDefaultFont", 10, "italic"),
             ).pack(pady=20)
@@ -476,7 +482,7 @@ class FieldCommentWidget:
         if comment.resolved:
             resolved_by = comment.resolved_by or "?"
             resolved_date = comment.resolved_at.strftime("%d.%m.%Y") if comment.resolved_at else ""
-            resolved_str = f"Разрешено: {resolved_by}, {resolved_date}"
+            resolved_str = f"Resolved: {resolved_by}, {resolved_date}"
             tk.Label(
                 meta_frame,
                 text=resolved_str,
@@ -486,7 +492,7 @@ class FieldCommentWidget:
         else:
             tk.Label(
                 meta_frame,
-                text="Не разрешено",
+                text="Unresolved",
                 fg="#e74c3c",
                 font=("TkDefaultFont", 8),
             ).pack(anchor=tk.E)
@@ -513,7 +519,7 @@ class FieldCommentWidget:
 
             tk.Button(
                 btn_frame,
-                text="Разрешить",
+                text="Mark resolved",
                 command=on_resolve,
                 bg="#27ae60",
                 fg="white",
@@ -530,7 +536,7 @@ class FieldCommentWidget:
             role: Роль пользователя.
 
         Returns:
-            Цвет в hex формате.
+            Color в hex формате.
         """
         colors: dict[Role, str] = {
             Role.OPERATOR: "#3498db",

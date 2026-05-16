@@ -42,11 +42,11 @@ COLOR_WARNING: Final[str] = "#ffc107"
 
 # Severity levels for comments
 COMMENT_SEVERITY: Final[list[tuple[str, str]]] = [
-    ("info", "Информация"),
-    ("suggestion", "Предложение"),
-    ("warning", "Предупреждение"),
-    ("error", "Ошибка"),
-    ("critical", "Критично"),
+    ("info", "Info"),
+    ("suggestion", "Suggestion"),
+    ("warning", "Warning"),
+    ("error", "Error"),
+    ("critical", "Critical"),
 ]
 
 
@@ -124,7 +124,7 @@ class AddCommentDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        title = "Добавить комментарий"
+        title = "Add Comment"
         if self._field_label:
             title += f" - {self._field_label}"
 
@@ -140,11 +140,11 @@ class AddCommentDialog(BaseDialog):
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Header
-        header_text = "Комментарий"
+        header_text = "Comment"
         if self._field_label:
-            header_text = f"Комментарий к полю: {self._field_label}"
+            header_text = f"Field Comment: {self._field_label}"
         elif self._document_id:
-            header_text = "Комментарий к документу"
+            header_text = "Document Comment"
 
         header = ttk.Label(
             main_frame,
@@ -154,7 +154,7 @@ class AddCommentDialog(BaseDialog):
         header.pack(anchor="w", pady=(0, 10))
 
         # Severity selection
-        severity_frame = ttk.LabelFrame(main_frame, text="Уровень важности", padding="10")
+        severity_frame = ttk.LabelFrame(main_frame, text="Severity", padding="10")
         severity_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._severity_var = tk.StringVar(master=self, value="info")
@@ -164,7 +164,7 @@ class AddCommentDialog(BaseDialog):
             ).pack(anchor="w")
 
         # Comment text
-        text_frame = ttk.LabelFrame(main_frame, text="Текст комментария", padding="10")
+        text_frame = ttk.LabelFrame(main_frame, text="Comment Text", padding="10")
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         self._text_widget = tk.Text(
@@ -191,23 +191,21 @@ class AddCommentDialog(BaseDialog):
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X)
 
-        ttk.Button(btn_frame, text="Сохранить", command=self._on_save_click).pack(
+        ttk.Button(btn_frame, text="Save", command=self._on_save_click).pack(
             side=tk.RIGHT, padx=(10, 0)
         )
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
     def _on_save_click(self) -> None:
         """Обработчик кнопки 'Сохранить'."""
         text = self._text_widget.get("1.0", tk.END).strip()
 
         if not text:
-            messagebox.showwarning("Внимание", "Введите текст комментария")
+            messagebox.showwarning("Warning", "Enter comment text")
             return
 
         if len(text) > 1000:
-            messagebox.showerror(
-                "Ошибка", "Текст комментария слишком длинный (макс. 1000 символов)"
-            )
+            messagebox.showerror("Error", "Comment text is too long (max 1000 characters)")
             return
 
         from datetime import datetime
@@ -300,7 +298,7 @@ class PrefillDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title(f"Автозаполнение: {self._field_label}")
+        self.title(f"Prefill: {self._field_label}")
         self.geometry(f"{DIALOG_WIDTH + 100}x{DIALOG_HEIGHT + 50}")
         self.minsize(MIN_DIALOG_WIDTH + 50, MIN_DIALOG_HEIGHT + 50)
 
@@ -314,7 +312,7 @@ class PrefillDialog(BaseDialog):
         # Header
         header = ttk.Label(
             main_frame,
-            text=f"Автозаполнение поля: {self._field_label}",
+            text=f"Prefill Field: {self._field_label}",
             font=("Helvetica", 12, "bold"),
         )
         header.pack(anchor="w", pady=(0, 5))
@@ -322,12 +320,12 @@ class PrefillDialog(BaseDialog):
         # Current value
         ttk.Label(
             main_frame,
-            text=f"Текущее значение: {self._current_value or '(пусто)'}",
+            text=f"Current value: {self._current_value or '(empty)'}",
             foreground="gray",
         ).pack(anchor="w", pady=(0, 10))
 
         # Search section
-        search_frame = ttk.LabelFrame(main_frame, text="Поиск", padding="10")
+        search_frame = ttk.LabelFrame(main_frame, text="Search", padding="10")
         search_frame.pack(fill=tk.X, pady=(0, 10))
 
         search_input_frame = ttk.Frame(search_frame)
@@ -337,10 +335,10 @@ class PrefillDialog(BaseDialog):
         ttk.Entry(search_input_frame, textvariable=self._search_var, width=40).pack(
             side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10)
         )
-        ttk.Button(search_input_frame, text="Найти", command=self._on_search).pack(side=tk.RIGHT)
+        ttk.Button(search_input_frame, text="Find", command=self._on_search).pack(side=tk.RIGHT)
 
         # Results section
-        results_frame = ttk.LabelFrame(main_frame, text="Найденные совпадения", padding="10")
+        results_frame = ttk.LabelFrame(main_frame, text="Found Matches", padding="10")
         results_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Treeview for matches
@@ -349,9 +347,9 @@ class PrefillDialog(BaseDialog):
             results_frame, columns=columns, show="headings", selectmode="browse"
         )
 
-        self._tree.heading("value", text="Значение")
-        self._tree.heading("document", text="Документ")
-        self._tree.heading("confidence", text="Уверенность")
+        self._tree.heading("value", text="Value")
+        self._tree.heading("document", text="Document")
+        self._tree.heading("confidence", text="Confidence")
 
         self._tree.column("value", width=150)
         self._tree.column("document", width=200)
@@ -367,7 +365,7 @@ class PrefillDialog(BaseDialog):
         self._tree.bind("<Double-1>", lambda e: self._on_select_click())
 
         # Preview
-        self._preview_var = tk.StringVar(master=self, value="Выберите значение для просмотра")
+        self._preview_var = tk.StringVar(master=self, value="Select a value to preview")
         ttk.Label(main_frame, textvariable=self._preview_var, wraplength=400).pack(
             fill=tk.X, pady=(0, 10)
         )
@@ -379,10 +377,10 @@ class PrefillDialog(BaseDialog):
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X)
 
-        ttk.Button(btn_frame, text="Выбрать", command=self._on_select_click).pack(
+        ttk.Button(btn_frame, text="Select", command=self._on_select_click).pack(
             side=tk.RIGHT, padx=(10, 0)
         )
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
         # Load initial search
         if self._current_value:
@@ -407,7 +405,7 @@ class PrefillDialog(BaseDialog):
                 )
         else:
             # Fallback: показываем информацию что сервис не настроен
-            self._tree.insert("", tk.END, values=("Сервис поиска не настроен", "", ""))
+            self._tree.insert("", tk.END, values=("Search service is not configured", "", ""))
 
         logger.info("Prefill search for field %s: query=%s", self._field_id, query)
 
@@ -418,13 +416,13 @@ class PrefillDialog(BaseDialog):
             item = self._tree.item(selection[0])
             values = item["values"]
             if values:
-                self._preview_var.set(f"Значение: {values[0]}\nИз документа: {values[1]}")
+                self._preview_var.set(f"Value: {values[0]}\nFrom document: {values[1]}")
 
     def _on_select_click(self) -> None:
         """Обработчик кнопки 'Выбрать'."""
         selection = self._tree.selection()
         if not selection:
-            messagebox.showwarning("Внимание", "Выберите значение из списка")
+            messagebox.showwarning("Warning", "Select a value from the list")
             return
 
         item = self._tree.item(selection[0])
@@ -496,8 +494,8 @@ class CrossDocumentLookupPanel(ttk.Frame):
         controls_frame = ttk.Frame(self)
         controls_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(controls_frame, text="Поле:").pack(side=tk.LEFT, padx=(0, 5))
-        self._field_var = tk.StringVar()
+        ttk.Label(controls_frame, text="Field:").pack(side=tk.LEFT, padx=(0, 5))
+        self._field_var = tk.StringVar(master=self)
         ttk.Combobox(
             controls_frame,
             textvariable=self._field_var,
@@ -505,25 +503,25 @@ class CrossDocumentLookupPanel(ttk.Frame):
             width=20,
         ).pack(side=tk.LEFT, padx=(0, 10))
 
-        ttk.Label(controls_frame, text="Значение:").pack(side=tk.LEFT, padx=(0, 5))
-        self._value_var = tk.StringVar()
+        ttk.Label(controls_frame, text="Value:").pack(side=tk.LEFT, padx=(0, 5))
+        self._value_var = tk.StringVar(master=self)
         ttk.Entry(controls_frame, textvariable=self._value_var, width=30).pack(
             side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10)
         )
 
-        ttk.Button(controls_frame, text="Искать", command=self._on_search).pack(side=tk.RIGHT)
+        ttk.Button(controls_frame, text="Search", command=self._on_search).pack(side=tk.RIGHT)
 
         # Results
-        results_frame = ttk.LabelFrame(self, text="Результаты", padding="10")
+        results_frame = ttk.LabelFrame(self, text="Results", padding="10")
         results_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("field", "value", "document", "date")
         self._tree = ttk.Treeview(results_frame, columns=columns, show="headings")
 
-        self._tree.heading("field", text="Поле")
-        self._tree.heading("value", text="Значение")
-        self._tree.heading("document", text="Документ")
-        self._tree.heading("date", text="Дата")
+        self._tree.heading("field", text="Field")
+        self._tree.heading("value", text="Value")
+        self._tree.heading("document", text="Document")
+        self._tree.heading("date", text="Date")
 
         self._tree.column("field", width=100)
         self._tree.column("value", width=150)
@@ -565,7 +563,7 @@ class CrossDocumentLookupPanel(ttk.Frame):
                 )
         else:
             # Обратная совместимость: показываем что сервис не настроен
-            self._tree.insert("", tk.END, values=("Сервис поиска не настроен", "", "", ""))
+            self._tree.insert("", tk.END, values=("Search service is not configured", "", "", ""))
 
         logger.info("Cross-document search: field=%s, value=%s", field, value)
 

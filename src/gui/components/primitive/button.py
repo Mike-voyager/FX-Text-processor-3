@@ -76,7 +76,7 @@ class ThemedButton(BaseWidget):
         super().__init__(widget_id=widget_id, controller=controller)
 
         if not callable(command):
-            raise TypeError("command должен быть callable")
+            raise TypeError("command must be callable")
 
         self._text: str = text
         self._command: Callable[[], None] = command
@@ -86,7 +86,7 @@ class ThemedButton(BaseWidget):
             Tuple[Callable[[tk.Event], None], Callable[[tk.Event], None]]
         ] = None
 
-        # Цвета для разных состояний
+        # Colorа для разных состояний
         self._normal_bg: str = "#2d2d2d"
         self._normal_fg: str = "#00ff00"
         self._hover_bg: str = "#3d3d3d"

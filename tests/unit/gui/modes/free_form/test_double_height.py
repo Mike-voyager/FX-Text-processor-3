@@ -323,7 +323,7 @@ class TestSetLineDoubleHeight:
         """Установка для несмонтированного рендерера вызывает LifecycleError."""
         renderer = FreeFormModeRenderer(widget_id="unmounted_renderer")
 
-        with pytest.raises(LifecycleError, match="Виджет не смонтирован"):
+        with pytest.raises(LifecycleError, match="Widget not mounted"):
             renderer.set_line_double_height(1, True)
 
 

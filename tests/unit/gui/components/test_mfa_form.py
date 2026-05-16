@@ -267,7 +267,7 @@ class TestMFAFormFIDO2Degradation:
             form._on_submit_clicked()
 
             assert form._fido2_available is False
-            form._error_label.config.assert_called_with(text="FIDO2 not implemented yet")
+            form._error_label.config.assert_called_with(text="FIDO2 unavailable: device not connected")
 
 
 @pytest.mark.skipif(not TKINTER_AVAILABLE, reason="Tkinter not available")

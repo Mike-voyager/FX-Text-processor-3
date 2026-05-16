@@ -66,15 +66,15 @@ COLOR_INFO: Final[str] = "#17a2b8"
 
 # Error correction levels with descriptions
 ERROR_CORRECTION_LEVELS: Final[list[tuple[str, str, str]]] = [
-    ("L", "Low", "~7% восстановления данных"),
-    ("M", "Medium", "~15% восстановления данных"),
-    ("Q", "Quartile", "~25% восстановления данных"),
-    ("H", "High", "~30% восстановления данных"),
+    ("L", "Low", "~7% data recovery"),
+    ("M", "Medium", "~15% data recovery"),
+    ("Q", "Quartile", "~25% data recovery"),
+    ("H", "High", "~30% data recovery"),
 ]
 
 # QR versions with capacity hints
 QR_VERSIONS: Final[list[tuple[str, str]]] = [
-    ("auto", "Автоматический выбор"),
+    ("auto", "Automatic selection"),
     ("1", "Version 1 (21×21, ~25 alphanumeric chars)"),
     ("2", "Version 2 (25×25, ~47 alphanumeric chars)"),
     ("5", "Version 5 (37×37, ~154 alphanumeric chars)"),
@@ -191,7 +191,7 @@ class QRCodeSettingsDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна диалога."""
-        self.title("🔳 Настройки QR-кода")
+        self.title("QR Code Settings")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -217,14 +217,14 @@ class QRCodeSettingsDialog(BaseDialog):
         # Header
         header = ttk.Label(
             main_frame,
-            text="🔳 Генерация QR-кода",
+            text="QR Code Settings",
             font=("Helvetica", 14, "bold"),
         )
         header.pack(anchor="w", pady=(0, 5))
 
         desc = ttk.Label(
             main_frame,
-            text="Настройте параметры QR-кода и просмотрите результат",
+            text="Configure QR code parameters and preview result",
             foreground=COLOR_TEXT_SECONDARY,
         )
         desc.pack(anchor="w", pady=(0, 15))
@@ -253,7 +253,7 @@ class QRCodeSettingsDialog(BaseDialog):
         ).pack(anchor="w")
 
         # Status bar
-        self._status_var = tk.StringVar(master=self, value="Готово")
+        self._status_var = tk.StringVar(master=self, value="Ready")
         status_label = ttk.Label(
             main_frame,
             textvariable=self._status_var,
@@ -265,7 +265,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Buttons
         self._create_button_section(main_frame)
 
-    def _create_settings_column(self, parent: ttk.Frame) -> ttk.Frame:
+    def _create_settings_column(self, parent: ttk.Frame) -> ttk.LabelFrame:
         """Создаёт колонку настроек.
 
         Args:
@@ -274,12 +274,12 @@ class QRCodeSettingsDialog(BaseDialog):
         Returns:
             Фрейм с настройками.
         """
-        frame = ttk.LabelFrame(parent, text="Параметры", padding="15")
+        frame = ttk.LabelFrame(parent, text="Settings", padding="15")
 
         # Data input
         ttk.Label(
             frame,
-            text="Данные для кодирования:",
+            text="Data:",
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w", pady=(0, 5))
 
@@ -299,7 +299,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Error correction
         ttk.Label(
             frame,
-            text="Коррекция ошибок:",
+            text="Error correction:",
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w", pady=(10, 5))
 
@@ -319,7 +319,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Version selection
         ttk.Label(
             frame,
-            text="Версия QR:",
+            text="Version:",
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w", pady=(15, 5))
 
@@ -336,7 +336,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Version description
         self._version_desc = ttk.Label(
             frame,
-            text="Автоматический выбор оптимального размера",
+            text="Automatic optimal size selection",
             foreground=COLOR_TEXT_SECONDARY,
             font=("Helvetica", 8),
         )
@@ -348,7 +348,7 @@ class QRCodeSettingsDialog(BaseDialog):
         size_frame.pack(fill=tk.X, pady=(10, 0))
 
         # Box size
-        ttk.Label(size_frame, text="Размер модуля:").pack(side=tk.LEFT)
+        ttk.Label(size_frame, text="Size:").pack(side=tk.LEFT)
         self._box_size_var = tk.IntVar(master=self, value=self._settings.box_size)
         box_size_spin = ttk.Spinbox(
             size_frame,
@@ -364,7 +364,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Border
         border_frame = ttk.Frame(frame)
         border_frame.pack(fill=tk.X, pady=(10, 0))
-        ttk.Label(border_frame, text="Граница:").pack(side=tk.LEFT)
+        ttk.Label(border_frame, text="Border:").pack(side=tk.LEFT)
         self._border_var = tk.IntVar(master=self, value=self._settings.border)
         border_spin = ttk.Spinbox(
             border_frame,
@@ -375,11 +375,11 @@ class QRCodeSettingsDialog(BaseDialog):
             command=self._update_preview,
         )
         border_spin.pack(side=tk.LEFT, padx=(10, 0))
-        ttk.Label(border_frame, text="модулей").pack(side=tk.LEFT)
+        ttk.Label(border_frame, text="modules").pack(side=tk.LEFT)
 
         return frame
 
-    def _create_preview_column(self, parent: ttk.Frame) -> ttk.Frame:
+    def _create_preview_column(self, parent: ttk.Frame) -> ttk.LabelFrame:
         """Создаёт колонку предпросмотра.
 
         Args:
@@ -388,7 +388,7 @@ class QRCodeSettingsDialog(BaseDialog):
         Returns:
             Фрейм с предпросмотром.
         """
-        frame = ttk.LabelFrame(parent, text="Предпросмотр", padding="15")
+        frame = ttk.LabelFrame(parent, text="Preview", padding="15")
 
         # Canvas for preview
         self._preview_canvas = tk.Canvas(
@@ -406,17 +406,17 @@ class QRCodeSettingsDialog(BaseDialog):
         self._preview_canvas.create_text(
             125,
             125,
-            text="Введите данные\nдля предпросмотра",
+            text="Enter data\nfor preview",
             fill=COLOR_TEXT_SECONDARY,
             font=("Helvetica", 10),
             justify=tk.CENTER,
         )
 
         # QR info frame
-        info_frame = ttk.LabelFrame(frame, text="Информация", padding="10")
+        info_frame = ttk.LabelFrame(frame, text="Info", padding="10")
         info_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self._qr_info_var = tk.StringVar(master=self, value="Ожидание данных...")
+        self._qr_info_var = tk.StringVar(master=self, value="Waiting for data...")
         ttk.Label(
             info_frame,
             textvariable=self._qr_info_var,
@@ -448,7 +448,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Export button (left)
         self._export_btn = ttk.Button(
             btn_frame,
-            text="💾 Экспорт PNG",
+            text="Export PNG",
             command=self._on_export,
             state=tk.DISABLED,
         )
@@ -457,7 +457,7 @@ class QRCodeSettingsDialog(BaseDialog):
         # Update preview button
         self._update_btn = ttk.Button(
             btn_frame,
-            text="👁️ Обновить",
+            text="Update",
             command=self._update_preview,
         )
         self._update_btn.pack(side=tk.LEFT, padx=(10, 0))
@@ -465,14 +465,14 @@ class QRCodeSettingsDialog(BaseDialog):
         # Cancel button (right)
         ttk.Button(
             btn_frame,
-            text="✗ Отмена",
+            text="Cancel",
             command=self._on_cancel,
         ).pack(side=tk.RIGHT)
 
         # Insert button (right)
         self._insert_btn = ttk.Button(
             btn_frame,
-            text="✓ Вставить",
+            text="Insert",
             command=self._on_insert,
             state=tk.DISABLED,
         )
@@ -488,19 +488,19 @@ class QRCodeSettingsDialog(BaseDialog):
         length = len(data)
 
         # Update length indicator
-        self._data_length_var.set(f"{length} символов")
+        self._data_length_var.set(f"{length} characters")
 
         # Check size limits
         if length > QR_MAX_DATA_LENGTH:
-            self._size_warning_var.set(f"⚠️ Превышен максимум ({QR_MAX_DATA_LENGTH} символов)!")
+            self._size_warning_var.set(f"⚠️ Exceeded maximum ({QR_MAX_DATA_LENGTH} characters)!")
         elif length > QR_RECOMMENDED_MAX:
-            self._size_warning_var.set("💡 Большой объем данных. Высокая версия QR.")
+            self._size_warning_var.set("💡 Large data volume. High QR version needed.")
         else:
             self._size_warning_var.set("")
 
         # Auto-update preview if data is not empty
         if data:
-            self.after(500, self._update_preview_delayed)
+            self._after_ids.append(self.after(500, self._update_preview_delayed))
 
     def _update_preview_delayed(self) -> None:
         """Отложенное обновление предпросмотра (debounce)."""
@@ -525,7 +525,7 @@ class QRCodeSettingsDialog(BaseDialog):
         data = self._data_text.get("1.0", tk.END).strip()
 
         if not data:
-            self._show_placeholder("Введите данные\nдля предпросмотра")
+            self._show_placeholder("Enter data\nfor preview")
             self._export_btn.config(state=tk.DISABLED)
             self._insert_btn.config(state=tk.DISABLED)
             return
@@ -543,19 +543,19 @@ class QRCodeSettingsDialog(BaseDialog):
             if preview_image:
                 self._show_image(preview_image)
                 self._qr_info_var.set(
-                    f"✓ QR-код сгенерирован\nРазмер: {preview_image.width}×{preview_image.height} px"
+                    f"✓ QR code generated\nSize: {preview_image.width}×{preview_image.height} px"
                 )
                 self._export_btn.config(state=tk.NORMAL)
                 self._insert_btn.config(state=tk.NORMAL)
-                self._status_var.set("Готово к вставке")
+                self._status_var.set("Ready to insert")
             else:
-                self._show_placeholder("⚠️ Ошибка генерации\nПроверьте данные")
-                self._status_var.set("Ошибка генерации")
+                self._show_placeholder("⚠️ Generation error\nCheck data")
+                self._status_var.set("Generation error")
 
         except Exception as e:
             logger.error(f"QR preview generation error: {e}")
-            self._show_placeholder(f"⚠️ Ошибка:\n{str(e)[:50]}")
-            self._status_var.set(f"Ошибка: {e}")
+            self._show_placeholder(f"⚠️ Error:\n{str(e)[:50]}")
+            self._status_var.set(f"Error: {e}")
 
     def _generate_preview(
         self,
@@ -621,7 +621,7 @@ class QRCodeSettingsDialog(BaseDialog):
             if img.width > max_size or img.height > max_size:
                 ratio = min(max_size / img.width, max_size / img.height)
                 new_size = (int(img.width * ratio), int(img.height * ratio))
-                img = img.resize(new_size, Image.LANCZOS)
+                img = img.resize(new_size, Image.LANCZOS)  # type: ignore[attr-defined]
 
             return img
 
@@ -648,9 +648,9 @@ class QRCodeSettingsDialog(BaseDialog):
 
             self._preview_photo = ImageTk.PhotoImage(image)
         except ImportError:
-            logger.warning("ImageTk не доступен, предпросмотр QR отключен")
+            logger.warning("ImageTk not available, QR preview disabled")
             self._preview_photo = None
-            self._show_placeholder("Предпросмотр недоступен\n(требуется python3-pillow-tk)")
+            self._show_placeholder("Preview unavailable\n(requires python3-pillow-tk)")
             return
 
         # Center image
@@ -681,8 +681,8 @@ class QRCodeSettingsDialog(BaseDialog):
         data = self._data_text.get("1.0", tk.END).strip()
         if not data:
             messagebox.showwarning(
-                "Внимание",
-                "Введите данные для кодирования",
+                "Warning",
+                "Enter data to encode",
                 parent=self,
             )
             return
@@ -697,7 +697,7 @@ class QRCodeSettingsDialog(BaseDialog):
                 ("PNG files", "*.png"),
                 ("All files", "*.*"),
             ],
-            title="Сохранить QR-код",
+            title="Save QR Code",
         )
 
         if not file_path:
@@ -745,18 +745,18 @@ class QRCodeSettingsDialog(BaseDialog):
                 full_img = qr.make_image(fill_color="black", back_color="white")
                 full_img.save(file_path)
 
-                self._status_var.set(f"Сохранено: {file_path}")
+                self._status_var.set(f"Saved: {file_path}")
                 messagebox.showinfo(
-                    "Успех",
-                    f"QR-код сохранен:\n{file_path}",
+                    "Success",
+                    f"QR code saved:\n{file_path}",
                     parent=self,
                 )
 
         except Exception as e:
             logger.error(f"QR export error: {e}")
             messagebox.showerror(
-                "Ошибка",
-                f"Не удалось сохранить QR-код:\n{e}",
+                "Error",
+                f"Failed to save QR code:\n{e}",
                 parent=self,
             )
 
@@ -766,8 +766,8 @@ class QRCodeSettingsDialog(BaseDialog):
 
         if not data:
             messagebox.showwarning(
-                "Внимание",
-                "Введите данные для кодирования",
+                "Warning",
+                "Enter data to encode",
                 parent=self,
             )
             return

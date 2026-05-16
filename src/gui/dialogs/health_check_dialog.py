@@ -7,7 +7,7 @@ Features:
     - Модальный диалог с блокировкой родительского окна
     - Асинхронное выполнение проверок с progress bar
     - Thread-safe обновления UI
-    - Цветовая индикация статусов (красный/жёлтый/зелёный)
+    - Colorовая индикация статусов (красный/жёлтый/зелёный)
     - Детальное отображение результатов каждой проверки
 
 Example:
@@ -28,7 +28,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, cast
 
 from src.gui.dialogs.base_dialog import BaseDialog
 
@@ -41,7 +41,7 @@ from src.security.monitoring.models import HealthCheckReport, HealthCheckStatus
 logger = logging.getLogger(__name__)
 
 
-def _safe_grab_set(widget: tk.Widget) -> None:
+def _safe_grab_set(widget: tk.Misc) -> None:
     """Устанавливает grab с подавлением TclError (другой диалог может иметь grab).
 
     Args:
@@ -57,7 +57,7 @@ def _safe_grab_set(widget: tk.Widget) -> None:
 # CONSTANTS
 # =============================================================================
 
-# Цвета для различных статусов
+# Colorа для различных статусов
 COLOR_CRITICAL: str = "#e74c3c"  # 🔴 Красный
 COLOR_WARNING: str = "#f39c12"  # 🟡 Жёлтый
 COLOR_PASS: str = "#27ae60"  # 🟢 Зелёный #noqa s105
@@ -412,7 +412,7 @@ class HealthCheckDialog(BaseDialog):
 
         Args:
             text: Текст статуса
-            color: Цвет текста
+            color: Color текста
         """
 
         def _do_update() -> None:
@@ -612,7 +612,7 @@ class HealthCheckDialog(BaseDialog):
                 COLOR_PASS,
             )
 
-    def close(self) -> None:
+    def close(self, result: Any = None) -> None:
         """Закрывает диалог."""
         self._on_close()
 

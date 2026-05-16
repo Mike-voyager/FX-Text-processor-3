@@ -18,8 +18,8 @@ class SaveChangesDialog:
             'yes', 'no', or 'cancel'
         """
         result = messagebox.askyesnocancel(
-            "Сохранить изменения?",
-            "Документ был изменен. Сохранить перед закрытием?",
+            "Save changes?",
+            "The document has been modified. Save before closing?",
             icon="warning",
         )
         if result is None:

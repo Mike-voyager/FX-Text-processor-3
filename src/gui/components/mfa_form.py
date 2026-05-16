@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from typing import Any, Callable, Final, Literal, Optional, cast
+from typing import Any, Callable, Final, Literal, Optional
+
 from src.security.crypto.core.exceptions import AuthError, CryptoError
 
 # Callback type: username, password, method, token -> success
@@ -89,10 +90,10 @@ class MFAForm(tk.Frame):
             show_cancel: Показывать ли кнопку Cancel.
             submit_text: Текст кнопки подтверждения.
             cancel_text: Текст кнопки отмены.
-            bg_color: Цвет фона.
-            fg_color: Цвет текста.
-            error_color: Цвет текста ошибки.
-            accent_color: Цвет акцента (кнопка).
+            bg_color: Color фона.
+            fg_color: Color текста.
+            error_color: Color текста ошибки.
+            accent_color: Color акцента (кнопка).
             font_family: Шрифт.
             title_text: Заголовок формы.
             title_font_size: Размер шрифта заголовка.
@@ -114,8 +115,8 @@ class MFAForm(tk.Frame):
 
         # String variables
         self._username_var = tk.StringVar(value="operator" if show_username else "")
-        self._password_var = tk.StringVar()
-        self._token_var = tk.StringVar()
+        self._password_var = tk.StringVar(master=self)
+        self._token_var = tk.StringVar(master=self)
         self._method_var = tk.StringVar(value=self.METHOD_TOTP)
 
         # Widget references
@@ -238,8 +239,10 @@ class MFAForm(tk.Frame):
         # FIDO2 option
         fido2_frame = tk.Frame(self, bg=self._bg_color)
         fido2_frame.pack(fill=tk.X, pady=(0, 5))
-        fido2_state: Literal["normal", "active", "disabled"] = "normal" if self._fido2_available else "disabled"
-        fido2_label_text = "Password + FIDO2" if self._fido2_available else "FIDO2 (недоступно)"
+        fido2_state: Literal["normal", "active", "disabled"] = (
+            "normal" if self._fido2_available else "disabled"
+        )
+        fido2_label_text = "Password + FIDO2" if self._fido2_available else "FIDO2 (unavailable)"
         fido2_label_fg = self._fg_color if self._fido2_available else "#7f8c8d"
         self._fido2_radio = tk.Radiobutton(
             fido2_frame,
@@ -455,7 +458,7 @@ class MFAForm(tk.Frame):
 
         if method == self.METHOD_FIDO2:
             if not self._fido2_available:
-                self._show_error("FIDO2 недоступен: устройство не подключено")
+                self._show_error("FIDO2 unavailable: device not connected")
                 return
             self._perform_fido2_authentication(password)
             return

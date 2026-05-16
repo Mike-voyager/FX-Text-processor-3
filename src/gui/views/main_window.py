@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
+from pathlib import Path
 from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Final, Optional, cast
 
@@ -71,7 +72,7 @@ from src.gui.services.notification_service import (
 from src.gui.services.sync_service import SyncService
 from src.gui.services.toast_service import ToastService
 from src.gui.services.window_manager import WindowManager
-from src.gui.views import ToastLevel
+from src.gui.views import SideBarMode, ToastLevel
 from src.gui.views.auth_overlay import AuthOverlay
 from src.gui.views.card_file_tab_bar import CardFileTabBar
 from src.gui.views.document_view import DocumentView
@@ -218,6 +219,7 @@ class MainWindow:
         self._auth_overlay: Optional[AuthOverlay] = None
         self._health_check_dialog: Optional[Any] = None
         self._mode_var: Optional[tk.StringVar] = None
+        self._sidebar_mode_var: Optional[tk.StringVar] = None
         self._health_checker: Optional[HealthChecker] = None
 
         # Phase 4: Error handling
@@ -268,7 +270,7 @@ class MainWindow:
             >>> window.initialize()
         """
         if self._is_initialized:
-            raise RuntimeError("MainWindow уже инициализирован")
+            raise RuntimeError("MainWindow is already initialized")
 
         # Create root window
         self._root = tk.Tk()
@@ -285,6 +287,10 @@ class MainWindow:
         # ToastService has no set_root method (root is set via constructor)
         # SyncService, NotificationService, DragDropService, ModeManager,
         # WorkflowStateManager already have their dependencies externally.
+
+        # Create ToastService if not injected
+        if self._toast_service is None:
+            self._toast_service = ToastService(self._root)
 
         # Configure grid
         self._root.rowconfigure(2, weight=1)  # Main content expands (row 2 after toolbar)
@@ -337,7 +343,7 @@ class MainWindow:
             >>> window.run()  # Blocks until window closed
         """
         if not self._is_initialized or self._root is None:
-            raise RuntimeError("MainWindow не инициализирован. Вызовите initialize() сначала.")
+            raise RuntimeError("MainWindow is not initialized. Call initialize() first.")
 
         self._root.mainloop()
 
@@ -354,6 +360,9 @@ class MainWindow:
         Example:
             >>> window.destroy()  # Graceful shutdown with wipe
         """
+        if not self._is_initialized:
+            return
+
         # Wipe sensitive data
         self._wipe_sensitive_data()
 
@@ -440,7 +449,7 @@ class MainWindow:
             >>> toast.show("Document saved", ToastLevel.SUCCESS)
         """
         if self._toast_service is None:
-            raise RuntimeError("MainWindow не инициализирован")
+            raise RuntimeError("MainWindow is not initialized")
         return self._toast_service
 
     def notify(self, message: str, category: str, priority: NotificationPriority) -> str:
@@ -459,7 +468,7 @@ class MainWindow:
             'uuid-string'
         """
         if self._notification_service is None:
-            raise RuntimeError("MainWindow не инициализирован")
+            raise RuntimeError("MainWindow is not initialized")
 
         # Map category to GUI NotificationService category
         category_mapping = {
@@ -546,6 +555,9 @@ class MainWindow:
         self._cardfile_tabbar.set_tab_encrypted(doc_id, bool(is_encrypted))
         self._cardfile_tabbar.set_tab_readonly(doc_id, bool(is_readonly))
         self._cardfile_tabbar.set_tab_modified(doc_id, bool(is_modified))
+        if self._statusbar is not None:
+            self._statusbar.set_encrypted(bool(is_encrypted))
+            self._statusbar.set_readonly(bool(is_readonly))
 
     def remove_document(self, doc_id: str) -> None:
         """Удаляет документ из UI (вкладку).
@@ -581,8 +593,9 @@ class MainWindow:
             modified: True если документ изменён (префикс "*").
         """
         self._current_title = title
+        display_name = Path(title).name if title else ""
         prefix = MODIFIED_INDICATOR if modified else ""
-        full_title = f"{prefix}{title}{TITLE_SEPARATOR}{APP_NAME}"
+        full_title = f"{prefix}{display_name}{TITLE_SEPARATOR}{APP_NAME}"
         if self._root is not None:
             self._root.title(full_title)
 
@@ -638,6 +651,11 @@ class MainWindow:
                 self.id = str(doc_id)  # Ensure it's a string
                 # Document model doesn't have mode, default to FREE_FORM
                 self.mode = DocumentMode.FREE_FORM
+
+            @property
+            def sections(self) -> list[Any]:
+                """Возвращает секции документа."""
+                return getattr(self._doc, "sections", [])
 
             def get_content(self) -> str:
                 """Извлекает текст из секций документа.
@@ -733,7 +751,7 @@ class MainWindow:
 
         # Show notification
         if self._toast_service is not None:
-            self._toast_service.show("Сессия заблокирована", ToastLevel.INFO)
+            self._toast_service.show("Session locked", ToastLevel.INFO)
 
         # Log to audit
         if self._audit_log:
@@ -776,7 +794,7 @@ class MainWindow:
 
         # Show notification
         if self._toast_service is not None:
-            self._toast_service.show("Сессия разблокирована", ToastLevel.SUCCESS)
+            self._toast_service.show("Session unlocked", ToastLevel.SUCCESS)
 
         # Log to audit
         if self._audit_log:
@@ -821,7 +839,7 @@ class MainWindow:
 
     def _on_startup_auth_cancel(self) -> None:
         """Обработчик отмены аутентификации."""
-        if self._root is not None and messagebox.askyesno("Выход", "Выйти из приложения?"):
+        if self._root is not None and messagebox.askyesno("Exit", "Exit application?"):
             self._root.destroy()
 
     def _update_ui_for_authenticated_user(self, user_id: str) -> None:
@@ -829,7 +847,7 @@ class MainWindow:
         if self._root is not None:
             self._root.title(f"{APP_NAME} - User: {user_id}")
         if self._toast_service is not None:
-            self._toast_service.show(f"Добро пожаловать, {user_id}!", ToastLevel.SUCCESS)
+            self._toast_service.show(f"Welcome, {user_id}!", ToastLevel.SUCCESS)
 
     def _run_startup_health_check(self) -> None:
         """Запускает Health Check при старте.
@@ -1000,7 +1018,7 @@ class MainWindow:
                 on_auth_success=self._on_auth_success,
                 on_cancel=self._on_auth_cancel,
             )
-            self._auth_overlay.mount(self._root)
+            self._auth_overlay.mount(self._root)  # type: ignore[arg-type]
 
         self._auth_overlay.show()
 
@@ -1221,6 +1239,23 @@ class MainWindow:
         view_menu.add_command(label="Toggle Sidebar", command=self._on_view_toggle_sidebar)
         view_menu.add_command(label="Toggle StatusBar", command=self._on_view_toggle_statusbar)
         view_menu.add_separator()
+        # SideBar Mode submenu
+        self._sidebar_mode_var = tk.StringVar(value="sections")
+        sidebar_mode_menu = tk.Menu(view_menu, tearoff=0)
+        sidebar_mode_menu.add_radiobutton(
+            label="Sections",
+            variable=self._sidebar_mode_var,
+            value="sections",
+            command=self._on_view_sidebar_mode_changed,
+        )
+        sidebar_mode_menu.add_radiobutton(
+            label="Tree",
+            variable=self._sidebar_mode_var,
+            value="tree",
+            command=self._on_view_sidebar_mode_changed,
+        )
+        view_menu.add_cascade(label="SideBar Mode", menu=sidebar_mode_menu)
+        view_menu.add_separator()
         view_menu.add_command(label="Zoom In", command=self._on_view_zoom_in, accelerator="Ctrl++")
         view_menu.add_command(
             label="Zoom Out", command=self._on_view_zoom_out, accelerator="Ctrl+-"
@@ -1249,11 +1284,11 @@ class MainWindow:
         view_menu.add_separator()
         # Window management submenu (Phase 7)
         window_menu = tk.Menu(view_menu, tearoff=0)
-        window_menu.add_command(label="Список окон", command=self._on_window_list)
+        window_menu.add_command(label="Window list", command=self._on_window_list)
         window_menu.add_separator()
-        window_menu.add_command(label="Свернуть все", command=self._on_window_minimize_all)
-        window_menu.add_command(label="Восстановить все", command=self._on_window_restore_all)
-        view_menu.add_cascade(label="Окна", menu=window_menu)
+        window_menu.add_command(label="Minimize all", command=self._on_window_minimize_all)
+        window_menu.add_command(label="Restore all", command=self._on_window_restore_all)
+        view_menu.add_cascade(label="Windows", menu=window_menu)
         view_menu.add_separator()
         # Workflow submenu with Simple Mode toggle
         self._workflow_simple_var = tk.BooleanVar(value=self._workflow_simple_mode)
@@ -1269,12 +1304,12 @@ class MainWindow:
 
         # Phase 7: Notifications menu
         notifications_menu = tk.Menu(self._menubar, tearoff=0)
-        notifications_menu.add_command(label="История", command=self._on_view_notifications)
+        notifications_menu.add_command(label="History", command=self._on_view_notifications)
         notifications_menu.add_command(
-            label="Отметить все прочитанными",
+            label="Mark all as read",
             command=self._on_notifications_mark_all_read,
         )
-        self._menubar.add_cascade(label="Уведомления", menu=notifications_menu)
+        self._menubar.add_cascade(label="Notifications", menu=notifications_menu)
 
         # Security menu
         security_menu = tk.Menu(self._menubar, tearoff=0)
@@ -1285,12 +1320,12 @@ class MainWindow:
         )
         security_menu.add_command(label="Health Check...", command=self._on_security_health_check)
         security_menu.add_separator()
-        security_menu.add_command(label="Резервные коды", command=self._on_security_backup_codes)
+        security_menu.add_command(label="Backup codes", command=self._on_security_backup_codes)
         security_menu.add_command(
-            label="Профиль безопасности", command=self._on_security_crypto_profile
+            label="Security profile", command=self._on_security_crypto_profile
         )
         security_menu.add_command(
-            label="Настройки автоблокировки",
+            label="Auto-lock settings",
             command=self._on_security_auto_lock_settings,
         )
         security_menu.add_separator()
@@ -1528,7 +1563,7 @@ class MainWindow:
         if self._window_manager is not None:
             count = self._window_manager.close_all_except_main()
             if self._toast_service is not None:
-                self._toast_service.show(f"Закрыто окон: {count}", ToastLevel.INFO)
+                self._toast_service.show(f"Windows closed: {count}", ToastLevel.INFO)
 
     def _create_main_toolbar(self) -> None:
         """Создаёт главную панель инструментов."""
@@ -1541,7 +1576,7 @@ class MainWindow:
             widget_id="main_toolbar",
             controller=self._controller,
         )
-        toolbar_frame = self._main_toolbar.mount(self._root)
+        toolbar_frame = self._main_toolbar.mount(self._root)  # type: ignore[arg-type]
         toolbar_frame.grid(row=1, column=0, sticky="ew")
 
     def _update_toolbar_state(self, has_document: bool = False, is_modified: bool = False) -> None:
@@ -1612,7 +1647,7 @@ class MainWindow:
             root=self._root,
             sidebar_toggle_callback=self._on_sidebar_toggled,
         )
-        main_widget = self._main_layout.mount(self._root)
+        main_widget = self._main_layout.mount(self._root)  # type: ignore[arg-type]
         main_widget.grid(row=2, column=0, sticky="nsew")
 
         # Create and set sidebar (Phase 7: with sync_service)
@@ -1650,7 +1685,7 @@ class MainWindow:
             mode_callback=self._on_statusbar_mode_click,
             paper_callback=self._on_page_setup,
         )
-        self._statusbar.mount(self._root)
+        self._statusbar.mount(self._root)  # type: ignore[arg-type]
         self._main_layout.set_statusbar(self._statusbar.widget)
 
         # Create document view with StatusBar reference
@@ -1854,7 +1889,7 @@ class MainWindow:
         if self._mode_manager.is_special():
             logger.info("Document already in Special Mode")
             if self._toast_service is not None:
-                self._toast_service.show("Документ уже в Special Mode", ToastLevel.INFO)
+                self._toast_service.show("Document already in Special Mode", ToastLevel.INFO)
             return
 
         response = messagebox.askyesno(
@@ -1879,7 +1914,7 @@ class MainWindow:
         if not self._mode_manager.is_special():
             logger.info("Document already in Normal Mode")
             if self._toast_service is not None:
-                self._toast_service.show("Документ уже в Normal Mode", ToastLevel.INFO)
+                self._toast_service.show("Document already in Normal Mode", ToastLevel.INFO)
             return
 
         response = messagebox.askyesno(
@@ -1978,35 +2013,35 @@ class MainWindow:
         if self._controller is not None:
             self._controller.dispatch("file_new")
         elif self._toast_service is not None:
-            self._toast_service.show("Создание нового документа", ToastLevel.INFO)
+            self._toast_service.show("Creating new document", ToastLevel.INFO)
 
     def _on_file_open(self) -> None:
         """Callback: File -> Open."""
         if self._controller is not None:
             self._controller.dispatch("file_open")
         elif self._toast_service is not None:
-            self._toast_service.show("Открытие документа", ToastLevel.INFO)
+            self._toast_service.show("Opening document", ToastLevel.INFO)
 
     def _on_file_save(self) -> None:
         """Callback: File -> Save."""
         if self._controller is not None:
             self._controller.dispatch("file_save")
         elif self._toast_service is not None:
-            self._toast_service.show("Сохранение документа", ToastLevel.INFO)
+            self._toast_service.show("Saving document", ToastLevel.INFO)
 
     def _on_file_save_as(self) -> None:
         """Callback: File -> Save As."""
         if self._controller is not None:
             self._controller.dispatch("file_save_as")
         elif self._toast_service is not None:
-            self._toast_service.show("Сохранение документа как...", ToastLevel.INFO)
+            self._toast_service.show("Save document as...", ToastLevel.INFO)
 
     def _on_file_print(self) -> None:
         """Callback: File -> Print."""
         if self._controller is not None:
             self._controller.dispatch("file_print")
         elif self._toast_service is not None:
-            self._toast_service.show("Печать документа", ToastLevel.INFO)
+            self._toast_service.show("Printing document", ToastLevel.INFO)
 
     def _on_page_setup(self) -> None:
         """Callback: Format -> Page Setup (и double-click на Paper в StatusBar)."""
@@ -2066,6 +2101,16 @@ class MainWindow:
                 self._statusbar.hide()
             else:
                 self._statusbar.show()
+
+    def _on_view_sidebar_mode_changed(self) -> None:
+        """Callback: View -> SideBar Mode -> Sections / Tree."""
+        if self._sidebar is None or self._sidebar_mode_var is None:
+            return
+        mode = self._sidebar_mode_var.get()
+        if mode == "tree":
+            self._sidebar.set_mode(SideBarMode.TREE)
+        else:
+            self._sidebar.set_mode(SideBarMode.SECTIONS)
 
     def _on_view_zoom_in(self) -> None:
         """Callback: View -> Zoom In."""
@@ -2162,7 +2207,7 @@ class MainWindow:
 
         if count == 0:
             if self._toast_service is not None:
-                self._toast_service.show("Нет уведомлений в истории", ToastLevel.INFO)
+                self._toast_service.show("No notifications in history", ToastLevel.INFO)
             return
 
         # Build notification list for display
@@ -2182,7 +2227,7 @@ class MainWindow:
             lines.append(f"\n... и ещё {count - 10} уведомлений")
 
         message = "\n".join(lines)
-        messagebox.showinfo("История уведомлений", message, parent=self._root)  # type: ignore[arg-type]
+        messagebox.showinfo("Notification history", message, parent=self._root)  # type: ignore[arg-type]
 
     def _on_notifications_mark_all_read(self) -> None:
         """Callback: Уведомления → Отметить все прочитанными."""
@@ -2191,7 +2236,7 @@ class MainWindow:
 
         self._notification_service.mark_all_as_read()
         if self._toast_service is not None:
-            self._toast_service.show("Все уведомления отмечены прочитанными", ToastLevel.SUCCESS)
+            self._toast_service.show("All notifications marked as read", ToastLevel.SUCCESS)
 
     def _on_security_lock(self) -> None:
         """Callback: Security -> Lock Session."""
@@ -2442,12 +2487,12 @@ class MainWindow:
                 self._document_view.goto_page(result["page"], result.get("line"))
                 if self._toast_service is not None:
                     self._toast_service.show(
-                        f"Переход к странице {result['page']}",
+                        f"Go to page {result['page']}",
                         ToastLevel.INFO,
                     )
             except Exception as e:
                 logger.error("Failed to navigate: %s", e)
-                messagebox.showerror("Ошибка", f"Не удалось выполнить переход: {e}")
+                messagebox.showerror("Error", f"Failed to navigate: {e}")
 
     def _on_bookmarks(self) -> None:
         """Callback: Edit -> Bookmarks
@@ -2496,7 +2541,7 @@ class MainWindow:
         if result and result.get("action") == "goto":
             if self._toast_service is not None:
                 self._toast_service.show(
-                    f"Переход к странице {result['page']}",
+                    f"Go to page {result['page']}",
                     ToastLevel.INFO,
                 )
 
@@ -2629,7 +2674,7 @@ class MainWindow:
 
         windows = self._window_manager.get_window_list()
         if not windows:
-            self._toast_service.show("Нет открытых окон", ToastLevel.INFO)
+            self._toast_service.show("No open windows", ToastLevel.INFO)
             return
 
         # Build window list message
@@ -2640,7 +2685,7 @@ class MainWindow:
             window_names.append(f"{marker} {w.title} {status}")
 
         message = "Открытые окна:\n" + "\n".join(window_names)
-        messagebox.showinfo("Список окон", message, parent=self._root)  # type: ignore[arg-type]
+        messagebox.showinfo("Window list", message, parent=self._root)  # type: ignore[arg-type]
 
     def _on_window_minimize_all(self) -> None:
         """Callback: View → Window → Свернуть все.
@@ -2652,7 +2697,7 @@ class MainWindow:
 
         count = self._window_manager.minimize_all()
         if self._toast_service is not None:
-            self._toast_service.show(f"Свёрнуто окон: {count}", ToastLevel.INFO)
+            self._toast_service.show(f"Windows minimized: {count}", ToastLevel.INFO)
 
     def _on_window_restore_all(self) -> None:
         """Callback: View → Window → Восстановить все.
@@ -2664,7 +2709,7 @@ class MainWindow:
 
         count = self._window_manager.restore_all()
         if self._toast_service is not None:
-            self._toast_service.show(f"Восстановлено окон: {count}", ToastLevel.INFO)
+            self._toast_service.show(f"Windows restored: {count}", ToastLevel.INFO)
 
     def _on_insert_barcode(self) -> None:
         """Handler для вставки штрих-кода (Insert → Barcode).
@@ -2733,7 +2778,7 @@ class MainWindow:
             renderer._command_stack.execute(cmd)
 
             if self._toast_service is not None:
-                self._toast_service.show("Символ вставлен", ToastLevel.SUCCESS)
+                self._toast_service.show("Character inserted", ToastLevel.SUCCESS)
         except Exception as e:
             logger.error("Error inserting special character: %s", e)
             messagebox.showerror(
@@ -2838,7 +2883,13 @@ class MainWindow:
 # MODULE EXPORTS
 # =============================================================================
 
+__version__: Final[str] = "2.1"
+__author__: Final[str] = "FX Text Processor Team"
+__date__: Final[str] = "April 2026"
+
 __all__: list[str] = [
     "MainWindow",
     "APP_NAME",
+    "MODIFIED_INDICATOR",
+    "TITLE_SEPARATOR",
 ]

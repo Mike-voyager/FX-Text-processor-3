@@ -47,7 +47,7 @@ class ThemeRegistryError(GUIError):
 
 
 class ThemeNotFoundError(ThemeRegistryError):
-    """Тема не найдена в реестре.
+    """Theme не найдена в реестре.
 
     Attributes:
         theme_name: Имя ненайденной темы.
@@ -60,7 +60,7 @@ class ThemeNotFoundError(ThemeRegistryError):
             name: Имя ненайденной темы.
         """
         self.theme_name = name
-        super().__init__(f"Тема '{name}' не найдена")
+        super().__init__(f"Theme '{name}' не найдена")
 
 
 class ThemeRegistry:
@@ -174,13 +174,13 @@ class ThemeRegistry:
                     self.register(theme)
 
         except ImportError as exc:
-            raise ThemeRegistryError(f"Ошибка загрузки встроенных тем: {exc}") from exc
+            raise ThemeRegistryError(f"Error loading built-in themes: {exc}") from exc
 
     def register(self, theme: ThemeProtocol) -> None:
         """Регистрирует тему.
 
         Args:
-            theme: Тема для регистрации.
+            theme: Theme для регистрации.
 
         Raises:
             ThemeRegistryError: Если тема с таким именем уже существует.
@@ -190,7 +190,7 @@ class ThemeRegistry:
         """
         with self._operation_lock:
             if theme.name in self._themes:
-                raise ThemeRegistryError(f"Тема '{theme.name}' уже зарегистрирована")
+                raise ThemeRegistryError(f"Theme '{theme.name}' already registered")
             self._themes[theme.name] = theme
 
     def get(self, name: str) -> ThemeProtocol:

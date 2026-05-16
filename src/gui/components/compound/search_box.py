@@ -92,6 +92,7 @@ class SearchBox(BaseWidget):
         self._entry.bind("<FocusIn>", self._on_focus_in)
         self._entry.bind("<FocusOut>", self._on_focus_out)
         self._entry.bind("<KeyRelease>", self._on_key_release)
+        self._entry.bind("<Destroy>", lambda _e: self._cancel_debounce(), add=True)
         self._entry.bind("<Return>", self._on_return)
 
         clear_btn = tk.Button(

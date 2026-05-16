@@ -371,7 +371,7 @@ class SyncService:
             ... )
         """
         if not target_window_id:
-            raise ValueError("target_window_id не может быть пустым")
+            raise ValueError("target_window_id cannot be empty")
 
         message = self._create_message(
             source_window_id=source_window_id,
@@ -445,7 +445,7 @@ class SyncService:
         """
         with self._lock:
             if handler_id not in self._handlers:
-                raise KeyError(f"Обработчик с ID '{handler_id}' не найден")
+                raise KeyError(f"Handler with ID '{handler_id}' not found")
             del self._handlers[handler_id]
 
     def get_last_sync_time(self, data_type: str) -> float:

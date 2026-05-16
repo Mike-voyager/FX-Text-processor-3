@@ -130,12 +130,12 @@ class TestAddTab:
         for i in range(MAX_TABS):
             tab_bar.add_tab(f"doc_{i}", f"Document {i}", DocumentMode.FREE_FORM)
 
-        with pytest.raises(ValueError, match=f"Достигнут лимит вкладок"):
+        with pytest.raises(ValueError, match="Tab limit reached"):
             tab_bar.add_tab("extra", "Extra", DocumentMode.FREE_FORM)
 
     def test_add_tab_invalid_document_id_raises(self, tab_bar: CardFileTabBar) -> None:
         """add_tab() с невалидным document_id вызывает ValueError."""
-        with pytest.raises(ValueError, match="Невалидный document_id"):
+        with pytest.raises(ValueError, match="Invalid document_id"):
             tab_bar.add_tab("invalid id!", "Title", DocumentMode.FREE_FORM)
 
     def test_add_tab_truncates_long_title(self, tab_bar: CardFileTabBar) -> None:
@@ -234,7 +234,7 @@ class TestSetActiveTab:
 
     def test_set_active_tab_invalid_id_raises(self, tab_bar: CardFileTabBar) -> None:
         """set_active_tab() с невалидным id вызывает ValueError."""
-        with pytest.raises(ValueError, match="Невалидный document_id"):
+        with pytest.raises(ValueError, match="Invalid document_id"):
             tab_bar.set_active_tab("invalid id!")
 
     def test_set_active_tab_not_found_noop(self, tab_bar: CardFileTabBar) -> None:
@@ -271,7 +271,7 @@ class TestSetTabModified:
 
     def test_set_tab_modified_invalid_id_raises(self, tab_bar: CardFileTabBar) -> None:
         """set_tab_modified() с невалидным id вызывает ValueError."""
-        with pytest.raises(ValueError, match="Невалидный document_id"):
+        with pytest.raises(ValueError, match="Invalid document_id"):
             tab_bar.set_tab_modified("invalid id!", True)
 
     def test_set_tab_modified_not_found_noop(self, tab_bar: CardFileTabBar) -> None:
@@ -340,7 +340,7 @@ class TestWidgetProperty:
         """widget property до mount вызывает RuntimeError."""
         bar = CardFileTabBar()
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="is not mounted"):
             _ = bar.widget
 
 

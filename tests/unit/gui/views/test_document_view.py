@@ -154,7 +154,7 @@ class TestSetDocument:
 
     def test_set_document_empty_raises(self, document_view: DocumentView) -> None:
         """set_document() с пустым id вызывает ValueError."""
-        with pytest.raises(ValueError, match="document_id не может быть пустым"):
+        with pytest.raises(ValueError, match="document_id cannot be empty"):
             document_view.set_document(MockDocument(""))
 
 
@@ -288,7 +288,7 @@ class TestWidgetProperty:
         """widget property до mount вызывает RuntimeError."""
         view = DocumentView()
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="not mounted"):
             _ = view.widget
 
 

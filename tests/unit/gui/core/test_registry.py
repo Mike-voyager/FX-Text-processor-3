@@ -373,14 +373,14 @@ class TestWidgetCategory:
         assert WidgetCategory.CUSTOM.value == "custom"
 
     def test_label_method(self) -> None:
-        """label() возвращает русские названия."""
-        assert WidgetCategory.CONTAINER.label() == "Контейнер"
-        assert WidgetCategory.INPUT.label() == "Ввод данных"
-        assert WidgetCategory.DISPLAY.label() == "Отображение"
-        assert WidgetCategory.DIALOG.label() == "Диалог"
-        assert WidgetCategory.MENU.label() == "Меню"
-        assert WidgetCategory.TOOLBAR.label() == "Панель инструментов"
-        assert WidgetCategory.CUSTOM.label() == "Пользовательский"
+        """label() возвращает английские названия."""
+        assert WidgetCategory.CONTAINER.label() == "Container"
+        assert WidgetCategory.INPUT.label() == "Input"
+        assert WidgetCategory.DISPLAY.label() == "Display"
+        assert WidgetCategory.DIALOG.label() == "Dialog"
+        assert WidgetCategory.MENU.label() == "Menu"
+        assert WidgetCategory.TOOLBAR.label() == "Toolbar"
+        assert WidgetCategory.CUSTOM.label() == "Custom"
 
     def test_from_str_valid(self) -> None:
         """from_str() парсит валидные значения (case-insensitive)."""
@@ -391,7 +391,7 @@ class TestWidgetCategory:
 
     def test_from_str_invalid(self) -> None:
         """from_str() выбрасывает ValueError для невалидных значений."""
-        with pytest.raises(ValueError, match="Неизвестная категория"):
+        with pytest.raises(ValueError, match="Unknown widget category"):
             WidgetCategory.from_str("invalid")
 
 
@@ -405,10 +405,10 @@ class TestWidgetComplexity:
         assert WidgetComplexity.COMPOSITE.value == "composite"
 
     def test_label_method(self) -> None:
-        """label() возвращает русские названия."""
-        assert WidgetComplexity.PRIMITIVE.label() == "Примитив"
-        assert WidgetComplexity.COMPOUND.label() == "Составной"
-        assert WidgetComplexity.COMPOSITE.label() == "Комплексный"
+        """label() возвращает английские названия."""
+        assert WidgetComplexity.PRIMITIVE.label() == "Primitive"
+        assert WidgetComplexity.COMPOUND.label() == "Compound"
+        assert WidgetComplexity.COMPOSITE.label() == "Composite"
 
     def test_from_str_valid(self) -> None:
         """from_str() парсит валидные значения (case-insensitive)."""
@@ -418,7 +418,7 @@ class TestWidgetComplexity:
 
     def test_from_str_invalid(self) -> None:
         """from_str() выбрасывает ValueError для невалидных значений."""
-        with pytest.raises(ValueError, match="Неизвестный уровень сложности"):
+        with pytest.raises(ValueError, match="Unknown complexity level"):
             WidgetComplexity.from_str("invalid")
 
 
@@ -445,7 +445,7 @@ class TestWidgetMetadata:
 
     def test_validation_empty_version(self) -> None:
         """Валидация: version не может быть пустым."""
-        with pytest.raises(ValueError, match="version не может быть пустым"):
+        with pytest.raises(ValueError, match="version cannot be empty"):
             WidgetMetadata(
                 category=WidgetCategory.INPUT,
                 complexity=WidgetComplexity.PRIMITIVE,
@@ -456,7 +456,7 @@ class TestWidgetMetadata:
 
     def test_validation_empty_author(self) -> None:
         """Валидация: author не может быть пустым."""
-        with pytest.raises(ValueError, match="author не может быть пустым"):
+        with pytest.raises(ValueError, match="author cannot be empty"):
             WidgetMetadata(
                 category=WidgetCategory.INPUT,
                 complexity=WidgetComplexity.PRIMITIVE,
@@ -467,7 +467,7 @@ class TestWidgetMetadata:
 
     def test_validation_empty_description(self) -> None:
         """Валидация: description не может быть пустым."""
-        with pytest.raises(ValueError, match="description не может быть пустым"):
+        with pytest.raises(ValueError, match="description cannot be empty"):
             WidgetMetadata(
                 category=WidgetCategory.INPUT,
                 complexity=WidgetComplexity.PRIMITIVE,
@@ -478,7 +478,7 @@ class TestWidgetMetadata:
 
     def test_validation_supported_events_type(self) -> None:
         """Валидация: supported_events должен быть Set[str]."""
-        with pytest.raises(TypeError, match="supported_events должен быть Set"):
+        with pytest.raises(TypeError, match="supported_events must be Set"):
             WidgetMetadata(
                 category=WidgetCategory.INPUT,
                 complexity=WidgetComplexity.PRIMITIVE,
@@ -490,7 +490,7 @@ class TestWidgetMetadata:
 
     def test_validation_empty_event_name(self) -> None:
         """Валидация: имена событий не могут быть пустыми."""
-        with pytest.raises(ValueError, match="Имя события не может быть пустой строкой"):
+        with pytest.raises(ValueError, match="Event name cannot be empty"):
             WidgetMetadata(
                 category=WidgetCategory.INPUT,
                 complexity=WidgetComplexity.PRIMITIVE,
@@ -592,7 +592,7 @@ class TestWidgetRegistration:
             MockButton.metadata,
         )
 
-        with pytest.raises(WidgetRegistryError, match="уже зарегистрирован"):
+        with pytest.raises(WidgetRegistryError, match="already registered"):
             registry.register(
                 "test_widget",
                 MockContainer,
@@ -601,7 +601,7 @@ class TestWidgetRegistration:
 
     def test_register_empty_name_raises_error(self, registry: WidgetRegistry) -> None:
         """Пустое имя выбрасывает WidgetRegistryError."""
-        with pytest.raises(WidgetRegistryError, match="не может быть пустым"):
+        with pytest.raises(WidgetRegistryError, match="cannot be empty"):
             registry.register(
                 "",
                 MockButton,
@@ -610,7 +610,7 @@ class TestWidgetRegistration:
 
     def test_register_whitespace_name_raises_error(self, registry: WidgetRegistry) -> None:
         """Имя из whitespace выбрасывает WidgetRegistryError."""
-        with pytest.raises(WidgetRegistryError, match="не может быть пустым"):
+        with pytest.raises(WidgetRegistryError, match="cannot be empty"):
             registry.register(
                 "   ",
                 MockButton,
@@ -619,7 +619,7 @@ class TestWidgetRegistration:
 
     def test_register_non_callable_factory_raises_error(self, registry: WidgetRegistry) -> None:
         """Не-callable factory выбрасывает TypeError."""
-        with pytest.raises(TypeError, match="factory должна быть callable"):
+        with pytest.raises(TypeError, match="factory must be callable"):
             registry.register(
                 "test",
                 "not_callable",  # type: ignore
@@ -628,7 +628,7 @@ class TestWidgetRegistration:
 
     def test_register_invalid_metadata_raises_error(self, registry: WidgetRegistry) -> None:
         """Некорректные metadata выбрасывают TypeError."""
-        with pytest.raises(TypeError, match="metadata должна быть WidgetMetadata"):
+        with pytest.raises(TypeError, match="metadata must be WidgetMetadata"):
             registry.register(
                 "test",
                 MockButton,
@@ -678,7 +678,7 @@ class TestProtocolValidation:
 
     def test_validate_protocol_failure(self, registry: WidgetRegistry) -> None:
         """Класс без WidgetProtocol методов НЕ проходит валидацию."""
-        with pytest.raises(ProtocolValidationError, match="не реализует"):
+        with pytest.raises(ProtocolValidationError, match="does not implement"):
             registry.register(
                 "invalid",
                 MockInvalidWidget,
@@ -719,7 +719,7 @@ class TestInstanceCreation:
 
     def test_create_nonexistent_widget_raises_error(self, registry: WidgetRegistry) -> None:
         """Создание несуществующего виджета выбрасывает WidgetNotFoundError."""
-        with pytest.raises(WidgetNotFoundError, match="не найден в реестре"):
+        with pytest.raises(WidgetNotFoundError, match="not found in registry"):
             registry.create("nonexistent_widget")
 
     def test_create_with_factory_error(self, registry: WidgetRegistry) -> None:
@@ -738,7 +738,7 @@ class TestInstanceCreation:
 
         registry.register("failing_widget", failing_factory, metadata, validate=False)
 
-        with pytest.raises(WidgetCreationError, match="Не удалось создать"):
+        with pytest.raises(WidgetCreationError, match="Failed to create"):
             registry.create("failing_widget", widget_id="test")
 
 
@@ -760,7 +760,7 @@ class TestMetadataAccess:
 
     def test_get_metadata_nonexistent_raises_error(self, registry: WidgetRegistry) -> None:
         """Получение метаданных несуществующего виджета выбрасывает WidgetNotFoundError."""
-        with pytest.raises(WidgetNotFoundError, match="не найден в реестре"):
+        with pytest.raises(WidgetNotFoundError, match="not found in registry"):
             registry.get_metadata("nonexistent")
 
 
@@ -931,7 +931,7 @@ class TestUnregister:
 
     def test_unregister_nonexistent_raises_error(self, registry: WidgetRegistry) -> None:
         """Удаление несуществующего виджета выбрасывает WidgetNotFoundError."""
-        with pytest.raises(WidgetNotFoundError, match="не найден в реестре"):
+        with pytest.raises(WidgetNotFoundError, match="not found in registry"):
             registry.unregister("nonexistent")
 
 

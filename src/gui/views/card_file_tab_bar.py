@@ -52,7 +52,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -213,7 +213,7 @@ class CardFileTabBar(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._tk_frame is None:
-            raise RuntimeError("CardFileTabBar не смонтирован")
+            raise RuntimeError("CardFileTabBar is not mounted")
         return self._tk_frame
 
     def show(self) -> None:
@@ -262,7 +262,7 @@ class CardFileTabBar(BaseWidget):
         # Security: Sanitize document_id
         if not self._is_valid_document_id(document_id):
             raise ValueError(
-                f"Невалидный document_id: '{document_id}'. Разрешены только буквы, цифры, _ и -"
+                f"Invalid document_id: '{document_id}'. Only letters, digits, _, and - are allowed"
             )
 
         # Check for duplicates
@@ -273,7 +273,7 @@ class CardFileTabBar(BaseWidget):
 
         # Check max tabs limit
         if len(self._tabs) >= MAX_TABS:
-            raise ValueError(f"Достигнут лимит вкладок: {MAX_TABS}")
+            raise ValueError(f"Tab limit reached: {MAX_TABS}")
 
         # Security: Limit title length
         safe_title = title[:MAX_TITLE_LENGTH] if title else "Untitled"
@@ -365,7 +365,7 @@ class CardFileTabBar(BaseWidget):
         """
         # Security: Sanitize document_id
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -402,7 +402,7 @@ class CardFileTabBar(BaseWidget):
         """
         # Security: Sanitize document_id
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -424,7 +424,7 @@ class CardFileTabBar(BaseWidget):
             ValueError: Если document_id невалиден.
         """
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -444,7 +444,7 @@ class CardFileTabBar(BaseWidget):
             ValueError: Если document_id невалиден.
         """
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -464,7 +464,7 @@ class CardFileTabBar(BaseWidget):
             ValueError: Если document_id невалиден.
         """
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -484,7 +484,7 @@ class CardFileTabBar(BaseWidget):
             ValueError: Если document_id невалиден.
         """
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
 
         if document_id not in self._tabs:
             return
@@ -504,9 +504,9 @@ class CardFileTabBar(BaseWidget):
             ValueError: Если document_id невалиден или статус неизвестен.
         """
         if not self._is_valid_document_id(document_id):
-            raise ValueError(f"Невалидный document_id: '{document_id}'")
+            raise ValueError(f"Invalid document_id: '{document_id}'")
         if status not in SYNC_STATUS_COLORS:
-            raise ValueError(f"Невалидный статус синхронизации: '{status}'")
+            raise ValueError(f"Invalid sync status: '{status}'")
 
         if document_id not in self._tabs:
             return
@@ -813,7 +813,7 @@ class CardFileTabBar(BaseWidget):
         Args:
             tab_frame: Frame вкладки.
             tab_info: Информация о вкладке.
-            bg: Цвет фона.
+            bg: Color фона.
         """
         indicators: dict[str, tk.Label] = getattr(tab_frame, "_indicators", {})
         flag_map = {
@@ -987,15 +987,15 @@ class CardFileTabBar(BaseWidget):
             return handler
 
         self._tk_context_menu.add_command(
-            label="Закрыть",
+            label="Close",
             command=make_close_handler(document_id),
         )
         self._tk_context_menu.add_command(
-            label="Закрыть все",
+            label="Close all",
             command=self._close_all_tabs,
         )
         self._tk_context_menu.add_command(
-            label="Закрыть остальные",
+            label="Close others",
             command=make_close_others_handler(document_id),
         )
 

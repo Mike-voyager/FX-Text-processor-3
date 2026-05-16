@@ -4,8 +4,10 @@
 используемого в дизайнере форм для визуального позиционирования элементов.
 """
 
-import pytest
 import tkinter as tk
+from unittest.mock import patch
+
+import pytest
 
 from src.gui.form_designer.grid_canvas import ESCPGridCanvas
 
@@ -46,9 +48,9 @@ class TestESCPGridCanvas:
         Проверяет корректное округление координат
         до ближайших узлов сетки ESC/P.
         """
-        col, row = canvas.snap_to_grid(150, 200)
-        assert col == canvas.x_to_col(150)
-        assert row == canvas.y_to_row(200)
+        col, row = canvas.snap_to_grid(120, 180)
+        assert col == canvas.x_to_col(120)
+        assert row == canvas.y_to_row(180)
 
     def test_canvas_initialization(self, root: tk.Tk) -> None:
         """Тест инициализации холста сетки.
@@ -148,7 +150,8 @@ class TestFieldOverlap:
         overlaps = canvas._check_overlap("A", 0, 0, cw * 2, ch * 2)
         assert "B" in overlaps
 
-    def test_drag_overlap_red_outline(self, canvas: ESCPGridCanvas) -> None:
+    @patch("src.gui.form_designer.grid_canvas.messagebox.showwarning")
+    def test_drag_overlap_red_outline(self, _mock_warning, canvas: ESCPGridCanvas) -> None:
         """Тест красного outline при перекрытии во время drag.
 
         Проверяет, что при overlap outline меняется на red/width=3.
@@ -177,7 +180,8 @@ class TestFieldOverlap:
         assert outline == "red"
         assert int(float(width)) == 3
 
-    def test_drag_overlap_rollback(self, canvas: ESCPGridCanvas) -> None:
+    @patch("src.gui.form_designer.grid_canvas.messagebox.showwarning")
+    def test_drag_overlap_rollback(self, _mock_warning, canvas: ESCPGridCanvas) -> None:
         """Тест отката позиции при drop с перекрытием.
 
         Проверяет, что при ButtonRelease-1 с overlap позиция
@@ -208,4 +212,3 @@ class TestFieldOverlap:
         assert info.y1 == 0
         assert info.x2 == cw * 2
         assert info.y2 == ch * 2
-

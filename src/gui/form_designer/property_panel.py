@@ -49,29 +49,29 @@ from src.model.enums import CharactersPerInch, FontFamily, LinesPerInch
 # =============================================================================
 
 PROPERTY_HELP_TEXTS: Final[dict[str, str]] = {
-    "field_id": "Уникальный идентификатор поля в форме. Используется для ссылок в условиях.",
-    "label_ru": "Отображаемая метка поля на русском языке.",
-    "label_en": "Отображаемая метка поля на английском языке.",
-    "field_type": "Тип поля: TEXT_INPUT, DROPDOWN, CHECKBOX, etc. Определяет виджет ввода.",
-    "required": "Обязательное поле. Форма не может быть сохранена без заполнения этого поля.",
-    "help_text": "Подсказка, отображаемая под полем для помощи пользователю.",
-    "placeholder": "Текст-заполнитель, показываемый в пустом поле.",
-    "default_value": "Значение по умолчанию при создании новой формы.",
-    "validation_pattern": "Регулярное выражение для валидации ввода.",
-    "min_value": "Минимальное значение (для числовых полей).",
-    "max_value": "Максимальное значение (для числовых полей).",
-    "conditions": "Условия видимости, активности и режима только чтения.",
-    "options": "Список опций для DROPDOWN и RADIO_GROUP полей.",
-    "x": "Позиция поля по горизонтали (колонка).",
-    "y": "Позиция поля по вертикали (строка).",
-    "width": "Ширина поля в колонках.",
-    "height": "Высота поля в строках.",
-    "page": "Номер страницы, на которой размещено поле.",
-    "font_family": "Семейство шрифта (Roman, Sans Serif, Courier).",
-    "cpi": "Символов на дюйм (плотность горизонтальной печати).",
-    "lpi": "Строк на дюйм (плотность вертикальной печати).",
-    "label": "Отображаемая метка поля.",
-    "autocomplete_source": "Источник данных для автозаполнения поля.",
+    "field_id": "Unique field identifier in the form. Used for condition references.",
+    "label_ru": "Field label displayed in Russian.",
+    "label_en": "Field label displayed in English.",
+    "field_type": "Field type: TEXT_INPUT, DROPDOWN, CHECKBOX, etc. Determines input widget.",
+    "required": "Required field. Form cannot be saved without filling this field.",
+    "help_text": "Hint displayed below the field to assist the user.",
+    "placeholder": "Placeholder text shown in an empty field.",
+    "default_value": "Default value when creating a new form.",
+    "validation_pattern": "Regular expression for input validation.",
+    "min_value": "Minimum value (for numeric fields).",
+    "max_value": "Maximum value (for numeric fields).",
+    "conditions": "Visibility, enabled, and read-only conditions.",
+    "options": "List of options for DROPDOWN and RADIO_GROUP fields.",
+    "x": "Horizontal position of the field (column).",
+    "y": "Vertical position of the field (row).",
+    "width": "Field width in columns.",
+    "height": "Field height in rows.",
+    "page": "Page number where the field is placed.",
+    "font_family": "Font family (Roman, Sans Serif, Courier).",
+    "cpi": "Characters per inch (horizontal print density).",
+    "lpi": "Lines per inch (vertical print density).",
+    "label": "Displayed field label.",
+    "autocomplete_source": "Data source for field autocompletion.",
 }
 
 if TYPE_CHECKING:
@@ -329,7 +329,7 @@ class PropertyPanel(BaseWidget):
         # Header
         header = tk.Label(
             self._content_frame,
-            text="Свойства",
+            text="Properties",
             bg="#d0d0d0",
             font=("Arial", 10, "bold"),
             anchor=tk.W,
@@ -556,7 +556,7 @@ class PropertyPanel(BaseWidget):
         # Label with help icon
         self._create_label_for_property(frame, label_text, prop_name, width=self.LABEL_WIDTH)
 
-        var = tk.StringVar()
+        var = tk.StringVar(master=frame)
         self._prop_vars[prop_name] = var
 
         entry = tk.Entry(
@@ -601,7 +601,7 @@ class PropertyPanel(BaseWidget):
         label_width = 4 if side != tk.TOP else self.LABEL_WIDTH
         self._create_label_for_property(frame, label_text, prop_name, width=label_width)
 
-        var = tk.StringVar()
+        var = tk.StringVar(master=frame)
         self._prop_vars[prop_name] = var
 
         spinbox = tk.Spinbox(
@@ -651,7 +651,7 @@ class PropertyPanel(BaseWidget):
         label_width = 4 if side != tk.TOP else self.LABEL_WIDTH
         self._create_label_for_property(frame, label_text, prop_name, width=label_width)
 
-        var = tk.StringVar()
+        var = tk.StringVar(master=frame)
         self._prop_vars[prop_name] = var
 
         state = "readonly" if readonly else "normal"
@@ -689,7 +689,7 @@ class PropertyPanel(BaseWidget):
         frame = tk.Frame(parent, bg="#e8e8e8")
         frame.pack(fill=tk.X, pady=2)
 
-        var = tk.BooleanVar(value=False)
+        var = tk.BooleanVar(master=frame, value=False)
         self._prop_vars[prop_name] = var
 
         checkbox = tk.Checkbutton(

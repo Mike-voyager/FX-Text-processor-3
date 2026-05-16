@@ -63,13 +63,13 @@ class TestStructuredFormModeRenderer:
         assert not renderer.is_mounted()
 
         # Операции до mount должны вызывать LifecycleError
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             renderer.render(MagicMock())
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             renderer.get_content()
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             renderer.validate()
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             renderer.apply_command(MagicMock())
 
     def test_field_rendering(

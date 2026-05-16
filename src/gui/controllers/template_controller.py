@@ -101,10 +101,10 @@ class TemplateController(TemplateControllerProtocol):
         if source_path is None:
             # Show file dialog to select template file
             file_path = filedialog.askopenfilename(
-                title="Выберите шаблон для импорта",
+                title="Select template to import",
                 filetypes=[
-                    ("Шаблоны FX", "*.fxstpl"),
-                    ("Все файлы", "*.*"),
+                    ("FX Templates", "*.fxstpl"),
+                    ("All files", "*.*"),
                 ],
             )
             if not file_path:
@@ -119,7 +119,7 @@ class TemplateController(TemplateControllerProtocol):
                 "import_status",
                 {
                     "success": False,
-                    "error": "Неверное расширение файла. Ожидается .fxstpl",
+                    "error": "Invalid file extension. Expected .fxstpl",
                 },
             )
             return False
@@ -189,7 +189,7 @@ class TemplateController(TemplateControllerProtocol):
 
         if dest_path is None:
             file_path = filedialog.asksaveasfilename(
-                title="Сохранить шаблон",
+                title="Save template",
                 defaultextension=".fxstpl",
                 filetypes=[
                     ("Шаблоны FX", "*.fxstpl"),

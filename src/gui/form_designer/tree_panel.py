@@ -175,13 +175,13 @@ class TreePanel:
     def _create_context_menu(self) -> None:
         """Создаёт контекстное меню."""
         self._context_menu = tk.Menu(self._tree, tearoff=0)
-        self._context_menu.add_command(label="➕ Создать", command=self._on_create)
-        self._context_menu.add_command(label="🗑️ Удалить", command=self._on_delete)
+        self._context_menu.add_command(label="➕ Create", command=self._on_create)
+        self._context_menu.add_command(label="🗑️ Delete", command=self._on_delete)
         self._context_menu.add_separator()
-        self._context_menu.add_command(label="📋 Копировать", command=self._on_copy)
-        self._context_menu.add_command(label="📄 Вставить", command=self._on_paste)
+        self._context_menu.add_command(label="📋 Copy", command=self._on_copy)
+        self._context_menu.add_command(label="📄 Paste", command=self._on_paste)
         self._context_menu.add_separator()
-        self._context_menu.add_command(label="✏️ Переименовать", command=self._on_rename)
+        self._context_menu.add_command(label="✏️ Rename", command=self._on_rename)
 
         self._tree.bind("<Button-3>", self._show_context_menu)
 
@@ -519,7 +519,7 @@ class TreePanel:
                 try:
                     self._cb_reorder(old_path, new_path)
                 except Exception as exc:
-                    logger.error("Ошибка в callback on_reorder: %s", exc)
+                    logger.error("Error in on_reorder callback: %s", exc)
 
         self._drag_source = None
         self._clear_hover()

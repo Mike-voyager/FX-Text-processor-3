@@ -107,9 +107,12 @@ class ConditionsEditorDialog(tk.Toplevel):
         self._status_label: Optional[tk.Label] = None
 
         # Configure window
-        self.title(f"Условия поля: {field_def.field_id}")
+        self.title(f"Field Conditions: {field_def.field_id}")
         self.transient(cast(tk.Wm, parent))
-        self.grab_set()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
 
         # Set size and position
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
@@ -170,7 +173,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         header.columnconfigure(0, weight=1)
 
         # Field info
-        info_text = f"Поле: {self._field_def.field_id} ({self._field_def.field_type.value})"
+        info_text = f"Field: {self._field_def.field_id} ({self._field_def.field_type.value})"
         label = tk.Label(
             header,
             text=info_text,
@@ -183,7 +186,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         # Description
         desc = tk.Label(
             header,
-            text="Условия определяют поведение поля в зависимости от значений других полей",
+            text="Conditions define field behavior based on values of other fields",
             bg=COLOR_HEADER,
             font=("Arial", 9),
             fg="#555555",
@@ -204,17 +207,17 @@ class ConditionsEditorDialog(tk.Toplevel):
 
         # Visibility tab
         visibility_frame = tk.Frame(notebook, bg=COLOR_BG)
-        notebook.add(visibility_frame, text=" Видимость ", padding=5)
+        notebook.add(visibility_frame, text=" Visibility ", padding=5)
         self._visibility_text = self._create_condition_editor(visibility_frame)
 
         # Enabled tab
         enabled_frame = tk.Frame(notebook, bg=COLOR_BG)
-        notebook.add(enabled_frame, text=" Активность ", padding=5)
+        notebook.add(enabled_frame, text=" Enabled ", padding=5)
         self._enabled_text = self._create_condition_editor(enabled_frame)
 
         # Read-only tab
         readonly_frame = tk.Frame(notebook, bg=COLOR_BG)
-        notebook.add(readonly_frame, text=" Только чтение ", padding=5)
+        notebook.add(readonly_frame, text=" Read-Only ", padding=5)
         self._readonly_text = self._create_condition_editor(readonly_frame)
 
     def _create_condition_editor(
@@ -248,7 +251,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         # Placeholder/label
         placeholder = tk.Label(
             parent,
-            text="Введите Python-выражение или оставьте пустым",
+            text="Enter a Python expression or leave empty",
             fg=COLOR_EXAMPLE,
             bg=COLOR_BG,
             font=("Arial", 8, "italic"),
@@ -266,7 +269,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         """
         examples_frame = tk.LabelFrame(
             parent,
-            text="Примеры условий",
+            text="Condition Examples",
             bg=COLOR_BG,
             font=("Arial", 9, "bold"),
         )
@@ -308,7 +311,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         # Validate button
         validate_btn = tk.Button(
             button_frame,
-            text="Проверить",
+            text="Validate",
             command=self._on_validate,
             bg="#3498db",
             fg="white",
@@ -320,7 +323,7 @@ class ConditionsEditorDialog(tk.Toplevel):
         # Cancel button
         cancel_btn = tk.Button(
             button_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
             width=10,
         )
@@ -386,24 +389,24 @@ class ConditionsEditorDialog(tk.Toplevel):
         try:
             compile(condition, "<string>", "eval")
         except SyntaxError as e:
-            return False, f"Синтаксическая ошибка: {e}"
+            return False, f"Syntax error: {e}"
         except Exception as e:
-            return False, f"Ошибка: {e}"
+            return False, f"Error: {e}"
 
         # Check for potentially dangerous operations
         dangerous = ["__", "import", "exec", "eval", "compile", "open", "file"]
         for keyword in dangerous:
             if keyword in condition.lower():
-                return False, f"Запрещенное ключевое слово: {keyword}"
+                return False, f"Forbidden keyword: {keyword}"
 
         return True, ""
 
     def _on_validate(self) -> None:
         """Обработчик нажатия кнопки Проверить."""
         conditions = {
-            "Видимость": self._get_text_value(self._visibility_text),
-            "Активность": self._get_text_value(self._enabled_text),
-            "Только чтение": self._get_text_value(self._readonly_text),
+            "Visibility": self._get_text_value(self._visibility_text),
+            "Enabled": self._get_text_value(self._enabled_text),
+            "Read-Only": self._get_text_value(self._readonly_text),
         }
 
         errors: list[str] = []
@@ -415,12 +418,12 @@ class ConditionsEditorDialog(tk.Toplevel):
         if self._status_label is not None:
             if errors:
                 self._status_label.config(
-                    text=f"Ошибки: {'; '.join(errors)}",
+                    text=f"Errors: {'; '.join(errors)}",
                     fg="#e74c3c",
                 )
             else:
                 self._status_label.config(
-                    text="Все условия корректны ✓",
+                    text="All conditions valid ✓",
                     fg="#27ae60",
                 )
 
@@ -433,9 +436,9 @@ class ConditionsEditorDialog(tk.Toplevel):
 
         # Validate all
         conditions = [
-            ("Видимость", visibility),
-            ("Активность", enabled),
-            ("Только чтение", readonly),
+            ("Visibility", visibility),
+            ("Enabled", enabled),
+            ("Read-Only", readonly),
         ]
 
         errors: list[str] = []
@@ -446,8 +449,8 @@ class ConditionsEditorDialog(tk.Toplevel):
 
         if errors:
             messagebox.showerror(
-                "Ошибка валидации",
-                "Исправьте ошибки перед сохранением:\n\n" + "\n".join(errors),
+                "Validation Error",
+                "Fix errors before saving:\n\n" + "\n".join(errors),
                 parent=self,
             )
             return

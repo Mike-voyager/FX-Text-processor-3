@@ -44,10 +44,10 @@ from typing import Any, Callable, Final, Optional, cast
 
 from src.documents.constructor.form_constructor import ValidationReport
 from src.documents.format.template_format import TemplateSerializer
-from src.documents.types.type_schema import FieldDefinition, FieldType
-from src.gui.core.commands.command_stack import CommandStack
+from src.documents.types.type_schema import FieldType
 from src.gui.components.base.widget import BaseWidget
 from src.gui.components.tooltip import TooltipManager
+from src.gui.core.commands.command_stack import CommandStack
 from src.gui.core.error_handler import GUIErrorHandler
 from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
@@ -133,24 +133,22 @@ class DesignerTab(BaseWidget):
 
     # Palette items
     PALETTE_ITEMS: Final[list[FieldPaletteItem]] = [
-        FieldPaletteItem(FieldType.TEXT_INPUT, "📝", "Текст", "Однострочное текстовое поле"),
-        FieldPaletteItem(FieldType.NUMBER_INPUT, "🔢", "Число", "Числовое поле ввода"),
-        FieldPaletteItem(FieldType.CURRENCY, "💰", "Валюта", "Денежная сумма"),
-        FieldPaletteItem(FieldType.DATE_INPUT, "📅", "Дата", "Поле даты"),
-        FieldPaletteItem(
-            FieldType.MULTI_LINE_TEXT, "📄", "Текст (многостр.)", "Многострочный текст"
-        ),
-        FieldPaletteItem(FieldType.CHECKBOX, "☐", "Флажок", "Булев флажок"),
-        FieldPaletteItem(FieldType.DROPDOWN, "▼", "Выпадающий", "Выпадающий список"),
-        FieldPaletteItem(FieldType.RADIO_GROUP, "◉", "Переключатели", "Группа радиокнопок"),
-        FieldPaletteItem(FieldType.TABLE, "⊞", "Таблица", "Табличное поле"),
-        FieldPaletteItem(FieldType.STATIC_TEXT, "🖹", "Статичный текст", "Неизменяемый текст"),
-        FieldPaletteItem(FieldType.QR, "▩", "QR-код", "QR-код для сканирования"),
-        FieldPaletteItem(FieldType.BARCODE, "┃", "Штрих-код", "Штрих-код"),
-        FieldPaletteItem(FieldType.SIGNATURE, "✎", "Подпись", "Поле цифровой подписи"),
-        FieldPaletteItem(FieldType.STAMP, "🖷", "Печать", "Поле для печати/штампа"),
-        FieldPaletteItem(FieldType.PHONE, "📞", "Телефон", "Номер телефона"),
-        FieldPaletteItem(FieldType.EMAIL, "✉", "Email", "Email адрес"),
+        FieldPaletteItem(FieldType.TEXT_INPUT, "📝", "Text", "Single-line text field"),
+        FieldPaletteItem(FieldType.NUMBER_INPUT, "🔢", "Number", "Numeric input field"),
+        FieldPaletteItem(FieldType.CURRENCY, "💰", "Currency", "Monetary amount"),
+        FieldPaletteItem(FieldType.DATE_INPUT, "📅", "Date", "Date field"),
+        FieldPaletteItem(FieldType.MULTI_LINE_TEXT, "📄", "Text (multi-line)", "Multi-line text"),
+        FieldPaletteItem(FieldType.CHECKBOX, "☐", "Checkbox", "Boolean checkbox"),
+        FieldPaletteItem(FieldType.DROPDOWN, "▼", "Dropdown", "Dropdown list"),
+        FieldPaletteItem(FieldType.RADIO_GROUP, "◉", "Radio buttons", "Radio button group"),
+        FieldPaletteItem(FieldType.TABLE, "⊞", "Table", "Table field"),
+        FieldPaletteItem(FieldType.STATIC_TEXT, "🖹", "Static text", "Read-only text"),
+        FieldPaletteItem(FieldType.QR, "▩", "QR Code", "QR code for scanning"),
+        FieldPaletteItem(FieldType.BARCODE, "┃", "Barcode", "Barcode"),
+        FieldPaletteItem(FieldType.SIGNATURE, "✎", "Signature", "Digital signature field"),
+        FieldPaletteItem(FieldType.STAMP, "🖷", "Stamp", "Stamp field"),
+        FieldPaletteItem(FieldType.PHONE, "📞", "Phone", "Phone number"),
+        FieldPaletteItem(FieldType.EMAIL, "✉", "Email", "Email address"),
     ]
 
     def __init__(
@@ -398,7 +396,7 @@ class DesignerTab(BaseWidget):
         # Header
         header = tk.Label(
             self._left_frame,
-            text="Поля",
+            text="Fields",
             bg="#d0d0d0",
             font=("Arial", 10, "bold"),
             anchor=tk.W,
@@ -503,7 +501,7 @@ class DesignerTab(BaseWidget):
         # Grid toggle
         grid_btn = tk.Button(
             zoom_frame,
-            text="📐 Сетка",
+            text="Grid",
             command=self._toggle_grid_cmd,
             bg="#d0d0d0",
         )
@@ -515,7 +513,7 @@ class DesignerTab(BaseWidget):
 
         self._page_count_label = tk.Label(
             info_frame,
-            text="Страниц: 0",
+            text="Pages: 0",
             bg="#d0d0d0",
         )
         self._page_count_label.pack(side=tk.LEFT, padx=20)
@@ -526,7 +524,7 @@ class DesignerTab(BaseWidget):
 
         undo_btn = tk.Button(
             undo_frame,
-            text="↶ Отменить",
+            text="Undo",
             command=self.undo,
             bg="#d0d0d0",
         )
@@ -534,7 +532,7 @@ class DesignerTab(BaseWidget):
 
         redo_btn = tk.Button(
             undo_frame,
-            text="↷ Повторить",
+            text="Redo",
             command=self.redo,
             bg="#d0d0d0",
         )
@@ -601,13 +599,87 @@ class DesignerTab(BaseWidget):
             self._zoom_label.config(text=f"{int(self._zoom * 100)}%")
 
     def _update_page_count_label(self) -> None:
-        """Обновляет метку количества страниц."""
+        """Updates page count label."""
         if self._page_count_label is not None:
-            self._page_count_label.config(text=f"Страниц: {len(self._pages)}")
+            self._page_count_label.config(text=f"Pages: {len(self._pages)}")
 
     # =====================================================================
     # PUBLIC API
     # =====================================================================
+
+    def set_zoom(self, zoom: float) -> None:
+        """Sets zoom level for all pages.
+
+        Args:
+            zoom: Zoom level (clamped to 0.5-2.0).
+        """
+        self._zoom = max(0.5, min(2.0, zoom))
+        self._update_zoom_label()
+        for page in self._pages:
+            if page.canvas is not None:
+                page.canvas.set_zoom(self._zoom)
+
+    def toggle_grid(self, show: Optional[bool] = None) -> None:
+        """Toggles grid visibility on all pages.
+
+        Args:
+            show: Force grid state, or None to toggle.
+        """
+        if show is None:
+            self._show_grid = not self._show_grid
+        else:
+            self._show_grid = bool(show)
+        for page in self._pages:
+            if page.canvas is not None:
+                page.canvas.show_grid(self._show_grid)
+
+    def undo(self) -> bool:
+        """Undoes the last command.
+
+        Returns:
+            True if undo was performed, False if nothing to undo.
+        """
+        try:
+            self._command_stack.undo()
+            self._refresh_panel_after_command()
+            return True
+        except RuntimeError:
+            return False
+
+    def redo(self) -> bool:
+        """Redoes the last undone command.
+
+        Returns:
+            True if redo was performed, False if nothing to redo.
+        """
+        try:
+            self._command_stack.redo()
+            self._refresh_panel_after_command()
+            return True
+        except RuntimeError:
+            return False
+
+    def on_property_change(self, field_id: str, prop_name: str, value: Any) -> None:
+        """Handles property change for a field.
+
+        Args:
+            field_id: ID of the field.
+            prop_name: Name of the property.
+            value: New value.
+        """
+        # Stub: implement in subclass or controller
+        pass
+
+    def on_field_move(self, field_id: str, new_x: int, new_y: int) -> None:
+        """Handles field move on canvas.
+
+        Args:
+            field_id: ID of the field.
+            new_x: New X position.
+            new_y: New Y position.
+        """
+        # Stub: implement in subclass or controller
+        pass
 
     def add_page(self, profile: PaperProfile) -> int:
         """Добавляет страницу в continuous scroll.
@@ -622,7 +694,7 @@ class DesignerTab(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="add_page",
-                message="DesignerTab не смонтирован",
+                message="DesignerTab not mounted",
             )
 
         page_index = len(self._pages)
@@ -639,7 +711,7 @@ class DesignerTab(BaseWidget):
         # Page header
         header = tk.Label(
             page_frame,
-            text=f"Страница {page_index + 1}: {profile.name}",
+            text=f"Page {page_index + 1}: {profile.name}",
             bg="#d0d0d0",
             font=("Arial", 9, "bold"),
         )
@@ -653,7 +725,6 @@ class DesignerTab(BaseWidget):
             zoom=self._zoom,
             show_grid=self._show_grid,
             on_field_select=self._on_canvas_field_select,
-            on_field_move=self._on_canvas_field_move,
         )
         canvas_widget = canvas.mount(page_frame)
         canvas_widget.pack(fill=tk.BOTH, expand=False)
@@ -725,7 +796,7 @@ class DesignerTab(BaseWidget):
             IndexError: Если индекс вне диапазона.
         """
         if not 0 <= index < len(self._pages):
-            raise IndexError(f"Неверный индекс страницы: {index}")
+            raise IndexError(f"Invalid page index: {index}")
 
         page = self._pages[index]
 
@@ -806,7 +877,6 @@ class DesignerTab(BaseWidget):
         """
 
     def save_template(self, path: Path) -> bool:
-
         """Сохраняет шаблон в .fxstpl.
 
         Args:
@@ -907,7 +977,6 @@ class DesignerTab(BaseWidget):
                 zoom=self._zoom,
                 show_grid=self._show_grid,
                 on_field_select=self._on_canvas_field_select,
-                on_field_move=self._on_canvas_field_move,
             )
 
         return factory
@@ -945,11 +1014,11 @@ class DesignerTab(BaseWidget):
                 if fld.field_id in all_field_ids:
                     other_page = all_field_ids[fld.field_id]
                     report.add_form_error(
-                        f"Поле {fld.field_id} дублируется на страницах "
-                        f"{other_page + 1} и {page.index + 1}"
+                        f"Field {fld.field_id} duplicated on pages "
+                        f"{other_page + 1} and {page.index + 1}"
                     )
                     if show_errors and page.canvas:
-                        page.canvas.highlight_field_error(fld.field_id, "Дублирующийся ID")
+                        page.canvas.highlight_field_error(fld.field_id, "Duplicate ID")
                 else:
                     all_field_ids[fld.field_id] = page.index
 
@@ -957,7 +1026,7 @@ class DesignerTab(BaseWidget):
             for i, field1 in enumerate(fields):
                 for field2 in fields[i + 1 :]:
                     if self._fields_overlap(field1, field2):
-                        error_msg = f"Перекрытие с полем {field2.field_id}"
+                        error_msg = f"Overlap with field {field2.field_id}"
                         report.add_field_error(field1.field_id, error_msg)
                         report.add_field_error(field2.field_id, error_msg)
                         if show_errors:
@@ -976,7 +1045,7 @@ class DesignerTab(BaseWidget):
                         _fld.position.height,
                     )
                     if not is_valid:
-                        error_msg = f"Выход за границы: {error}"
+                        error_msg = f"Out of bounds: {error}"
                         report.add_field_error(_fld.field_id, error_msg)
                         if show_errors:
                             page.canvas.highlight_field_error(_fld.field_id, error_msg)
@@ -995,24 +1064,24 @@ class DesignerTab(BaseWidget):
         """
         from tkinter import messagebox
 
-        lines = ["Найдены следующие ошибки:"]
+        lines = ["The following errors were found:"]
         lines.append("")
 
         if report.form_errors:
-            lines.append("Ошибки формы:")
+            lines.append("Form errors:")
             for error in report.form_errors:
                 lines.append(f"  • {error}")
             lines.append("")
 
         if report.field_errors:
-            lines.append("Ошибки полей:")
+            lines.append("Field errors:")
             for field_id, messages in report.field_errors.items():
                 for msg in messages:
                     lines.append(f"  • {field_id}: {msg}")
 
         parent = cast(tk.Widget, self._tk_frame)
         messagebox.showwarning(
-            "Ошибки валидации",
+            "Validation Errors",
             "\n".join(lines),
             parent=parent,
         )
@@ -1038,8 +1107,8 @@ class DesignerTab(BaseWidget):
 
         parent = cast(tk.Widget, self._tk_frame)
         result = messagebox.askyesno(
-            "Валидация",
-            "Форма содержит ошибки. Сохранить всё равно?",
+            "Validation",
+            "Form contains errors. Save anyway?",
             icon="warning",
             parent=parent,
         )
@@ -1229,7 +1298,7 @@ class DesignerTab(BaseWidget):
 
         old_def = field_widget.field_def
         new_field_id = f"{old_def.field_id}_copy_{uuid.uuid4().hex[:4]}"
-        new_label = f"{old_def.label} (копия)"
+        new_label = f"{old_def.label} (copy)"
         new_def = replace(
             old_def,
             field_id=new_field_id,
@@ -1333,7 +1402,7 @@ class DesignerTab(BaseWidget):
             (is_valid, error_message)
         """
         if not 0 <= page_index < len(self._pages):
-            return (False, "Неверный индекс страницы")
+            return (False, "Invalid page index")
 
         page = self._pages[page_index]
 

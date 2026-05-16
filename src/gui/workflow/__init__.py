@@ -88,6 +88,15 @@ from src.gui.workflow.undo_redo_menu import (
     UndoRedoMenuItems,
     UndoRedoToolbarButtons,
 )
+from src.gui.workflow.workflow_annotation_panel import (
+    AnnotationStatus,
+    AnnotationType,
+    OnAddAnnotationCallback,
+    OnReplyAnnotationCallback,
+    OnResolveAnnotationCallback,
+    WorkflowAnnotation,
+    WorkflowAnnotationPanel,
+)
 
 # Workflow Manager (B4)
 from src.gui.workflow.workflow_manager import (
@@ -99,15 +108,6 @@ from src.gui.workflow.workflow_manager import (
 # Workflow Toolbar (B3)
 from src.gui.workflow.workflow_toolbar import (
     WorkflowToolbar,
-)
-from src.gui.workflow.workflow_annotation_panel import (
-    AnnotationStatus,
-    AnnotationType,
-    OnAddAnnotationCallback,
-    OnReplyAnnotationCallback,
-    OnResolveAnnotationCallback,
-    WorkflowAnnotation,
-    WorkflowAnnotationPanel,
 )
 
 __all__ = [

@@ -32,12 +32,12 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import TYPE_CHECKING, Any, Callable, Final, Optional, cast
 
-from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.gui.components.tooltip import TooltipManager
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.dialogs.floppy_optimizer_dialog import FloppyOptimizerDialog
 from src.gui.dialogs.template_preview_panel import TemplatePreviewWidget
 from src.gui.dialogs.trust_chain_dialog import TrustChainDialog
+from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.security.crypto.utilities.floppy_optimizer import FloppyOptimizer
 from src.services.template_manager import FormTemplate, TemplateManager
 from src.services.trust_chain_service import TrustChainService
@@ -128,7 +128,7 @@ class TemplatePreviewPanel(tk.Frame):
         # Header
         header = ttk.Label(
             self,
-            text="Предпросмотр шаблона",
+            text="Template Preview",
             font=("Helvetica", 12, "bold"),
         )
         header.pack(anchor="w", pady=(0, 10))
@@ -140,7 +140,7 @@ class TemplatePreviewPanel(tk.Frame):
         # Placeholder
         self._placeholder_label = ttk.Label(
             self._content_frame,
-            text="Выберите файл шаблона для предпросмотра",
+            text="Select a template file for preview",
             foreground="gray",
         )
         self._placeholder_label.pack(expand=True)
@@ -149,7 +149,7 @@ class TemplatePreviewPanel(tk.Frame):
         self._info_frame = ttk.Frame(self._content_frame)
 
         # Name
-        ttk.Label(self._info_frame, text="Название:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Name:", font=("Helvetica", 10, "bold")).grid(
             row=0, column=0, sticky="w", pady=2
         )
         self._name_var = tk.StringVar(master=self, value="-")
@@ -158,7 +158,7 @@ class TemplatePreviewPanel(tk.Frame):
         )
 
         # Type
-        ttk.Label(self._info_frame, text="Тип документа:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Document Type:", font=("Helvetica", 10, "bold")).grid(
             row=1, column=0, sticky="w", pady=2
         )
         self._type_var = tk.StringVar(master=self, value="-")
@@ -167,7 +167,7 @@ class TemplatePreviewPanel(tk.Frame):
         )
 
         # Pages
-        ttk.Label(self._info_frame, text="Страниц:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Pages:", font=("Helvetica", 10, "bold")).grid(
             row=2, column=0, sticky="w", pady=2
         )
         self._pages_var = tk.StringVar(master=self, value="-")
@@ -176,7 +176,7 @@ class TemplatePreviewPanel(tk.Frame):
         )
 
         # Fields
-        ttk.Label(self._info_frame, text="Полей:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Fields:", font=("Helvetica", 10, "bold")).grid(
             row=3, column=0, sticky="w", pady=2
         )
         self._fields_var = tk.StringVar(master=self, value="-")
@@ -185,7 +185,7 @@ class TemplatePreviewPanel(tk.Frame):
         )
 
         # Signature status
-        ttk.Label(self._info_frame, text="Подпись:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Signature:", font=("Helvetica", 10, "bold")).grid(
             row=4, column=0, sticky="w", pady=2
         )
         self._signature_var = tk.StringVar(master=self, value="-")
@@ -193,7 +193,7 @@ class TemplatePreviewPanel(tk.Frame):
         self._signature_label.grid(row=4, column=1, sticky="w", padx=(10, 0), pady=2)
 
         # Created
-        ttk.Label(self._info_frame, text="Создан:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Created:", font=("Helvetica", 10, "bold")).grid(
             row=5, column=0, sticky="w", pady=2
         )
         self._created_var = tk.StringVar(master=self, value="-")
@@ -202,7 +202,7 @@ class TemplatePreviewPanel(tk.Frame):
         )
 
         # Description
-        ttk.Label(self._info_frame, text="Описание:", font=("Helvetica", 10, "bold")).grid(
+        ttk.Label(self._info_frame, text="Description:", font=("Helvetica", 10, "bold")).grid(
             row=6, column=0, sticky="nw", pady=2
         )
         self._desc_text = tk.Text(
@@ -235,13 +235,13 @@ class TemplatePreviewPanel(tk.Frame):
 
         # Signature status
         if signature_valid is True:
-            self._signature_var.set("✓ Подпись валидна")
+            self._signature_var.set("✓ Signature valid")
             self._signature_label.config(foreground=COLOR_SUCCESS)
         elif signature_valid is False:
-            self._signature_var.set("✗ Подпись невалидна")
+            self._signature_var.set("✗ Signature invalid")
             self._signature_label.config(foreground=COLOR_ERROR)
         else:
-            self._signature_var.set("? Не проверена")
+            self._signature_var.set("? Not verified")
             self._signature_label.config(foreground=COLOR_WARNING)
 
         self._created_var.set(template.created_at or "-")
@@ -251,9 +251,9 @@ class TemplatePreviewPanel(tk.Frame):
         if hasattr(template, "description") and template.description:
             description_text = str(template.description)
         else:
-            description_text = f"Шаблон: {template.name_ru or template.name}\n"
-            description_text += f"Автор: {template.author or 'не указан'}\n"
-            description_text += f"Версия: {template.version}"
+            description_text = f"Template: {template.name_ru or template.name}\n"
+            description_text += f"Author: {template.author or 'not specified'}\n"
+            description_text += f"Version: {template.version}"
 
         self._desc_text.config(state=tk.NORMAL)
         self._desc_text.delete("1.0", tk.END)
@@ -345,7 +345,7 @@ class TemplateImportDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title("Импорт шаблона")
+        self.title("Import Template")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -366,21 +366,21 @@ class TemplateImportDialog(BaseDialog):
         main_frame.columnconfigure(0, weight=1)
 
         # Top: file selection
-        file_section = ttk.LabelFrame(main_frame, text="Выбор файла", padding="6")
+        file_section = ttk.LabelFrame(main_frame, text="File Selection", padding="6")
         file_section.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
         self._path_var = tk.StringVar(master=self, value="")
         path_entry = ttk.Entry(file_section, textvariable=self._path_var, state="readonly")
         path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
 
-        ttk.Button(file_section, text="Обзор...", command=self._on_browse).pack(side=tk.RIGHT)
+        ttk.Button(file_section, text="Browse...", command=self._on_browse).pack(side=tk.RIGHT)
 
         # PanedWindow: list left, preview right
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
         paned.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 8))
 
         # Left panel: template list
-        left_frame = ttk.LabelFrame(paned, text="Шаблоны", padding="6")
+        left_frame = ttk.LabelFrame(paned, text="Templates", padding="6")
         paned.add(left_frame, weight=1)
 
         self._template_tree = ttk.Treeview(
@@ -389,8 +389,8 @@ class TemplateImportDialog(BaseDialog):
             show="headings",
             selectmode="browse",
         )
-        self._template_tree.heading("name", text="Название")
-        self._template_tree.heading("type", text="Тип")
+        self._template_tree.heading("name", text="Name")
+        self._template_tree.heading("type", text="Type")
         self._template_tree.column("name", width=160, minwidth=80)
         self._template_tree.column("type", width=80, minwidth=60)
         self._template_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -417,18 +417,18 @@ class TemplateImportDialog(BaseDialog):
         info_frame = ttk.Frame(right_frame)
         info_frame.pack(fill=tk.X, pady=(0, 8))
 
-        trust_frame = ttk.LabelFrame(info_frame, text="Подпись", padding="6")
+        trust_frame = ttk.LabelFrame(info_frame, text="Signature", padding="6")
         trust_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
         self._trust_var = tk.StringVar(master=self, value="—")
         self._trust_label = ttk.Label(trust_frame, textvariable=self._trust_var)
         self._trust_label.pack(side=tk.LEFT)
 
         self._verify_btn = ttk.Button(
-            trust_frame, text="Проверить", command=self._on_verify, state=tk.DISABLED
+            trust_frame, text="Verify", command=self._on_verify, state=tk.DISABLED
         )
         self._verify_btn.pack(side=tk.RIGHT)
 
-        size_frame = ttk.LabelFrame(info_frame, text="Размер", padding="6")
+        size_frame = ttk.LabelFrame(info_frame, text="Size", padding="6")
         size_frame.pack(side=tk.RIGHT, fill=tk.X, padx=(4, 0))
         self._size_var = tk.StringVar(master=self, value="—")
         ttk.Label(size_frame, textvariable=self._size_var).pack(side=tk.LEFT)
@@ -438,11 +438,11 @@ class TemplateImportDialog(BaseDialog):
         btn_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
 
         self._import_btn = ttk.Button(
-            btn_frame, text="Импортировать", command=self._on_import, state=tk.DISABLED
+            btn_frame, text="Import", command=self._on_import, state=tk.DISABLED
         )
         self._import_btn.pack(side=tk.RIGHT, padx=(8, 0))
 
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
         # Load existing templates
         self._refresh_template_list()
@@ -451,8 +451,8 @@ class TemplateImportDialog(BaseDialog):
         """Обработчик кнопки 'Обзор'."""
         path = filedialog.askopenfilename(
             parent=self,
-            title="Выберите шаблон формы",
-            filetypes=[("Шаблоны FX", "*.fxstpl"), ("Все файлы", "*.*")],
+            title="Select Form Template",
+            filetypes=[("FX Templates", "*.fxstpl"), ("All Files", "*.*")],
         )
 
         if path:
@@ -472,7 +472,7 @@ class TemplateImportDialog(BaseDialog):
         except (AuthError, CryptoError) as e:
             logger.critical("Security error while listing templates: %s", e, exc_info=True)
             templates = []
-        except (OSError, FileNotFoundError, ValueError) as e:
+        except ValueError as e:
             logger.error("Unexpected error while listing templates: %s", e, exc_info=True)
             templates = []
 
@@ -532,10 +532,10 @@ class TemplateImportDialog(BaseDialog):
 
         # Update trust label
         if sig_valid is True:
-            self._trust_var.set("✓ Подпись валидна")
+            self._trust_var.set("✓ Signature valid")
             self._trust_label.config(foreground=COLOR_SUCCESS)
         elif sig_valid is False:
-            self._trust_var.set("✗ Подпись невалидна")
+            self._trust_var.set("✗ Signature invalid")
             self._trust_label.config(foreground=COLOR_ERROR)
         else:
             self._trust_var.set("—")
@@ -550,10 +550,10 @@ class TemplateImportDialog(BaseDialog):
                 self._selected_path = path
             else:
                 self._size_var.set("—")
-        except (FileNotFoundError, OSError) as e:
+        except OSError as e:
             logger.error("File system error while calculating size: %s", e)
             self._size_var.set("—")
-        except (OSError, FileNotFoundError, ValueError) as e:
+        except ValueError as e:
             logger.debug("Unexpected error while calculating size: %s", e)
             self._size_var.set("—")
 
@@ -603,19 +603,19 @@ class TemplateImportDialog(BaseDialog):
 
         except (AuthError, CryptoError) as e:
             logger.critical("Security error loading template: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка безопасности", f"Ошибка доступа к шаблону:\n{e}")
+            messagebox.showerror("Security Error", f"Template access error:\n{e}")
             self._preview_widget.load_template({})
             self._verify_btn.config(state=tk.DISABLED)
             self._import_btn.config(state=tk.DISABLED)
-        except (FileNotFoundError, OSError) as e:
+        except OSError as e:
             logger.error("File system error loading template: %s", e)
-            messagebox.showerror("Ошибка", f"Файл не найден или недоступен:\n{e}")
+            messagebox.showerror("Error", f"File not found or inaccessible:\n{e}")
             self._preview_widget.load_template({})
             self._verify_btn.config(state=tk.DISABLED)
             self._import_btn.config(state=tk.DISABLED)
-        except (OSError, FileNotFoundError, ValueError) as e:
+        except ValueError as e:
             logger.error("Unexpected error loading template: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка", f"Не удалось загрузить шаблон:\n{e}")
+            messagebox.showerror("Error", f"Failed to load template:\n{e}")
             self._preview_widget.load_template({})
             self._verify_btn.config(state=tk.DISABLED)
             self._import_btn.config(state=tk.DISABLED)
@@ -646,10 +646,10 @@ class TemplateImportDialog(BaseDialog):
 
             # Update UI
             if is_valid:
-                self._trust_var.set("✓ Подпись валидна")
+                self._trust_var.set("✓ Signature valid")
                 self._trust_label.config(foreground=COLOR_SUCCESS)
             else:
-                self._trust_var.set("✗ Подпись невалидна или отсутствует")
+                self._trust_var.set("✗ Signature invalid or missing")
                 self._trust_label.config(foreground=COLOR_ERROR)
 
             # Update preview widget
@@ -677,13 +677,13 @@ class TemplateImportDialog(BaseDialog):
 
         except (AuthError, CryptoError) as e:
             logger.critical("Signature verification security error: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка безопасности", f"Ошибка верификации подписи:\n{e}")
-        except (FileNotFoundError, OSError) as e:
+            messagebox.showerror("Security Error", f"Signature verification error:\n{e}")
+        except OSError as e:
             logger.error("File system error during signature verification: %s", e)
-            messagebox.showerror("Ошибка", f"Ошибка доступа к файлу:\n{e}")
-        except (OSError, FileNotFoundError, ValueError) as e:
+            messagebox.showerror("Error", f"File access error:\n{e}")
+        except ValueError as e:
             logger.error("Unexpected signature verification error: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка", f"Не удалось проверить подпись:\n{e}")
+            messagebox.showerror("Error", f"Failed to verify signature:\n{e}")
 
     def _on_import(self) -> None:
         """Обработчик кнопки 'Импортировать'.
@@ -701,10 +701,10 @@ class TemplateImportDialog(BaseDialog):
             if file_size > MAX_FLOPPY_SIZE:
                 # Offer optimization
                 result = messagebox.askyesno(
-                    "Размер файла",
-                    f"Размер файла ({file_size:,} bytes) превышает лимит дискеты "
+                    "File Size",
+                    f"File size ({file_size:,} bytes) exceeds floppy disk limit "
                     f"({MAX_FLOPPY_SIZE:,} bytes).\n\n"
-                    f"Открыть диалог оптимизации?",
+                    f"Open optimization dialog?",
                 )
 
                 if result:
@@ -741,20 +741,20 @@ class TemplateImportDialog(BaseDialog):
 
         except (AuthError, CryptoError) as e:
             logger.critical("Security error during import: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка безопасности", f"Ошибка импорта:\n{e}")
+            messagebox.showerror("Security Error", f"Import error:\n{e}")
             self._result = ImportResult.failure_result(str(e))
-        except (FileNotFoundError, OSError) as e:
+        except OSError as e:
             logger.error("File system error during import: %s", e)
-            messagebox.showerror("Ошибка", f"Ошибка доступа к файлу:\n{e}")
+            messagebox.showerror("Error", f"File access error:\n{e}")
             self._result = ImportResult.failure_result(str(e))
-        except (OSError, FileNotFoundError, ValueError) as e:
+        except ValueError as e:
             logger.error("Unexpected import error: %s", e, exc_info=True)
-            messagebox.showerror("Ошибка импорта", f"Не удалось импортировать шаблон:\n{e}")
+            messagebox.showerror("Import Error", f"Failed to import template:\n{e}")
             self._result = ImportResult.failure_result(str(e))
 
     def _on_cancel(self) -> None:
         """Обработчик кнопки 'Отмена'."""
-        self._result = ImportResult.failure_result("Отменено пользователем")
+        self._result = ImportResult.failure_result("Cancelled by user")
         self.destroy()
 
     def show(self) -> Optional[ImportResult]:

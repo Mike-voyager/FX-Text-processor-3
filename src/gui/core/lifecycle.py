@@ -22,7 +22,6 @@ Date: April 2026
 from __future__ import annotations
 
 import logging
-
 import threading
 import tkinter as tk
 from contextlib import contextmanager
@@ -234,11 +233,11 @@ class LifecycleManager:
             >>> info = manager.register("btn_1", on_mount=lambda: print("mounted"))
         """
         if not widget_id or not widget_id.strip():
-            raise ValueError("widget_id не может быть пустым")
+            raise ValueError("widget_id cannot be empty")
 
         with self._lock:
             if widget_id in self._components:
-                raise ValueError(f"Компонент '{widget_id}' уже зарегистрирован")
+                raise ValueError(f"Component '{widget_id}' already registered")
 
             info = ComponentInfo(widget_id=widget_id)
             self._components[widget_id] = info
@@ -267,7 +266,7 @@ class LifecycleManager:
         """
         with self._lock:
             if widget_id not in self._components:
-                raise KeyError(f"Компонент '{widget_id}' не найден")
+                raise KeyError(f"Component '{widget_id}' not found")
 
             info = self._components[widget_id]
 
@@ -295,7 +294,7 @@ class LifecycleManager:
         """
         with self._lock:
             if widget_id not in self._components:
-                raise KeyError(f"Компонент '{widget_id}' не найден")
+                raise KeyError(f"Component '{widget_id}' not found")
 
             info = self._components[widget_id]
             old_state = info.state
@@ -338,7 +337,7 @@ class LifecycleManager:
         """
         with self._lock:
             if widget_id not in self._components:
-                raise KeyError(f"Компонент '{widget_id}' не найден")
+                raise KeyError(f"Component '{widget_id}' not found")
             return self._components[widget_id]
 
     def is_registered(self, widget_id: str) -> bool:
@@ -411,7 +410,7 @@ class LifecycleManager:
         """
         with self._lock:
             if widget_id not in self._components:
-                raise KeyError(f"Компонент '{widget_id}' не найден")
+                raise KeyError(f"Component '{widget_id}' not found")
 
             info = self._components[widget_id]
             new_info = ComponentInfo(
@@ -513,15 +512,16 @@ def SafeMount(
 
         # Регистрируем в менеджере если передан
         if manager is not None:
-                try:
-                    widget_id = getattr(component, "widget_id", str(id(component)))
-                    manager.register(widget_id)
-                    manager.update_widget(widget_id, widget, str(parent))
-                    manager.transition_to(widget_id, LifecycleState.MOUNTED)
-                    registered = True
-                except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110
-                    logging.exception(f"Registration error for {widget_id if 'widget_id' in locals() else 'unknown'}: {e}")
-                    pass  # noqa: S110
+            try:
+                widget_id = getattr(component, "widget_id", str(id(component)))
+                manager.register(widget_id)
+                manager.update_widget(widget_id, widget, str(parent))
+                manager.transition_to(widget_id, LifecycleState.MOUNTED)
+                registered = True
+            except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110
+                _wid = widget_id if "widget_id" in locals() else "unknown"
+                logging.exception(f"Registration error for {_wid}: {e}")
+                pass  # noqa: S110
 
         yield widget
 
@@ -538,7 +538,8 @@ def SafeMount(
                     manager.transition_to(widget_id, LifecycleState.UNMOUNTED)
                     manager.unregister(widget_id)
                 except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
-                    logging.exception(f"Cleanup error for {widget_id if 'widget_id' in locals() else 'unknown'}: {e}")
+                    _wid = widget_id if "widget_id" in locals() else "unknown"
+                    logging.exception(f"Cleanup error for {_wid}: {e}")
                     pass  # noqa: S110
 
             component.unmount()  # type: ignore[attr-defined]

@@ -66,7 +66,7 @@ class SecureEntry(tk.Entry):
         """
         self._secure: bool = secure
         self._wipe_count: int = 3
-        self._variable: tk.StringVar = tk.StringVar()
+        self._variable: tk.StringVar = tk.StringVar(master=master)
 
         # Передаём нашу переменную в parent
         kwargs["textvariable"] = self._variable

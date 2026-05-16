@@ -28,6 +28,7 @@ from typing import Callable, Final, Optional
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.layout.layout_constants import PADDING_NORMAL, TOOLBAR_HEIGHT
+from src.model.enums import Alignment, CodePage, FontFamily, PrintQuality
 
 
 class FormatToolbar(BaseWidget):
@@ -66,6 +67,42 @@ class FormatToolbar(BaseWidget):
         "superscript": "x²",
     }
 
+    # Quality labels
+    QUALITY_LABELS: Final[dict[PrintQuality, str]] = {
+        PrintQuality.DRAFT: "Draft",
+        PrintQuality.NLQ: "NLQ",
+        PrintQuality.USD: "USD",
+        PrintQuality.HSD: "HSD",
+    }
+
+    # Font labels
+    FONT_LABELS: Final[dict[FontFamily, str]] = {
+        FontFamily.DRAFT: "Draft",
+        FontFamily.ROMAN: "Roman",
+        FontFamily.SANS_SERIF: "Sans Serif",
+        FontFamily.USD: "USD",
+        FontFamily.HSD: "HSD",
+    }
+
+    # CodePage labels (common subset)
+    CODEPAGE_LABELS: Final[dict[CodePage, str]] = {
+        CodePage.PC437: "PC437",
+        CodePage.PC850: "PC850",
+        CodePage.PC852: "PC852",
+        CodePage.PC855: "PC855",
+        CodePage.PC866: "PC866",
+        CodePage.PC1250: "PC1250",
+        CodePage.PC1251: "PC1251",
+    }
+
+    # Alignment labels
+    ALIGNMENT_LABELS: Final[dict[Alignment, str]] = {
+        Alignment.LEFT: "◀",
+        Alignment.CENTER: "◆",
+        Alignment.RIGHT: "▶",
+        Alignment.JUSTIFY: "≡",
+    }
+
     def __init__(
         self,
         widget_id: str = "format_toolbar",
@@ -75,6 +112,10 @@ class FormatToolbar(BaseWidget):
         on_qr: Optional[Callable[[], None]] = None,
         on_script_toggle: Optional[Callable[[str, bool], None]] = None,
         on_fix_validation: Optional[Callable[[], None]] = None,
+        on_quality_change: Optional[Callable[[PrintQuality], None]] = None,
+        on_font_change: Optional[Callable[[FontFamily], None]] = None,
+        on_codepage_change: Optional[Callable[[CodePage], None]] = None,
+        on_alignment_change: Optional[Callable[[Alignment], None]] = None,
     ) -> None:
         """Инициализация панели форматирования.
 
@@ -86,6 +127,10 @@ class FormatToolbar(BaseWidget):
             on_qr: Callback при нажатии на кнопку QR (None -> None).
             on_script_toggle: Callback при переключении subscript/superscript.
             on_fix_validation: Callback при нажатии на кнопку исправления.
+            on_quality_change: Callback при изменении качества печати.
+            on_font_change: Callback при изменении шрифта.
+            on_codepage_change: Callback при изменении кодовой страницы.
+            on_alignment_change: Callback при изменении выравнивания.
 
         Example:
             >>> toolbar = FormatToolbar(
@@ -101,6 +146,10 @@ class FormatToolbar(BaseWidget):
         self._on_qr: Optional[Callable[[], None]] = on_qr
         self._on_script_toggle: Optional[Callable[[str, bool], None]] = on_script_toggle
         self._on_fix_validation: Optional[Callable[[], None]] = on_fix_validation
+        self._on_quality_change: Optional[Callable[[PrintQuality], None]] = on_quality_change
+        self._on_font_change: Optional[Callable[[FontFamily], None]] = on_font_change
+        self._on_codepage_change: Optional[Callable[[CodePage], None]] = on_codepage_change
+        self._on_alignment_change: Optional[Callable[[Alignment], None]] = on_alignment_change
 
         # Переменная для CPI dropdown (StringVar для совместимости с Combobox)
         self._cpi_var: tk.StringVar = tk.StringVar(value=self.CPI_VALUES[0])
@@ -125,6 +174,22 @@ class FormatToolbar(BaseWidget):
 
         # Ссылка на dropdown для обновления
         self._cpi_dropdown: Optional[ttk.Combobox] = None
+
+        # Новые dropdown'ы
+        self._quality_var: tk.StringVar = tk.StringVar(
+            value=self.QUALITY_LABELS[PrintQuality.DRAFT]
+        )
+        self._quality_dropdown: Optional[ttk.Combobox] = None
+
+        self._font_var: tk.StringVar = tk.StringVar(value=self.FONT_LABELS[FontFamily.DRAFT])
+        self._font_dropdown: Optional[ttk.Combobox] = None
+
+        self._codepage_var: tk.StringVar = tk.StringVar(value=self.CODEPAGE_LABELS[CodePage.PC866])
+        self._codepage_dropdown: Optional[ttk.Combobox] = None
+
+        # Alignment buttons (mutually exclusive)
+        self._alignment_buttons: dict[Alignment, tk.Button] = {}
+        self._current_alignment: Alignment = Alignment.LEFT
 
     def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
         """Создаёт панель форматирования.
@@ -191,6 +256,66 @@ class FormatToolbar(BaseWidget):
             btn.pack(side=tk.LEFT, padx=(0, 2))
             self._format_buttons[script_type] = btn
 
+        # Разделитель перед Quality/Font/CodePage
+        separator_qfc = tk.Frame(frame, width=1, bg="gray60")
+        separator_qfc.pack(side=tk.LEFT, fill=tk.Y, padx=PADDING_NORMAL, pady=4)
+
+        # === Группа Quality ===
+        tk.Label(frame, text="Q:").pack(side=tk.LEFT)
+        self._quality_dropdown = ttk.Combobox(
+            frame,
+            textvariable=self._quality_var,
+            values=list(self.QUALITY_LABELS.values()),
+            width=6,
+            state="readonly",
+        )
+        self._quality_dropdown.pack(side=tk.LEFT, padx=(0, 2))
+        self._quality_dropdown.bind("<<ComboboxSelected>>", self._on_quality_selected)
+
+        # === Группа Font ===
+        tk.Label(frame, text="F:").pack(side=tk.LEFT)
+        self._font_dropdown = ttk.Combobox(
+            frame,
+            textvariable=self._font_var,
+            values=list(self.FONT_LABELS.values()),
+            width=10,
+            state="readonly",
+        )
+        self._font_dropdown.pack(side=tk.LEFT, padx=(0, 2))
+        self._font_dropdown.bind("<<ComboboxSelected>>", self._on_font_selected)
+
+        # === Группа CodePage ===
+        tk.Label(frame, text="CP:").pack(side=tk.LEFT)
+        self._codepage_dropdown = ttk.Combobox(
+            frame,
+            textvariable=self._codepage_var,
+            values=list(self.CODEPAGE_LABELS.values()),
+            width=7,
+            state="readonly",
+        )
+        self._codepage_dropdown.pack(side=tk.LEFT, padx=(0, 2))
+        self._codepage_dropdown.bind("<<ComboboxSelected>>", self._on_codepage_selected)
+
+        # Разделитель перед Alignment
+        separator_align = tk.Frame(frame, width=1, bg="gray60")
+        separator_align.pack(side=tk.LEFT, fill=tk.Y, padx=PADDING_NORMAL, pady=4)
+
+        # === Группа Alignment ===
+        def make_alignment_handler(align: Alignment) -> Callable[[], None]:
+            return lambda: self._set_alignment(align)
+
+        for align in (Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT, Alignment.JUSTIFY):
+            btn = tk.Button(
+                frame,
+                text=self.ALIGNMENT_LABELS[align],
+                width=3,
+                relief=tk.SUNKEN if align == Alignment.LEFT else tk.RAISED,
+                command=make_alignment_handler(align),
+                font=("TkDefaultFont", 9, "bold"),
+            )
+            btn.pack(side=tk.LEFT, padx=(0, 2))
+            self._alignment_buttons[align] = btn
+
         # Разделитель перед кнопками Barcode и QR
         separator2 = tk.Frame(frame, width=1, bg="gray60")
         separator2.pack(side=tk.LEFT, fill=tk.Y, padx=PADDING_NORMAL, pady=4)
@@ -233,7 +358,7 @@ class FormatToolbar(BaseWidget):
         # Кнопка "Исправить"
         self._fix_button = tk.Button(
             frame,
-            text="🔧 Исправить",
+            text="🔧 Fix",
             relief=tk.RAISED,
             command=self._on_fix_validation_clicked,
             state=tk.DISABLED,  # Изначально отключена
@@ -252,6 +377,44 @@ class FormatToolbar(BaseWidget):
         cpi: int = int(cpi_str)
         if self._on_cpi_change is not None:
             self._on_cpi_change(cpi)
+
+    def _on_quality_selected(self, event: Optional[tk.Event] = None) -> None:
+        """Обработчик выбора Quality из dropdown."""
+        label = self._quality_var.get()
+        quality = next(
+            (q for q, lbl in self.QUALITY_LABELS.items() if lbl == label),
+            PrintQuality.DRAFT,
+        )
+        if self._on_quality_change is not None:
+            self._on_quality_change(quality)
+
+    def _on_font_selected(self, event: Optional[tk.Event] = None) -> None:
+        """Обработчик выбора Font из dropdown."""
+        label = self._font_var.get()
+        font = next(
+            (f for f, lbl in self.FONT_LABELS.items() if lbl == label),
+            FontFamily.DRAFT,
+        )
+        if self._on_font_change is not None:
+            self._on_font_change(font)
+
+    def _on_codepage_selected(self, event: Optional[tk.Event] = None) -> None:
+        """Обработчик выбора CodePage из dropdown."""
+        label = self._codepage_var.get()
+        codepage = next(
+            (cp for cp, lbl in self.CODEPAGE_LABELS.items() if lbl == label),
+            CodePage.PC866,
+        )
+        if self._on_codepage_change is not None:
+            self._on_codepage_change(codepage)
+
+    def _set_alignment(self, align: Alignment) -> None:
+        """Устанавливает выравнивание (взаимоисключение)."""
+        self._current_alignment = align
+        for a, btn in self._alignment_buttons.items():
+            btn.config(relief=tk.SUNKEN if a == align else tk.RAISED)
+        if self._on_alignment_change is not None:
+            self._on_alignment_change(align)
 
     def _toggle_format(self, format_type: str) -> None:
         """Переключает состояние кнопки форматирования.
@@ -299,7 +462,7 @@ class FormatToolbar(BaseWidget):
         """
         cpi_str = str(cpi)
         if cpi_str not in self.CPI_VALUES:
-            raise ValueError(f"Недопустимое значение CPI: {cpi}. Допустимые: {self.CPI_VALUES}")
+            raise ValueError(f"Invalid CPI value: {cpi}. Allowed: {self.CPI_VALUES}")
 
         self._cpi_var.set(cpi_str)
 
@@ -319,8 +482,7 @@ class FormatToolbar(BaseWidget):
         """
         if format_type not in self._format_states:
             raise ValueError(
-                f"Неизвестный тип форматирования: {format_type}. "
-                f"Доступные: {list(self._format_states.keys())}"
+                f"Unknown format type: {format_type}. Available: {list(self._format_states.keys())}"
             )
 
         # Обновляем внутреннее состояние
@@ -349,8 +511,7 @@ class FormatToolbar(BaseWidget):
         """
         if format_type not in self._format_states:
             raise ValueError(
-                f"Неизвестный тип форматирования: {format_type}. "
-                f"Доступные: {list(self._format_states.keys())}"
+                f"Unknown format type: {format_type}. Available: {list(self._format_states.keys())}"
             )
 
         return self._format_states[format_type]
@@ -456,7 +617,7 @@ class FormatToolbar(BaseWidget):
             >>> assert toolbar.is_script_active("subscript") is True
         """
         if script_type not in ("subscript", "superscript"):
-            raise ValueError(f"Недопустимый тип script-форматирования: {script_type}")
+            raise ValueError(f"Invalid script formatting type: {script_type}")
         return self._format_states[script_type]
 
     def reset_scripts(self) -> None:
@@ -489,7 +650,7 @@ class FormatToolbar(BaseWidget):
             >>> toolbar._apply_script("superscript", False)
         """
         if script_type not in ("subscript", "superscript"):
-            raise ValueError(f"Недопустимый тип script-форматирования: {script_type}")
+            raise ValueError(f"Invalid script formatting type: {script_type}")
         if self._on_script_toggle is not None:
             self._on_script_toggle(script_type, active)
 
@@ -548,6 +709,92 @@ class FormatToolbar(BaseWidget):
             >>> assert toolbar.get_validation_count() == 3
         """
         return self._validation_count
+
+    # === Quality ===
+    def set_quality(self, quality: PrintQuality) -> None:
+        """Устанавливает качество печати в dropdown.
+
+        Args:
+            quality: Новое качество печати.
+        """
+        label = self.QUALITY_LABELS.get(quality)
+        if label is not None:
+            self._quality_var.set(label)
+
+    def get_current_quality(self) -> PrintQuality:
+        """Возвращает текущее качество печати.
+
+        Returns:
+            Текущее качество печати.
+        """
+        label = self._quality_var.get()
+        return next(
+            (q for q, lbl in self.QUALITY_LABELS.items() if lbl == label),
+            PrintQuality.DRAFT,
+        )
+
+    # === Font ===
+    def set_font(self, font: FontFamily) -> None:
+        """Устанавливает шрифт в dropdown.
+
+        Args:
+            font: Новый шрифт.
+        """
+        label = self.FONT_LABELS.get(font)
+        if label is not None:
+            self._font_var.set(label)
+
+    def get_current_font(self) -> FontFamily:
+        """Возвращает текущий шрифт.
+
+        Returns:
+            Текущий шрифт.
+        """
+        label = self._font_var.get()
+        return next(
+            (f for f, lbl in self.FONT_LABELS.items() if lbl == label),
+            FontFamily.DRAFT,
+        )
+
+    # === CodePage ===
+    def set_codepage(self, codepage: CodePage) -> None:
+        """Устанавливает кодовую страницу в dropdown.
+
+        Args:
+            codepage: Новая кодовая страница.
+        """
+        label = self.CODEPAGE_LABELS.get(codepage)
+        if label is not None:
+            self._codepage_var.set(label)
+
+    def get_current_codepage(self) -> CodePage:
+        """Возвращает текущую кодовую страницу.
+
+        Returns:
+            Текущая кодовая страница.
+        """
+        label = self._codepage_var.get()
+        return next(
+            (cp for cp, lbl in self.CODEPAGE_LABELS.items() if lbl == label),
+            CodePage.PC866,
+        )
+
+    # === Alignment ===
+    def set_alignment(self, align: Alignment) -> None:
+        """Устанавливает выравнивание.
+
+        Args:
+            align: Новое выравнивание.
+        """
+        self._set_alignment(align)
+
+    def get_current_alignment(self) -> Alignment:
+        """Возвращает текущее выравнивание.
+
+        Returns:
+            Текущее выравнивание.
+        """
+        return self._current_alignment
 
 
 # =============================================================================

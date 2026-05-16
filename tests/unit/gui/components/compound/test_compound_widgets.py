@@ -8,34 +8,10 @@ Example:
 
 from __future__ import annotations
 
-import os
-import sys
-import types
-from pathlib import Path
-
-_project_root = str(Path(__file__).resolve().parents[5])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Inject namespace packages to bypass circular imports via src.gui.components.__init__.py
-for _mod_name, _relpath in [
-    ("src", "src"),
-    ("src.gui", "src/gui"),
-    ("src.gui.components", "src/gui/components"),
-    ("src.gui.components.primitive", "src/gui/components/primitive"),
-    ("src.gui.components.compound", "src/gui/components/compound"),
-]:
-    if _mod_name not in sys.modules:
-        _m = types.ModuleType(_mod_name)
-        _m.__path__ = [os.path.join(_project_root, _relpath)]
-        sys.modules[_mod_name] = _m
-
 import tkinter as tk
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 from src.gui.components.compound.expandable_panel import ExpandablePanel
 from src.gui.components.compound.icon_button import IconButton
 from src.gui.components.compound.input_group import InputGroup
@@ -43,7 +19,6 @@ from src.gui.components.compound.list_tile import ListTile
 from src.gui.components.compound.progress_indicator import ProgressIndicator
 from src.gui.components.compound.search_box import SearchBox
 from src.gui.components.compound.status_badge import StatusBadge
-from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
 
 
@@ -134,7 +109,8 @@ class TestInputGroup:
 
     def test_focus_out_validates(self, tk_root: tk.Tk) -> None:
         """Потеря фокуса запускает валидацию."""
-        group = InputGroup(widget_id="ig", label="Name", validator=lambda t: "err" if not t else None)
+        validator = lambda t: "err" if not t else None  # noqa: E731
+        group = InputGroup(widget_id="ig", label="Name", validator=validator)
         group.mount(tk_root)
         group._on_focus_out()
         assert group._error_message == "err"
@@ -240,7 +216,7 @@ class TestStatusBadge:
 
     def test_init_bad_variant(self) -> None:
         """Неизвестный variant вызывает ValueError."""
-        with pytest.raises(ValueError, match="Неизвестный variant"):
+        with pytest.raises(ValueError, match="Unknown variant"):
             StatusBadge(widget_id="sb", text="OK", variant="unknown")
 
     def test_set_text(self, tk_root: tk.Tk) -> None:
@@ -265,7 +241,7 @@ class TestStatusBadge:
         """set_variant с неизвестным variant вызывает ValueError."""
         badge = StatusBadge(widget_id="sb", text="OK")
         badge.mount(tk_root)
-        with pytest.raises(ValueError, match="Неизвестный variant"):
+        with pytest.raises(ValueError, match="Unknown variant"):
             badge.set_variant("bad")
 
     def test_unmount(self, tk_root: tk.Tk) -> None:

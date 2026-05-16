@@ -105,7 +105,7 @@ class ESCPPreviewWidget(tk.Frame):
         # Previous page button
         self._prev_btn = ttk.Button(
             self._nav_frame,
-            text="← Назад",
+            text="← Back",
             command=self._prev_page,
         )
         self._prev_btn.pack(side=tk.LEFT, padx=5)
@@ -113,7 +113,7 @@ class ESCPPreviewWidget(tk.Frame):
         # Page label
         self._page_label = ttk.Label(
             self._nav_frame,
-            text="Страница 1/1",
+            text="Page 1/1",
             font=("Segoe UI", 10),
         )
         self._page_label.pack(side=tk.LEFT, padx=10)
@@ -121,7 +121,7 @@ class ESCPPreviewWidget(tk.Frame):
         # Next page button
         self._next_btn = ttk.Button(
             self._nav_frame,
-            text="Вперед →",
+            text="Next →",
             command=self._next_page,
         )
         self._next_btn.pack(side=tk.LEFT, padx=5)
@@ -243,7 +243,7 @@ class ESCPPreviewWidget(tk.Frame):
         self._insert_with_tags(preview_content)
 
         # Update navigation
-        self._page_label.configure(text=f"Страница {self._current_page + 1}/{self._page_count}")
+        self._page_label.configure(text=f"Page {self._current_page + 1}/{self._page_count}")
         self._prev_btn.configure(state=tk.NORMAL if self._current_page > 0 else tk.DISABLED)
         self._next_btn.configure(
             state=tk.NORMAL if self._current_page < self._page_count - 1 else tk.DISABLED
@@ -291,7 +291,7 @@ class ESCPPreviewWidget(tk.Frame):
                     i += 1
 
             elif byte == FF_BYTE:  # Form feed
-                result.append(("[FF - Разрыв страницы]\n", "form_feed"))
+                result.append(("[FF - Page Break]\n", "form_feed"))
                 i += 1
 
             elif byte == CR_BYTE:  # Carriage return
@@ -374,7 +374,7 @@ class ESCPPreviewWidget(tk.Frame):
         self._current_document = None
         self._current_page = 0
         self._page_count = 1
-        self._page_label.configure(text="Страница 1/1")
+        self._page_label.configure(text="Page 1/1")
 
 
 __all__ = ["ESCPPreviewWidget", "PREVIEW_BG_COLOR", "PREVIEW_FG_COLOR"]

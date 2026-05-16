@@ -1,12 +1,12 @@
 """WorkflowIndicator — индикатор workflow в статусбаре.
 
 Предоставляет:
-- Цветную точку с текущим статусом документа
+- Colorную точку с текущим статусом документа
 - Клик для открытия Timeline диалога
 - Интеграция со статусами FormStatus
 - Simple Mode: упрощённый workflow (DRAFT ↔ SIGNED)
 
-Цвета статусов:
+Colorа статусов:
     DRAFT — серый (#95a5a6)
     FILLED — синий (#3498db)
     VALIDATED — оранжевый (#f39c12)
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from src.documents.constructor.form_status import FormStatus
 
 
-# Цвета для статусов (соответствуют form_status.py)
+# Colorа для статусов (соответствуют form_status.py)
 STATUS_COLORS: Final[dict[str, str]] = {
     "draft": "#95a5a6",  # Gray
     "filled": "#3498db",  # Blue
@@ -66,7 +66,7 @@ STATUS_NAMES: Final[dict[str, str]] = {
 # Размер точки индикатора
 DOT_SIZE: Final[int] = 12
 
-# Цвет фона по умолчанию
+# Color фона по умолчанию
 DEFAULT_BG: Final[str] = "#f0f0f0"
 
 # Статусы для Simple Mode (упрощённый workflow)
@@ -93,7 +93,7 @@ class WorkflowIndicator(BaseWidget):
     Поддерживает Simple Mode с упрощённым workflow (DRAFT ↔ SIGNED).
 
     Attributes:
-        STATUS_COLORS: Цвета статусов.
+        STATUS_COLORS: Colorа статусов.
         STATUS_NAMES: Локализованные названия статусов.
         SIMPLE_MODE_STATUSES: Статусы в Simple Mode.
         FULL_MODE_STATUSES: Все статусы в Full Mode.
@@ -119,7 +119,7 @@ class WorkflowIndicator(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._main_frame is None:
-            raise RuntimeError("WorkflowIndicator не смонтирован")
+            raise RuntimeError("WorkflowIndicator not mounted")
         return self._main_frame
 
     def __init__(
@@ -276,7 +276,7 @@ class WorkflowIndicator(BaseWidget):
 
         Example:
             >>> indicator.set_status(FormStatus.FILLED)
-            >>> # Цвет и текст обновляются автоматически
+            >>> # Color и текст обновляются автоматически
         """
         self._current_status = status.value
         self._update_display()

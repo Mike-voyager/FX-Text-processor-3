@@ -146,6 +146,20 @@ class ToolbarSection(BaseWidget):
         self._content_frame.pack(fill=tk.X, expand=True)
         self._theme_manager.apply_to_widget(self._content_frame)
 
+        # Создаём виджеты для кнопок, добавленных до монтирования
+        for name, (btn, icon, text, command) in list(self._buttons.items()):
+            if btn is None:
+                widget = self._create_button_widget(self._content_frame, icon, text, command)
+                widget.pack(fill=tk.X, padx=2, pady=1)
+                self._buttons[name] = (widget, icon, text, command)
+
+        # Создаём виджеты для разделителей, добавленных до монтирования
+        for index, sep in enumerate(self._separators):
+            if sep is None:
+                widget = self._create_separator_widget(self._content_frame)
+                widget.pack(fill=tk.X, padx=4, pady=4)
+                self._separators[index] = widget
+
         # Применяем тему к главному фрейму
         self._theme_manager.apply_to_widget(main_frame)
 
@@ -222,10 +236,10 @@ class ToolbarSection(BaseWidget):
             ... )
         """
         if name in self._buttons:
-            raise ValueError(f"Кнопка '{name}' уже существует в секции '{self._widget_id}'")
+            raise ValueError(f"Button '{name}' already exists in section '{self._widget_id}'")
 
         if not callable(command):
-            raise TypeError("command должен быть callable")
+            raise TypeError("command must be callable")
 
         button_widget: Optional[tk.Widget] = None
 
@@ -338,7 +352,7 @@ class ToolbarSection(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_collapsed",
-                message="Content frame не инициализирован",
+                message="Content frame not initialized",
             )
 
         self._is_collapsed = collapsed
@@ -381,7 +395,7 @@ class ToolbarSection(BaseWidget):
             >>> section.set_button_enabled("save", True)
         """
         if name not in self._buttons:
-            raise ValueError(f"Кнопка '{name}' не найдена")
+            raise ValueError(f"Button '{name}' not found")
 
         button = self._buttons[name][0]
         if button is not None and self._is_mounted:
@@ -401,7 +415,7 @@ class ToolbarSection(BaseWidget):
             >>> section.set_button_text("save", "Сохранить *")
         """
         if name not in self._buttons:
-            raise ValueError(f"Кнопка '{name}' не найдена")
+            raise ValueError(f"Button '{name}' not found")
 
         icon = self._buttons[name][1]
         self._buttons[name][2]
@@ -439,7 +453,7 @@ class ToolbarSection(BaseWidget):
             >>> section.remove_button("temp_button")
         """
         if name not in self._buttons:
-            raise ValueError(f"Кнопка '{name}' не найдена")
+            raise ValueError(f"Button '{name}' not found")
 
         button = self._buttons[name][0]
         if button is not None and self._is_mounted:
@@ -553,14 +567,14 @@ class ToolbarButtonGroup(BaseWidget):
             text: Опциональный текст (если пустой — только иконка).
 
         Raises:
-            ValueError: Если кнопка уже существует.
-            TypeError: Если command не callable.
+            ValueError: If button already exists.
+            TypeError: If command is not callable.
         """
         if name in self._buttons:
-            raise ValueError(f"Кнопка '{name}' уже существует")
+            raise ValueError(f"Button '{name}' already exists")
 
         if not callable(command):
-            raise TypeError("command должен быть callable")
+            raise TypeError("command must be callable")
 
         button_text = f"{icon} {text}" if text else icon
         button_widget: Optional[tk.Button] = None
@@ -609,7 +623,7 @@ class ToolbarButtonGroup(BaseWidget):
             ValueError: Если кнопка не найдена.
         """
         if name not in self._buttons:
-            raise ValueError(f"Кнопка '{name}' не найдена")
+            raise ValueError(f"Button '{name}' not found")
 
         button = self._buttons[name][0]
         if button is not None and self._is_mounted:

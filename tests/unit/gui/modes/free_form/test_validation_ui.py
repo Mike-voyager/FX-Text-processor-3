@@ -188,7 +188,7 @@ class SimpleValidationController:
         
         if self._current_invalid_count > 0 and self._toast_service is not None:
             self._toast_service.show(
-                message="Обнаружены символы не из PC866",
+                message="Non-PC866 characters detected",
                 level=MockToastLevel.WARNING,
             )
     
@@ -215,7 +215,7 @@ class SimpleValidationController:
         
         if self._toast_service is not None and self._last_fixed_count > 0:
             count = self._last_fixed_count
-            message = f"Исправлено {count} символов"
+            message = f"Fixed {count} символов"
             self._toast_service.show(message=message, level=MockToastLevel.SUCCESS)
         
         return fixed_text
@@ -487,7 +487,7 @@ class TestValidationController:
 
         mock_toast_service.show.assert_called()
         call_args = mock_toast_service.show.call_args
-        assert "Исправлено" in call_args[1]["message"]
+        assert "Fixed" in call_args[1]["message"]
         assert call_args[1]["level"] == MockToastLevel.SUCCESS
 
     def test_fix_all_no_success_toast_when_nothing_fixed(
@@ -555,7 +555,7 @@ class TestToastNotifications:
 
         mock_toast_service.show.assert_called_once()
         call_args = mock_toast_service.show.call_args
-        assert "Обнаружены символы не из PC866" in call_args[1]["message"]
+        assert "Non-PC866 characters detected" in call_args[1]["message"]
         assert call_args[1]["level"] == MockToastLevel.WARNING
 
     def test_no_toast_when_valid_text(

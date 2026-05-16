@@ -97,7 +97,7 @@ class TestRulerCreation:
 
     def test_creation_invalid_cpi_raises(self) -> None:
         """Создание с невалидным CPI вызывает ValueError."""
-        with pytest.raises(ValueError, match="Недопустимое значение CPI"):
+        with pytest.raises(ValueError, match="Invalid CPI value"):
             Ruler(
                 widget_id="test_ruler",
                 initial_cpi=99,
@@ -125,7 +125,7 @@ class TestCPIManagement:
 
     def test_set_cpi_invalid_raises(self, ruler: Ruler) -> None:
         """set_cpi() с невалидным CPI вызывает ValueError."""
-        with pytest.raises(ValueError, match="Недопустимое значение CPI"):
+        with pytest.raises(ValueError, match="Invalid CPI value"):
             ruler.set_cpi(99)
 
     def test_set_cpi_same_value_noop(self, ruler: Ruler) -> None:
@@ -170,7 +170,7 @@ class TestWidthManagement:
 
     def test_set_width_chars_invalid_raises(self, ruler: Ruler) -> None:
         """set_width_chars() с невалидной шириной вызывает ValueError."""
-        with pytest.raises(ValueError, match="Ширина должна быть положительной"):
+        with pytest.raises(ValueError, match="Width must be positive"):
             ruler.set_width_chars(0)
 
     def test_set_width_chars_same_value_noop(self, ruler: Ruler) -> None:

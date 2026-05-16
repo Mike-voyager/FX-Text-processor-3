@@ -287,10 +287,10 @@ class CrossDocumentLookupPanel(BaseWidget):
         self._selected_result: Optional[FieldValueResult] = None
 
         # UI компоненты (инициализируются в _create_tk_widget)
-        self._search_var: tk.StringVar = tk.StringVar()
+        self._search_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
         self._hierarchy_var: tk.StringVar = tk.StringVar(value=HierarchyLevel.SERIES.name)
-        self._date_from_var: tk.StringVar = tk.StringVar()
-        self._date_to_var: tk.StringVar = tk.StringVar()
+        self._date_from_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
+        self._date_to_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
         self._status_var: tk.StringVar = tk.StringVar(value="Готов к поиску")
 
         self._tk_widget: Optional[tk.Widget] = None
@@ -326,7 +326,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         """
         search_frame = tk.LabelFrame(
             parent,
-            text="Поиск по документам",
+            text="Cross-document search",
             bg="#f5f5f5",
             font=("Segoe UI", 10, "bold"),
         )
@@ -336,7 +336,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         # Поле ввода field_id
         tk.Label(
             search_frame,
-            text="Поле:",
+            text="Field:",
             bg="#f5f5f5",
             font=("Segoe UI", 9),
         ).grid(row=0, column=0, sticky="w", padx=5, pady=5)
@@ -353,7 +353,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         # Селектор уровня иерархии
         tk.Label(
             search_frame,
-            text="Уровень:",
+            text="Level:",
             bg="#f5f5f5",
             font=("Segoe UI", 9),
         ).grid(row=1, column=0, sticky="nw", padx=5, pady=5)
@@ -362,10 +362,10 @@ class CrossDocumentLookupPanel(BaseWidget):
         hierarchy_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
         levels = [
-            (HierarchyLevel.EXACT, "Точный индекс"),
-            (HierarchyLevel.SERIES, "Серия (K53)"),
-            (HierarchyLevel.SUBTYPE, "Подтип (44)"),
-            (HierarchyLevel.ROOT, "Корень (DVN)"),
+            (HierarchyLevel.EXACT, "Exact index"),
+            (HierarchyLevel.SERIES, "Series (K53)"),
+            (HierarchyLevel.SUBTYPE, "Subtype (44)"),
+            (HierarchyLevel.ROOT, "Root (DVN)"),
         ]
 
         for _i, (level, label) in enumerate(levels):
@@ -389,7 +389,7 @@ class CrossDocumentLookupPanel(BaseWidget):
 
         tk.Label(
             date_frame,
-            text="С:",
+            text="From:",
             bg="#f5f5f5",
             font=("Segoe UI", 9),
         ).pack(side=tk.LEFT, padx=5)
@@ -405,7 +405,7 @@ class CrossDocumentLookupPanel(BaseWidget):
 
         tk.Label(
             date_frame,
-            text="По:",
+            text="To:",
             bg="#f5f5f5",
             font=("Segoe UI", 9),
         ).pack(side=tk.LEFT, padx=5)
@@ -422,7 +422,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         # Кнопка поиска
         self._search_button = tk.Button(
             search_frame,
-            text="🔍 Найти",
+            text="🔍 Search",
             command=self._perform_search,
             bg="#4a90d9",
             fg="white",
@@ -439,7 +439,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         """
         results_frame = tk.LabelFrame(
             parent,
-            text="Результаты",
+            text="Results",
             bg="#f5f5f5",
             font=("Segoe UI", 10, "bold"),
         )
@@ -457,9 +457,9 @@ class CrossDocumentLookupPanel(BaseWidget):
         )
 
         # Настройка колонок
-        self._results_tree.heading("index", text="Индекс документа")
-        self._results_tree.heading("value", text="Значение")
-        self._results_tree.heading("date", text="Дата")
+        self._results_tree.heading("index", text="Document index")
+        self._results_tree.heading("value", text="Value")
+        self._results_tree.heading("date", text="Date")
 
         self._results_tree.column("index", width=150, minwidth=100)
         self._results_tree.column("value", width=300, minwidth=150)
@@ -502,7 +502,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         # Кнопка "Использовать"
         self._use_button = tk.Button(
             status_frame,
-            text="📋 Использовать",
+            text="📋 Use",
             command=self._use_selected_value,
             state=tk.DISABLED,
             bg="#4caf50",
@@ -897,7 +897,10 @@ class CrossDocumentLookupDialog(tk.Toplevel):
         super().__init__(parent)
         self.title(f"Cross-Document Lookup: {field_id}")
         self.transient(parent.winfo_toplevel())
-        self.grab_set()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
 
         self._document_service: DocumentServiceProtocol = document_service
         self._field_id: str = field_id
@@ -909,12 +912,31 @@ class CrossDocumentLookupDialog(tk.Toplevel):
 
         self._tree: Optional[ttk.Treeview] = None
         self._results: List[FieldValueResult] = []
+        self._after_ids: list[str] = []
 
         self._create_ui()
         self._setup_bindings()
 
         # Автопоиск при открытии
-        self.after(50, self._perform_search)
+        self._after_ids.append(self.after(50, self._perform_search))
+        self.bind("<Destroy>", lambda _e: self._cancel_afters(), add=True)
+
+    def _cancel_afters(self) -> None:
+        """Отменяет все зарегистрированные after() таймеры."""
+        for after_id in self._after_ids:
+            try:
+                self.after_cancel(after_id)
+            except tk.TclError:
+                pass
+        self._after_ids.clear()
+
+    def destroy(self) -> None:
+        """Уничтожает окно с отменой таймеров."""
+        self._cancel_afters()
+        try:
+            super().destroy()
+        except tk.TclError:
+            pass
 
     def _default_pattern(self, document_index: str) -> str:
         """Генерирует шаблон по умолчанию по уровню серии.
@@ -971,7 +993,7 @@ class CrossDocumentLookupDialog(tk.Toplevel):
         # Результаты: Treeview Document | Value
         results_frame = tk.LabelFrame(
             self,
-            text="Результаты",
+            text="Results",
             font=("Segoe UI", 10, "bold"),
             padx=5,
             pady=5,

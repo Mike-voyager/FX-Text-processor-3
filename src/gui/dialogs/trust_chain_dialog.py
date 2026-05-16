@@ -2,7 +2,7 @@
 
 Предоставляет UI для просмотра и верификации цепочки доверия шаблонов:
 - Иерархическое отображение цепочки Root → Master → Template
-- Цветовая индикация статуса (🟢 valid, 🟡 warning, 🔴 invalid)
+- Colorовая индикация статуса (🟢 valid, 🟡 warning, 🔴 invalid)
 - Детальная информация о каждом звене цепочки
 - Интеграция с TrustChainServiceProtocol
 
@@ -358,7 +358,7 @@ class TrustChainDialog(BaseDialog):
         Args:
             parent: Родительский фрейм.
         """
-        panel = ttk.LabelFrame(parent, text="Верификация", padding="10")
+        panel = ttk.LabelFrame(parent, text="Verification", padding="10")
         panel.grid(row=4, column=0, sticky="ew", pady=(0, 10))
         panel.columnconfigure(0, weight=1)
 
@@ -675,7 +675,10 @@ class TrustChainDialog(BaseDialog):
         detail_dialog.title(f"Certificate Details - {link.key_id[:16]}...")
         detail_dialog.geometry("450x400")
         detail_dialog.transient(self)
-        detail_dialog.grab_set()
+        try:
+            detail_dialog.grab_set()
+        except tk.TclError:
+            pass
 
         # Content frame
         content = ttk.Frame(detail_dialog, padding="20")

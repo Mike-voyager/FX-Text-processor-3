@@ -28,6 +28,16 @@ from src.gui.services.toast_service import ToastService
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def no_grab_and_auth() -> Generator[None, None, None]:
+    """Отключает grab_set и auth window для избежания deadlock в тестах."""
+    original_grab = tk.Widget.grab_set
+    tk.Widget.grab_set = lambda self: None  # type: ignore[method-assign]
+    with patch.object(MainWindow, "_check_session_and_auth", lambda self: None):
+        yield
+    tk.Widget.grab_set = original_grab  # type: ignore[method-assign]
+
+
 @pytest.fixture
 def mock_controller() -> MagicMock:
     """Fixture для mock контроллера."""
@@ -50,7 +60,7 @@ def initialized_window(mock_controller: MagicMock) -> Generator[MainWindow, None
     yield window
     try:
         window.destroy()
-    except (RuntimeError, AttributeError, TypeError, OSError):
+    except (RuntimeError, AttributeError, TypeError, OSError, tk.TclError):
         pass
 
 
@@ -128,7 +138,7 @@ class TestMainWindowInitialize:
         """Повторный initialize() вызывает RuntimeError."""
         main_window.initialize()
 
-        with pytest.raises(RuntimeError, match="уже инициализирован"):
+        with pytest.raises(RuntimeError, match="already initialized"):
             main_window.initialize()
 
         # Cleanup
@@ -198,7 +208,7 @@ class TestGetToastService:
 
     def test_get_toast_service_not_initialized(self, main_window: MainWindow) -> None:
         """get_toast_service() до initialize() вызывает RuntimeError."""
-        with pytest.raises(RuntimeError, match="не инициализирован"):
+        with pytest.raises(RuntimeError, match="not initialized"):
             main_window.get_toast_service()
 
 
@@ -252,11 +262,11 @@ class TestLockUnlockSession:
 
         assert not initialized_window._is_locked
 
-    def test_lock_session_creates_overlay(self, initialized_window: MainWindow) -> None:
-        """lock_session() создаёт overlay."""
+    def test_lock_session_creates_lock_screen(self, initialized_window: MainWindow) -> None:
+        """lock_session() создаёт SessionLockScreen."""
         initialized_window.lock_session()
 
-        assert initialized_window._lock_overlay is not None
+        assert initialized_window._session_lock_screen is not None
 
 
 # =============================================================================
@@ -284,7 +294,7 @@ class TestConstants:
         """Цвета overlay определены в themes."""
         from src.gui.themes.registry import ThemeRegistry
         tr = ThemeRegistry()
-        assert tr.get("lock_overlay_bg") is not None or True  # ThemeRegistry работает
+        assert tr is not None  # ThemeRegistry работает
 
 
 # =============================================================================
@@ -366,9 +376,9 @@ class TestDocumentConvertMode:
         mode_manager.enter_special({"password": "test", "user_id": "test"})
         initialized_window._mode_manager = mode_manager
 
-        with patch("tkinter.messagebox.showinfo") as mock_showinfo:
+        with patch.object(initialized_window._toast_service, "show") as mock_show:
             initialized_window._on_document_convert_to_special()
-            mock_showinfo.assert_called_once()
+            mock_show.assert_called_once()
 
         ModeManager.reset_instance()
 
@@ -376,9 +386,23 @@ class TestDocumentConvertMode:
         self, initialized_window: MainWindow
     ) -> None:
         """Convert to Normal Mode показывает info если уже в Normal Mode."""
-        with patch("tkinter.messagebox.showinfo") as mock_showinfo:
+        from src.gui.security.mode_manager import ModeManager
+
+        ModeManager.reset_instance()
+        mock_hc = MagicMock()
+        mock_auth = MagicMock()
+
+        mode_manager = ModeManager(
+            health_checker=mock_hc,
+            auth_service=mock_auth,
+        )
+        initialized_window._mode_manager = mode_manager
+
+        with patch.object(initialized_window._toast_service, "show") as mock_show:
             initialized_window._on_document_convert_to_normal()
-            mock_showinfo.assert_called_once()
+            mock_show.assert_called_once()
+
+        ModeManager.reset_instance()
 
     def test_show_health_check_dialog_for_special_mode(
         self, initialized_window: MainWindow
@@ -388,7 +412,9 @@ class TestDocumentConvertMode:
 
         mock_hc = MagicMock()
         initialized_window._health_checker = mock_hc
-        initialized_window._show_health_check_dialog_for_special_mode()
+
+        with patch.object(HealthCheckDialog, "show", lambda self: None):
+            initialized_window._show_health_check_dialog_for_special_mode()
 
         assert initialized_window._health_check_dialog is not None
         assert isinstance(initialized_window._health_check_dialog, HealthCheckDialog)

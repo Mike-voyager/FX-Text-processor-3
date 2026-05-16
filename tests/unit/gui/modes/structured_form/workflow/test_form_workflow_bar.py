@@ -208,13 +208,13 @@ class TestFormWorkflowBar:
     def test_transition_button_texts(self, workflow_bar: FormWorkflowBar) -> None:
         """Тест текстов кнопок переходов."""
         texts = {
-            FormStatus.DRAFT: "На доработку",
-            FormStatus.FILLED: "Заполнить",
-            FormStatus.VALIDATED: "Проверить",
-            FormStatus.SIGNED: "Подписать",
-            FormStatus.PRINTED: "Напечатать",
-            FormStatus.ARCHIVED: "Архивировать",
-            FormStatus.REJECTED: "Отклонить",
+            FormStatus.DRAFT: "Rework",
+            FormStatus.FILLED: "Fill",
+            FormStatus.VALIDATED: "Validate",
+            FormStatus.SIGNED: "Sign",
+            FormStatus.PRINTED: "Print",
+            FormStatus.ARCHIVED: "Archive",
+            FormStatus.REJECTED: "Reject",
         }
 
         for status, expected_text in texts.items():

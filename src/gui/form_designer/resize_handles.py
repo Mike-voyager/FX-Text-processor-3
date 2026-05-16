@@ -45,8 +45,8 @@ class ResizeHandles:
     Attributes:
         HANDLES: Список имён handles (nw, n, ne, e, se, s, sw, w)
         HANDLE_SIZE: Размер handle в пикселях
-        HANDLE_COLOR: Цвет handle
-        HANDLE_ACTIVE_COLOR: Цвет активного handle
+        HANDLE_COLOR: Color handle
+        HANDLE_ACTIVE_COLOR: Color активного handle
         CURSORS: Словарь курсоров для каждого handle
         MIN_SIZE: Минимальный размер в ячейках
     """
@@ -84,7 +84,7 @@ class ResizeHandles:
             field_id: ID поля для ресайза
             on_resize: Callback при движении handle (x, y, width, height)
             on_resize_done: Callback при отпускании handle (x, y, width, height)
-            theme: Тема цветов
+            theme: Theme цветов
         """
         self._canvas: tk.Canvas = canvas
         self._field_id: str = field_id

@@ -116,7 +116,7 @@ class CommentsViewerDialog(BaseDialog):
         self._comments = comments
         self._document_id = document_id
 
-        self.title("📋 Комментарии к документу")
+        self.title("📋 Document Comments")
         self.resizable(True, True)
 
         self._create_ui()
@@ -146,14 +146,14 @@ class CommentsViewerDialog(BaseDialog):
 
         header = tk.Label(
             main_frame,
-            text="Комментарии к документу",
+            text="Document Comments",
             font=("Arial", 12, "bold"),
         )
         header.pack(anchor=tk.W, pady=(0, PADDING_NORMAL))
 
         doc_label = tk.Label(
             main_frame,
-            text=f"Документ: {self._document_id}",
+            text=f"Document: {self._document_id}",
             font=("Arial", 9),
             fg="#7f8c8d",
         )
@@ -170,12 +170,12 @@ class CommentsViewerDialog(BaseDialog):
             selectmode="browse",
         )
 
-        self._tree.heading("field", text="Поле")
-        self._tree.heading("text", text="Комментарий")
-        self._tree.heading("author", text="Автор")
-        self._tree.heading("severity", text="Важность")
-        self._tree.heading("created", text="Время")
-        self._tree.heading("status", text="Статус")
+        self._tree.heading("field", text="Field")
+        self._tree.heading("text", text="Comment")
+        self._tree.heading("author", text="Author")
+        self._tree.heading("severity", text="Severity")
+        self._tree.heading("created", text="Time")
+        self._tree.heading("status", text="Status")
 
         self._tree.column("field", width=80, anchor=tk.W)
         self._tree.column("text", width=250, anchor=tk.W)
@@ -199,7 +199,7 @@ class CommentsViewerDialog(BaseDialog):
 
         close_btn = tk.Button(
             btn_frame,
-            text="Закрыть",
+            text="Close",
             width=12,
             command=self._on_close,
         )
@@ -211,15 +211,15 @@ class CommentsViewerDialog(BaseDialog):
             self._tree.insert(
                 "",
                 tk.END,
-                values=("—", "Нет комментариев", "—", "—", "—", "—"),
+                values=("—", "No comments", "—", "—", "—", "—"),
             )
             return
 
         for comment in self._comments:
             severity_text = {
-                "info": "Инфо",
-                "warning": "Предупреждение",
-                "error": "Ошибка",
+                "info": "Info",
+                "warning": "Warning",
+                "error": "Error",
             }.get(
                 comment.severity.value
                 if hasattr(comment.severity, "value")
@@ -227,7 +227,7 @@ class CommentsViewerDialog(BaseDialog):
                 "—",
             )
 
-            status_text = "Решён" if comment.resolved else "Открыт"
+            status_text = "Resolved" if comment.resolved else "Open"
 
             created_str = (
                 comment.created_at.strftime("%Y-%m-%d %H:%M")
@@ -301,7 +301,7 @@ class WorkflowTimelineDialog(BaseDialog):
         self._simple_mode_var: tk.BooleanVar = tk.BooleanVar(master=self, value=False)
         self._timestamp_labels: Dict[str, tk.Label] = {}
 
-        self.title("📋 История workflow")
+        self.title("Document Workflow")
         self.resizable(False, False)
 
         self._create_ui()
@@ -348,7 +348,7 @@ class WorkflowTimelineDialog(BaseDialog):
 
         tk.Label(
             title_frame,
-            text="📋 История workflow",
+            text="📋 Workflow History",
             font=("Arial", 14, "bold"),
         ).pack(anchor=tk.W)
 
@@ -363,14 +363,14 @@ class WorkflowTimelineDialog(BaseDialog):
 
         tk.Label(
             header_frame,
-            text=f"Документ: {self._document_id}",
+            text=f"Document: {self._document_id}",
             font=("Arial", 9),
             fg="#7f8c8d",
         ).pack(anchor=tk.W, pady=(PADDING_SMALL, 0))
 
         self._current_status_label = tk.Label(
             header_frame,
-            text="Текущий статус: —",
+            text="Current status: —",
             font=("Arial", 10, "bold"),
             fg=COLOR_DRAFT,
         )
@@ -403,7 +403,7 @@ class WorkflowTimelineDialog(BaseDialog):
         """
         frame = tk.LabelFrame(
             parent,
-            text="Шкала состояний",
+            text="Status Timeline",
             padx=PADDING_NORMAL,
             pady=PADDING_NORMAL,
         )
@@ -412,12 +412,12 @@ class WorkflowTimelineDialog(BaseDialog):
         timeline_container.pack(fill=tk.X, expand=True)
 
         statuses: List[Tuple[str, str, str]] = [
-            ("draft", "Черновик", COLOR_DRAFT),
-            ("filled", "Заполнена", COLOR_FILLED),
-            ("validated", "Проверена", COLOR_VALIDATED),
-            ("approved", "Утверждена", COLOR_APPROVED),
-            ("signed", "Подписана", COLOR_SIGNED),
-            ("archived", "Архив", COLOR_ARCHIVED),
+            ("draft", "Draft", COLOR_DRAFT),
+            ("filled", "Filled", COLOR_FILLED),
+            ("validated", "Validated", COLOR_VALIDATED),
+            ("approved", "Approved", COLOR_APPROVED),
+            ("signed", "Signed", COLOR_SIGNED),
+            ("archived", "Archived", COLOR_ARCHIVED),
         ]
 
         for idx, (status_code, label, color) in enumerate(statuses):
@@ -493,7 +493,7 @@ class WorkflowTimelineDialog(BaseDialog):
         """
         frame = tk.LabelFrame(
             parent,
-            text="История переходов",
+            text="Transition History",
             padx=PADDING_NORMAL,
             pady=PADDING_NORMAL,
         )
@@ -510,11 +510,11 @@ class WorkflowTimelineDialog(BaseDialog):
             height=6,
         )
 
-        self._history_tree.heading("timestamp", text="Время")
-        self._history_tree.heading("transition", text="Переход")
-        self._history_tree.heading("role", text="Роль")
+        self._history_tree.heading("timestamp", text="Time")
+        self._history_tree.heading("transition", text="Transition")
+        self._history_tree.heading("role", text="Role")
         self._history_tree.heading("mfa", text="MFA")
-        self._history_tree.heading("reason", text="Причина")
+        self._history_tree.heading("reason", text="Reason")
 
         self._history_tree.column("timestamp", width=130, anchor=tk.CENTER)
         self._history_tree.column("transition", width=140, anchor=tk.CENTER)
@@ -547,7 +547,7 @@ class WorkflowTimelineDialog(BaseDialog):
         """
         frame = tk.LabelFrame(
             parent,
-            text="Детали события",
+            text="Event Details",
             padx=PADDING_NORMAL,
             pady=PADDING_NORMAL,
         )
@@ -587,7 +587,7 @@ class WorkflowTimelineDialog(BaseDialog):
 
         self._refresh_btn = tk.Button(
             btn_frame,
-            text="🔄 Обновить",
+            text="🔄 Refresh",
             width=12,
             command=self._load_workflow_data,
         )
@@ -595,7 +595,7 @@ class WorkflowTimelineDialog(BaseDialog):
 
         close_btn = tk.Button(
             btn_frame,
-            text="Закрыть",
+            text="Close",
             width=12,
             command=self._on_close,
         )
@@ -610,8 +610,8 @@ class WorkflowTimelineDialog(BaseDialog):
             self._update_timeline_timestamps()
             self._load_history()
         except Exception as e:
-            logger.exception(f"Ошибка загрузки workflow данных: {e}")
-            self._show_error("Не удалось загрузить данные workflow")
+            logger.exception(f"Error loading workflow data: {e}")
+            self._show_error("Failed to load workflow data")
 
     def _update_timeline_timestamps(self) -> None:
         """Обновляет таймстампы под состояниями в timeline."""
@@ -675,7 +675,7 @@ class WorkflowTimelineDialog(BaseDialog):
                 else str(current_state)
             )
             self._current_status_label.config(
-                text=f"Текущий статус: {status_text}",
+                text=f"Current status: {status_text}",
                 fg=self._get_status_color(current_state),
             )
 
@@ -693,7 +693,7 @@ class WorkflowTimelineDialog(BaseDialog):
             self._history_tree.insert(
                 "",
                 tk.END,
-                values=("—", "Нет данных", "—", "—", "Документ в начальном состоянии"),
+                values=("—", "No data", "—", "—", "Document is in initial state"),
             )
             return
 
@@ -761,7 +761,7 @@ class WorkflowTimelineDialog(BaseDialog):
         values = self._history_tree.item(item, "values")
 
         if not values or values[0] == "—":
-            self._show_details("Выберите событие для просмотра деталей")
+            self._show_details("Select an event to view details")
             return
 
         history = self._workflow_controller.get_workflow_history(self._document_id)
@@ -772,9 +772,9 @@ class WorkflowTimelineDialog(BaseDialog):
                 details = self._format_event_details(event_data)
                 self._show_details(details)
             else:
-                self._show_details(f"Событие: {values[1]}\nРоль: {values[2]}\nMFA: {values[3]}")
+                self._show_details(f"Event: {values[1]}\nRole: {values[2]}\nMFA: {values[3]}")
         except (ValueError, IndexError):
-            self._show_details(f"Событие: {values[1]}\nРоль: {values[2]}\nMFA: {values[3]}")
+            self._show_details(f"Event: {values[1]}\nRole: {values[2]}\nMFA: {values[3]}")
 
     def _format_event_details(self, event: "WorkflowEvent") -> str:
         """Форматирует детали события для отображения.
@@ -800,16 +800,16 @@ class WorkflowTimelineDialog(BaseDialog):
         )
 
         lines = [
-            f"Время:        {event.timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
-            f"Переход:      {from_name} → {to_name}",
-            f"Роль:         {role_name}",
-            f"MFA статус:   {'Подтверждено ✓' if event.mfa_verified else 'Не требовалось'}",
+            f"Time:         {event.timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"Transition:   {from_name} → {to_name}",
+            f"Role:         {role_name}",
+            f"MFA status:   {'Verified ✓' if event.mfa_verified else 'Not required'}",
         ]
 
         if event.reason:
-            lines.append(f"Причина:      {event.reason}")
+            lines.append(f"Reason:       {event.reason}")
 
-        lines.append(f"ID события:   {event.event_id}")
+        lines.append(f"Event ID:     {event.event_id}")
 
         return "\n".join(lines)
 
@@ -838,7 +838,7 @@ class WorkflowTimelineDialog(BaseDialog):
             )
             dialog.wait_window()
         except Exception as e:
-            logger.exception(f"Ошибка открытия комментариев: {e}")
+            logger.exception(f"Error opening comments: {e}")
 
     def _is_state_before(self, status_code: str, current_code: str) -> bool:
         """Проверяет, находится ли состояние до текущего в последовательности.
@@ -890,7 +890,7 @@ class WorkflowTimelineDialog(BaseDialog):
             self._history_tree.insert(
                 "",
                 tk.END,
-                values=("Ошибка", message[:40], "", "", ""),
+                values=("Error", message[:40], "", "", ""),
             )
 
     def _on_close(self) -> None:

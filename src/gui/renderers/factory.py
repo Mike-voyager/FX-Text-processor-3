@@ -21,11 +21,11 @@ import tkinter as tk
 from typing import Any, Optional
 
 from src.documents.types.document_type import DocumentMode
-
-logger = logging.getLogger(__name__)
 from src.gui.core.commands.command_stack import CommandStack
 from src.gui.core.exceptions import WidgetCreationError
 from src.gui.renderers.protocols import RendererCleanupProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class RendererFactory:

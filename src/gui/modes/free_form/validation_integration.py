@@ -235,7 +235,7 @@ class FreeFormValidationController:
         """
         if self._toast_service is not None:
             self._toast_service.show(
-                message="Обнаружены символы не из PC866",
+                message="Non-PC866 characters detected",
                 level=ToastLevel.WARNING,
             )
 
@@ -246,9 +246,9 @@ class FreeFormValidationController:
         """
         if self._toast_service is not None:
             count = self._last_fixed_count
-            message = f"Исправлено {count} символ" + ("ов" if count > 1 else "")
-            if count == 1:
-                message = "Исправлен 1 символ"
+            message = f"Fixed {count} character" + ("s" if count != 1 else "")
+            if count == 0:
+                message = "No characters fixed"
             self._toast_service.show(
                 message=message,
                 level=ToastLevel.SUCCESS,

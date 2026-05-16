@@ -2,7 +2,7 @@
 
 Предоставляет простой интерфейс для настройки:
 - Интервал авто-сохранения (минуты)
-- Тема оформления
+- Theme оформления
 - Размер бумаги по умолчанию
 
 Example:
@@ -51,7 +51,7 @@ class SettingsDialog(BaseDialog):
             parent: Родительский виджет.
             current_settings: Текущие значения настроек.
         """
-        super().__init__(parent, title="Настройки", modal=True, center_on_parent=True)
+        super().__init__(parent, title="Settings", modal=True, center_on_parent=True)
         self._settings: Dict[str, Any] = dict(current_settings) if current_settings else {}
         self._build_ui()
 
@@ -61,7 +61,7 @@ class SettingsDialog(BaseDialog):
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Auto-save interval
-        ttk.Label(frame, text="Интервал авто-сохранения (мин, 0 = выкл):").grid(
+        ttk.Label(frame, text="Auto-save interval (min, 0 = off):").grid(
             row=0, column=0, sticky=tk.W, pady=5
         )
         self._auto_save_var = tk.IntVar(
@@ -73,11 +73,11 @@ class SettingsDialog(BaseDialog):
         self._auto_save_spin.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
 
         # Theme
-        ttk.Label(frame, text="Тема оформления:").grid(
-            row=1, column=0, sticky=tk.W, pady=5
-        )
+        ttk.Label(frame, text="Theme:").grid(row=1, column=0, sticky=tk.W, pady=5)
         themes = ThemeRegistry.get_instance().list_themes()
-        self._theme_var = tk.StringVar(master=self, value=self._settings.get("theme", DEFAULT_THEME))
+        self._theme_var = tk.StringVar(
+            master=self, value=self._settings.get("theme", DEFAULT_THEME)
+        )
         self._theme_combo = ttk.Combobox(
             frame, textvariable=self._theme_var, values=themes, state="readonly", width=20
         )
@@ -86,9 +86,7 @@ class SettingsDialog(BaseDialog):
             self._theme_var.set(themes[0])
 
         # Default paper size
-        ttk.Label(frame, text="Размер бумаги по умолчанию:").grid(
-            row=2, column=0, sticky=tk.W, pady=5
-        )
+        ttk.Label(frame, text="Default paper size:").grid(row=2, column=0, sticky=tk.W, pady=5)
         paper_sizes = [p.name for p in PaperSize]
         self._paper_var = tk.StringVar(
             value=self._settings.get("default_paper_size", DEFAULT_PAPER_SIZE)
@@ -102,8 +100,8 @@ class SettingsDialog(BaseDialog):
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=3, column=0, columnspan=2, pady=15)
 
-        ttk.Button(btn_frame, text="Сохранить", command=self._on_save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Save", command=self._on_save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.LEFT, padx=5)
 
     def _on_save(self) -> None:
         """Сохраняет настройки и закрывает диалог."""
@@ -118,7 +116,7 @@ class SettingsDialog(BaseDialog):
             "default_paper_size": self._paper_var.get(),
         }
 
-        messagebox.showinfo("Настройки", "Настройки успешно сохранены.")
+        messagebox.showinfo("Settings", "Settings saved successfully.")
         logger.info("Настройки сохранены: %s", result)
         self.close(result)
 

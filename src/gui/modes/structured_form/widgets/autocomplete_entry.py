@@ -130,10 +130,11 @@ class AutocompleteEntry(BaseField):
         self._current_query: str = ""
         self._selected_index: int = -1
         self._suggestions: list[tuple[str, int]] = []
+        self._pending_hide_id: Optional[str] = None
 
         # Tkinter виджеты
         self._entry: Optional[tk.Entry] = None
-        self._text_var: tk.StringVar = tk.StringVar()
+        self._text_var: tk.StringVar = tk.StringVar(master=self)
         self._text_var.trace_add("write", self._on_text_change_trace)
 
         # Создаём содержимое после инициализации base_field
@@ -153,6 +154,7 @@ class AutocompleteEntry(BaseField):
             borderwidth=1,
         )
         self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self._entry.bind("<Destroy>", lambda _e: self._cancel_hide_popup(), add=True)
 
         # Lookup button (только если доступен document_service)
         self._lookup_btn: Optional[tk.Button] = None
@@ -272,6 +274,16 @@ class AutocompleteEntry(BaseField):
         self._suggestions_list.bind("<Return>", self._on_popup_select)
         self._suggestions_list.bind("<FocusOut>", self._on_popup_focus_out)
 
+    def _cancel_hide_popup(self) -> None:
+        """Отменяет отложенное скрытие popup."""
+        if self._pending_hide_id is not None:
+            try:
+                if self._entry is not None:
+                    self._entry.after_cancel(self._pending_hide_id)
+            except tk.TclError:
+                pass
+            self._pending_hide_id = None
+
     def _hide_popup(self) -> None:
         """Скрывает popup и очищает ссылки."""
         if self._popup is not None:
@@ -289,7 +301,8 @@ class AutocompleteEntry(BaseField):
         """
         _ = event
         if self._entry is not None:
-            self._entry.after(100, self._hide_popup)
+            self._cancel_hide_popup()
+            self._pending_hide_id = self._entry.after(100, self._hide_popup)
 
     def _on_popup_select(self, event: tk.Event[Any]) -> None:
         """Обработчик выбора из popup мышью или Enter.
@@ -445,7 +458,8 @@ class AutocompleteEntry(BaseField):
         """
         _ = event
         if self._entry is not None:
-            self._entry.after(150, self._hide_popup)
+            self._cancel_hide_popup()
+            self._pending_hide_id = self._entry.after(150, self._hide_popup)
             value = self._text_var.get()
             self.set_value(value)
 

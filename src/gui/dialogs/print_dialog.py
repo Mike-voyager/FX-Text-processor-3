@@ -18,7 +18,8 @@ from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.dialogs.print_settings import PrintDialogResult, PrintSettings
 from src.gui.layout.layout_constants import PADDING_NORMAL, PADDING_SMALL
 from src.model.document import Document
-from src.printer.printer_manager import PrinterInfo, PrinterManager
+from src.printer.printer_manager import PrinterManager
+from src.printer.printer_protocol import PrinterInfo
 from src.services.print_queue_service import PrintPriority, PrintQueueService
 
 
@@ -45,7 +46,7 @@ class PrintDialog(BaseDialog):
         document_renderer: DocumentRenderer,
         print_queue: PrintQueueService,
         theme: str = "classic_green",
-        **kwargs,
+        **kwargs: Any,
     ):
         """Инициализация диалога печати.
 
@@ -55,10 +56,10 @@ class PrintDialog(BaseDialog):
             document: Документ для печати.
             document_renderer: Рендерер документов.
             print_queue: Сервис очереди печати.
-            theme: Тема оформления.
+            theme: Theme оформления.
         """
         kwargs.pop("theme", None)  # theme не передаём в Toplevel
-        super().__init__(parent, title="Печать", **kwargs)
+        super().__init__(parent, title="Print", **kwargs)
 
         self._theme = theme
         self._printer_manager = printer_manager
@@ -93,10 +94,10 @@ class PrintDialog(BaseDialog):
         self._tab_test = ttk.Frame(self.notebook)
         self._tab_preview = ttk.Frame(self.notebook)
 
-        self.notebook.add(self._tab_printer, text="Принтер")
-        self.notebook.add(self._tab_params, text="Параметры документа")
-        self.notebook.add(self._tab_test, text="Тест")
-        self.notebook.add(self._tab_preview, text="Предпросмотр")
+        self.notebook.add(self._tab_printer, text="Printer")
+        self.notebook.add(self._tab_params, text="Document Parameters")
+        self.notebook.add(self._tab_test, text="Test")
+        self.notebook.add(self._tab_preview, text="Preview")
 
         self._build_printer_tab()
         self._build_params_tab()
@@ -108,13 +109,11 @@ class PrintDialog(BaseDialog):
         self.button_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=PADDING_SMALL)
 
         self.btn_cancel = ttk.Button(
-            self.button_frame, text="Отмена", command=lambda: self.close(result=None)
+            self.button_frame, text="Cancel", command=lambda: self.close(result=None)
         )
         self.btn_cancel.pack(side=tk.RIGHT, padx=PADDING_SMALL)
 
-        self.btn_print = ttk.Button(
-            self.button_frame, text="Печать", command=self._on_print_clicked
-        )
+        self.btn_print = ttk.Button(self.button_frame, text="Print", command=self._on_print_clicked)
         self.btn_print.pack(side=tk.RIGHT, padx=PADDING_SMALL)
 
     def _build_printer_tab(self) -> None:
@@ -123,39 +122,39 @@ class PrintDialog(BaseDialog):
         container.pack(fill=tk.BOTH, expand=True, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
 
         # Секция выбора адаптера и принтера
-        adapter_frame = ttk.LabelFrame(container, text="Выбор устройства")
+        adapter_frame = ttk.LabelFrame(container, text="Device Selection")
         adapter_frame.pack(fill=tk.X, pady=PADDING_SMALL)
 
-        ttk.Label(adapter_frame, text="Адаптер:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self._settings_vars["adapter"] = tk.StringVar(master=self, value="Все")
+        ttk.Label(adapter_frame, text="Adapter:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self._settings_vars["adapter"] = tk.StringVar(master=self, value="All")
         self.adapter_combo = ttk.Combobox(
             adapter_frame,
             textvariable=self._settings_vars["adapter"],
-            values=["Все", "cups", "win32", "file"],
+            values=["All", "cups", "win32", "file"],
             state="readonly",
         )
         self.adapter_combo.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
         self.adapter_combo.bind("<<ComboboxSelected>>", self._update_printer_list)
 
-        ttk.Label(adapter_frame, text="Принтер:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self._settings_vars["printer_id"] = tk.StringVar()
+        ttk.Label(adapter_frame, text="Printer:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self._settings_vars["printer_id"] = tk.StringVar(master=self)
         self.printer_combo = ttk.Combobox(
             adapter_frame, textvariable=self._settings_vars["printer_id"], state="readonly"
         )
         self.printer_combo.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
 
         # Секция дополнительных настроек
-        opts_frame = ttk.LabelFrame(container, text="Опции печати")
+        opts_frame = ttk.LabelFrame(container, text="Print Options")
         opts_frame.pack(fill=tk.X, pady=PADDING_SMALL)
 
-        ttk.Label(opts_frame, text="Копии:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(opts_frame, text="Copies:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         self._settings_vars["copies"] = tk.IntVar(master=self, value=1)
         self.copies_spin = ttk.Spinbox(
             opts_frame, from_=1, to=99, textvariable=self._settings_vars["copies"], width=5
         )
         self.copies_spin.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
 
-        ttk.Label(opts_frame, text="Приоритет:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(opts_frame, text="Priority:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self._settings_vars["priority"] = tk.StringVar(master=self, value=PrintPriority.NORMAL.name)
         self.priority_combo = ttk.Combobox(
             opts_frame,
@@ -167,7 +166,7 @@ class PrintDialog(BaseDialog):
 
         self._settings_vars["page_by_page"] = tk.BooleanVar(master=self, value=False)
         self.page_by_page_check = ttk.Checkbutton(
-            opts_frame, text="Постраничная печать", variable=self._settings_vars["page_by_page"]
+            opts_frame, text="Page-by-page printing", variable=self._settings_vars["page_by_page"]
         )
         self.page_by_page_check.grid(row=2, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
 
@@ -178,18 +177,18 @@ class PrintDialog(BaseDialog):
 
         settings = RenderSettings()  # Дефолтные настройки
 
-        info_frame = ttk.LabelFrame(container, text="Текущие настройки документа")
+        info_frame = ttk.LabelFrame(container, text="Current Document Settings")
         info_frame.pack(fill=tk.X, pady=PADDING_SMALL)
 
         paper = getattr(settings, "paper_type", None)
-        paper_str = paper.name if paper else "Стандарт"
+        paper_str = paper.name if paper else "Standard"
 
         params = [
             ("CPI", f"{settings.cpi.value} CPI"),
-            ("Качество", f"{settings.quality.name}"),
-            ("Кодовая страница", f"{settings.codepage.name}"),
-            ("Поля", f"L: {settings.margins.left}, R: {settings.margins.right}"),
-            ("Тип бумаги", paper_str),
+            ("Quality", f"{settings.quality.name}"),
+            ("Codepage", f"{settings.codepage.name}"),
+            ("Margins", f"L: {settings.margins.left}, R: {settings.margins.right}"),
+            ("Paper Type", paper_str),
         ]
 
         for i, (label, value) in enumerate(params):
@@ -210,7 +209,7 @@ class PrintDialog(BaseDialog):
 
         hint_label = ttk.Label(
             container,
-            text="Для изменения настроек используйте Format Toolbar или Page Setup Dialog",
+            text="To change settings, use the Format Toolbar or Page Setup Dialog",
             foreground="grey",
             font=("Arial", 9, "italic"),
         )
@@ -222,17 +221,17 @@ class PrintDialog(BaseDialog):
         container.pack(fill=tk.BOTH, expand=True, padx=PADDING_NORMAL, pady=PADDING_NORMAL)
 
         info_text = (
-            "Тестовая страница ESC/P проверяет корректность связи с принтером\n"
-            "и правильность интерпретации команд. Включает:\n"
-            "• ESC @ (Сброс принтера)\n"
-            "• Таблицу символов выбранной кодировки\n"
-            "• Тест различных CPI и стилей шрифта"
+            "ESC/P test page checks printer connectivity\n"
+            "and command interpretation. Includes:\n"
+            "• ESC @ (Printer reset)\n"
+            "• Selected codepage character table\n"
+            "• Various CPI and font style tests"
         )
         ttk.Label(container, text=info_text, justify=tk.LEFT).pack(pady=PADDING_NORMAL, anchor=tk.W)
 
         self._settings_vars["print_test_page"] = tk.BooleanVar(master=self, value=False)
         self.btn_test_print = ttk.Button(
-            container, text="Печать тестовой страницы", command=self._on_test_print_clicked
+            container, text="Print test page", command=self._on_test_print_clicked
         )
         self.btn_test_print.pack(pady=PADDING_NORMAL)
 
@@ -265,7 +264,7 @@ class PrintDialog(BaseDialog):
         # Получаем все доступные принтеры
         all_printers = self._printer_manager.get_available_printers()
 
-        if selected_adapter == "Все":
+        if selected_adapter == "All":
             self._available_printers = all_printers
         else:
             self._available_printers = [
@@ -289,7 +288,7 @@ class PrintDialog(BaseDialog):
 
     def _on_tab_changed(self, event: Any) -> None:
         """Обновляет содержимое вкладок при переключении."""
-        tab_id = self.notebook.index(self.notebook.select())
+        tab_id = self.notebook.index(self.notebook.select())  # type: ignore[no-untyped-call]
         if tab_id == 3:  # Tab Предпросмотр
             if self._preview_widget:
                 self._preview_widget.show_document(self._document)
@@ -336,4 +335,7 @@ class PrintDialog(BaseDialog):
             PrintDialogResult если пользователь нажал Печать, None иначе.
         """
         super().show()
-        return self.get_result()
+        result = self.get_result()
+        if isinstance(result, PrintDialogResult):
+            return result
+        return None

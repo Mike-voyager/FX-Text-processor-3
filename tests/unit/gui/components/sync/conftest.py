@@ -18,14 +18,12 @@ def _ensure_namespace() -> None:
     _components_dir = str(_repo_root / "src" / "gui" / "components")
 
     # src.gui.components
-    if "src.gui.components" in sys.modules:
-        mod = sys.modules["src.gui.components"]
-        if not hasattr(mod, "__path__"):
-            mod.__path__ = [_components_dir]
-    else:
-        pkg = types.ModuleType("src.gui.components")
-        pkg.__path__ = [_components_dir]
-        sys.modules["src.gui.components"] = pkg
+    if "src.gui.components" not in sys.modules:
+        import src.gui.components  # noqa: F401
+
+    mod = sys.modules["src.gui.components"]
+    if not hasattr(mod, "__path__"):
+        mod.__path__ = [_components_dir]
 
     # src.gui.components.sync
     sync_dir = str(_repo_root / "src" / "gui" / "components" / "sync")

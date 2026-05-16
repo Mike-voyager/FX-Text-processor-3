@@ -29,14 +29,12 @@ import tkinter as tk
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from functools import partial
-from typing import TYPE_CHECKING, Callable, Final, Optional, Protocol
+from typing import TYPE_CHECKING, Final, Optional, Protocol
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.workflow.constants import ROLE_COLORS, ROLE_NAMES_RU
 
 if TYPE_CHECKING:
-    from src.controller.workflow_controller import WorkflowRole
     from src.gui.core.protocols import ControllerProtocol
 
 
@@ -177,7 +175,7 @@ _ANNOTATION_ICONS: Final[dict[AnnotationType, str]] = {
     AnnotationType.SIGNATURE: "🔏",
 }
 
-# Цвет для типов аннотаций
+# Color для типов аннотаций
 _ANNOTATION_COLORS: Final[dict[AnnotationType, str]] = {
     AnnotationType.COMMENT: "#3498db",  # Синий
     AnnotationType.REMARK: "#f39c12",  # Оранжевый
@@ -185,7 +183,7 @@ _ANNOTATION_COLORS: Final[dict[AnnotationType, str]] = {
     AnnotationType.SIGNATURE: "#e74c3c",  # Красный
 }
 
-# Цвета статусов аннотации
+# Colorа статусов аннотации
 _STATUS_COLORS: Final[dict[AnnotationStatus, str]] = {
     AnnotationStatus.OPEN: "#e74c3c",  # Красный
     AnnotationStatus.CLOSED: "#7f8c8d",  # Серый
@@ -252,7 +250,7 @@ class WorkflowAnnotationPanel(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._main_frame is None:
-            raise RuntimeError("WorkflowAnnotationPanel не смонтирован")
+            raise RuntimeError("WorkflowAnnotationPanel not mounted")
         return self._main_frame
 
     def __init__(
@@ -347,7 +345,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
         self._toggle_all_btn = tk.Button(
             header,
-            text="Показать историю",
+            text="Show history",
             font=("TkDefaultFont", 8),
             command=self._toggle_all_history,
         )
@@ -363,9 +361,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         scroll_frame.pack(fill=tk.BOTH, expand=True)
 
         self._canvas = tk.Canvas(scroll_frame, highlightthickness=0)
-        scrollbar = tk.Scrollbar(
-            scroll_frame, orient=tk.VERTICAL, command=self._canvas.yview
-        )
+        scrollbar = tk.Scrollbar(scroll_frame, orient=tk.VERTICAL, command=self._canvas.yview)
 
         self._annotations_frame = tk.Frame(self._canvas, padx=3, pady=3)
         self._annotations_frame.bind(
@@ -396,7 +392,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         Args:
             parent: Родительский фрейм.
         """
-        add_frame = tk.LabelFrame(parent, text="Добавить аннотацию", padx=5, pady=5)
+        add_frame = tk.LabelFrame(parent, text="Add annotation", padx=5, pady=5)
         add_frame.pack(fill=tk.X, pady=(5, 0))
 
         # Выбор типа
@@ -425,7 +421,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
         tk.Button(
             btn_frame,
-            text="Добавить",
+            text="Add",
             bg="#3498db",
             fg="white",
             font=("TkDefaultFont", 9, "bold"),
@@ -437,8 +433,7 @@ class WorkflowAnnotationPanel(BaseWidget):
     # -------------------------------------------------------------------------
 
     def _update_display(self) -> None:
-        """Обновляет отображение списка аннотаций.
-        """
+        """Обновляет отображение списка аннотаций."""
         if self._annotations_frame is None:
             return
 
@@ -449,7 +444,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         if not self._annotations:
             tk.Label(
                 self._annotations_frame,
-                text="Нет аннотаций",
+                text="No annotations",
                 fg="#7f8c8d",
                 font=("TkDefaultFont", 10, "italic"),
             ).pack(pady=20)
@@ -569,16 +564,17 @@ class WorkflowAnnotationPanel(BaseWidget):
 
         if annotation.status == AnnotationStatus.OPEN:
             from functools import partial
+
             tk.Button(
                 actions,
-                text="Ответить",
+                text="Reply",
                 font=("TkDefaultFont", 8),
                 command=partial(self._on_reply_clicked, annotation.annotation_id),
             ).pack(side=tk.LEFT, padx=(0, 5))
 
             tk.Button(
                 actions,
-                text="Закрыть",
+                text="Close",
                 font=("TkDefaultFont", 8),
                 bg="#27ae60",
                 fg="white",
@@ -592,7 +588,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
             history_btn = tk.Button(
                 card,
-                text=f"История ({len(annotation.replies)}) {'▼' if visible else '▶'}",
+                text=f"History ({len(annotation.replies)}) {'▼' if visible else '▶'}",
                 font=("TkDefaultFont", 8),
                 bg="white",
                 command=partial(self._toggle_history, annotation.annotation_id),
@@ -602,9 +598,7 @@ class WorkflowAnnotationPanel(BaseWidget):
             if visible:
                 self._create_replies_section(card, annotation.replies)
 
-    def _create_replies_section(
-        self, parent: tk.Frame, replies: list[WorkflowAnnotation]
-    ) -> None:
+    def _create_replies_section(self, parent: tk.Frame, replies: list[WorkflowAnnotation]) -> None:
         """Создаёт секцию ответов внутри карточки.
 
         Args:
@@ -685,8 +679,7 @@ class WorkflowAnnotationPanel(BaseWidget):
     # -------------------------------------------------------------------------
 
     def _on_add_clicked(self) -> None:
-        """Обрабатывает нажатие кнопки добавления аннотации.
-        """
+        """Обрабатывает нажатие кнопки добавления аннотации."""
         if self._input_text is None or self._type_var is None:
             return
 
@@ -743,7 +736,11 @@ class WorkflowAnnotationPanel(BaseWidget):
             text_widget.pack(side=tk.LEFT, fill=tk.X, expand=True)
             self._reply_texts[reply_key] = text_widget
 
-            def send_reply(aid: str = annotation_id, tw: tk.Text = text_widget, rf: tk.Frame = reply_frame) -> None:
+            def send_reply(
+                aid: str = annotation_id,
+                tw: tk.Text = text_widget,
+                rf: tk.Frame = reply_frame,
+            ) -> None:
                 text = tw.get("1.0", tk.END).strip()
                 if not text:
                     return
@@ -754,7 +751,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
             tk.Button(
                 reply_frame,
-                text="Отправить",
+                text="Send",
                 font=("TkDefaultFont", 8),
                 command=send_reply,
             ).pack(side=tk.RIGHT, padx=(5, 0))
@@ -856,8 +853,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         self._update_display()
 
     def _toggle_all_history(self) -> None:
-        """Переключает видимость истории для всех аннотаций.
-        """
+        """Переключает видимость истории для всех аннотаций."""
         if not self._annotations:
             return
 
@@ -915,8 +911,7 @@ class WorkflowAnnotationPanel(BaseWidget):
     # -------------------------------------------------------------------------
 
     def _cleanup(self) -> None:
-        """Очищает ресурсы и callback'и перед демонтированием.
-        """
+        """Очищает ресурсы и callback'и перед демонтированием."""
         self._annotations = []
         self._on_add = None
         self._on_resolve = None

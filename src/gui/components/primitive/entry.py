@@ -5,7 +5,7 @@
 с Controller через SmartBaseWidget.
 
 Classes:
-    ThemedEntry: Тематизированное поле ввода текста с локальным состоянием.
+    ThemedEntry: Themeтизированное поле ввода текста с локальным состоянием.
 
 Example:
     >>> entry = ThemedEntry(
@@ -34,7 +34,7 @@ from src.gui.themes import get_theme_manager
 
 
 class ThemedEntry(SmartBaseWidget):
-    """Тематизированное поле ввода текста с локальным состоянием.
+    """Themeтизированное поле ввода текста с локальным состоянием.
 
     Расширяет SmartBaseWidget, добавляя функциональность поля ввода:
     - Placeholder текст (подсказка при пустом поле)
@@ -305,7 +305,7 @@ class ThemedEntry(SmartBaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="enter_edit_mode",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         self._is_editing = True
@@ -330,7 +330,7 @@ class ThemedEntry(SmartBaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="exit_edit_mode",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         self._is_editing = False
@@ -355,7 +355,7 @@ class ThemedEntry(SmartBaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="sync_to_model",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         text = self.get_edit_value()
@@ -381,7 +381,7 @@ class ThemedEntry(SmartBaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="get_edit_value",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         return self.get_text()
@@ -399,7 +399,7 @@ class ThemedEntry(SmartBaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_edit_value",
-                message=f"Виджет '{self._widget_id}' не смонтирован",
+                message=f"Widget '{self._widget_id}' not mounted",
             )
 
         self.set_text(value)

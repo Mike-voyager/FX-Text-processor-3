@@ -98,6 +98,7 @@ class TreeItemSyncIndicator:
         self._after_id: Optional[str] = None
         self._anim_frame = 0
         self._current_icon = self._icons.get(status, "")
+        self._tree.bind("<Destroy>", lambda _e: self._cancel_animation(), add=True)
         self._apply(status)
 
     @property
@@ -149,9 +150,7 @@ class TreeItemSyncIndicator:
         self._anim_frame += 1
         if self._on_animation_step is not None:
             self._on_animation_step(self._item_id)
-        self._after_id = self._tree.after(
-            SYNC_ANIMATION_INTERVAL, self._step_animation
-        )
+        self._after_id = self._tree.after(SYNC_ANIMATION_INTERVAL, self._step_animation)
 
     def _cancel_animation(self) -> None:
         """Отменяет текущую анимацию и сбрасывает счётчик кадров."""

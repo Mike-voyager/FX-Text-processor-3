@@ -3,17 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
-from src.gui.modes.base import BaseModeRenderer
-from src.gui.modes.free_form.renderer import FreeFormRenderer
-from src.gui.modes.protocols import (
-    ModeState,
-)
-from src.gui.modes.structured_form.renderer import StructuredFormRenderer
-
-if TYPE_CHECKING:
-    from src.model.enums import DocumentMode
+from src.documents.types.document_type import DocumentMode
+from src.gui.modes.free_form.renderer import FreeFormModeRenderer
+from src.gui.modes.protocols import ModeState
+from src.gui.modes.structured_form.renderer import StructuredFormModeRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +26,7 @@ class ModeIntegration:
     def __init__(self) -> None:
         """Инициализирует интегратор режимов."""
         self._current_mode: Optional[DocumentMode] = None
-        self._current_renderer: Optional[BaseModeRenderer] = None
+        self._current_renderer: Optional[Any] = None
         self._state_cache: Dict[DocumentMode, ModeState] = {}
         self._viewport_cache: Dict[DocumentMode, Any] = {}
 
@@ -40,7 +35,7 @@ class ModeIntegration:
         mode: DocumentMode,
         parent: Any,
         controller: Any,
-    ) -> BaseModeRenderer:
+    ) -> Any:
         """Переключает режим документа.
 
         Args:
@@ -60,22 +55,24 @@ class ModeIntegration:
         # Check cache
         if mode in self._state_cache:
             state = self._state_cache[mode]
-            renderer_cls: type[BaseModeRenderer]
-            if mode == getattr(DocumentMode, "FREE_FORM", None) or str(mode) == "free_form":
-                renderer_cls = FreeFormRenderer
+            renderer: Any
+            if str(mode) == DocumentMode.FREE_FORM.value:
+                renderer = FreeFormModeRenderer(parent, controller)
             else:
-                renderer_cls = StructuredFormRenderer
+                renderer = StructuredFormModeRenderer(parent, controller)
 
-            renderer = renderer_cls(parent, controller)
-            renderer.restore_state(state)
+            try:
+                renderer.restore_state(state)
+            except AttributeError:
+                pass
             self._current_renderer = renderer
             return renderer
 
         # Create new
-        if mode == getattr(DocumentMode, "FREE_FORM", None) or str(mode) == "free_form":
-            renderer = FreeFormRenderer(parent, controller)
+        if str(mode) == DocumentMode.FREE_FORM.value:
+            renderer = FreeFormModeRenderer(parent, controller)
         else:
-            renderer = StructuredFormRenderer(parent, controller)
+            renderer = StructuredFormModeRenderer(parent, controller)
 
         self._current_renderer = renderer
         return renderer
@@ -86,8 +83,8 @@ class ModeIntegration:
             return
         try:
             self._viewport_cache[self._current_mode] = self._current_renderer.get_viewport()
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("Viewport save failed: %s", e)
+        except (AttributeError, RuntimeError) as exc:
+            logger.debug("Viewport save failed: %s", exc)
 
     def save_state(self) -> None:
         """Сохраняет состояние текущего режима."""
@@ -99,9 +96,9 @@ class ModeIntegration:
             if hasattr(self._current_renderer, "get_content"):
                 try:
                     content = self._current_renderer.get_content()
-                except (AttributeError, RuntimeError) as e:
+                except (AttributeError, RuntimeError) as exc:
                     # Игнорируем ошибки получения контента
-                    logger.debug("get_content failed: %s", e)
+                    logger.debug("get_content failed: %s", exc)
 
             state = ModeState(
                 mode=self._current_mode,
@@ -110,9 +107,9 @@ class ModeIntegration:
                 is_dirty=getattr(self._current_renderer, "is_dirty", False),
             )
             self._state_cache[self._current_mode] = state
-        except (AttributeError, RuntimeError) as e:
+        except (AttributeError, RuntimeError) as exc:
             # Игнорируем ошибки сохранения состояния
-            logger.debug("State save failed: %s", e)
+            logger.debug("State save failed: %s", exc)
             logger.exception("State save failed")
 
     def get_saved_state(self, mode: DocumentMode) -> Optional[ModeState]:
@@ -127,7 +124,7 @@ class ModeIntegration:
         return self._state_cache.get(mode)
 
     @property
-    def current_renderer(self) -> Optional[BaseModeRenderer]:
+    def current_renderer(self) -> Optional[Any]:
         """Текущий активный рендерер."""
         return self._current_renderer
 
@@ -140,5 +137,6 @@ class ModeIntegration:
         """Очищает весь кэш состояний."""
         self._state_cache.clear()
         self._viewport_cache.clear()
+
 
 __all__ = ["ModeIntegration"]

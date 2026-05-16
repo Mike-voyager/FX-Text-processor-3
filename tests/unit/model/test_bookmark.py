@@ -188,6 +188,58 @@ class TestBookmarkManager:
         assert len(manager.get_all_bookmarks()) == 1
         assert manager.get_bookmark("Bookmark1") is not None
 
+    def test_rename_bookmark(self) -> None:
+        """Переименование закладки."""
+        doc_id = uuid4()
+        manager = BookmarkManager(doc_id)
+
+        pos = DocumentPosition(paragraph_index=0, run_index=0, offset=10)
+        manager.add_bookmark("OldName", pos)
+
+        result = manager.rename_bookmark("OldName", "NewName")
+
+        assert result is not None
+        assert result.name == "NewName"
+        assert manager.get_bookmark("OldName") is None
+        assert manager.get_bookmark("NewName") is not None
+
+    def test_rename_nonexistent_bookmark(self) -> None:
+        """Переименование несуществующей закладки."""
+        doc_id = uuid4()
+        manager = BookmarkManager(doc_id)
+
+        result = manager.rename_bookmark("Missing", "New")
+
+        assert result is None
+
+    def test_rename_to_existing_name(self) -> None:
+        """Переименование в уже существующее имя."""
+        doc_id = uuid4()
+        manager = BookmarkManager(doc_id)
+
+        pos = DocumentPosition(paragraph_index=0, run_index=0, offset=10)
+        manager.add_bookmark("First", pos)
+        manager.add_bookmark("Second", pos)
+
+        with pytest.raises(ValueError, match="уже существует"):
+            manager.rename_bookmark("First", "Second")
+
+    def test_rename_preserves_created_at(self) -> None:
+        """Переименование сохраняет created_at."""
+        from datetime import datetime
+
+        doc_id = uuid4()
+        manager = BookmarkManager(doc_id)
+
+        pos = DocumentPosition(paragraph_index=0, run_index=0, offset=10)
+        bm = manager.add_bookmark("Original", pos)
+        original_created = bm.created_at
+
+        renamed = manager.rename_bookmark("Original", "Renamed")
+
+        assert renamed is not None
+        assert renamed.created_at == original_created
+
 
 class TestDocumentPosition:
     """Тесты для DocumentPosition."""

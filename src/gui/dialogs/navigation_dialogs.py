@@ -111,7 +111,7 @@ class GotoDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title("Перейти к")
+        self.title("Go To")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -131,13 +131,13 @@ class GotoDialog(BaseDialog):
         # Header
         header = ttk.Label(
             main_frame,
-            text="Перейти к позиции",
+            text="Go To Position",
             font=("Helvetica", 12, "bold"),
         )
         header.pack(anchor="w", pady=(0, 10))
 
         # Current position info
-        info_text = f"Текущая позиция: страница {self._current_page} из {self._total_pages}"
+        info_text = f"Current position: page {self._current_page} of {self._total_pages}"
         if self._total_lines:
             info_text += f", {self._total_lines} строк"
         ttk.Label(main_frame, text=info_text, foreground="gray").pack(anchor="w", pady=(0, 10))
@@ -148,36 +148,36 @@ class GotoDialog(BaseDialog):
 
         # Page tab
         page_tab = ttk.Frame(notebook, padding="10")
-        notebook.add(page_tab, text="Страница")
+        notebook.add(page_tab, text="Page")
         self._create_page_tab(page_tab)
 
         # Line tab (if available)
         if self._total_lines:
             line_tab = ttk.Frame(notebook, padding="10")
-            notebook.add(line_tab, text="Строка")
+            notebook.add(line_tab, text="Line")
             self._create_line_tab(line_tab)
 
         # Percent tab
         percent_tab = ttk.Frame(notebook, padding="10")
-        notebook.add(percent_tab, text="% документа")
+        notebook.add(percent_tab, text="% of Document")
         self._create_percent_tab(percent_tab)
 
         # Bookmarks tab (if available)
         if self._bookmarks:
             bookmark_tab = ttk.Frame(notebook, padding="10")
-            notebook.add(bookmark_tab, text="Закладки")
+            notebook.add(bookmark_tab, text="Bookmarks")
             self._create_bookmark_tab(bookmark_tab)
 
         # Buttons
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X)
 
-        ttk.Button(btn_frame, text="Перейти", command=self._on_ok).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Go To", command=self._on_ok).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
     def _create_page_tab(self, parent: ttk.Frame) -> None:
         """Создаёт вкладку перехода по странице."""
-        ttk.Label(parent, text="Номер страницы:", font=("Helvetica", 10, "bold")).pack(
+        ttk.Label(parent, text="Page number:", font=("Helvetica", 10, "bold")).pack(
             anchor="w", pady=(0, 5)
         )
 
@@ -191,27 +191,25 @@ class GotoDialog(BaseDialog):
         )
         page_spin.pack(anchor="w", pady=(0, 5))
 
-        ttk.Label(parent, text=f"Диапазон: 1-{self._total_pages}", foreground="gray").pack(
-            anchor="w"
-        )
+        ttk.Label(parent, text=f"Range: 1-{self._total_pages}", foreground="gray").pack(anchor="w")
 
         # Quick buttons
         quick_frame = ttk.Frame(parent)
         quick_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Button(quick_frame, text="Начало", command=lambda: self._page_var.set(1)).pack(
+        ttk.Button(quick_frame, text="Start", command=lambda: self._page_var.set(1)).pack(
             side=tk.LEFT, padx=(0, 5)
         )
         ttk.Button(
-            quick_frame, text="Текущая", command=lambda: self._page_var.set(self._current_page)
+            quick_frame, text="Current", command=lambda: self._page_var.set(self._current_page)
         ).pack(side=tk.LEFT, padx=5)
         ttk.Button(
-            quick_frame, text="Конец", command=lambda: self._page_var.set(self._total_pages)
+            quick_frame, text="End", command=lambda: self._page_var.set(self._total_pages)
         ).pack(side=tk.LEFT, padx=5)
 
     def _create_line_tab(self, parent: ttk.Frame) -> None:
         """Создаёт вкладку перехода по строке."""
-        ttk.Label(parent, text="Номер строки:", font=("Helvetica", 10, "bold")).pack(
+        ttk.Label(parent, text="Line number:", font=("Helvetica", 10, "bold")).pack(
             anchor="w", pady=(0, 5)
         )
 
@@ -226,13 +224,13 @@ class GotoDialog(BaseDialog):
         line_spin.pack(anchor="w", pady=(0, 5))
 
         if self._total_lines:
-            ttk.Label(parent, text=f"Диапазон: 1-{self._total_lines}", foreground="gray").pack(
+            ttk.Label(parent, text=f"Range: 1-{self._total_lines}", foreground="gray").pack(
                 anchor="w"
             )
 
     def _create_percent_tab(self, parent: ttk.Frame) -> None:
         """Создаёт вкладку перехода по проценту."""
-        ttk.Label(parent, text="Позиция в документе:", font=("Helvetica", 10, "bold")).pack(
+        ttk.Label(parent, text="Position in document:", font=("Helvetica", 10, "bold")).pack(
             anchor="w", pady=(0, 5)
         )
 
@@ -259,16 +257,19 @@ class GotoDialog(BaseDialog):
         quick_frame = ttk.Frame(parent)
         quick_frame.pack(fill=tk.X, pady=(10, 0))
 
+        def _make_percent_cmd(value: int) -> Callable[[], None]:
+            return lambda: self._percent_var.set(value)
+
         for percent in [0, 25, 50, 75, 100]:
             ttk.Button(
                 quick_frame,
                 text=f"{percent}%",
-                command=lambda p=percent: self._percent_var.set(p),
+                command=_make_percent_cmd(percent),
             ).pack(side=tk.LEFT, padx=(0, 5))
 
     def _create_bookmark_tab(self, parent: ttk.Frame) -> None:
         """Создаёт вкладку перехода по закладкам."""
-        ttk.Label(parent, text="Выберите закладку:", font=("Helvetica", 10, "bold")).pack(
+        ttk.Label(parent, text="Select bookmark:", font=("Helvetica", 10, "bold")).pack(
             anchor="w", pady=(0, 5)
         )
 
@@ -290,7 +291,7 @@ class GotoDialog(BaseDialog):
         # Populate bookmarks
         self._bookmark_map: dict[str, BookmarkItem] = {}
         for bookmark in self._bookmarks:
-            display = f"{bookmark.name} (стр. {bookmark.page})"
+            display = f"{bookmark.name} (page {bookmark.page})"
             self._bookmark_listbox.insert(tk.END, display)
             self._bookmark_map[display] = bookmark
 
@@ -298,7 +299,7 @@ class GotoDialog(BaseDialog):
 
     def _on_bookmark_selected(self) -> None:
         """Обработчик выбора закладки."""
-        selection = self._bookmark_listbox.curselection()
+        selection = self._bookmark_listbox.curselection()  # type: ignore[no-untyped-call]
         if selection:
             display = self._bookmark_listbox.get(selection[0])
             bookmark = self._bookmark_map.get(display)
@@ -324,7 +325,7 @@ class GotoDialog(BaseDialog):
 
         except (ValueError, TypeError) as e:
             logger.error("Goto error: %s", e)
-            messagebox.showerror("Ошибка", f"Некорректная позиция: {e}")
+            messagebox.showerror("Error", f"Invalid position: {e}")
 
     def _on_cancel(self) -> None:
         """Обработчик кнопки 'Отмена'."""
@@ -347,9 +348,10 @@ class BookmarksDialog(BaseDialog):
     Позволяет:
     - Просматривать все закладки
     - Добавлять новые закладки
-    - Редактировать существующие
+    - Переименовывать существующие
     - Удалять закладки
     - Переходить к закладке
+    - Искать закладки по имени
 
     Example:
         >>> dialog = BookmarksDialog(parent, bookmark_manager)
@@ -382,7 +384,7 @@ class BookmarksDialog(BaseDialog):
         self._parent: tk.Widget = parent
         self._bookmark_manager: BookmarkManager = bookmark_manager
         self._current_page: int = current_page
-        self._on_goto: Optional[Callable[[int, int], None]] = on_goto
+        self._on_goto_callback: Optional[Callable[[int, int], None]] = on_goto
         self._result: Optional[dict[str, Any]] = None
 
         self._create_ui()
@@ -391,8 +393,8 @@ class BookmarksDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        self.title("Закладки")
-        self.geometry("500x450")
+        self.title("Bookmarks")
+        self.geometry("550x480")
         self.minsize(450, 400)
 
     def _create_ui(self) -> None:
@@ -405,7 +407,7 @@ class BookmarksDialog(BaseDialog):
         # Header
         header = ttk.Label(
             main_frame,
-            text="Управление закладками",
+            text="Manage Bookmarks",
             font=("Helvetica", 12, "bold"),
         )
         header.pack(anchor="w", pady=(0, 10))
@@ -414,25 +416,26 @@ class BookmarksDialog(BaseDialog):
         toolbar = ttk.Frame(main_frame)
         toolbar.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Button(toolbar, text="Добавить", command=self._on_add).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(toolbar, text="Редактировать", command=self._on_edit).pack(side=tk.LEFT, padx=5)
-        ttk.Button(toolbar, text="Удалить", command=self._on_delete).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Add", command=self._on_add).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(toolbar, text="Rename", command=self._on_rename).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Delete", command=self._on_delete).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="Find", command=self._on_find).pack(side=tk.LEFT, padx=5)
 
         # Bookmarks list
-        list_frame = ttk.LabelFrame(main_frame, text="Закладки", padding="10")
+        list_frame = ttk.LabelFrame(main_frame, text="Bookmarks", padding="10")
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # Treeview
-        columns = ("name", "page", "description")
+        # Treeview: Name | Line | Added
+        columns = ("name", "line", "added")
         self._tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
 
-        self._tree.heading("name", text="Название")
-        self._tree.heading("page", text="Страница")
-        self._tree.heading("description", text="Описание")
+        self._tree.heading("name", text="Name")
+        self._tree.heading("line", text="Line")
+        self._tree.heading("added", text="Added")
 
-        self._tree.column("name", width=150)
-        self._tree.column("page", width=80, anchor="center")
-        self._tree.column("description", width=200)
+        self._tree.column("name", width=180)
+        self._tree.column("line", width=80, anchor="center")
+        self._tree.column("added", width=150, anchor="center")
 
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self._tree.yview)
         self._tree.configure(yscrollcommand=scrollbar.set)
@@ -447,10 +450,8 @@ class BookmarksDialog(BaseDialog):
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X)
 
-        ttk.Button(btn_frame, text="Перейти", command=self._on_goto).pack(
-            side=tk.RIGHT, padx=(10, 0)
-        )
-        ttk.Button(btn_frame, text="Закрыть", command=self._on_close).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Go To", command=self._on_goto).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(btn_frame, text="Close", command=self._on_close).pack(side=tk.RIGHT)
 
     def _load_bookmarks(self) -> None:
         """Загружает закладки в список."""
@@ -462,14 +463,15 @@ class BookmarksDialog(BaseDialog):
         try:
             bookmarks = self._bookmark_manager.get_all_bookmarks()
             for bookmark in bookmarks:
+                added_str = bookmark.created_at.strftime("%Y-%m-%d %H:%M")
                 self._tree.insert(
                     "",
                     tk.END,
-                    iid=bookmark.id,
+                    iid=bookmark.name,
                     values=(
                         bookmark.name,
-                        bookmark.page,
-                        bookmark.description or "",
+                        bookmark.paragraph_index,
+                        added_str,
                     ),
                 )
         except (ValueError, TypeError) as e:
@@ -481,99 +483,115 @@ class BookmarksDialog(BaseDialog):
         if not selection:
             return None
 
-        try:
-            return self._bookmark_manager.get_bookmark(selection[0])
-        except (ValueError, TypeError):
-            return None
+        return self._bookmark_manager.get_bookmark(selection[0])
 
     def _on_add(self) -> None:
         """Обработчик добавления закладки."""
-        # Simple dialog for name
         name = simpledialog.askstring(
-            "Новая закладка",
-            "Введите название закладки:",
+            "New Bookmark",
+            "Enter bookmark name:",
             parent=self,
         )
 
         if name:
             try:
-                bookmark = Bookmark(
-                    id="",  # Will be generated
-                    name=name,
-                    page=self._current_page,
-                    description="",
+                from src.model.bookmark import DocumentPosition
+
+                pos = DocumentPosition(
+                    paragraph_index=self._current_page,
+                    run_index=0,
+                    offset=0,
                 )
-                self._bookmark_manager.add_bookmark(bookmark)
+                self._bookmark_manager.add_bookmark(name, pos)
                 self._load_bookmarks()
-                logger.info("Bookmark added: %s (page %s)", name, self._current_page)
+                logger.info("Bookmark added: %s (line %s)", name, self._current_page)
             except (ValueError, TypeError) as e:
                 logger.error("Failed to add bookmark: %s", e)
-                messagebox.showerror("Ошибка", f"Не удалось добавить закладку: {e}")
+                messagebox.showerror("Error", f"Failed to add bookmark: {e}")
 
-
-
-    def _on_edit(self) -> None:
-        """Обработчик редактирования закладки."""
+    def _on_rename(self) -> None:
+        """Обработчик переименования закладки."""
         bookmark = self._get_selected_bookmark()
         if not bookmark:
-            messagebox.showwarning("Внимание", "Выберите закладку для редактирования")
+            messagebox.showwarning("Warning", "Select a bookmark to rename")
             return
 
-        name = simpledialog.askstring(
-            "Редактировать закладку",
-            "Название:",
+        new_name = simpledialog.askstring(
+            "Rename Bookmark",
+            "New name:",
             parent=self,
             initialvalue=bookmark.name,
         )
 
-        if name and name != bookmark.name:
+        if new_name and new_name != bookmark.name:
             try:
-                bookmark.name = name
-                self._bookmark_manager.update_bookmark(bookmark)
+                self._bookmark_manager.rename_bookmark(bookmark.name, new_name)
                 self._load_bookmarks()
-                logger.info("Bookmark updated: %s", bookmark.id)
+                # Select renamed item
+                if self._tree.exists(new_name):
+                    self._tree.selection_set(new_name)
+                    self._tree.focus(new_name)
+                logger.info("Bookmark renamed: %s -> %s", bookmark.name, new_name)
             except (ValueError, TypeError) as e:
-                logger.error("Failed to update bookmark: %s", e)
-                messagebox.showerror("Ошибка", f"Не удалось обновить закладку: {e}")
-
-
+                logger.error("Failed to rename bookmark: %s", e)
+                messagebox.showerror("Error", f"Failed to rename bookmark: {e}")
 
     def _on_delete(self) -> None:
         """Обработчик удаления закладки."""
         bookmark = self._get_selected_bookmark()
         if not bookmark:
-            messagebox.showwarning("Внимание", "Выберите закладку для удаления")
+            messagebox.showwarning("Warning", "Select a bookmark to delete")
             return
 
         if messagebox.askyesno(
-            "Подтверждение",
-            f"Удалить закладку '{bookmark.name}'?",
+            "Confirm",
+            f"Delete bookmark '{bookmark.name}'?",
         ):
             try:
-                self._bookmark_manager.remove_bookmark(bookmark.id)
+                self._bookmark_manager.remove_bookmark(bookmark.name)
                 self._load_bookmarks()
-                logger.info("Bookmark removed: %s", bookmark.id)
+                logger.info("Bookmark removed: %s", bookmark.name)
             except (ValueError, TypeError) as e:
                 logger.error("Failed to remove bookmark: %s", e)
-                messagebox.showerror("Ошибка", f"Не удалось удалить закладку: {e}")
+                messagebox.showerror("Error", f"Failed to delete bookmark: {e}")
 
+    def _on_find(self) -> None:
+        """Обработчик поиска закладки по имени."""
+        query = simpledialog.askstring(
+            "Find Bookmark",
+            "Search:",
+            parent=self,
+        )
 
+        if not query:
+            return
+
+        query_lower = query.lower()
+        for item_id in self._tree.get_children():
+            values = self._tree.item(item_id, "values")
+            if values and query_lower in str(values[0]).lower():
+                self._tree.selection_set(item_id)
+                self._tree.focus(item_id)
+                self._tree.see(item_id)
+                return
+
+        messagebox.showinfo("Find Bookmark", f"No bookmark matching '{query}' found.")
 
     def _on_goto(self) -> None:
         """Обработчик перехода к закладке."""
         bookmark = self._get_selected_bookmark()
         if not bookmark:
-            messagebox.showwarning("Внимание", "Выберите закладку")
+            messagebox.showwarning("Warning", "Select a bookmark")
             return
 
         self._result = {
             "action": "goto",
-            "page": bookmark.page,
-            "line": bookmark.line if hasattr(bookmark, "line") else 0,
+            "page": bookmark.paragraph_index,
+            "line": bookmark.paragraph_index,
         }
 
-        if self._on_goto:
-            self._on_goto(bookmark.page, 0)
+        if self._on_goto_callback:
+            self._on_goto_callback(bookmark.paragraph_index, bookmark.paragraph_index)
 
         self.destroy()
 

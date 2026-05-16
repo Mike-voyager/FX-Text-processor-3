@@ -169,7 +169,7 @@ class TestMessageLengthLimit:
         """show() с длинным сообщением вызывает ValueError."""
         long_message = "A" * (MAX_MESSAGE_LENGTH + 1)
 
-        with pytest.raises(ValueError, match="превышает максимальную длину"):
+        with pytest.raises(ValueError, match="exceeds maximum length"):
             toast_service.show(long_message)
 
     def test_show_toast_max_length_ok(self, toast_service: ToastService) -> None:

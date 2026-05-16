@@ -6,7 +6,7 @@
 
 Features:
     - Плавная анимация переключения
-    - Цветовая индикация режимов (зелёный/оранжевый)
+    - Colorовая индикация режимов (зелёный/оранжевый)
     - MFA challenge для входа в Special Mode
     - Защита от случайного переключения
     - Drag-and-drop поддержка
@@ -61,7 +61,7 @@ class ModeCapabilities:
 
     Attributes:
         title: Название режима для отображения.
-        color: Цвет индикации режима (hex).
+        color: Color индикации режима (hex).
         features: Список доступных функций.
     """
 
@@ -73,20 +73,20 @@ class ModeCapabilities:
 # Описание возможностей для каждого режима
 MODE_CAPABILITIES: dict[Mode, ModeCapabilities] = {
     Mode.NORMAL: ModeCapabilities(
-        title="Нормальный режим",
+        title="Normal mode",
         color="#00AA00",  # Зелёный
         features=(
-            "Создание и редактирование документов",
-            "Печать на Epson FX-890",
-            "Экспорт в PDF",
+            "Create and edit documents",
+            "Print on Epson FX-890",
+            "Export to PDF",
         ),
     ),
     Mode.SPECIAL: ModeCapabilities(
-        title="Специальный режим",
+        title="Special mode",
         color="#FFA500",  # Оранжевый
         features=(
-            "Управление шаблонами",
-            "Аудит журнал",
+            "Template management",
+            "Audit log",
             "Отладка печати",
             "Доступ к настройкам безопасности",
         ),
@@ -150,7 +150,7 @@ class ModeToggle(tk.Frame):
         self._dragging: bool = False
         self._drag_start_x: int = 0
 
-        # Цвета (будут обновлены из темы)
+        # Colorа (будут обновлены из темы)
         self._normal_color: str = MODE_CAPABILITIES[Mode.NORMAL].color
         self._special_color: str = MODE_CAPABILITIES[Mode.SPECIAL].color
         self._track_color: str = "#333333"
@@ -188,7 +188,7 @@ class ModeToggle(tk.Frame):
         # Левая метка (Normal)
         self._normal_label = tk.Label(
             self._toggle_frame,
-            text="Нормальный",
+            text="Normal",
             font=("Segoe UI", 10),
             cursor="hand2",
         )
@@ -210,7 +210,7 @@ class ModeToggle(tk.Frame):
         # Правая метка (Special)
         self._special_label = tk.Label(
             self._toggle_frame,
-            text="Специальный",
+            text="Special",
             font=("Segoe UI", 10),
             cursor="hand2",
         )
@@ -227,7 +227,7 @@ class ModeToggle(tk.Frame):
         # Frame для списка возможностей
         self._features_frame = tk.LabelFrame(
             self,
-            text="Доступно",
+            text="Available",
             font=("Segoe UI", 9),
         )
         self._features_frame.grid(row=2, column=0, sticky="ew", pady=(0, 5))
@@ -245,7 +245,7 @@ class ModeToggle(tk.Frame):
         # Информационная метка
         self._info_label = tk.Label(
             self,
-            text="Двойной клик для переключения режима",
+            text="Double-click to switch mode",
             font=("Segoe UI", 8),
             foreground="#666666",
         )
@@ -673,7 +673,7 @@ class ModeToggle(tk.Frame):
         # Обновляем заголовок
         if self._mode_title_label is not None:
             self._mode_title_label.configure(
-                text=f"Текущий режим: {caps.title}",
+                text=f"Current mode: {caps.title}",
                 foreground=caps.color,
             )
 
@@ -693,8 +693,8 @@ class ModeToggle(tk.Frame):
             can_enter, reason = self._mode_manager.can_enter_special()
             if not can_enter:
                 messagebox.showerror(
-                    "Доступ запрещён",
-                    f"Невозможно войти в специальный режим: {reason}",
+                    "Access denied",
+                    f"Cannot enter special mode: {reason}",
                 )
                 return False
 

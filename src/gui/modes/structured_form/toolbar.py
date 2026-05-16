@@ -250,7 +250,7 @@ class StructuredFormToolbar(BaseWidget):
         # Заголовок
         header = tk.Label(
             palette_frame,
-            text="Поля:",
+            text="Fields:",
             bg=self.BG_COLOR,
             font=("TkDefaultFont", 8),
             fg="#666666",
@@ -292,7 +292,7 @@ class StructuredFormToolbar(BaseWidget):
         # Заголовок
         header = tk.Label(
             workflow_frame,
-            text="Статус:",
+            text="Status:",
             bg=self.BG_COLOR,
             font=("TkDefaultFont", 8),
             fg="#666666",
@@ -355,7 +355,7 @@ class StructuredFormToolbar(BaseWidget):
         # Grid snap toggle
         self._snap_btn = tk.Button(
             toggle_frame,
-            text="⧉ Сетка",
+            text="⧉ Grid",
             bg=self.TOGGLE_ON_BG if self._snap_to_grid else self.BUTTON_BG,
             fg=self.TOGGLE_ON_FG if self._snap_to_grid else "#000000",
             activebackground=self.BUTTON_ACTIVE_BG,
@@ -370,7 +370,7 @@ class StructuredFormToolbar(BaseWidget):
         # Validation toggle
         self._validate_btn = tk.Button(
             toggle_frame,
-            text="✓ Валидация",
+            text="✓ Validation",
             bg=self.TOGGLE_ON_BG if self._validation_enabled else self.BUTTON_BG,
             fg=self.TOGGLE_ON_FG if self._validation_enabled else "#000000",
             activebackground=self.BUTTON_ACTIVE_BG,
@@ -390,7 +390,7 @@ class StructuredFormToolbar(BaseWidget):
         # Заголовок
         header = tk.Label(
             role_frame,
-            text="Роль:",
+            text="Role:",
             bg=self.BG_COLOR,
             font=("TkDefaultFont", 8),
             fg="#666666",

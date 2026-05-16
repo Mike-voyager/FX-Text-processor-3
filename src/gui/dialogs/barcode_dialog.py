@@ -49,7 +49,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -77,13 +77,13 @@ HARDWARE_TYPES: Final[set[str]] = {
 
 # All supported types with labels
 BARCODE_TYPES: Final[list[tuple[str, str, str]]] = [
-    (BarcodeType.CODE128.value, "Code 128", "Универсальный, все символы ASCII"),
-    (BarcodeType.CODE39.value, "Code 39", "Алфавитно-цифровой, индустриальный"),
-    (BarcodeType.EAN13.value, "EAN-13", "Товарный штрих-код (13 цифр)"),
-    (BarcodeType.EAN8.value, "EAN-8", "Малый товарный штрих-код (8 цифр)"),
-    (BarcodeType.UPCA.value, "UPC-A", "Североамериканский товарный"),
-    (BarcodeType.ITF.value, "ITF-14", "Логистика, транспортные упаковки"),
-    (BarcodeType.CODABAR.value, "Codabar", "Медицина, лаборатории"),
+    (BarcodeType.CODE128.value, "Code 128", "Universal, all ASCII characters"),
+    (BarcodeType.CODE39.value, "Code 39", "Alphanumeric, industrial"),
+    (BarcodeType.EAN13.value, "EAN-13", "Product barcode (13 digits)"),
+    (BarcodeType.EAN8.value, "EAN-8", "Small product barcode (8 digits)"),
+    (BarcodeType.UPCA.value, "UPC-A", "North American product"),
+    (BarcodeType.ITF.value, "ITF-14", "Logistics, transport packages"),
+    (BarcodeType.CODABAR.value, "Codabar", "Medical, laboratories"),
 ]
 
 
@@ -99,18 +99,18 @@ class BarcodeMode(Enum):
     SOFTWARE = auto()
 
     def label(self) -> str:
-        """Возвращает человекочитаемое название."""
+        """Returns human-readable label."""
         labels = {
-            BarcodeMode.HARDWARE: "📠 Hardware (ESC/P)",
-            BarcodeMode.SOFTWARE: "🖼️ Software (PNG)",
+            BarcodeMode.HARDWARE: "Hardware (FX-890 ESC/P)",
+            BarcodeMode.SOFTWARE: "Software (preview/export)",
         }
         return labels.get(self, str(self))
 
     def description(self) -> str:
-        """Возвращает описание режима."""
+        """Returns mode description."""
         descriptions = {
-            BarcodeMode.HARDWARE: "Быстрая печать ESC/P командами (ограниченные типы)",
-            BarcodeMode.SOFTWARE: "Рендеринг изображения (все типы, медленнее)",
+            BarcodeMode.HARDWARE: "Fast ESC/P printing (limited types)",
+            BarcodeMode.SOFTWARE: "Image rendering (all types, slower)",
         }
         return descriptions.get(self, "")
 
@@ -218,7 +218,7 @@ class BarcodeTypeSelector(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна диалога."""
-        self.title("📊 Вставка штрих-кода")
+        self.title("Barcode Type")
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -229,7 +229,7 @@ class BarcodeTypeSelector(BaseDialog):
         self.geometry(f"+{x}+{y}")
 
         # Apply theme
-        self._theme_manager.apply_to_widget(self)  # type: ignore[arg-type]
+        self._theme_manager.apply_to_widget(self)
 
     def _create_ui(self) -> None:
         """Создаёт UI компоненты диалога."""
@@ -241,7 +241,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Header
         header = ttk.Label(
             main_frame,
-            text="📊 Вставка штрих-кода",
+            text="Barcode",
             font=("Helvetica", 14, "bold"),
         )
         header.pack(anchor="w", pady=(0, 5))
@@ -249,7 +249,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Description
         desc = ttk.Label(
             main_frame,
-            text="Выберите тип штрих-кода и режим генерации:",
+            text="Select barcode type and generation mode:",
             wraplength=DIALOG_WIDTH - 60,
             foreground=_theme_color("text_secondary"),
         )
@@ -282,7 +282,7 @@ class BarcodeTypeSelector(BaseDialog):
         self._warning_label.pack(anchor="w", pady=(10, 0))
 
         # Preview section
-        preview_frame = ttk.LabelFrame(main_frame, text="Предпросмотр", padding="5")
+        preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding="5")
         preview_frame.pack(fill=tk.X, pady=(10, 0))
         self._preview_canvas = tk.Canvas(
             preview_frame,
@@ -308,7 +308,7 @@ class BarcodeTypeSelector(BaseDialog):
         """
         mode_frame = ttk.LabelFrame(
             parent,
-            text="Режим генерации",
+            text="Generation Mode",
             padding="10",
         )
         mode_frame.pack(fill=tk.X, pady=(0, 10))
@@ -339,7 +339,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Hardware supported types hint
         hw_types = ttk.Label(
             mode_frame,
-            text="Поддерживаемые типы: EAN-13, EAN-8, CODE39, CODE128, UPC-A",
+            text="Supported types: EAN-13, EAN-8, CODE39, CODE128, UPC-A",
             foreground=_theme_color("info"),
             font=("Helvetica", 8),
         )
@@ -374,7 +374,7 @@ class BarcodeTypeSelector(BaseDialog):
         """
         type_frame = ttk.LabelFrame(
             parent,
-            text="Тип штрих-кода",
+            text="Barcode Type",
             padding="10",
         )
         type_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -415,7 +415,7 @@ class BarcodeTypeSelector(BaseDialog):
         self._listbox.bind("<Double-1>", lambda e: self._on_ok())
 
         # Info label
-        self._info_var = tk.StringVar(master=self, value="Выберите тип штрих-кода из списка")
+        self._info_var = tk.StringVar(master=self, value="Select barcode type from list")
         self._info_label = ttk.Label(
             type_frame,
             textvariable=self._info_var,
@@ -435,7 +435,7 @@ class BarcodeTypeSelector(BaseDialog):
 
         ttk.Label(
             data_frame,
-            text="Данные для кодирования:",
+            text="Data:",
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w", pady=(0, 5))
 
@@ -450,7 +450,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Validation hint
         self._data_hint = ttk.Label(
             data_frame,
-            text="Введите данные для кодирования в штрих-код",
+            text="Enter data to encode in barcode",
             foreground=_theme_color("text_secondary"),
             font=("Helvetica", 8),
         )
@@ -468,7 +468,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Preview button
         self._preview_btn = ttk.Button(
             btn_frame,
-            text="👁️ Предпросмотр",
+            text="Preview",
             command=self._on_preview,
             state=tk.DISABLED,
         )
@@ -477,7 +477,7 @@ class BarcodeTypeSelector(BaseDialog):
         # OK button
         self._ok_btn = ttk.Button(
             btn_frame,
-            text="✓ Вставить",
+            text="Insert",
             command=self._on_ok,
             state=tk.DISABLED,
         )
@@ -486,7 +486,7 @@ class BarcodeTypeSelector(BaseDialog):
         # Cancel button
         ttk.Button(
             btn_frame,
-            text="✗ Отмена",
+            text="Cancel",
             command=self._on_cancel,
         ).pack(side=tk.RIGHT)
 
@@ -508,9 +508,7 @@ class BarcodeTypeSelector(BaseDialog):
             type_info = next((t for t in BARCODE_TYPES if t[0] == code), None)
             if type_info:
                 hw_supported = code in HARDWARE_TYPES
-                hw_text = (
-                    "📠 Поддерживается Hardware mode" if hw_supported else "🖼️ Только Software mode"
-                )
+                hw_text = "Hardware mode supported" if hw_supported else "Software mode only"
                 self._info_var.set(f"{type_info[1]}: {type_info[2]} | {hw_text}")
 
         self._update_ui_state()
@@ -526,15 +524,15 @@ class BarcodeTypeSelector(BaseDialog):
 
         if is_hw_mode and has_selection and not is_hw_supported:
             self._warning_var.set(
-                f"⚠️ {self._selected_type} не поддерживается в Hardware mode. "
-                "Будет использован Software mode."
+                f"⚠️ {self._selected_type} does not support Hardware mode. "
+                "Software mode will be used."
             )
             self._ok_btn.config(state=tk.NORMAL if has_data else tk.DISABLED)
         elif is_hw_mode and is_hw_supported:
-            self._warning_var.set("📠 Быстрая печать ESC/P")
+            self._warning_var.set("📠 Fast ESC/P printing")
             self._ok_btn.config(state=tk.NORMAL if has_data else tk.DISABLED)
         elif self._selected_mode == BarcodeMode.SOFTWARE:
-            self._warning_var.set("" if not has_selection else "🖼️ Рендеринг изображения")
+            self._warning_var.set("" if not has_selection else "🖼️ Image rendering")
             self._ok_btn.config(state=tk.NORMAL if has_data else tk.DISABLED)
         else:
             self._warning_var.set("")
@@ -563,7 +561,7 @@ class BarcodeTypeSelector(BaseDialog):
             self._preview_canvas.create_text(
                 180,
                 65,
-                text="📠 Hardware (ESC/P)",
+                text="Hardware (FX-890 ESC/P)",
                 fill="#856404",
                 font=("Helvetica", 10, "bold"),
             )
@@ -573,8 +571,8 @@ class BarcodeTypeSelector(BaseDialog):
         data = self._data_var.get().strip()
         if not data:
             messagebox.showwarning(
-                "Внимание",
-                "Введите данные для кодирования",
+                "Warning",
+                "Enter data for encoding",
                 parent=self,
             )
             return
@@ -658,26 +656,26 @@ class BarcodeSettingsPanel(ttk.Frame):
         # Header
         header = ttk.Label(
             self,
-            text="⚙️ Настройки штрих-кода",
+            text="Barcode Settings",
             font=("Helvetica", 11, "bold"),
         )
         header.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 15))
 
         # Width
-        ttk.Label(self, text="Ширина (мм):").grid(row=1, column=0, sticky="w", pady=5)
+        ttk.Label(self, text="Width (mm):").grid(row=1, column=0, sticky="w", pady=5)
         self._width_var = tk.DoubleVar(master=self, value=self._settings.width_mm)
         width_spin = ttk.Spinbox(self, from_=10, to=200, textvariable=self._width_var, width=10)
         width_spin.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=5)
-        ttk.Label(self, text="10-200 мм", foreground=_theme_color("text_secondary")).grid(
+        ttk.Label(self, text="10-200 mm", foreground=_theme_color("text_secondary")).grid(
             row=1, column=2, sticky="w", padx=(5, 0)
         )
 
         # Height
-        ttk.Label(self, text="Высота (мм):").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(self, text="Height (mm):").grid(row=2, column=0, sticky="w", pady=5)
         self._height_var = tk.DoubleVar(master=self, value=self._settings.height_mm)
         height_spin = ttk.Spinbox(self, from_=5, to=100, textvariable=self._height_var, width=10)
         height_spin.grid(row=2, column=1, sticky="w", padx=(10, 0), pady=5)
-        ttk.Label(self, text="5-100 мм", foreground=_theme_color("text_secondary")).grid(
+        ttk.Label(self, text="5-100 mm", foreground=_theme_color("text_secondary")).grid(
             row=2, column=2, sticky="w", padx=(5, 0)
         )
 
@@ -692,7 +690,7 @@ class BarcodeSettingsPanel(ttk.Frame):
             state="readonly",
         )
         dpi_combo.grid(row=3, column=1, sticky="w", padx=(10, 0), pady=5)
-        ttk.Label(self, text="точек/дюйм", foreground=_theme_color("text_secondary")).grid(
+        ttk.Label(self, text="dots/inch", foreground=_theme_color("text_secondary")).grid(
             row=3, column=2, sticky="w", padx=(5, 0)
         )
 
@@ -702,7 +700,7 @@ class BarcodeSettingsPanel(ttk.Frame):
         )
 
         # HRI Position
-        ttk.Label(self, text="Текст под штрих-кодом (HRI):").grid(
+        ttk.Label(self, text="HRI (human readable):").grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(0, 5)
         )
 
@@ -711,10 +709,10 @@ class BarcodeSettingsPanel(ttk.Frame):
         hri_frame.grid(row=6, column=0, columnspan=3, sticky="w")
 
         hri_options = [
-            ("Below", "Снизу"),
-            ("Above", "Сверху"),
-            ("Both", "Сверху и снизу"),
-            ("None", "Не показывать"),
+            ("Below", "Below"),
+            ("Above", "Above"),
+            ("Both", "Both"),
+            ("None", "None"),
         ]
 
         for value, label in hri_options:
@@ -802,8 +800,8 @@ class BarcodeConflictDialog(BaseDialog):
         self._setup_window()
 
     def _setup_window(self) -> None:
-        """Настраивает параметры окна диалога."""
-        self.title("⚠️ Конфликт типа штрих-кода")
+        """Configures dialog window parameters."""
+        self.title("⚠️ Barcode Type Conflict")
         self.geometry("450x350")
         self.minsize(400, 300)
 
@@ -814,7 +812,7 @@ class BarcodeConflictDialog(BaseDialog):
         self.geometry(f"+{x}+{y}")
 
     def _create_ui(self) -> None:
-        """Создаёт UI компоненты диалога."""
+        """Creates dialog UI components."""
         self.config(bg=_theme_color("dialog_bg"))
 
         main_frame = ttk.Frame(self, padding="20")
@@ -834,24 +832,24 @@ class BarcodeConflictDialog(BaseDialog):
 
         title_label = ttk.Label(
             header_frame,
-            text="Обнаружен конфликт",
+            text="Conflict Detected",
             font=("Helvetica", 14, "bold"),
         )
         title_label.pack(side=tk.LEFT)
 
         # Conflict details
-        details_frame = ttk.LabelFrame(main_frame, text="Информация о конфликте", padding="10")
+        details_frame = ttk.LabelFrame(main_frame, text="Conflict Information", padding="10")
         details_frame.pack(fill=tk.X, pady=(0, 15))
 
         ttk.Label(
             details_frame,
-            text=f"Тип: {self._barcode_type}",
+            text=f"Type: {self._barcode_type}",
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w")
 
         ttk.Label(
             details_frame,
-            text=f"Проблема: {self._reason}",
+            text=f"Problem: {self._reason}",
             wraplength=380,
             foreground=_theme_color("text_secondary"),
         ).pack(anchor="w", pady=(5, 0))
@@ -860,20 +858,20 @@ class BarcodeConflictDialog(BaseDialog):
         if self._suggested_type:
             ttk.Label(
                 details_frame,
-                text=f"💡 Рекомендуется: {self._suggested_type}",
+                text=f"💡 Recommended: {self._suggested_type}",
                 foreground=_theme_color("success"),
                 font=("Helvetica", 10, "bold"),
             ).pack(anchor="w", pady=(10, 0))
 
         # Options
-        options_frame = ttk.LabelFrame(main_frame, text="Варианты действий", padding="10")
+        options_frame = ttk.LabelFrame(main_frame, text="Action Options", padding="10")
         options_frame.pack(fill=tk.X, expand=True, pady=(0, 15))
 
         self._choice_var = tk.StringVar(master=self, value="software")
 
         ttk.Radiobutton(
             options_frame,
-            text="🖼️ Переключить в Software mode",
+            text="Render as image (software)",
             variable=self._choice_var,
             value="software",
         ).pack(anchor="w", pady=5)
@@ -881,14 +879,14 @@ class BarcodeConflictDialog(BaseDialog):
         if self._suggested_type:
             ttk.Radiobutton(
                 options_frame,
-                text=f"🔄 Использовать {self._suggested_type}",
+                text=f"Switch to {self._suggested_type} (hardware)",
                 variable=self._choice_var,
                 value="switch",
             ).pack(anchor="w", pady=5)
 
         ttk.Radiobutton(
             options_frame,
-            text="⛔ Отменить вставку",
+            text="Cancel insertion",
             variable=self._choice_var,
             value="cancel",
         ).pack(anchor="w", pady=5)
@@ -897,11 +895,11 @@ class BarcodeConflictDialog(BaseDialog):
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
-        ttk.Button(btn_frame, text="Продолжить", command=self._on_continue).pack(
+        ttk.Button(btn_frame, text="Continue", command=self._on_continue).pack(
             side=tk.RIGHT, padx=(10, 0)
         )
 
-        ttk.Button(btn_frame, text="Отмена", command=self._on_cancel).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
     def _on_continue(self) -> None:
         """Обработчик кнопки Продолжить."""

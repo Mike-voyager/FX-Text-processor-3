@@ -5,7 +5,7 @@
 - Dropdown для смены роли
 - Предупреждение о необходимости MFA
 
-Цвета ролей:
+Colorа ролей:
     OPERATOR — синий (#3498db)
     EDITOR — зелёный (#2ecc71)
     SUPERVISOR — оранжевый (#f39c12)
@@ -64,7 +64,7 @@ class RoleBadge(BaseWidget):
     если для роли требуется MFA.
 
     Attributes:
-        ROLE_COLORS: Цвета для каждой роли.
+        ROLE_COLORS: Colorа для каждой роли.
         ROLE_ICONS: Иконки для каждой роли.
         ROLE_NAMES: Локализованные названия ролей.
 
@@ -89,10 +89,10 @@ class RoleBadge(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._main_frame is None:
-            raise RuntimeError("RoleBadge не смонтирован")
+            raise RuntimeError("RoleBadge not mounted")
         return self._main_frame
 
-    # Цвета ролей (синий, зелёный, оранжевый, красный)
+    # Colorа ролей (синий, зелёный, оранжевый, красный)
     ROLE_COLORS: Final[dict[WorkflowRole, str]] = {
         WorkflowRole.OPERATOR: "#3498db",  # Синий
         WorkflowRole.EDITOR: "#2ecc71",  # Зелёный
@@ -110,10 +110,10 @@ class RoleBadge(BaseWidget):
 
     # Локализованные названия ролей
     ROLE_NAMES: Final[dict[WorkflowRole, str]] = {
-        WorkflowRole.OPERATOR: "Оператор",
-        WorkflowRole.EDITOR: "Редактор",
-        WorkflowRole.SUPERVISOR: "Супервайзер",
-        WorkflowRole.SIGNATORY: "Подписант",
+        WorkflowRole.OPERATOR: "Operator",
+        WorkflowRole.EDITOR: "Editor",
+        WorkflowRole.SUPERVISOR: "Supervisor",
+        WorkflowRole.SIGNATORY: "Signatory",
     }
 
     # MFA требуется для привилегированных ролей

@@ -102,8 +102,8 @@ class SessionLockScreen(tk.Toplevel):
         self._theme_manager = get_theme_manager()
 
         # Переменные формы
-        self._password_var = tk.StringVar()
-        self._mfa_var = tk.StringVar()
+        self._password_var = tk.StringVar(master=self)
+        self._mfa_var = tk.StringVar(master=self)
         self._mfa_method_var = tk.StringVar(value="fido2")
         self._password_visible = False
         self._is_unlocking = False
@@ -127,6 +127,7 @@ class SessionLockScreen(tk.Toplevel):
 
         # Настройка окна
         self._setup_window()
+        self.bind("<Destroy>", lambda _e: self._cancel_idle_update(), add=True)
 
     def _setup_window(self) -> None:
         """Настраивает базовые параметры окна."""
@@ -168,8 +169,11 @@ class SessionLockScreen(tk.Toplevel):
         self._create_ui()
 
         # Захватываем фокус
-        self.grab_set()
-        self.focus_force()
+        try:
+            self.grab_set()
+            self.focus_force()
+        except tk.TclError:
+            pass
 
         # Устанавливаем fullscreen
         self.attributes("-fullscreen", True)
@@ -195,6 +199,15 @@ class SessionLockScreen(tk.Toplevel):
             self._lock_reason.value if self._lock_reason else "unknown",
         )
 
+    def _cancel_idle_update(self) -> None:
+        """Отменяет pending after() для обновления idle time."""
+        if self._update_job_id:
+            try:
+                self.after_cancel(self._update_job_id)
+            except (tk.TclError, ValueError) as e:
+                logging.getLogger(__name__).debug("Exception ignored: %s", e)
+            self._update_job_id = None
+
     def hide(self) -> None:
         """Скрывает экран блокировки.
 
@@ -205,13 +218,7 @@ class SessionLockScreen(tk.Toplevel):
             >>> lock_screen.hide()
             # Экран блокировки скрыт
         """
-        # Отменяем обновление idle time
-        if self._update_job_id:
-            try:
-                self.after_cancel(self._update_job_id)
-            except (tk.TclError, ValueError) as e:
-                logging.getLogger(__name__).debug("Exception ignored: %s", e)
-            self._update_job_id = None
+        self._cancel_idle_update()
 
         # Очищаем поля
         self.wipe_credentials()
@@ -288,7 +295,7 @@ class SessionLockScreen(tk.Toplevel):
         reason_text = self._get_lock_reason_text()
         self._reason_label = tk.Label(
             info_frame,
-            text=f"Причина: {reason_text}",
+            text=f"Reason: {reason_text}",
             font=(theme.font_family, theme.font_size),
             bg=theme.bg_color,
             fg=theme.fg_color,
@@ -299,7 +306,7 @@ class SessionLockScreen(tk.Toplevel):
         locked_time_text = self._get_locked_time_text()
         self._locked_time_label = tk.Label(
             info_frame,
-            text=f"Заблокировано: {locked_time_text}",
+            text=f"Locked: {locked_time_text}",
             font=(theme.font_family, theme.font_size),
             bg=theme.bg_color,
             fg=theme.fg_color,
@@ -309,7 +316,7 @@ class SessionLockScreen(tk.Toplevel):
         # Время простоя (обновляется)
         self._idle_time_label = tk.Label(
             info_frame,
-            text="Время простоя: 0 мин",
+            text="Idle time: 0 min",
             font=(theme.font_family, theme.font_size - 1),
             bg=theme.bg_color,
             fg=theme.accent_color,
@@ -387,7 +394,7 @@ class SessionLockScreen(tk.Toplevel):
 
         # Выбор метода MFA
         self._mfa_method_var = tk.StringVar(value="fido2")
-        
+
         fido2_radio = tk.Radiobutton(
             mfa_frame,
             text="🔐 FIDO2",
@@ -451,7 +458,7 @@ class SessionLockScreen(tk.Toplevel):
 
         self._unlock_btn = tk.Button(
             button_frame,
-            text="🔓 Разблокировать",
+            text="🔓 Unlock",
             command=self._on_unlock,
             font=(theme.font_family, theme.font_size + 2, "bold"),
             bg=theme.accent_color,
@@ -504,7 +511,7 @@ class SessionLockScreen(tk.Toplevel):
             return
 
         idle_minutes = self._lock_manager.get_idle_time_minutes()
-        idle_text = f"Время простоя: {int(idle_minutes)} мин {int((idle_minutes % 1) * 60)} сек"
+        idle_text = f"Idle time: {int(idle_minutes)} min {int((idle_minutes % 1) * 60)} sec"
 
         if self._idle_time_label and self._idle_time_label.winfo_exists():
             self._idle_time_label.configure(text=idle_text)
@@ -577,7 +584,7 @@ class SessionLockScreen(tk.Toplevel):
 
         self._is_unlocking = True
         if self._unlock_btn:
-            self._unlock_btn.configure(state=tk.DISABLED, text="Проверка...")
+            self._unlock_btn.configure(state=tk.DISABLED, text="Verifying...")
 
         try:
             # Вызываем разблокировку
@@ -595,7 +602,7 @@ class SessionLockScreen(tk.Toplevel):
         finally:
             self._is_unlocking = False
             if self._unlock_btn and self._unlock_btn.winfo_exists():
-                self._unlock_btn.configure(state=tk.NORMAL, text="🔓 Разблокировать")
+                self._unlock_btn.configure(state=tk.NORMAL, text="🔓 Unlock")
 
     def _on_unlock_success(self) -> None:
         """Обработчик успешной разблокировки.
@@ -616,7 +623,7 @@ class SessionLockScreen(tk.Toplevel):
             Очищает ВСЕ поля ввода для предотвращения
             повторного использования введённых данных.
         """
-        error_msg = result.error_message or "Ошибка аутентификации"
+        error_msg = result.error_message or "Authentication error"
         self._show_error(error_msg)
         self.wipe_credentials()
 

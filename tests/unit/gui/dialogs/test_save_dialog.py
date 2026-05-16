@@ -29,8 +29,6 @@ pytestmark = [
 from src.documents.format.document_format import SecurityPreset
 from src.gui.dialogs.save_dialog import (
     PRESET_LABELS,
-    STRENGTH_COLORS,
-    STRENGTH_LABELS,
     SaveDialog,
     SaveFileDialog,
     SaveResult,
@@ -308,7 +306,7 @@ class TestSaveDialogPasswordStrength:
         dialog._on_password_change()
 
         assert dialog._strength_var.get() == 15
-        assert "Слакий" in dialog._strength_text_var.get()
+        assert "Weak" in dialog._strength_text_var.get()
         dialog.destroy()
 
     @patch("src.gui.dialogs.save_dialog.PasswordHasher")
@@ -327,7 +325,7 @@ class TestSaveDialogPasswordStrength:
         dialog._on_password_change()
 
         assert dialog._strength_var.get() == 75
-        assert "Надёжный" in dialog._strength_text_var.get()
+        assert "Strong" in dialog._strength_text_var.get()
         dialog.destroy()
 
     def test_empty_password_reset(self, tk_root: tk.Tk) -> None:
@@ -339,7 +337,7 @@ class TestSaveDialogPasswordStrength:
         dialog._on_password_change()
 
         assert dialog._strength_var.get() == 0
-        assert "Введите пароль" in dialog._strength_text_var.get()
+        assert "Enter password" in dialog._strength_text_var.get()
         dialog.destroy()
 
 
@@ -355,7 +353,7 @@ class TestSaveDialogValidation:
         is_valid, error = dialog._validate()
 
         assert is_valid is False
-        assert "имя файла" in error.lower()
+        assert "filename" in error.lower()
         dialog.destroy()
 
     def test_validation_invalid_characters(self, tk_root: tk.Tk) -> None:
@@ -367,7 +365,7 @@ class TestSaveDialogValidation:
         is_valid, error = dialog._validate()
 
         assert is_valid is False
-        assert "недопустимый" in error.lower()
+        assert "invalid" in error.lower()
         dialog.destroy()
 
     def test_validation_encryption_no_password(self, tk_root: tk.Tk) -> None:
@@ -381,7 +379,7 @@ class TestSaveDialogValidation:
         is_valid, error = dialog._validate()
 
         assert is_valid is False
-        assert "пароль" in error.lower()
+        assert "password" in error.lower()
         dialog.destroy()
 
     def test_validation_short_password(self, tk_root: tk.Tk) -> None:
@@ -410,7 +408,7 @@ class TestSaveDialogValidation:
         is_valid, error = dialog._validate()
 
         assert is_valid is False
-        assert "совпадают" in error.lower()
+        assert "match" in error.lower()
         dialog.destroy()
 
     @patch("src.gui.dialogs.save_dialog.PasswordHasher")
@@ -432,7 +430,7 @@ class TestSaveDialogValidation:
         is_valid, error = dialog._validate()
 
         assert is_valid is False
-        assert "слабый" in error.lower()
+        assert "weak" in error.lower()
         dialog.destroy()
 
     def test_validation_valid(self, tk_root: tk.Tk) -> None:
@@ -484,7 +482,7 @@ class TestSaveDialogActions:
             metadata=DocumentMetadata(),
             password="",
         )
-        
+
         # Just test the result is accessible
         assert dialog._result is not None
         dialog.destroy()

@@ -51,7 +51,7 @@ logger: Final = logging.getLogger(__name__)
 DIALOG_WIDTH: Final[int] = 500
 DIALOG_HEIGHT: Final[int] = 600
 
-# Цвета (fallback, если ThemeManager недоступен)
+# Colorа (fallback, если ThemeManager недоступен)
 COLOR_BG: Final[str] = "#f8f9fa"
 COLOR_FG: Final[str] = "#2c3e50"
 COLOR_ACCENT: Final[str] = "#3498db"
@@ -62,12 +62,12 @@ COLOR_BORDER: Final[str] = "#bdc3c7"
 
 # Пресеты таймаута (в минутах)
 TIMEOUT_PRESETS: Final[list[tuple[str, int]]] = [
-    ("1 мин", 1),
+    ("1 min", 1),
     ("5", 5),
     ("15", 15),
     ("30", 30),
     ("60", 60),
-    ("Никогда", 0),
+    ("Never", 0),
 ]
 
 # Интервал обновления idle time (мс)
@@ -159,15 +159,25 @@ class AutoLockSettingsDialog(BaseDialog):
 
         # UI Variables
         self._master_var: tk.BooleanVar = tk.BooleanVar(master=self, value=current_config.enabled)
-        self._timeout_var: tk.IntVar = tk.IntVar(master=self, value=current_config.auto_lock_minutes)
+        self._timeout_var: tk.IntVar = tk.IntVar(
+            master=self, value=current_config.auto_lock_minutes
+        )
 
         # Checkbox variables
         self._checkbox_vars: dict[str, tk.BooleanVar] = {
             "lock_on_sleep": tk.BooleanVar(master=self, value=current_config.lock_on_sleep),
-            "lock_on_screensaver": tk.BooleanVar(master=self, value=current_config.lock_on_screensaver),
-            "require_mfa_to_unlock": tk.BooleanVar(master=self, value=current_config.require_mfa_to_unlock),
-            "clear_clipboard_on_lock": tk.BooleanVar(master=self, value=current_config.clear_clipboard_on_lock),
-            "hide_documents_on_lock": tk.BooleanVar(master=self, value=current_config.hide_documents_on_lock),
+            "lock_on_screensaver": tk.BooleanVar(
+                master=self, value=current_config.lock_on_screensaver
+            ),
+            "require_mfa_to_unlock": tk.BooleanVar(
+                master=self, value=current_config.require_mfa_to_unlock
+            ),
+            "clear_clipboard_on_lock": tk.BooleanVar(
+                master=self, value=current_config.clear_clipboard_on_lock
+            ),
+            "hide_documents_on_lock": tk.BooleanVar(
+                master=self, value=current_config.hide_documents_on_lock
+            ),
         }
 
         # UI References (initialized in _create_ui)
@@ -198,7 +208,7 @@ class AutoLockSettingsDialog(BaseDialog):
 
     def _configure_window(self) -> None:
         """Настраивает параметры окна диалога."""
-        self.title("⏱️ Настройки автоблокировки")
+        self.title("⏱️ Auto-Lock Settings")
         self.resizable(False, False)
 
     def _center_window(self) -> None:
@@ -274,14 +284,14 @@ class AutoLockSettingsDialog(BaseDialog):
 
         tk.Label(
             header_frame,
-            text="⏱️ Настройки автоблокировки",
+            text="⏱️ Auto-Lock Settings",
             font=("Arial", 14, "bold"),
             fg=COLOR_FG,
         ).pack(anchor=tk.W)
 
         tk.Label(
             header_frame,
-            text="Настройка параметров автоматической блокировки сессии",
+            text="Configure automatic session lock settings",
             font=("Arial", 9),
             fg="#7f8c8d",
         ).pack(anchor=tk.W, pady=(5, 0))
@@ -297,7 +307,7 @@ class AutoLockSettingsDialog(BaseDialog):
 
         self._master_checkbox = tk.Checkbutton(
             switch_frame,
-            text="Включить автоблокировку",
+            text="Enable auto-lock",
             variable=self._master_var,
             font=("Arial", 10, "bold"),
             fg=COLOR_FG,
@@ -306,7 +316,7 @@ class AutoLockSettingsDialog(BaseDialog):
 
         tk.Label(
             switch_frame,
-            text="Сессия будет автоматически заблокирована после периода бездействия",
+            text="Session will be automatically locked after a period of inactivity",
             font=("Arial", 8),
             fg="#7f8c8d",
         ).pack(anchor=tk.W, padx=(20, 0))
@@ -319,7 +329,7 @@ class AutoLockSettingsDialog(BaseDialog):
         """
         timeout_frame = tk.LabelFrame(
             parent,
-            text="Таймаут бездействия",
+            text="Idle Timeout",
             font=("Arial", 10, "bold"),
             padx=10,
             pady=10,
@@ -352,11 +362,11 @@ class AutoLockSettingsDialog(BaseDialog):
         scale_labels = tk.Frame(timeout_frame)
         scale_labels.pack(fill=tk.X)
 
-        tk.Label(scale_labels, text="1 мин", font=("Arial", 8), fg="#7f8c8d").pack(side=tk.LEFT)
-        tk.Label(scale_labels, text="30 мин", font=("Arial", 8), fg="#7f8c8d").pack(
+        tk.Label(scale_labels, text="1 min", font=("Arial", 8), fg="#7f8c8d").pack(side=tk.LEFT)
+        tk.Label(scale_labels, text="30 min", font=("Arial", 8), fg="#7f8c8d").pack(
             side=tk.LEFT, expand=True
         )
-        tk.Label(scale_labels, text="60 мин", font=("Arial", 8), fg="#7f8c8d").pack(side=tk.RIGHT)
+        tk.Label(scale_labels, text="60 min", font=("Arial", 8), fg="#7f8c8d").pack(side=tk.RIGHT)
 
     def _get_preset_buttons(self, parent: tk.Widget) -> tk.Frame:
         """Создаёт кнопки пресетов для быстрого выбора таймаута.
@@ -369,7 +379,7 @@ class AutoLockSettingsDialog(BaseDialog):
         """
         preset_frame = tk.Frame(parent)
 
-        tk.Label(preset_frame, text="Быстрый выбор:", font=("Arial", 9), fg="#7f8c8d").pack(
+        tk.Label(preset_frame, text="Quick select:", font=("Arial", 9), fg="#7f8c8d").pack(
             side=tk.LEFT, padx=(0, 10)
         )
 
@@ -394,7 +404,7 @@ class AutoLockSettingsDialog(BaseDialog):
         """
         self._options_frame = tk.LabelFrame(
             parent,
-            text="Дополнительные параметры",
+            text="Additional Options",
             font=("Arial", 10, "bold"),
             padx=10,
             pady=10,
@@ -402,11 +412,11 @@ class AutoLockSettingsDialog(BaseDialog):
         self._options_frame.pack(fill=tk.X, pady=(0, 10))
 
         options = [
-            ("lock_on_sleep", "Блокировать при засыпании системы"),
-            ("lock_on_screensaver", "Блокировать при скринсейвере"),
-            ("require_mfa_to_unlock", "Требовать MFA для разблокировки"),
-            ("clear_clipboard_on_lock", "Очищать буфер обмена при блокировке"),
-            ("hide_documents_on_lock", "Скрывать документы при блокировке"),
+            ("lock_on_sleep", "Lock on system sleep"),
+            ("lock_on_screensaver", "Lock on screensaver"),
+            ("require_mfa_to_unlock", "Require MFA to unlock"),
+            ("clear_clipboard_on_lock", "Clear clipboard on lock"),
+            ("hide_documents_on_lock", "Hide documents on lock"),
         ]
 
         for key, text in options:
@@ -422,7 +432,7 @@ class AutoLockSettingsDialog(BaseDialog):
         # Warning label for MFA
         self._warning_label = tk.Label(
             self._options_frame,
-            text="⚠️ Без MFA сессия менее защищена",
+            text="⚠️ Session is less protected without MFA",
             font=("Arial", 8, "italic"),
             fg=COLOR_WARNING,
         )
@@ -442,7 +452,7 @@ class AutoLockSettingsDialog(BaseDialog):
 
         self._status_label = tk.Label(
             status_frame,
-            text="Статус: Ожидание...",
+            text="Status: Waiting...",
             font=("Arial", 9),
             fg="#7f8c8d",
         )
@@ -466,7 +476,7 @@ class AutoLockSettingsDialog(BaseDialog):
         # Cancel button
         cancel_btn = tk.Button(
             btn_frame,
-            text="❌ Отмена",
+            text="❌ Cancel",
             width=12,
             command=self._on_cancel,
             font=("Arial", 9),
@@ -476,7 +486,7 @@ class AutoLockSettingsDialog(BaseDialog):
         # Save button
         self._save_btn = tk.Button(
             btn_frame,
-            text="✓ Сохранить",
+            text="✓ Save",
             width=12,
             command=self._save_settings,
             font=("Arial", 9, "bold"),
@@ -522,12 +532,10 @@ class AutoLockSettingsDialog(BaseDialog):
             Отформатированная строка (например, "15 минут").
         """
         if minutes == 0:
-            return "Никогда"
+            return "Never"
         if minutes == 1:
-            return "1 минута"
-        if minutes in [2, 3, 4]:
-            return f"{minutes} минуты"
-        return f"{minutes} минут"
+            return "1 minute"
+        return f"{minutes} minutes"
 
     def _on_timeout_changed(self, value: str) -> None:
         """Обработчик изменения значения слайдера.
@@ -626,12 +634,12 @@ class AutoLockSettingsDialog(BaseDialog):
             self._warning_label.config(text="", fg=COLOR_WARNING)
         elif not require_mfa:
             self._warning_label.config(
-                text="⚠️ Без MFA сессия менее защищена",
+                text="⚠️ Session is less protected without MFA",
                 fg=COLOR_WARNING,
             )
         else:
             self._warning_label.config(
-                text="✓ MFA защита включена",
+                text="✓ MFA protection enabled",
                 fg=COLOR_SUCCESS,
             )
 
@@ -644,7 +652,7 @@ class AutoLockSettingsDialog(BaseDialog):
             return
 
         try:
-            status_text = "Статус: "
+            status_text = "Status: "
 
             # Get auto-lock service state
             if self._auto_lock_service is not None:
@@ -657,29 +665,32 @@ class AutoLockSettingsDialog(BaseDialog):
                 try:
                     idle_minutes = self._auto_lock_service._lock_manager.get_idle_time_minutes()
                 except Exception as e:
-                    logging.getLogger(__name__).exception("Exception ignored during idle time retrieval: %s", e)
+                    logging.getLogger(__name__).exception(
+                        "Exception ignored during idle time retrieval: %s", e
+                    )
 
                 state_text = {
-                    AutoLockState.STOPPED: "Остановлена",
-                    AutoLockState.RUNNING: "Активна",
-                    AutoLockState.PAUSED: "На паузе",
-                    AutoLockState.LOCKING: "Блокировка...",
-                }.get(state, "Неизвестно")
+                    AutoLockState.STOPPED: "Stopped",
+                    AutoLockState.RUNNING: "Active",
+                    AutoLockState.PAUSED: "Paused",
+                    AutoLockState.LOCKING: "Locking...",
+                }.get(state, "Unknown")
 
-                idle_str = f"{int(idle_minutes)} мин {int((idle_minutes % 1) * 60)} сек"
-                status_text += f"{state_text}, простой: {idle_str}"
+                idle_str = f"{int(idle_minutes)} min {int((idle_minutes % 1) * 60)} sec"
+                status_text += f"{state_text}, idle: {idle_str}"
             else:
-                status_text += "Сервис недоступен"
+                status_text += "Service unavailable"
 
             self._status_label.config(text=status_text)
 
         except Exception as e:
             logger.debug("Error updating idle display: %s", e)
-            self._status_label.config(text="Статус: Ошибка обновления")
+            self._status_label.config(text="Status: Update error")
 
         # Schedule next update
         if self.winfo_exists():
             self._idle_timer_id = self.after(IDLE_UPDATE_INTERVAL, self._update_idle_display)
+            self._after_ids.append(self._idle_timer_id)
 
     def _save_settings(self) -> None:
         """Сохраняет настройки и закрывает диалог."""

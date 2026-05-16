@@ -247,7 +247,7 @@ class TestQRCodeSettingsDialog:
         
         # Check that length is tracked
         length_text = dialog._data_length_var.get()
-        assert "символов" in length_text
+        assert "characters" in length_text
 
 
 class TestQRPreview:

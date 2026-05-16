@@ -48,42 +48,20 @@ DEFAULT_CELL_HEIGHT: Final[int] = 60  # dots (ESC/P units)
 
 MIN_ZOOM: Final[float] = 0.5
 MAX_ZOOM: Final[float] = 2.0
-
 DEFAULT_ZOOM: Final[float] = 1.0
 
-# Selection constants
-SELECTION_DELAY_MS: Final[int] = 100  # ms to distinguish click from drag
-SELECTION_MOVE_THRESHOLD: Final[int] = 5  # pixels movement to consider a drag
-
-# Grid colors
-BACKGROUND_COLOR: Final[str] = "#f8f9fa"
-GRID_COLOR: Final[str] = "#e9ecef"
-GRID_COLOR_MAJOR: Final[str] = "#dee2e6"
-FIELD_BORDER: Final[str] = "#2c3e50"
-FIELD_BORDER_WIDTH: Final[int] = 2
-FIELD_SELECT_BORDER: Final[str] = "#3498db"
-FIELD_SELECT_WIDTH: Final[int] = 3
-FIELD_FILL: Final[str] = "#ffffff"
-FIELD_OVERLAP_BORDER: Final[str] = "#e74c3c"
-FIELD_OVERLAP_WIDTH: Final[int] = 2
-FIELD_HANDLE_SIZE: Final[int] = 6
-FIELD_HANDLE_COLOR: Final[str] = "#e74c3c"
-FIELD_HANDLE_ACTIVE_COLOR: Final[str] = "#c0392b"
-
-# Grid line interval for major lines (every 10 cells)
+GRID_COLOR: Final[str] = "#d0d0d0"
+GRID_COLOR_MAJOR: Final[str] = "#a0a0a0"  # Every 10 lines
 GRID_MAJOR_INTERVAL: Final[int] = 10
 
-# Paper format definitions (columns x rows)
-PAPER_FORMATS: Final[dict[str, tuple[int, int]]] = {
-    "A4_Letter": (80, 66),
-    "Wide_Tractor": (132, 66),
-    "Envelope_DL": (40, 15),
-    "Envelope_C5": (60, 25),
-}
+BACKGROUND_COLOR: Final[str] = "#ffffff"
 
-# =============================================================================
-# FIELD INFO DATA CLASS
-# =============================================================================
+# Field styling
+FIELD_FILL: Final[str] = "#e8f4f8"
+FIELD_BORDER: Final[str] = "#2980b9"
+FIELD_BORDER_WIDTH: Final[int] = 1
+FIELD_OVERLAP_BORDER: Final[str] = "red"
+FIELD_OVERLAP_WIDTH: Final[int] = 3
 
 
 # =============================================================================
@@ -149,8 +127,6 @@ class ESCPGridCanvas(tk.Canvas):
         show_grid: bool = True,
         cell_width: int = DEFAULT_CELL_WIDTH,
         cell_height: int = DEFAULT_CELL_HEIGHT,
-        cols: int = ESCP_COLS,
-        rows: int = ESCP_ROWS,
         **kwargs: Any,
     ) -> None:
         """Инициализация ESCPGridCanvas.
@@ -161,8 +137,6 @@ class ESCPGridCanvas(tk.Canvas):
             show_grid: Показывать сетку по умолчанию.
             cell_width: Ширина ячейки в пикселях (при zoom=1.0).
             cell_height: Высота ячейки в пикселях (при zoom=1.0).
-            cols: Количество колонок сетки (по умолчанию 80).
-            rows: Количество строк сетки (по умолчанию 66).
             **kwargs: Дополнительные параметры для tk.Canvas.
 
         Raises:
@@ -177,14 +151,10 @@ class ESCPGridCanvas(tk.Canvas):
             raise ValueError(f"cell_width должен быть > 0, получен {cell_width}")
         if cell_height <= 0:
             raise ValueError(f"cell_height должен быть > 0, получен {cell_height}")
-        if cols <= 0:
-            raise ValueError(f"cols должен быть > 0, получен {cols}")
-        if rows <= 0:
-            raise ValueError(f"rows должен быть > 0, получен {rows}")
 
-        # Grid dimensions
-        self._cols: int = cols
-        self._rows: int = rows
+        # Grid dimensions (constants from layout_constants)
+        self._cols: int = ESCP_COLS
+        self._rows: int = ESCP_ROWS
 
         # Base cell size (at zoom=1.0)
         self._base_cell_width: int = cell_width
@@ -447,56 +417,6 @@ class ESCPGridCanvas(tk.Canvas):
         width: int = self._cols * self._cell_width
         height: int = self._rows * self._cell_height
         return (width, height, self._cols, self._rows)
-
-    def set_paper_format(self, format_name: str) -> None:
-        """Устанавливает формат бумаги для сетки.
-
-        Args:
-            format_name: Наименование формата ("A4_Letter", "Wide_Tractor", 
-                         "Envelope_DL", "Envelope_C5")
-
-        Raises:
-            ValueError: Если формат не найден.
-        """
-        if format_name not in PAPER_FORMATS:
-            raise ValueError(
-                f"Неизвестный формат бумаги: {format_name}. "
-                f"Доступные форматы: {list(PAPER_FORMATS.keys())}"
-            )
-        
-        cols, rows = PAPER_FORMATS[format_name]
-        self.set_grid_dimensions(cols, rows)
-
-    def set_grid_dimensions(self, cols: int, rows: int) -> None:
-        """Устанавливает размеры сетки.
-
-        Args:
-            cols: Количество колонок.
-            rows: Количество строк.
-        """
-        if cols <= 0:
-            raise ValueError(f"cols должен быть > 0, получен {cols}")
-        if rows <= 0:
-            raise ValueError(f"rows должен быть > 0, получен {rows}")
-
-        self._cols = cols
-        self._rows = rows
-
-        # Recalculate canvas size
-        canvas_width: int = self._cols * self._cell_width
-        canvas_height: int = self._rows * self._cell_height
-        self.config(width=canvas_width, height=canvas_height)
-
-        # Redraw grid with new dimensions
-        self._draw_grid()
-
-    def get_paper_formats(self) -> dict[str, tuple[int, int]]:
-        """Возвращает словарь доступных форматов бумаги.
-
-        Returns:
-            Словарь формата -> (cols, rows)
-        """
-        return PAPER_FORMATS.copy()
 
     # =====================================================================
     # FIELD MANAGEMENT

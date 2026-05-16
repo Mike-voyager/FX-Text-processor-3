@@ -1,5 +1,6 @@
 """GUI Services package for FX Text Processor 3."""
 
+from src.gui.services.autocomplete_service import AutocompleteServiceGui
 from src.gui.services.drag_drop_service import (
     DATA_TYPE_DOCUMENT,
     DATA_TYPE_FIELD,
@@ -63,4 +64,5 @@ __all__ = [
     "DATA_WINDOW_LIST_CHANGED",
     "ToastService",
     "KeyBindingsService",
+    "AutocompleteServiceGui",
 ]

@@ -191,7 +191,10 @@ class BarcodeController:
         dialog.title("⚙️ Настройки штрих-кода")
         dialog.geometry("400x400")
         dialog.transient(self._parent)  # type: ignore[call-overload]
-        dialog.grab_set()
+        try:
+            dialog.grab_set()
+        except tk.TclError:
+            pass
 
         # Settings panel
         panel = BarcodeSettingsPanel(dialog)  # type: ignore[arg-type]
@@ -214,7 +217,7 @@ class BarcodeController:
         btn_frame = tk.Frame(dialog)
         btn_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        tk.Button(btn_frame, text="Отмена", command=on_cancel).pack(side=tk.RIGHT)
+        tk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side=tk.RIGHT)
         tk.Button(btn_frame, text="OK", command=on_ok).pack(side=tk.RIGHT, padx=(0, 10))
 
         dialog.wait_window()
@@ -312,7 +315,7 @@ class BarcodeController:
         dialog = BarcodeConflictDialog(
             parent=self._parent,
             barcode_type=result.barcode_type,
-            reason=f"{result.barcode_type} не поддерживается в Hardware mode",
+            reason=f"{result.barcode_type} not supported in Hardware mode",
             suggested_type=suggested,
         )
 

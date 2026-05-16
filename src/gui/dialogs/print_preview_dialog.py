@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional
+from typing import Any, Optional
 
 from src.documents.printing.document_renderer import DocumentRenderer, RenderSettings
 from src.gui.components.escp_preview_widget import ESCPPreviewWidget
@@ -37,7 +37,7 @@ class PrintPreviewDialog(BaseDialog):
         document: Document,
         document_renderer: DocumentRenderer,
         theme: str = "classic_green",
-        **kwargs,
+        **kwargs: Any,
     ):
         """Инициализация диалога предпросмотра.
 
@@ -45,10 +45,10 @@ class PrintPreviewDialog(BaseDialog):
             parent: Родительский виджет.
             document: Документ для отображения.
             document_renderer: Рендерер документов в ESC/P.
-            theme: Тема оформления.
+            theme: Theme оформления.
         """
         kwargs.pop("theme", None)  # theme не передаём в Toplevel
-        super().__init__(parent, title="Предпросмотр печати", **kwargs)
+        super().__init__(parent, title="Print Preview", **kwargs)
         self._theme = theme
         self._document = document
         self._renderer = document_renderer
@@ -72,11 +72,11 @@ class PrintPreviewDialog(BaseDialog):
         self.toolbar = ttk.Frame(self.main_container)
         self.toolbar.pack(fill=tk.X, side=tk.TOP, pady=PADDING_SMALL)
 
-        self.btn_print = ttk.Button(self.toolbar, text="Печать...", command=self._on_print_clicked)
+        self.btn_print = ttk.Button(self.toolbar, text="Print...", command=self._on_print_clicked)
         self.btn_print.pack(side=tk.LEFT, padx=PADDING_SMALL)
 
         self.btn_close = ttk.Button(
-            self.toolbar, text="Закрыть", command=lambda: self.close(result=None)
+            self.toolbar, text="Close", command=lambda: self.close(result=None)
         )
         self.btn_close.pack(side=tk.RIGHT, padx=PADDING_SMALL)
 
@@ -109,4 +109,7 @@ class PrintPreviewDialog(BaseDialog):
             'print' если нажата кнопка Печать, None иначе.
         """
         super().show()
-        return self.get_result()
+        result = self.get_result()
+        if isinstance(result, str):
+            return result
+        return None

@@ -33,8 +33,8 @@ class GUIError(Exception):
         message: Описание ошибки (опционально)
 
     Example:
-        >>> raise GUIError("Общая ошибка GUI")
-        GUIError: Общая ошибка GUI
+        >>> raise GUIError("General GUI error")
+        GUIError: General GUI error
 
         >>> raise GUIError()
         GUIError
@@ -66,8 +66,8 @@ class WidgetRegistryError(GUIError):
         message: Описание ошибки (опционально)
 
     Example:
-        >>> raise WidgetRegistryError("Дубликат регистрации виджета")
-        WidgetRegistryError: Дубликат регистрации виджета
+        >>> raise WidgetRegistryError("Duplicate widget registration")
+        WidgetRegistryError: Duplicate widget registration
     """
 
     pass
@@ -83,7 +83,7 @@ class WidgetNotFoundError(WidgetRegistryError):
 
     Example:
         >>> raise WidgetNotFoundError("button", "submit_btn")
-        WidgetNotFoundError: Виджет 'submit_btn' типа 'button' не найден
+        WidgetNotFoundError: Widget 'submit_btn' of type 'button' not found
     """
 
     def __init__(
@@ -107,9 +107,9 @@ class WidgetNotFoundError(WidgetRegistryError):
             if widget_id:
                 parts.append(f"'{widget_id}'")
             if widget_type:
-                parts.append(f"типа '{widget_type}'")
-            msg = f"Виджет {' '.join(parts)} не найден в реестре"
-            message = msg if parts else "Виджет не найден в реестре"
+                parts.append(f"of type '{widget_type}'")
+            msg = f"Widget {' '.join(parts)} not found in registry"
+            message = msg if parts else "Widget not found in registry"
 
         super().__init__(message)
 
@@ -125,7 +125,7 @@ class WidgetCreationError(WidgetRegistryError):
 
     Example:
         >>> raise WidgetCreationError("text_editor", factory="create_editor")
-        WidgetCreationError: Не удалось создать виджет 'text_editor'
+        WidgetCreationError: Failed to create widget 'text_editor'
     """
 
     def __init__(
@@ -148,11 +148,11 @@ class WidgetCreationError(WidgetRegistryError):
         self.cause = cause
 
         if message is None:
-            parts = ["Не удалось создать виджет"]
+            parts = ["Failed to create widget"]
             if widget_type:
                 parts.append(f"'{widget_type}'")
             if factory_name:
-                parts.append(f"в фабрике '{factory_name}'")
+                parts.append(f"in factory '{factory_name}'")
             message = " ".join(parts)
 
         super().__init__(message)
@@ -173,7 +173,7 @@ class ProtocolValidationError(GUIError):
 
     Example:
         >>> raise ProtocolValidationError("WidgetProtocol", "MyWidget")
-        ProtocolValidationError: 'MyWidget' не реализует 'WidgetProtocol'
+        ProtocolValidationError: 'MyWidget' does not implement 'WidgetProtocol'
     """
 
     def __init__(
@@ -197,10 +197,10 @@ class ProtocolValidationError(GUIError):
             if implementation:
                 parts.append(f"'{implementation}'")
             if protocol_name:
-                parts.append(f"не реализует Protocol '{protocol_name}'")
+                parts.append(f"does not implement Protocol '{protocol_name}'")
             else:
-                parts.append("не соответствует Protocol интерфейсу")
-            message = " ".join(parts) if parts else "Ошибка валидации Protocol"
+                parts.append("does not conform to Protocol interface")
+            message = " ".join(parts) if parts else "Protocol validation error"
 
         super().__init__(message)
 
@@ -220,7 +220,7 @@ class LifecycleError(GUIError):
 
     Example:
         >>> raise LifecycleError("doc_view", "mount")
-        LifecycleError: Ошибка mount для виджета 'doc_view'
+        LifecycleError: Error during mount for widget 'doc_view'
     """
 
     def __init__(
@@ -241,13 +241,13 @@ class LifecycleError(GUIError):
 
         if message is None:
             if operation and widget_id:
-                message = f"Ошибка {operation} для виджета '{widget_id}'"
+                message = f"Error during {operation} for widget '{widget_id}'"
             elif operation:
-                message = f"Ошибка операции {operation}"
+                message = f"Error during operation {operation}"
             elif widget_id:
-                message = f"Ошибка жизненного цикла виджета '{widget_id}'"
+                message = f"Widget lifecycle error for '{widget_id}'"
             else:
-                message = "Ошибка жизненного цикла виджета"
+                message = "Widget lifecycle error"
 
         super().__init__(message)
 
@@ -269,7 +269,8 @@ class EventHandlingError(GUIError):
 
     Example:
         >>> raise EventHandlingError("click", "btn_submit", "on_click")
-        EventHandlingError: Ошибка обработки 'click' в 'on_click' для 'btn_submit'
+        EventHandlingError: Error handling event 'click' in handler
+            'on_click' for widget 'btn_submit'
     """
 
     def __init__(
@@ -295,13 +296,13 @@ class EventHandlingError(GUIError):
         self.cause = cause
 
         if message is None:
-            parts = ["Ошибка обработки события"]
+            parts = ["Error handling event"]
             if event_type:
                 parts.append(f"'{event_type}'")
             if handler_name:
-                parts.append(f"в обработчике '{handler_name}'")
+                parts.append(f"in handler '{handler_name}'")
             if widget_id:
-                parts.append(f"для виджета '{widget_id}'")
+                parts.append(f"for widget '{widget_id}'")
             message = " ".join(parts)
 
         super().__init__(message)

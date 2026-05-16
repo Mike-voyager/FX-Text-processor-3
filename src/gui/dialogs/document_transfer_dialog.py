@@ -130,7 +130,7 @@ class DocumentTransferDialog(BaseDialog):
             *args: Дополнительные аргументы для Toplevel.
             **kwargs: Дополнительные именованные аргументы.
         """
-        super().__init__(parent, *args, modal=True, **kwargs)
+        super().__init__(parent, *args, **kwargs)
 
         self._parent: tk.Widget = parent
         self._source_window_id: str = source_window_id
@@ -152,7 +152,7 @@ class DocumentTransferDialog(BaseDialog):
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна диалога."""
-        self.title("Перенос документа")
+        self.title("Transfer Document")
         self.geometry(f"{self.DIALOG_WIDTH}x{self.DIALOG_HEIGHT}")
         self.minsize(MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT)
 
@@ -188,6 +188,12 @@ class DocumentTransferDialog(BaseDialog):
         # Target window selection
         self._create_target_section(main_frame)
 
+        # Transfer mode (Move / Copy)
+        self._create_mode_section(main_frame)
+
+        # Sync with source checkbox
+        self._create_sync_section(main_frame)
+
         # MFA section (for PARANOID preset)
         self._create_mfa_section(main_frame)
 
@@ -204,14 +210,14 @@ class DocumentTransferDialog(BaseDialog):
         """
         header = ttk.Label(
             parent,
-            text="📂 Перенос документа между окнами",
+            text="Transfer Document",
             font=("Helvetica", 14, "bold"),
         )
         header.grid(row=0, column=0, sticky="w", pady=(0, PADDING_NORMAL))
 
         description = ttk.Label(
             parent,
-            text="Выберите целевое окно для переноса документа",
+            text="Select target window to transfer the document",
             foreground="gray",
         )
         description.grid(row=1, column=0, sticky="w", pady=(0, PADDING_NORMAL))
@@ -224,7 +230,7 @@ class DocumentTransferDialog(BaseDialog):
         """
         source_frame = ttk.LabelFrame(
             parent,
-            text="Исходное окно",
+            text="Source Window",
             padding=PADDING_NORMAL,
         )
         source_frame.grid(row=2, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
@@ -243,18 +249,18 @@ class DocumentTransferDialog(BaseDialog):
 
             if source_window_info:
                 title_text = f"📄 {source_window_info.title}"
-                doc_text = f"Документ: {source_window_info.document_path or 'Нет документа'}"
+                doc_text = f"Document: {source_window_info.document_path or 'No document'}"
             else:
-                title_text = f"📄 Окно {self._source_window_id[:8]}..."
-                doc_text = f"Документ: {self._document_id}"
+                title_text = f"📄 Window {self._source_window_id[:8]}..."
+                doc_text = f"Document: {self._document_id}"
         else:
-            title_text = f"📄 Окно {self._source_window_id[:8]}..."
-            doc_text = f"Документ: {self._document_id}"
+            title_text = f"📄 Window {self._source_window_id[:8]}..."
+            doc_text = f"Document: {self._document_id}"
 
         # From label
         ttk.Label(
             source_frame,
-            text="Из:",
+            text="From:",
             font=("Helvetica", 10, "bold"),
         ).grid(row=0, column=0, sticky="w")
 
@@ -286,7 +292,7 @@ class DocumentTransferDialog(BaseDialog):
 
         self._warning_label = tk.Label(
             self._warning_frame,
-            text="⚠️ В текущем документе есть несохранённые изменения",
+            text="⚠️ Current document has unsaved changes",
             bg=COLOR_WARNING_BG,
             fg=COLOR_WARNING,
             font=("Helvetica", 10),
@@ -304,7 +310,7 @@ class DocumentTransferDialog(BaseDialog):
         """
         target_frame = ttk.LabelFrame(
             parent,
-            text="Целевое окно",
+            text="Target Window",
             padding=PADDING_NORMAL,
         )
         target_frame.grid(row=4, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
@@ -313,7 +319,7 @@ class DocumentTransferDialog(BaseDialog):
         # To label
         ttk.Label(
             target_frame,
-            text="В:",
+            text="To:",
             font=("Helvetica", 10, "bold"),
         ).grid(row=0, column=0, sticky="w", pady=(0, PADDING_SMALL))
 
@@ -322,7 +328,7 @@ class DocumentTransferDialog(BaseDialog):
         self._target_selection_frame.grid(row=0, column=1, sticky="ew", padx=(PADDING_SMALL, 0))
 
         # Combobox for target windows
-        self._target_var = tk.StringVar()
+        self._target_var = tk.StringVar(master=self)
         self._target_combo = ttk.Combobox(
             self._target_selection_frame,
             textvariable=self._target_var,
@@ -334,10 +340,56 @@ class DocumentTransferDialog(BaseDialog):
         # No targets message (hidden by default)
         self._no_targets_label = ttk.Label(
             target_frame,
-            text="Нет доступных окон",
+            text="No available windows",
             foreground=COLOR_WARNING,
             font=("Helvetica", 10, "italic"),
         )
+
+    def _create_mode_section(self, parent: ttk.Frame) -> None:
+        """Создаёт секцию выбора режима переноса (Move / Copy).
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        mode_frame = ttk.LabelFrame(
+            parent,
+            text="Mode",
+            padding=PADDING_NORMAL,
+        )
+        mode_frame.grid(row=5, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
+
+        self._mode_var = tk.StringVar(value="move")
+
+        ttk.Radiobutton(
+            mode_frame,
+            text="Move (close in source)",
+            variable=self._mode_var,
+            value="move",
+        ).pack(anchor="w", pady=(0, PADDING_SMALL))
+
+        ttk.Radiobutton(
+            mode_frame,
+            text="Copy (keep in both)",
+            variable=self._mode_var,
+            value="copy",
+        ).pack(anchor="w")
+
+    def _create_sync_section(self, parent: ttk.Frame) -> None:
+        """Создаёт секцию синхронизации с исходным окном.
+
+        Args:
+            parent: Родительский фрейм.
+        """
+        sync_frame = ttk.Frame(parent)
+        sync_frame.grid(row=6, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
+
+        self._sync_var = tk.BooleanVar(value=False)
+        self._sync_check = ttk.Checkbutton(
+            sync_frame,
+            text="Sync with source",
+            variable=self._sync_var,
+        )
+        self._sync_check.pack(anchor="w")
 
     def _create_mfa_section(self, parent: ttk.Frame) -> None:
         """Создаёт MFA секцию для PARANOID preset.
@@ -354,7 +406,7 @@ class DocumentTransferDialog(BaseDialog):
 
         mfa_title = tk.Label(
             self._mfa_frame,
-            text="🔐 Требуется MFA верификация",
+            text="🔐 MFA verification required",
             bg=COLOR_MFA_BG,
             fg=COLOR_MFA_FG,
             font=("Helvetica", 10, "bold"),
@@ -363,7 +415,7 @@ class DocumentTransferDialog(BaseDialog):
 
         mfa_desc = tk.Label(
             self._mfa_frame,
-            text="Для переноса защищённого документа требуется MFA",
+            text="MFA required to transfer protected document",
             bg=COLOR_MFA_BG,
             fg=COLOR_MFA_FG,
             font=("Helvetica", 9),
@@ -372,7 +424,7 @@ class DocumentTransferDialog(BaseDialog):
 
         # Show only for PARANOID preset
         if self._document_preset == "PARANOID":
-            self._mfa_frame.grid(row=5, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
+            self._mfa_frame.grid(row=7, column=0, sticky="ew", pady=(0, PADDING_NORMAL))
 
     def _create_buttons(self, parent: ttk.Frame) -> None:
         """Создаёт панель кнопок.
@@ -381,13 +433,13 @@ class DocumentTransferDialog(BaseDialog):
             parent: Родительский фрейм.
         """
         button_frame = ttk.Frame(parent)
-        button_frame.grid(row=6, column=0, sticky="ew", pady=(PADDING_NORMAL, 0))
+        button_frame.grid(row=8, column=0, sticky="ew", pady=(PADDING_NORMAL, 0))
         button_frame.columnconfigure(0, weight=1)
 
         # Cancel button
         self._cancel_btn = ttk.Button(
             button_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
         )
         self._cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
@@ -395,7 +447,7 @@ class DocumentTransferDialog(BaseDialog):
         # Transfer button
         self._transfer_btn = ttk.Button(
             button_frame,
-            text="Перенести",
+            text="Transfer",
             command=self._on_transfer,
         )
         self._transfer_btn.pack(side=tk.RIGHT)
@@ -410,8 +462,9 @@ class DocumentTransferDialog(BaseDialog):
         ]
 
         if self._available_windows:
-            # Populate combobox
+            # Populate combobox with available windows + New Window option
             window_names = [f"{win.title} ({win.window_id[:8]})" for win in self._available_windows]
+            window_names.append("New Window")
             self._target_combo["values"] = window_names
             self._target_combo.current(0)
 
@@ -419,20 +472,25 @@ class DocumentTransferDialog(BaseDialog):
             self._target_selection_frame.grid()
             self._no_targets_label.grid_remove()
         else:
-            # No available windows
-            self._target_selection_frame.grid_remove()
-            self._no_targets_label.grid(row=0, column=1, sticky="w", padx=(PADDING_SMALL, 0))
-            self._transfer_btn.configure(state=tk.DISABLED)
+            # No available windows, still offer New Window
+            self._target_combo["values"] = ["New Window"]
+            self._target_combo.current(0)
+            self._target_selection_frame.grid()
+            self._no_targets_label.grid_remove()
 
     def _get_selected_target(self) -> Optional[str]:
         """Возвращает ID выбранного целевого окна.
 
         Returns:
-            ID окна или None если ничего не выбрано.
+            ID окна, "new_window" если выбрано создание нового окна,
+            или None если ничего не выбрано.
         """
         selection = self._target_var.get()
         if not selection:
             return None
+
+        if selection == "New Window":
+            return "new_window"
 
         # Find window by display name
         for win in self._available_windows:
@@ -443,13 +501,13 @@ class DocumentTransferDialog(BaseDialog):
         return None
 
     def _on_transfer(self) -> None:
-        """Обработчик нажатия кнопки 'Перенести'."""
+        """Обработчик нажатия кнопки Transfer."""
         # 1. Проверка выбора целевого окна
         target_id = self._get_selected_target()
         if not target_id:
             messagebox.showwarning(
-                "Ошибка",
-                "Выберите целевое окно",
+                "Error",
+                "Please select a target window",
                 parent=self,
             )
             return
@@ -463,9 +521,9 @@ class DocumentTransferDialog(BaseDialog):
                 operation="transfer_document",
             )
             if not result.verified:
-                return  # Отмена
+                return  # Cancelled
 
-        # 3. Проверка DocumentLock
+        # 3. DocumentLock check
         if hasattr(self._document_lock_service, "can_transfer"):
             can_transfer = self._document_lock_service.can_transfer(
                 self._document_id, self._source_window_id, target_id
@@ -476,13 +534,13 @@ class DocumentTransferDialog(BaseDialog):
 
         if not can_transfer:
             messagebox.showerror(
-                "Ошибка",
-                "Документ заблокирован другим пользователем",
+                "Error",
+                "Document is locked by another user",
                 parent=self,
             )
             return
 
-        # 4. Выполнить перенос
+        # 4. Perform transfer
         success = self._window_manager.transfer_document(
             self._source_window_id, target_id, self._document_id
         )
@@ -492,13 +550,13 @@ class DocumentTransferDialog(BaseDialog):
             self.destroy()
         else:
             messagebox.showerror(
-                "Ошибка",
-                "Не удалось перенести документ",
+                "Error",
+                "Failed to transfer document",
                 parent=self,
             )
 
     def _on_cancel(self) -> None:
-        """Обработчик нажатия кнопки 'Отмена'."""
+        """Обработчик нажатия кнопки Cancel."""
         self._result = False
         self.destroy()
 

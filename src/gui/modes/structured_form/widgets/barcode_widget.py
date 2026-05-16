@@ -140,7 +140,7 @@ class BarcodeWidget(BaseFieldWidget):
         # Кнопка подтверждения
         self._insert_btn = tk.Button(
             frame,
-            text="Вставить",
+            text="Insert",
             command=lambda: self._on_insert(),
         )
         self._insert_btn.pack(anchor=tk.E, pady=(0, 4))

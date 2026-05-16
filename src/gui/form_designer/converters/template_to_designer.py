@@ -115,7 +115,10 @@ class TemplateToDesignerConverter:
                     if profile is not None:
                         return profile
                 except Exception as e:
-                    logging.getLogger(__name__).exception("Exception ignored during profile retrieval: %s", e)
+                    logging.getLogger(__name__).exception(
+                        "Exception ignored during profile retrieval: %s",
+                        e,
+                    )
 
         # Возвращаем дефолтный профиль
         default_profile = self._profile_service.get_default_profile()

@@ -362,9 +362,8 @@ class TestDocumentTransferDialog:
         # Check that available windows is empty
         assert len(dialog._available_windows) == 0
 
-        # Transfer button should be disabled
-        # Note: Tkinter returns index object, need to convert to string
-        assert str(dialog._transfer_btn["state"]) == "disabled"
+        # Transfer button remains enabled because "New Window" is always available
+        assert str(dialog._transfer_btn["state"]) == "normal"
 
         dialog.destroy()
 

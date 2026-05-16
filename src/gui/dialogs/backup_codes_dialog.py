@@ -156,14 +156,14 @@ class BackupCodesDialog(BaseDialog):
         super().__init__(parent, modal=True)
 
         # Configure window
-        self.title("🔑 Резервные коды доступа")
+        self.title("Backup Recovery Codes")
         self.resizable(False, False)
 
         # Apply theme background
         try:
             theme = self._theme_manager.get_current_theme()
             self.configure(bg=theme.bg_color)
-        except (AttributeError, KeyError, RuntimeError) as e:
+        except (AttributeError, KeyError, RuntimeError):
             self.configure(bg=COLOR_BG)
 
         # Make modal
@@ -213,12 +213,23 @@ class BackupCodesDialog(BaseDialog):
         # Title
         title_label = tk.Label(
             main_frame,
-            text="🔑 Резервные коды доступа",
+            text="Backup Recovery Codes",
             font=(font_family, 14, "bold"),
             bg=bg_color,
             fg=fg_color,
         )
-        title_label.pack(pady=(0, 15))
+        title_label.pack(pady=(0, 5))
+
+        # Description (UI_SPEC §3.4)
+        desc_label = tk.Label(
+            main_frame,
+            text="Save these codes in a safe place.\nEach code can be used ONCE.",
+            font=(font_family, 9),
+            bg=bg_color,
+            fg="#7f8c8d",
+            justify=tk.CENTER,
+        )
+        desc_label.pack(pady=(0, 15))
 
         # Status section
         self._create_status_section(main_frame, bg_color, fg_color, font_family)
@@ -240,8 +251,8 @@ class BackupCodesDialog(BaseDialog):
 
         Args:
             parent: Родительский фрейм.
-            bg_color: Цвет фона.
-            fg_color: Цвет текста.
+            bg_color: Color фона.
+            fg_color: Color текста.
             font_family: Семейство шрифтов.
         """
         status_frame = tk.Frame(parent, bg=bg_color)
@@ -250,7 +261,7 @@ class BackupCodesDialog(BaseDialog):
         # Remaining codes
         self._status_label = tk.Label(
             status_frame,
-            text="Осталось кодов: --/--",
+            text="Remaining codes: --/--",
             font=(font_family, 10),
             bg=bg_color,
             fg=fg_color,
@@ -260,7 +271,7 @@ class BackupCodesDialog(BaseDialog):
         # Expiry date
         self._expiry_label = tk.Label(
             status_frame,
-            text="Действительны до: --",
+            text="Valid until: --",
             font=(font_family, 10),
             bg=bg_color,
             fg=fg_color,
@@ -277,7 +288,7 @@ class BackupCodesDialog(BaseDialog):
 
         Args:
             parent: Родительский фрейм.
-            bg_color: Цвет фона.
+            bg_color: Color фона.
             font_family: Семейство шрифтов.
         """
         # Border frame
@@ -325,23 +336,25 @@ class BackupCodesDialog(BaseDialog):
     ) -> None:
         """Создаёт секцию кнопок.
 
+        UI_SPEC §3.4: [🖨️ Print] [💾 Save to File] [Done]
+
         Args:
             parent: Родительский фрейм.
-            bg_color: Цвет фона.
+            bg_color: Color фона.
             accent_color: Акцентный цвет.
             font_family: Семейство шрифтов.
         """
         buttons_frame = tk.Frame(parent, bg=bg_color)
         buttons_frame.pack(fill=tk.X)
 
-        # Top row buttons (Toggle, Copy)
-        top_row = tk.Frame(buttons_frame, bg=bg_color)
-        top_row.pack(fill=tk.X, pady=(0, 10))
+        # Utility row (Toggle, Copy, Regenerate)
+        utility_row = tk.Frame(buttons_frame, bg=bg_color)
+        utility_row.pack(fill=tk.X, pady=(0, 10))
 
         # Toggle visibility button
         self._toggle_btn = tk.Button(
-            top_row,
-            text="👁 Показать все",
+            utility_row,
+            text="👁 Show All",
             width=15,
             command=self._toggle_visibility,
             font=(font_family, 9),
@@ -351,36 +364,66 @@ class BackupCodesDialog(BaseDialog):
 
         # Copy button
         self._copy_btn = tk.Button(
-            top_row,
-            text="📋 Копировать",
+            utility_row,
+            text="📋 Copy",
             width=15,
             command=self._copy_to_clipboard,
             font=(font_family, 9),
             bg=bg_color,
         )
-        self._copy_btn.pack(side=tk.LEFT)
+        self._copy_btn.pack(side=tk.LEFT, padx=(0, 10))
 
         # Regenerate button
         self._regenerate_btn = tk.Button(
-            buttons_frame,
-            text="🔄 Сгенерировать новые",
-            width=25,
+            utility_row,
+            text="🔄 Generate New",
+            width=22,
             command=self._regenerate_codes,
             font=(font_family, 9, "bold"),
             bg=accent_color,
             fg="white",
         )
-        self._regenerate_btn.pack(pady=(0, 15))
+        self._regenerate_btn.pack(side=tk.LEFT)
 
-        # Close button
+        # Main action row (UI_SPEC §3.4)
+        action_row = tk.Frame(buttons_frame, bg=bg_color)
+        action_row.pack(fill=tk.X, pady=(5, 0))
+
+        tk.Frame(action_row, bg=bg_color).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Print button
+        print_btn = tk.Button(
+            action_row,
+            text="🖨️ Print",
+            width=12,
+            command=self._on_print,
+            font=(font_family, 9),
+            bg=bg_color,
+        )
+        print_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Save to File button
+        save_btn = tk.Button(
+            action_row,
+            text="💾 Save to File",
+            width=14,
+            command=self._on_save_to_file,
+            font=(font_family, 9),
+            bg=bg_color,
+        )
+        save_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Done button
         self._close_btn = tk.Button(
-            buttons_frame,
-            text="Закрыть",
+            action_row,
+            text="Done",
             width=12,
             command=self._on_close,
-            font=(font_family, 9),
+            font=(font_family, 9, "bold"),
+            bg=COLOR_SUCCESS,
+            fg="white",
         )
-        self._close_btn.pack()
+        self._close_btn.pack(side=tk.RIGHT)
 
     def _load_codes(self) -> None:
         """Загружает коды из backend API.
@@ -582,11 +625,11 @@ class BackupCodesDialog(BaseDialog):
         """Обновляет метки статуса."""
         if self._status_label:
             total = len(self._codes)
-            self._status_label.config(text=f"Осталось кодов: {self._remaining_count}/{total}")
+            self._status_label.config(text=f"Remaining codes: {self._remaining_count}/{total}")
 
         if self._expiry_label and self._expiry_date:
             expiry_str = self._expiry_date.strftime("%Y-%m-%d")
-            self._expiry_label.config(text=f"Действительны до: {expiry_str}")
+            self._expiry_label.config(text=f"Valid until: {expiry_str}")
 
     def _toggle_visibility(self) -> None:
         """Переключает видимость всех кодов."""
@@ -594,7 +637,7 @@ class BackupCodesDialog(BaseDialog):
 
         # Update button text
         if self._toggle_btn:
-            text = "🙈 Скрыть все" if self._show_all else "👁 Показать все"
+            text = "🙈 Hide All" if self._show_all else "👁 Show All"
             self._toggle_btn.config(text=text)
 
         # Update display
@@ -607,7 +650,7 @@ class BackupCodesDialog(BaseDialog):
             available_codes = [code.masked_code for code in self._codes if not code.is_used]
 
             if not available_codes:
-                self._show_status("Нет доступных кодов для копирования", is_error=True)
+                self._show_status("No available codes to copy", is_error=True)
                 return
 
             # Format as list
@@ -618,11 +661,11 @@ class BackupCodesDialog(BaseDialog):
             self._parent.clipboard_append(clipboard_text)
             self._parent.update()  # Required for clipboard to persist
 
-            self._show_status(f"Скопировано {len(available_codes)} кодов в буфер")
+            self._show_status(f"Copied {len(available_codes)} codes to clipboard")
 
         except (OSError, ValueError, RuntimeError) as e:
             logger.error("Failed to copy to clipboard: %s", e)
-            self._show_status("Ошибка копирования в буфер", is_error=True)
+            self._show_status("Clipboard copy error", is_error=True)
 
     def _regenerate_codes(self) -> None:
         """Регенерирует коды с MFA challenge.
@@ -639,7 +682,7 @@ class BackupCodesDialog(BaseDialog):
             )
 
             if not result.verified:
-                self._show_status("MFA верификация не пройдена", is_error=True)
+                self._show_status("MFA verification failed", is_error=True)
                 return
 
         # Proceed with regeneration
@@ -662,7 +705,7 @@ class BackupCodesDialog(BaseDialog):
 
             if status.get("error"):
                 logger.error("Failed to regenerate codes: %s", status["error"])
-                self._show_status("Ошибка генерации кодов", is_error=True)
+                self._show_status("Code generation error", is_error=True)
                 return
 
             # Mark as generated
@@ -670,14 +713,14 @@ class BackupCodesDialog(BaseDialog):
 
             # Reload and display
             self._load_codes()
-            self._show_status("Новые коды успешно сгенерированы!")
+            self._show_status("New codes generated successfully!")
 
         except ImportError:
             logger.error("code_service not available")
-            self._show_status("Сервис кодов недоступен", is_error=True)
+            self._show_status("Code service unavailable", is_error=True)
         except (OSError, ValueError, RuntimeError) as e:
             logger.error("Error regenerating codes: %s", e)
-            self._show_status("Ошибка генерации кодов", is_error=True)
+            self._show_status("Code generation error", is_error=True)
 
     def _show_status(self, message: str, is_error: bool = False) -> None:
         """Показывает статусное сообщение.
@@ -711,7 +754,23 @@ class BackupCodesDialog(BaseDialog):
                 if self._notification_label is not None and self.winfo_exists():
                     self._notification_label.config(text="")
 
-            self.after(3000, clear_notification)
+            self._after_ids.append(self.after(3000, clear_notification))
+
+    def _on_print(self) -> None:
+        """Обработчик печати резервных кодов.
+
+        UI_SPEC §3.4: Print backup codes to default printer.
+        """
+        logger.info("Print backup codes requested for user %s", self._user_id)
+        self._show_status("Printing is not implemented yet", is_error=False)
+
+    def _on_save_to_file(self) -> None:
+        """Обработчик сохранения резервных кодов в файл.
+
+        UI_SPEC §3.4: Save backup codes to encrypted file.
+        """
+        logger.info("Save backup codes to file requested for user %s", self._user_id)
+        self._show_status("Save to file is not implemented yet", is_error=False)
 
     def _on_close(self) -> None:
         """Обработчик закрытия диалога."""

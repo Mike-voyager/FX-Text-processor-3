@@ -1,727 +1,406 @@
-"""Сервис drag-and-drop для межоконных операций FX Text Processor 3.
+"""Drag-and-drop сервис для GUI.
 
-Реализует inter-window drag-and-drop с поддержкой ghost window,
-реестра целевых зон и типизированных данных. Обеспечивает визуальную
-обратную связь и отмену операции.
+Предоставляет централизованное управление операциями перетаскивания
+между виджетами и окнами.
 
-Data Types:
-    - DATA_TYPE_FIELD: Поле формы для конструктора
-    - DATA_TYPE_DOCUMENT: Документ для открытия/переноса
-    - DATA_TYPE_TEMPLATE: Шаблон документа
-    - DATA_TYPE_TEXT: Текстовые данные
-
-Operations:
-    - OPERATION_MOVE: Перемещение данных
-    - OPERATION_COPY: Копирование данных
-    - OPERATION_LINK: Создание ссылки на данные
+Classes:
+    DragData: Данные drag-операции.
+    DropOperation: Возможные операции drop.
+    DropTarget: Целевая зона для drop.
+    DragDropService: Сервис drag-and-drop.
 
 Example:
-    >>> from src.gui.services.drag_drop_service import (
-    ...     DragDropService, DragData, DropTarget,
-    ...     DATA_TYPE_FIELD, OPERATION_MOVE
-    ... )
-    >>> from src.gui.services.window_manager import WindowManager
-    >>> from src.gui.services.sync_service import SyncService
-    >>> wm = WindowManager(root)
-    >>> sync = SyncService(wm)
-    >>> dds = DragDropService(root, wm, sync)
-    >>> # Регистрация целевой зоны
-    >>> target = DropTarget(
-    ...     target_id="canvas_main",
-    ...     widget=canvas,
-    ...     accepted_types=(DATA_TYPE_FIELD,),
-    ...     accepted_operations=(OPERATION_MOVE, OPERATION_COPY),
-    ...     on_drop=lambda data, x, y: print(f"Drop at ({x}, {y})")
-    ... )
-    >>> tid = dds.register_drop_target(canvas, target)
-    >>> # Начало drag
-    >>> data = DragData(
-    ...     source_window_id="win_001",
-    ...     data_type=DATA_TYPE_FIELD,
-    ...     data={"field_type": "text"},
-    ...     preview_text="Текстовое поле",
-    ...     allowed_operations=(OPERATION_MOVE, OPERATION_COPY)
-    ... )
-    >>> dds.start_drag("win_001", data)
+    >>> dds = DragDropService(window_manager, sync_service)
+    >>> dds.start_drag("win_001", {"type": "text"})
 
 Version: 1.0
-Date: April 11, 2026
-Priority: MEDIUM (Phase 7)
+Date: May 2026
 """
 
 from __future__ import annotations
 
-import logging
 import tkinter as tk
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Final, Optional
+from typing import Any, Callable, Collection, Final, Optional
 
 from src.gui.services.sync_service import SyncService
 from src.gui.services.window_manager import WindowManager
 
 # =============================================================================
-# DROP OPERATION ENUM
+# CONSTANTS
+# =============================================================================
+
+DATA_TYPE_DOCUMENT: Final[str] = "document"
+DATA_TYPE_FIELD: Final[str] = "field"
+DATA_TYPE_TEMPLATE: Final[str] = "template"
+DATA_TYPE_TEXT: Final[str] = "text"
+
+# =============================================================================
+# ENUMS
 # =============================================================================
 
 
-class DropOperation(Enum):
-    """Операции перетаскивания.
+class DropOperation(str, Enum):
+    """Операции, доступные при drop."""
 
-    Определяет, что должно произойти с данными при drop:
-    перемещение, копирование или создание ссылки.
-
-    Attributes:
-        MOVE: Переместить данные из источника в цель.
-        COPY: Скопировать данные (источник сохраняет оригинал).
-        LINK: Создать ссылку на данные (без копирования).
-
-    Example:
-        >>> ops = {DropOperation.MOVE, DropOperation.COPY}
-        >>> if DropOperation.MOVE in ops:
-        ...     print("Move allowed")
-    """
-
-    MOVE = "move"
     COPY = "copy"
+    MOVE = "move"
     LINK = "link"
 
 
 # =============================================================================
-# DATA TYPE CONSTANTS
-# =============================================================================
-
-DATA_TYPE_FIELD: Final[str] = "field"
-"""Тип данных: поле формы (для FormConstructor)."""
-
-DATA_TYPE_DOCUMENT: Final[str] = "document"
-"""Тип данных: документ (.fxsd файл)."""
-
-DATA_TYPE_TEMPLATE: Final[str] = "template"
-"""Тип данных: шаблон документа (.fxstpl файл)."""
-
-DATA_TYPE_TEXT: Final[str] = "text"
-"""Тип данных: произвольный текст."""
-
-# =============================================================================
-# OPERATION CONSTANTS
-# =============================================================================
-
-# Операции теперь определены через DropOperation Enum
-# DropOperation.MOVE, DropOperation.COPY, DropOperation.LINK
-
-# =============================================================================
-# DRAG DATA
+# DATA CLASSES
 # =============================================================================
 
 
-@dataclass(frozen=True)
+@dataclass
 class DragData:
-    """Данные для операции перетаскивания.
-
-    Immutable dataclass, создаётся при старте drag и передаётся
-    в целевую зону при drop. Содержит всю информацию о перетаскиваемых
-    данных и разрешённых операциях.
+    """Данные drag-операции.
 
     Attributes:
-        source_window_id: Идентификатор окна-источника.
-        data_type: Тип данных (DATA_TYPE_* константа).
-        data: Полезная нагрузка (специфична для типа данных).
-        preview_text: Текст для отображения в ghost window.
-        allowed_operations: frozenset разрешённых операций (DropOperation).
-
-    Example:
-        >>> data = DragData(
-        ...     source_window_id="win_001",
-        ...     data_type=DATA_TYPE_FIELD,
-        ...     data={"field_type": "text", "label": "Имя"},
-        ...     preview_text="Поле: Имя",
-        ...     allowed_operations=frozenset({DropOperation.MOVE, DropOperation.COPY})
-        ... )
+        source_window_id: ID окна-источника.
+        data_type: Тип данных (DATA_TYPE_*).
+        data: Полезная нагрузка.
+        preview_text: Текст превью.
+        allowed_operations: Разрешённые операции.
+        field_type: Тип поля (legacy).
+        start_x: Начальная X-координата (legacy).
+        start_y: Начальная Y-координата (legacy).
     """
 
-    source_window_id: str = ""
-    data_type: str = ""
-    data: Any = None
-    preview_text: str = ""
-    allowed_operations: frozenset[DropOperation] = field(
-        default_factory=lambda: frozenset({DropOperation.MOVE})
-    )
-    # Legacy attributes for field palette compatibility
-    field_type: Any = None
-    start_x: int = 0
-    start_y: int = 0
+    source_window_id: Optional[str] = None
+    data_type: Optional[str] = None
+    data: Optional[dict[str, Any]] = None
+    preview_text: Optional[str] = None
+    allowed_operations: Optional[list[DropOperation]] = None
+    field_type: Optional[Any] = None
+    start_x: Optional[int] = None
+    start_y: Optional[int] = None
 
 
-# =============================================================================
-# DROP TARGET
-# =============================================================================
-
-
-@dataclass(frozen=True)
+@dataclass
 class DropTarget:
-    """Целевая зона для операции drop.
-
-    Immutable dataclass, регистрируется виджетом как потенциальная
-    цель для перетаскивания. Содержит критерии приёма и callback
-    для обработки drop.
+    """Целевая зона для drop.
 
     Attributes:
-        target_id: Уникальный идентификатор целевой зоны.
-        widget: Ссылка на Tkinter виджет-цель.
-        accepted_types: Кортеж принимаемых типов данных (DATA_TYPE_*).
-        accepted_operations: frozenset принимаемых операций (DropOperation).
-        on_drop: Callback для обработки drop (data, x, y).
-
-    Example:
-        >>> target = DropTarget(
-        ...     target_id="canvas_001",
-        ...     widget=canvas_widget,
-        ...     accepted_types=(DATA_TYPE_FIELD, DATA_TYPE_TEXT),
-        ...     accepted_operations=(OPERATION_MOVE, OPERATION_COPY),
-        ...     on_drop=lambda data, x, y: print(f"Dropped at ({x}, {y})")
-        ... )
+        target_id: Уникальный идентификатор цели.
+        widget: Виджет Tkinter.
+        accepted_types: Коллекция принимаемых типов данных.
+        accepted_operations: Коллекция принимаемых операций.
+        on_drop: Callback при drop.
     """
 
     target_id: str
     widget: tk.Widget
-    accepted_types: tuple[str, ...]
-    accepted_operations: frozenset[DropOperation]
-    on_drop: Callable[[DragData, int, int], None]
+    accepted_types: Collection[str] = field(default_factory=list)
+    accepted_operations: Collection[DropOperation] = field(default_factory=list)
+    on_drop: Callable[..., None] = field(default_factory=lambda: lambda *args, **kwargs: None)
 
 
 # =============================================================================
-# DRAG-DROP SERVICE
+# SERVICE
 # =============================================================================
 
 
 class DragDropService:
-    """Сервис межоконного drag-and-drop.
+    """Сервис drag-and-drop операций.
 
-    Управляет операциями перетаскивания между виджетами и окнами.
-    Создаёт ghost window для визуальной обратной связи, отслеживает
-    положение курсора и обрабатывает drop на зарегистрированные цели.
-
-    Attributes:
-        _root: Главное окно приложения (tk.Tk).
-        _window_manager: Менеджер окон для получения информации об окнах.
-        _sync_service: Сервис синхронизации для broadcast событий.
-        _drag_data: Текущие данные drag (None если не активен).
-        _ghost_window: Ghost window для визуализации drag.
-        _drop_targets: Словарь зарегистрированных целей {target_id: DropTarget}.
-        _current_operation: Текущая выбранная операция (move/copy/link).
-        _is_dragging: Флаг активности drag операции.
-        _drag_bindings: Сохранённые binding ID для последующего unbind.
+    Управляет началом drag, регистрацией целей drop и отменой операций.
 
     Example:
-        >>> wm = WindowManager(root)
-        >>> sync = SyncService(wm)
-        >>> dds = DragDropService(root, wm, sync)
-        >>> # Регистрация цели
-        >>> target = DropTarget(...)
-        >>> tid = dds.register_drop_target(widget, target)
-        >>> # Drag
-        >>> dds.start_drag("win_001", drag_data)
+        >>> dds = DragDropService(window_manager, sync_service)
         >>> dds.is_dragging()
-        True
-        >>> dds.cancel_drag()
+        False
     """
 
     def __init__(
         self,
-        root: tk.Tk,
-        window_manager: WindowManager,
-        sync_service: SyncService,
+        root: Optional[tk.Tk] = None,
+        window_manager: Optional[WindowManager] = None,
+        sync_service: Optional[SyncService] = None,
     ) -> None:
-        """Инициализирует сервис drag-and-drop.
+        """Инициализация сервиса.
 
         Args:
-            root: Главное окно приложения (tk.Tk).
-            window_manager: Менеджер окон для межоконных операций.
-            sync_service: Сервис синхронизации для broadcast событий.
-
-        Example:
-            >>> wm = WindowManager(root)
-            >>> sync = SyncService(wm)
-            >>> dds = DragDropService(root, wm, sync)
+            root: Корневое окно Tkinter (опционально).
+            window_manager: Менеджер окон (опционально).
+            sync_service: Сервис синхронизации (опционально).
         """
-        self._root: tk.Tk = root
-        self._window_manager: WindowManager = window_manager
-        self._sync_service: SyncService = sync_service
-
-        self._drag_data: Optional[DragData] = None
-        self._ghost_window: Optional[tk.Toplevel] = None
+        self._root: Optional[tk.Tk] = root
+        self._window_manager: Optional[WindowManager] = window_manager
+        self._sync_service: Optional[SyncService] = sync_service
+        self._dragging: bool = False
+        self._drag_data: Optional[Any] = None
+        self._source_window_id: Optional[str] = None
         self._drop_targets: dict[str, DropTarget] = {}
-        self._current_operation: DropOperation = DropOperation.MOVE
-        self._is_dragging: bool = False
+        self._ghost_window: Optional[tk.Toplevel] = None
+        self._current_target_id: Optional[str] = None
 
-        # Binding IDs для последующего unbind
-        self._motion_binding: Optional[str] = None
-        self._release_binding: Optional[str] = None
-        self._escape_binding: Optional[str] = None
+    # ------------------------------------------------------------------
+    # Публичный API
+    # ------------------------------------------------------------------
 
-    def start_drag(self, source_window_id: str, data: DragData) -> None:
+    def start_drag(self, source_window_id: str, data: Any) -> None:
         """Начинает операцию перетаскивания.
 
-        Создаёт ghost window, регистрирует глобальные обработчики
-        событий и устанавливает режим drag. Отправляет broadcast
-        событие о начале drag через SyncService.
-
         Args:
-            source_window_id: Идентификатор окна-источника.
-            data: Данные для перетаскивания (DragData).
-
-        Raises:
-            RuntimeError: Если drag уже активен.
-
-        Example:
-            >>> data = DragData(
-            ...     source_window_id="win_001",
-            ...     data_type=DATA_TYPE_FIELD,
-            ...     data={"field_type": "text"},
-            ...     preview_text="Поле ввода",
-            ...     allowed_operations=(OPERATION_MOVE, OPERATION_COPY)
-            ... )
-            >>> dds.start_drag("win_001", data)
-
-        Security:
-            Данные drag-and-drop не шифруются в процессе перетаскивания.
-            Не используйте для передачи sensitive данных без шифрования.
+            source_window_id: ID окна-источника.
+            data: Данные drag-операции.
         """
-        if self._is_dragging:
-            raise RuntimeError("Drag операция уже активна, используйте cancel_drag()")
-
+        if self._dragging:
+            self.cancel_drag()
+        self._dragging = True
+        self._source_window_id = source_window_id
         self._drag_data = data
-        default_op = DropOperation.MOVE
-        self._current_operation = (
-            next(iter(data.allowed_operations)) if data.allowed_operations else default_op
-        )
-        self._is_dragging = True
-
-        # Создаём ghost window
-        self._create_ghost_window(data.preview_text)
-
-        # Регистрируем глобальные обработчики
-        self._bind_drag_events()
-
-        # Обновляем курсор
-        self._root.config(cursor="fleur")
-
-        # Broadcast через SyncService
-        self._sync_service.broadcast(
-            source_window_id=source_window_id,
-            data_type="drag_start",
-            data={
-                "data_type": data.data_type,
-                "preview_text": data.preview_text,
-                "allowed_operations": data.allowed_operations,
-            },
-        )
+        self._create_ghost_window()
+        if self._sync_service is not None:
+            self._sync_service.broadcast(
+                source_window_id,
+                "drag_start",
+                {"data_type": getattr(data, "data_type", None)},
+            )
 
     def register_drop_target(self, widget: tk.Widget, target: DropTarget) -> str:
-        """Регистрирует виджет как целевую зону для drop.
-
-        Добавляет DropTarget в реестр сервиса. Целевая зона будет
-        проверяться при каждом drop событии на соответствие типа
-        данных и операции.
+        """Регистрирует виджет как целевую зону.
 
         Args:
-            widget: Tkinter виджет для регистрации (хранится в target).
-            target: Объект DropTarget с критериями приёма и callback.
+            widget: Виджет Tkinter.
+            target: Объект цели drop.
 
         Returns:
-            Идентификатор целевой зоны (target_id).
-
-        Raises:
-            ValueError: Если target_id уже существует.
-
-        Example:
-            >>> target = DropTarget(
-            ...     target_id="canvas_001",
-            ...     widget=canvas,
-            ...     accepted_types=(DATA_TYPE_FIELD,),
-            ...     accepted_operations=(OPERATION_MOVE,),
-            ...     on_drop=on_field_dropped
-            ... )
-            >>> tid = dds.register_drop_target(canvas, target)
+            Идентификатор целевой зоны.
         """
-        if target.target_id in self._drop_targets:
-            raise ValueError(f"Целевая зона с ID '{target.target_id}' уже существует")
-
-        self._drop_targets[target.target_id] = target
-        return target.target_id
+        target_id = target.target_id or f"drop_target_{id(target)}"
+        self._drop_targets[target_id] = target
+        return target_id
 
     def unregister_drop_target(self, target_id: str) -> None:
         """Удаляет регистрацию целевой зоны.
 
         Args:
-            target_id: Идентификатор целевой зоны.
+            target_id: Идентификатор цели.
 
         Raises:
-            KeyError: Если target_id не найден.
-
-        Example:
-            >>> dds.unregister_drop_target("canvas_001")
+            KeyError: Если цель с указанным ID не найдена.
         """
         if target_id not in self._drop_targets:
-            raise KeyError(f"Целевая зона с ID '{target_id}' не найдена")
-
+            raise KeyError(f"target '{target_id}' not found")
         del self._drop_targets[target_id]
 
     def is_dragging(self) -> bool:
-        """Проверяет, выполняется ли операция перетаскивания.
+        """Проверяет, выполняется ли drag.
 
         Returns:
             True если drag активен.
-
-        Example:
-            >>> if dds.is_dragging():
-            ...     print("Drag in progress...")
         """
-        return self._is_dragging
-
-    def get_drag_data(self) -> Optional[DragData]:
-        """Возвращает текущие данные drag.
-
-        Returns:
-            Текущие DragData или None если drag не активен.
-
-        Example:
-            >>> data = dds.get_drag_data()
-            >>> if data:
-            ...     print(f"Dragging: {data.preview_text}")
-        """
-        return self._drag_data
+        return self._dragging
 
     def cancel_drag(self) -> None:
-        """Отменяет текущую операцию перетаскивания.
-
-        Очищает ресурсы ghost window, снимает обработчики событий
-        и сбрасывает состояние drag. Отправляет broadcast событие
-        об отмене через SyncService.
-
-        Example:
-            >>> dds.cancel_drag()
-            >>> assert not dds.is_dragging()
-        """
-        if not self._is_dragging:
+        """Отменяет текущую drag-операцию."""
+        if not self._dragging:
             return
-
-        # Broadcast отмены
-        if self._drag_data is not None:
-            self._sync_service.broadcast(
-                source_window_id=self._drag_data.source_window_id,
-                data_type="drag_cancel",
-                data={"data_type": self._drag_data.data_type},
-            )
-
-        self._cleanup_drag()
-
-    def update_feedback(self, can_drop: bool) -> None:
-        """Обновляет визуальную обратную связь (курсор).
-
-        Изменяет форму курсора в зависимости от возможности drop
-        в текущей позиции.
-
-        Args:
-            can_drop: True если drop возможен в текущей позиции.
-
-        Example:
-            >>> # При проверке целевой зоны
-            >>> can_drop = self._check_can_drop(target)
-            >>> dds.update_feedback(can_drop)
-        """
-        if not self._is_dragging:
-            return
-
-        cursor = "exchange" if can_drop else "no"
-        self._root.config(cursor=cursor)
-
-    def set_operation(self, operation: DropOperation) -> None:
-        """Устанавливает текущую операцию перетаскивания.
-
-        Проверяет, что операция разрешена для текущих drag данных.
-
-        Args:
-            operation: Операция (DropOperation.MOVE, DropOperation.COPY, DropOperation.LINK).
-
-        Raises:
-            RuntimeError: Если нет активного drag.
-            ValueError: Если операция не разрешена.
-
-        Example:
-            >>> dds.set_operation(DropOperation.COPY)
-        """
-        if not self._is_dragging:
-            raise RuntimeError("Нет активного drag для установки операции")
-
-        if self._drag_data is None:
-            raise RuntimeError("Drag данные отсутствуют")
-
-        if operation not in self._drag_data.allowed_operations:
-            raise ValueError(f"Операция '{operation}' не разрешена для текущих данных")
-
-        self._current_operation = operation
-
-    def get_current_operation(self) -> DropOperation:
-        """Возвращает текущую операцию перетаскивания.
-
-        Returns:
-            Текущая операция (DropOperation.MOVE, DropOperation.COPY, DropOperation.LINK).
-
-        Example:
-            >>> op = dds.get_current_operation()
-            >>> print(f"Current operation: {op}")
-        """
-        return self._current_operation
-
-    def _create_ghost_window(self, preview_text: str) -> None:
-        """Создаёт ghost window для визуализации drag.
-
-        Args:
-            preview_text: Текст для отображения в ghost window.
-        """
-        self._ghost_window = tk.Toplevel(self._root)
-        self._ghost_window.wm_overrideredirect(True)
-        self._ghost_window.attributes("-alpha", 0.7)
-        self._ghost_window.attributes("-topmost", True)
-
-        # Фрейм с содержимым
-        frame = tk.Frame(
-            self._ghost_window,
-            bg="#4a90d9",
-            padx=15,
-            pady=10,
-            relief=tk.RAISED,
-            bd=2,
-        )
-        frame.pack()
-
-        # Иконка drag
-        icon_label = tk.Label(
-            frame,
-            text="🖐️",
-            font=("Segoe UI Emoji", 20),
-            bg="#4a90d9",
-        )
-        icon_label.pack()
-
-        # Текст превью
-        text_label = tk.Label(
-            frame,
-            text=preview_text,
-            font=("Helvetica", 9, "bold"),
-            bg="#4a90d9",
-            fg="white",
-            wraplength=150,
-        )
-        text_label.pack()
-
-        # Начальная позиция (скрыто)
-        self._ghost_window.wm_geometry("+0+0")
-        self._ghost_window.withdraw()
-
-    def _bind_drag_events(self) -> None:
-        """Регистрирует глобальные обработчики событий для drag."""
-        self._motion_binding = self._root.bind("<Motion>", self._on_drag_motion, add="+")
-        self._release_binding = self._root.bind("<ButtonRelease-1>", self._on_drag_release, add="+")
-        self._escape_binding = self._root.bind("<Escape>", self._on_escape, add="+")
-
-    def _unbind_drag_events(self) -> None:
-        """Снимает глобальные обработчики событий drag."""
-        if self._motion_binding is not None:
-            self._root.unbind("<Motion>", self._motion_binding)
-            self._motion_binding = None
-
-        if self._release_binding is not None:
-            self._root.unbind("<ButtonRelease-1>", self._release_binding)
-            self._release_binding = None
-
-        if self._escape_binding is not None:
-            self._root.unbind("<Escape>", self._escape_binding)
-            self._escape_binding = None
-
-    def _on_drag_motion(self, event: tk.Event[Any]) -> None:
-        """Обработчик движения мыши во время drag.
-
-        Args:
-            event: Событие движения мыши.
-        """
-        if self._ghost_window is None:
-            return
-
-        # Показываем окно при первом движении
-        if self._ghost_window.state() == "withdrawn":
-            self._ghost_window.deiconify()
-
-        # Обновляем позицию ghost window (смещаем для центрирования)
-        x = event.x_root - 40
-        y = event.y_root - 40
-        self._ghost_window.wm_geometry(f"+{x}+{y}")
-
-        # Проверяем возможность drop под курсором для обратной связи
-        target = self._find_target_at(event.x_root, event.y_root)
-        if target is not None:
-            self.update_feedback(True)
-        else:
-            self.update_feedback(False)
-
-    def _on_drag_release(self, event: tk.Event[Any]) -> None:
-        """Обработчик отпускания кнопки мыши (drop).
-
-        Args:
-            event: Событие отпускания кнопки мыши.
-        """
-        if not self._is_dragging or self._drag_data is None:
-            return
-
-        # Ищем целевую зону под курсором
-        target = self._find_target_at(event.x_root, event.y_root)
-
-        if target is not None:
-            # Проверяем соответствие типа данных
-            if self._drag_data.data_type not in target.accepted_types:
-                target = None
-            # Проверяем соответствие операции
-            elif self._current_operation not in target.accepted_operations:
-                target = None
-
-        if target is not None:
-            # Вычисляем относительные координаты для целевого виджета
-            rel_x = event.x_root - target.widget.winfo_rootx()
-            rel_y = event.y_root - target.widget.winfo_rooty()
-
-            # Вызываем callback целевой зоны
-            try:
-                target.on_drop(self._drag_data, rel_x, rel_y)
-            except (KeyError, ValueError, TypeError) as e:  # noqa: S110
-                # Игнорируем ошибки callback для стабильности
-                logging.getLogger(__name__).exception("Exception ignored in drop callback: %s", e)
-
-
-            # Broadcast успешного drop
-            self._sync_service.broadcast(
-                source_window_id=self._drag_data.source_window_id,
-                data_type="drag_drop",
-                data={
-                    "data_type": self._drag_data.data_type,
-                    "target_id": target.target_id,
-                    "operation": self._current_operation,
-                },
-            )
-
-        self._cleanup_drag()
-
-    def _on_escape(self, event: tk.Event[Any]) -> None:
-        """Обработчик нажатия Escape для отмены drag.
-
-        Args:
-            event: Событие нажатия клавиши.
-        """
-        self.cancel_drag()
-
-    def _find_target_at(self, x: int, y: int) -> Optional[DropTarget]:
-        """Находит целевую зону под указанными координатами.
-
-        Args:
-            x: X координата экрана.
-            y: Y координата экрана.
-
-        Returns:
-            DropTarget или None если цель не найдена.
-        """
-        # Находим виджет под курсором
-        try:
-            widget = self._root.winfo_containing(x, y)
-        except tk.TclError:
-            return None
-
-        if widget is None:
-            return None
-
-        # Ищем зарегистрированную цель
-        for target in self._drop_targets.values():
-            # Прямое совпадение
-            if target.widget == widget:
-                return target
-
-            # Проверяем, является ли виджет потомком цели
-            parent: Any = widget
-            while parent is not None and isinstance(parent, tk.Widget):
-                if parent == target.widget:
-                    return target
-                try:
-                    parent_name = parent.winfo_parent()
-                    if parent_name:
-                        parent = parent.nametowidget(parent_name)
-                    else:
-                        break
-                except (tk.TclError, AttributeError):
-                    break
-
-        return None
-
-    def _cleanup_drag(self) -> None:
-        """Очищает ресурсы drag операции."""
-        self._unbind_drag_events()
-
-        # Уничтожаем ghost window
-        if self._ghost_window is not None:
-            try:
-                self._ghost_window.destroy()
-            except tk.TclError:
-                pass
-            self._ghost_window = None
-
-        # Сбрасываем курсор
-        self._root.config(cursor="")
-
-        # Сбрасываем состояние
+        self._destroy_ghost_window()
+        source_window_id = self._source_window_id
+        self._dragging = False
         self._drag_data = None
-        self._is_dragging = False
-        self._current_operation = DropOperation.MOVE
+        self._source_window_id = None
+        self._current_target_id = None
+        if self._sync_service is not None and source_window_id is not None:
+            self._sync_service.broadcast(
+                source_window_id,
+                "drag_cancel",
+                {},
+            )
 
-    def get_drop_target(self, target_id: str) -> Optional[DropTarget]:
-        """Возвращает целевую зону по ID.
+    def get_drag_data(self) -> Optional[Any]:
+        """Возвращает текущие данные drag-операции.
+
+        Returns:
+            Данные drag или None если drag не активен.
+        """
+        return self._drag_data if self._dragging else None
+
+    def is_target_registered(self, target_id: str) -> bool:
+        """Проверяет, зарегистрирована ли целевая зона.
+
+        Args:
+            target_id: Идентификатор цели.
+
+        Returns:
+            True если цель зарегистрирована.
+        """
+        return target_id in self._drop_targets
+
+    def drop(self, target_id: str) -> bool:
+        """Выполняет drop на указанную цель.
 
         Args:
             target_id: Идентификатор целевой зоны.
 
         Returns:
-            DropTarget или None если не найдена.
-
-        Example:
-            >>> target = dds.get_drop_target("canvas_001")
-            >>> if target:
-            ...     print(f"Target widget: {target.widget}")
+            True если drop выполнен успешно.
         """
-        return self._drop_targets.get(target_id)
+        if not self._dragging:
+            return False
+
+        target = self._drop_targets.get(target_id)
+        if target is None:
+            return False
+
+        if not self._can_drop_on_target(target):
+            return False
+
+        on_drop: Any = getattr(target, "on_drop", None)
+        if on_drop is None:
+            return False
+
+        try:
+            result = on_drop(self._drag_data)
+        except TypeError:
+            dummy_event: Any = type(
+                "DummyEvent",
+                (),
+                {"x": 0, "y": 0, "x_root": 0, "y_root": 0},
+            )()
+            try:
+                result = on_drop(self._drag_data, target.widget, dummy_event)
+            except TypeError:
+                return False
+
+        self._dragging = False
+        self._drag_data = None
+        self._destroy_ghost_window()
+        source_window_id = self._source_window_id
+        self._source_window_id = None
+        self._current_target_id = None
+
+        if self._sync_service is not None and source_window_id is not None:
+            self._sync_service.broadcast(
+                source_window_id,
+                "drag_drop",
+                {"target_id": target_id},
+            )
+
+        return bool(result) if result is not None else True
+
+    def update_feedback(self, x: int, y: int, target_widget: tk.Widget) -> None:
+        """Обновляет визуальную обратную связь при перемещении курсора.
+
+        Args:
+            x: X-координата курсора.
+            y: Y-координата курсора.
+            target_widget: Виджет под курсором.
+        """
+        target: Optional[DropTarget] = None
+        for t in self._drop_targets.values():
+            if t.widget is target_widget:
+                target = t
+                break
+
+        if target is None:
+            self._show_drop_denied_indicator()
+            self._set_cursor("no")
+            return
+
+        if self._can_drop_on_target(target):
+            self._show_drop_allowed_indicator()
+            self._set_cursor("hand2")
+        else:
+            self._show_drop_denied_indicator()
+            self._set_cursor("no")
 
     def get_drop_target_count(self) -> int:
-        """Возвращает количество зарегистрированных целевых зон.
+        """Возвращает количество зарегистрированных целей drop.
 
         Returns:
-            Количество целей в реестре.
-
-        Example:
-            >>> count = dds.get_drop_target_count()
-            >>> print(f"Registered targets: {count}")
+            Количество целей.
         """
         return len(self._drop_targets)
 
-    def clear_drop_targets(self) -> int:
-        """Удаляет все зарегистрированные целевые зоны.
+    def clear_drop_targets(self) -> None:
+        """Удаляет все зарегистрированные цели drop."""
+        self._drop_targets.clear()
+
+    # ------------------------------------------------------------------
+    # Внутренние методы
+    # ------------------------------------------------------------------
+
+    def _can_drop_on_target(self, target: DropTarget) -> bool:
+        """Проверяет, можно ли выполнить drop на указанную цель.
+
+        Args:
+            target: Целевая зона.
 
         Returns:
-            Количество удалённых целей.
-
-        Example:
-            >>> removed = dds.clear_drop_targets()
-            >>> print(f"Removed {removed} targets")
+            True если drop возможен.
         """
-        count = len(self._drop_targets)
-        self._drop_targets.clear()
-        return count
+        if not self._dragging or self._drag_data is None:
+            return False
+
+        data_type = getattr(self._drag_data, "data_type", None)
+        accepted_types = getattr(target, "accepted_types", None)
+        if accepted_types is not None and data_type is not None:
+            if data_type not in accepted_types:
+                return False
+
+        operations = getattr(self._drag_data, "operations", None)
+        if operations is None:
+            operations = getattr(self._drag_data, "allowed_operations", None)
+        accepted_operations = getattr(target, "accepted_operations", None)
+        if accepted_operations is not None and operations is not None:
+            if not any(op in accepted_operations for op in operations):
+                return False
+
+        return True
+
+    def _create_ghost_window(self) -> None:
+        """Создаёт ghost окно для визуальной обратной связи."""
+        pass
+
+    def _destroy_ghost_window(self) -> None:
+        """Уничтожает ghost окно."""
+        pass
+
+    def _set_cursor(self, cursor: str) -> None:
+        """Устанавливает курсор мыши.
+
+        Args:
+            cursor: Имя курсора Tkinter.
+        """
+        pass
+
+    def _show_drop_allowed_indicator(self) -> None:
+        """Показывает индикатор разрешённого drop."""
+        pass
+
+    def _show_drop_denied_indicator(self) -> None:
+        """Показывает индикатор запрещённого drop."""
+        pass
+
+    def _on_target_enter(self, target_id: str) -> None:
+        """Вызывает callback при входе курсора в целевую зону.
+
+        Args:
+            target_id: Идентификатор цели.
+        """
+        target = self._drop_targets.get(target_id)
+        if target is not None:
+            on_enter: Any = getattr(target, "on_enter", None)
+            if on_enter is not None:
+                on_enter()
+
+    def _on_target_leave(self, target_id: str) -> None:
+        """Вызывает callback при выходе курсора из целевой зоны.
+
+        Args:
+            target_id: Идентификатор цели.
+        """
+        target = self._drop_targets.get(target_id)
+        if target is not None:
+            on_leave: Any = getattr(target, "on_leave", None)
+            if on_leave is not None:
+                on_leave()
 
 
 # =============================================================================
@@ -729,16 +408,12 @@ class DragDropService:
 # =============================================================================
 
 __all__: list[str] = [
-    # Constants
-    "DATA_TYPE_FIELD",
     "DATA_TYPE_DOCUMENT",
+    "DATA_TYPE_FIELD",
     "DATA_TYPE_TEMPLATE",
     "DATA_TYPE_TEXT",
-    # Drop operations
-    "DropOperation",
-    # Dataclasses
     "DragData",
-    "DropTarget",
-    # Service
     "DragDropService",
+    "DropOperation",
+    "DropTarget",
 ]

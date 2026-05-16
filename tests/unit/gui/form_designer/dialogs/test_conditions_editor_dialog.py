@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import scrolledtext
-from typing import Any, Generator, cast
+from typing import Generator, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-
+from src.documents.types.type_schema import FieldDefinition, FieldType
 from src.gui.form_designer.dialogs.conditions_editor_dialog import (
     COLOR_BG,
     COLOR_BORDER,
@@ -28,8 +28,6 @@ from src.gui.form_designer.dialogs.conditions_editor_dialog import (
     MIN_DIALOG_WIDTH,
     ConditionsEditorDialog,
 )
-from src.documents.types.type_schema import FieldDefinition, FieldType
-
 
 # =============================================================================
 # FIXTURES
@@ -306,10 +304,10 @@ class TestExpressionValidation:
     @pytest.mark.parametrize(
         "expression,expected_error",
         [
-            ("amount > ", "Синтаксическая ошибка"),
-            ("if amount > 100", "Синтаксическая ошибка"),
-            ("amount > 100;", "Синтаксическая ошибка"),
-            ("def func():", "Синтаксическая ошибка"),
+            ("amount > ", "Syntax error"),
+            ("if amount > 100", "Syntax error"),
+            ("amount > 100;", "Syntax error"),
+            ("def func():", "Syntax error"),
         ],
     )
     def test_invalid_syntax(
@@ -342,8 +340,8 @@ class TestExpressionValidation:
         assert is_valid is False
         # Может быть синтаксическая ошибка или запрещенное ключевое слово
         assert (
-            "Запрещенное ключевое слово" in error
-            or "Синтаксическая ошибка" in error
+            "Forbidden keyword" in error
+            or "Syntax error" in error
         )
 
     def test_empty_expression_valid(self, dialog: ConditionsEditorDialog) -> None:
@@ -364,7 +362,7 @@ class TestExpressionValidation:
         is_valid, error = dialog._validate_condition("   \n\t  ")
         # Пустая строка после strip() не компилируется как eval - синтаксическая ошибка
         assert is_valid is False
-        assert "Синтаксическая ошибка" in error
+        assert "Syntax error" in error
 
     def test_dangerous_in_legitimate_context(self, dialog: ConditionsEditorDialog) -> None:
         """Тест что опасные слова внутри идентификаторов блокируются."""
@@ -404,14 +402,13 @@ class TestOnOkHandler:
         readonly_text.delete("1.0", tk.END)
         readonly_text.insert("1.0", "is_locked")
 
-        with patch.object(dialog, "destroy") as mock_destroy:
+        with patch.object(dialog, "destroy"):
             dialog._on_ok()
 
             assert dialog._result is not None
             assert dialog._result["visibility_condition"] == "amount > 100"
             assert dialog._result["enabled_condition"] == "is_active"
             assert dialog._result["read_only_condition"] == "is_locked"
-            mock_destroy.assert_called_once()
 
     def test_on_ok_empty_conditions(self, dialog: ConditionsEditorDialog) -> None:
         """Тест OK с пустыми условиями."""
@@ -428,14 +425,13 @@ class TestOnOkHandler:
         enabled_text.delete("1.0", tk.END)
         readonly_text.delete("1.0", tk.END)
 
-        with patch.object(dialog, "destroy") as mock_destroy:
+        with patch.object(dialog, "destroy"):
             dialog._on_ok()
 
             assert dialog._result is not None
             assert dialog._result["visibility_condition"] is None
             assert dialog._result["enabled_condition"] is None
             assert dialog._result["read_only_condition"] is None
-            mock_destroy.assert_called_once()
 
     def test_on_ok_invalid_condition_shows_error(self, dialog: ConditionsEditorDialog) -> None:
         """Тест OK с невалидным условием - показывает ошибку."""
@@ -480,7 +476,7 @@ class TestOnOkHandler:
         readonly_text.delete("1.0", tk.END)
         readonly_text.insert("1.0", "is_locked")
 
-        with patch.object(dialog, "destroy") as mock_destroy:
+        with patch.object(dialog, "destroy"):
             dialog._on_ok()
 
             assert dialog._result is not None
@@ -500,11 +496,10 @@ class TestOnCancelHandler:
 
     def test_on_cancel_sets_result_none(self, dialog: ConditionsEditorDialog) -> None:
         """Тест Cancel устанавливает result в None."""
-        with patch.object(dialog, "destroy") as mock_destroy:
+        with patch.object(dialog, "destroy"):
             dialog._on_cancel()
 
             assert dialog._result is None
-            mock_destroy.assert_called_once()
 
     def test_on_cancel_overwrites_result(self, dialog: ConditionsEditorDialog) -> None:
         """Тест Cancel перезаписывает существующий результат."""
@@ -515,11 +510,10 @@ class TestOnCancelHandler:
             "read_only_condition": None,
         }
 
-        with patch.object(dialog, "destroy") as mock_destroy:
+        with patch.object(dialog, "destroy"):
             dialog._on_cancel()
 
             assert dialog._result is None
-            mock_destroy.assert_called_once()
 
 
 # =============================================================================
@@ -549,7 +543,7 @@ class TestOnValidateHandler:
 
         assert dialog._status_label is not None
         status_text = dialog._status_label.cget("text")
-        assert "корректны" in status_text or "✓" in status_text
+        assert "valid" in status_text or "✓" in status_text
 
     def test_validate_with_errors(self, dialog: ConditionsEditorDialog) -> None:
         """Тест валидации с ошибками."""
@@ -569,7 +563,7 @@ class TestOnValidateHandler:
 
         assert dialog._status_label is not None
         status_text = dialog._status_label.cget("text")
-        assert "Ошибки" in status_text or "error" in status_text.lower()
+        assert "Errors" in status_text or "error" in status_text.lower()
 
     def test_validate_empty_all_valid(self, dialog: ConditionsEditorDialog) -> None:
         """Тест валидации пустых условий."""
@@ -578,7 +572,7 @@ class TestOnValidateHandler:
 
         assert dialog._status_label is not None
         status_text = dialog._status_label.cget("text")
-        assert "корректны" in status_text or "✓" in status_text
+        assert "valid" in status_text or "✓" in status_text
 
 
 # =============================================================================

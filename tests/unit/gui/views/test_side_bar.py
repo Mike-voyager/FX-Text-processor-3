@@ -353,7 +353,7 @@ class TestWidgetProperty:
         """widget property до mount вызывает RuntimeError."""
         bar = SideBar()
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="not mounted"):
             _ = bar.widget
 
 
@@ -492,7 +492,7 @@ class TestFileTypeIcons:
     def test_get_file_icon_blank(self) -> None:
         """get_file_icon() возвращает иконку для бланка."""
         icon = get_file_icon("form.fxsblank")
-        assert icon == "📑"
+        assert icon == "🔐"
 
     def test_get_file_icon_unknown(self) -> None:
         """get_file_icon() возвращает дефолтную иконку для неизвестного."""

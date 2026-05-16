@@ -49,7 +49,7 @@ class ThemeProtocol(Protocol):
             key: Идентификатор цвета (например, "bg", "fg", "accent").
 
         Returns:
-            Цвет в формате HEX (#RRGGBB).
+            Color в формате HEX (#RRGGBB).
         """
         ...
 

@@ -199,7 +199,7 @@ class FloppyOptimizerDialog(BaseDialog):
             *args: Дополнительные аргументы для Toplevel.
             **kwargs: Дополнительные kwargs для Toplevel.
         """
-        super().__init__(parent, *args, modal=True, **kwargs)
+        super().__init__(parent, *args, **kwargs)
 
         self._parent: tk.Widget = parent
         self._original_data: bytes = template_data
@@ -265,7 +265,7 @@ class FloppyOptimizerDialog(BaseDialog):
 
         desc = tk.Label(
             header_frame,
-            text='Оптимизация шаблона для сохранения на дискету 3.5"',
+            text='Optimize template for 3.5" floppy disk',
             font=FONTS["small"],
             bg=COLOR_BG,
             fg="#666666",
@@ -280,7 +280,7 @@ class FloppyOptimizerDialog(BaseDialog):
         """
         size_frame = tk.LabelFrame(
             parent,
-            text=" Информация о размере ",
+            text=" Size Information ",
             font=FONTS["normal"],
             bg=COLOR_BG,
             fg=COLOR_TEXT,
@@ -331,7 +331,7 @@ class FloppyOptimizerDialog(BaseDialog):
         """
         opt_frame = tk.LabelFrame(
             parent,
-            text=" Оптимизации ",
+            text=" Optimizations ",
             font=FONTS["normal"],
             bg=COLOR_BG,
             fg=COLOR_TEXT,

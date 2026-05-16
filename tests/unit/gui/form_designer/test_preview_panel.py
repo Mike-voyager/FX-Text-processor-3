@@ -163,10 +163,10 @@ class MockPreviewPanel:
             Созданный Tkinter виджет.
 
         Raises:
-            RuntimeError: Если виджет уже смонтирован.
+            RuntimeError: Если виджет already mounted.
         """
         if self._is_mounted:
-            raise RuntimeError(f"Виджет '{self._widget_id}' уже смонтирован")
+            raise RuntimeError(f"Виджет '{self._widget_id}' already mounted")
 
         # Создаём фрейм для preview
         self._tk_widget = tk.Frame(parent, bg="#1e1e1e")
@@ -198,7 +198,7 @@ class MockPreviewPanel:
     def unmount(self) -> None:
         """Демонтирует виджет и освобождает ресурсы."""
         if not self._is_mounted:
-            raise RuntimeError(f"Виджет '{self._widget_id}' не смонтирован")
+            raise RuntimeError(f"Виджет '{self._widget_id}' not mounted")
 
         if self._tk_widget is not None:
             self._tk_widget.destroy()
@@ -219,7 +219,7 @@ class MockPreviewPanel:
             data: PreviewData с ESC/P байтами.
         """
         if not self._is_mounted:
-            raise RuntimeError("Виджет не смонтирован")
+            raise RuntimeError("Виджет not mounted")
 
         self._preview_data = data
         self._page_count = data.page_count
@@ -551,20 +551,20 @@ class TestMountUnmount:
         assert panel._zoom_level == 1.0
 
     def test_unmount_when_not_mounted_raises(self, mock_controller: MagicMock) -> None:
-        """unmount вызывает ошибку если виджет не смонтирован."""
+        """unmount вызывает ошибку если виджет not mounted."""
         panel = MockPreviewPanel(widget_id="test_not_mounted", controller=mock_controller)
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="not mounted"):
             panel.unmount()
 
     def test_mount_when_already_mounted_raises(
         self, root: tk.Tk, mock_controller: MagicMock
     ) -> None:
-        """mount вызывает ошибку если виджет уже смонтирован."""
+        """mount вызывает ошибку если виджет already mounted."""
         panel = MockPreviewPanel(widget_id="test_double_mount", controller=mock_controller)
         panel.mount(root)
 
-        with pytest.raises(RuntimeError, match="уже смонтирован"):
+        with pytest.raises(RuntimeError, match="already mounted"):
             panel.mount(root)
 
         panel.unmount()
@@ -623,10 +623,10 @@ class TestPreviewData:
     def test_set_preview_data_when_not_mounted_raises(
         self, mock_controller: MagicMock, preview_data: PreviewData
     ) -> None:
-        """set_preview_data вызывает ошибку если виджет не смонтирован."""
+        """set_preview_data вызывает ошибку если виджет not mounted."""
         panel = MockPreviewPanel(widget_id="test_not_mounted_data", controller=mock_controller)
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="not mounted"):
             panel.set_preview_data(preview_data)
 
 

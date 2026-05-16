@@ -42,7 +42,7 @@ from src.gui.components.base.widget import BaseWidget
 from src.gui.components.escp_preview_widget import ESCPPreviewWidget
 from src.gui.components.format_toolbar import FormatToolbar
 from src.gui.components.navigator import Navigator
-from src.gui.components.paper_toolbar import PaperConfig, PaperToolbar
+from src.gui.components.paper_toolbar import PaperToolbar
 from src.gui.components.paper_visualization import CodepageStatusWidget
 from src.gui.components.ruler import Ruler
 from src.gui.core.commands.command import Command
@@ -69,7 +69,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -292,7 +292,7 @@ class DocumentView(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._tk_frame is None:
-            raise RuntimeError("DocumentView не смонтирован")
+            raise RuntimeError("DocumentView is not mounted")
         return self._tk_frame
 
     @property
@@ -394,7 +394,10 @@ class DocumentView(BaseWidget):
 
         if self._tk_content_frame is not None:
             self._tk_content_frame.pack(fill="both", expand=True)
-            self._tk_content_frame.lift()  # Bring to front
+            try:
+                self._tk_content_frame.lift()  # Bring to front
+            except tk.TclError:
+                pass
             self._tk_content_frame.update_idletasks()
 
     def set_document(self, document: DocumentProtocol) -> None:
@@ -422,7 +425,7 @@ class DocumentView(BaseWidget):
         """
         if not isinstance(document, DocumentProtocol):
             raise TypeError(
-                f"document должен поддерживать DocumentProtocol, получен {type(document).__name__}"
+                f"document must support DocumentProtocol, got {type(document).__name__}"
             )
 
         # Security: sanitize document_id
@@ -810,7 +813,7 @@ class DocumentView(BaseWidget):
                 except tk.TclError:
                     self._saved_state["selection"] = None
             except tk.TclError as e:
-                logger.debug("Сохранение состояния прервано: %s", e)
+                logger.debug("State save interrupted: %s", e)
 
     def _setup_mode_specific_ui(self) -> None:
         """Настраивает UI в зависимости от режима.
@@ -1049,10 +1052,9 @@ class DocumentView(BaseWidget):
             else:
                 self._preview_widget.clear()
 
-            self._preview_widget.grid(row=0, column=0, sticky="nsew")
+            self._preview_widget.pack(fill=tk.BOTH, expand=True)
             if self._tk_content_frame is not None:
-                self._tk_content_frame.grid_rowconfigure(0, weight=1)
-                self._tk_content_frame.grid_columnconfigure(0, weight=1)
+                self._tk_content_frame.pack_propagate(False)
 
     def _hide_all_renderers(self) -> None:
         """Скрывает все рендереры."""
@@ -1785,8 +1787,6 @@ class DocumentView(BaseWidget):
         self._paper_toolbar = PaperToolbar(
             widget_id="paper_toolbar",
             controller=self._controller,
-            on_setup_clicked=self._on_paper_setup,
-            initial_config=PaperConfig(),
         )
         toolbar_widget = self._paper_toolbar.mount(self._tk_paper_toolbar_frame)
         toolbar_widget.pack(fill=tk.BOTH, expand=True)
@@ -1878,8 +1878,11 @@ class DocumentView(BaseWidget):
             initial_column=1,
             initial_total_lines=1,
         )
-        # Обратная связь double-height: подсветка shadow row в Text widget
-        if self._current_renderer is not None and hasattr(self._current_renderer, "highlight_line"):
+        if (
+            self._current_renderer is not None
+            and hasattr(self._current_renderer, "highlight_line")
+            and hasattr(self._navigator, "set_on_highlight_line_callback")
+        ):
             self._navigator.set_on_highlight_line_callback(self._current_renderer.highlight_line)
         navigator_widget = self._navigator.mount(self._tk_navigator_frame)
         navigator_widget.pack(fill=tk.BOTH, expand=True)
@@ -2009,7 +2012,7 @@ class DocumentView(BaseWidget):
             ValueError: Если document_id пустой или None.
         """
         if not document_id:
-            raise ValueError("document_id не может быть пустым")
+            raise ValueError("document_id cannot be empty")
 
         # Truncate to max length
         sanitized = document_id[:MAX_DOCUMENT_ID_LENGTH]
@@ -2137,7 +2140,7 @@ class DocumentView(BaseWidget):
         Example:
             >>> success = doc_view.set_form_field_value("customer_name", "ООО Ромашка")
             >>> if not success:
-            ...     print("Поле не найдено")
+            ...     print("Поле not found")
         """
         if self._current_mode != DocumentMode.STRUCTURED_FORM:
             return False

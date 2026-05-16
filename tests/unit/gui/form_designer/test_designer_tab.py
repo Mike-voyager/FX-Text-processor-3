@@ -588,7 +588,7 @@ class TestPropertyPanelIntegration:
         designer_tab._panel_state_cache = {"position": mock_field.position}
 
         with patch(
-            "src.gui.commands.design_commands.FieldMoveCommand",
+            "src.gui.core.commands.design_commands.FieldMoveCommand",
         ) as MockCmd:
             with patch.object(designer_tab._command_stack, "execute"):
                 designer_tab._on_panel_property_change("x", "10")

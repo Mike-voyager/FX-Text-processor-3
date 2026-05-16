@@ -29,9 +29,8 @@ from __future__ import annotations
 import re
 import threading
 import tkinter as tk
-from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Final, Optional
+from typing import Any, Final, Optional
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.services.sync_service import SyncMessage, SyncService
@@ -85,10 +84,8 @@ _DATA_SYNC_STATUS: Final[str] = "sync_status"
 """data_type для сообщений SyncService об изменении статуса."""
 
 
-# Regex для удаления префикса индикатора из заголовка окна
-_TITLE_PREFIX_RE: Final[re.Pattern[str]] = re.compile(
-    r"^(?:\[[●⟳⚠✗]\]\s*)+"
-)
+# Regex для удаления суффикса индикатора из заголовка окна
+_TITLE_SUFFIX_RE: Final[re.Pattern[str]] = re.compile(r"\s*\[[●⟳⚠✗]\].*$")
 
 
 # =============================================================================
@@ -164,6 +161,7 @@ class WindowSyncIndicator(BaseWidget):
         if self._tk_label is not None:
             self._tk_label.bind("<Enter>", self._on_enter)
             self._tk_label.bind("<Leave>", self._on_leave)
+            self._tk_label.bind("<Destroy>", lambda _e: self.stop_animation(), add=True)
 
     def _cleanup(self) -> None:
         """Останавливает анимацию и уничтожает tooltip."""
@@ -188,14 +186,16 @@ class WindowSyncIndicator(BaseWidget):
             ValueError: Если передан неизвестный статус.
         """
         if status not in SYNC_STATUS_COLORS:
-            raise ValueError(f"Неизвестный статус синхронизации: '{status}'")
+            raise ValueError(f"Unknown sync status: '{status}'")
 
         if threading.current_thread() is not threading.main_thread():
             # Thread-safe defer через after
             try:
                 if self._tk_label is not None and self._tk_label.winfo_exists():
+
                     def _apply_pending(s: str = status) -> None:
                         self._set_status(s)
+
                     self._tk_label.after(0, _apply_pending)
                     return
             except RuntimeError:
@@ -270,9 +270,7 @@ class WindowSyncIndicator(BaseWidget):
         icon = _ANIMATION_ICONS[self._animation_frame % len(_ANIMATION_ICONS)]
         self._tk_label.config(text=icon)
         self._animation_frame += 1
-        self._after_id = str(
-            self._tk_label.after(_ANIMATION_INTERVAL_MS, self._animation_step)
-        )
+        self._after_id = str(self._tk_label.after(_ANIMATION_INTERVAL_MS, self._animation_step))
 
     def _on_enter(self, event: Optional[tk.Event] = None) -> None:
         """Показывает tooltip при наведении."""
@@ -432,13 +430,13 @@ class TabSyncIndicator:
             tooltip_parts: list[str] = []
             last_sync = data.get("last_sync_time")
             if last_sync is not None:
-                tooltip_parts.append(f"Последняя синхронизация: {last_sync}")
+                tooltip_parts.append(f"Last sync: {last_sync}")
             conflicts = data.get("conflict_count")
             if conflicts is not None:
-                tooltip_parts.append(f"Конфликтов: {conflicts}")
+                tooltip_parts.append(f"Conflicts: {conflicts}")
             conn_status = data.get("connection_status")
             if conn_status is not None:
-                tooltip_parts.append(f"Статус подключения: {conn_status}")
+                tooltip_parts.append(f"Connection status: {conn_status}")
             if tooltip_parts:
                 self.set_tooltip("\n".join(tooltip_parts))
 
@@ -449,12 +447,12 @@ class TabSyncIndicator:
 
 
 class TitleBarSyncDecorator:
-    """Утилитарный класс для добавления/удаления префикса статуса
+    """Утилитарный класс для добавления/удаления суффикса статуса
     в заголовок окна Tkinter.
 
     Example:
         >>> TitleBarSyncDecorator.update_title(root, SyncStatus.SYNCING)
-        >>> # title == "[⟳] Document.fxsd - FX Text Processor 3"
+        >>> # title == "Document.fxsd - FX Text Processor 3 [⟳] Syncing..."
         >>> TitleBarSyncDecorator.clear_title(root)
         >>> # title == "Document.fxsd - FX Text Processor 3"
     """
@@ -464,7 +462,7 @@ class TitleBarSyncDecorator:
         window: tk.Tk | tk.Toplevel,
         status: str,
     ) -> None:
-        """Добавляет префикс статуса к заголовку окна.
+        """Добавляет суффикс статуса к заголовку окна.
 
         Args:
             window: Tk или Toplevel окно.
@@ -474,35 +472,37 @@ class TitleBarSyncDecorator:
             ValueError: При неизвестном статусе.
         """
         if status not in SYNC_STATUS_ICONS:
-            raise ValueError(f"Неизвестный статус: '{status}'")
+            raise ValueError(f"Unknown status: '{status}'")
         current = window.title()
-        cleaned = _TITLE_PREFIX_RE.sub("", current)
+        cleaned = _TITLE_SUFFIX_RE.sub("", current)
         icon = SYNC_STATUS_ICONS[status]
-        window.title(f"[{icon}] {cleaned}")
+        label = SYNC_STATUS_LABELS.get(status, "")
+        window.title(f"{cleaned} [{icon}] {label}")
 
     @staticmethod
     def clear_title(window: tk.Tk | tk.Toplevel) -> None:
-        """Удаляет все префиксы статуса из заголовка окна.
+        """Удаляет все суффиксы статуса из заголовка окна.
 
         Args:
             window: Tk или Toplevel окно.
         """
         current = window.title()
-        cleaned = _TITLE_PREFIX_RE.sub("", current)
+        cleaned = _TITLE_SUFFIX_RE.sub("", current)
         window.title(cleaned)
 
     @staticmethod
-    def get_status_prefix(status: str) -> str:
-        """Возвращает строковый префикс для указанного статуса.
+    def get_status_suffix(status: str) -> str:
+        """Возвращает строковый суффикс для указанного статуса.
 
         Args:
             status: Статус синхронизации.
 
         Returns:
-            Строка вида ``"[●] "`` или пустая строка при неизвестном статусе.
+            Строка вида ``" [●] Synced"`` или пустая строка при неизвестном статусе.
         """
         icon = SYNC_STATUS_ICONS.get(status, "")
-        return f"[{icon}] " if icon else ""
+        label = SYNC_STATUS_LABELS.get(status, "")
+        return f" [{icon}] {label}" if icon else ""
 
 
 # =============================================================================

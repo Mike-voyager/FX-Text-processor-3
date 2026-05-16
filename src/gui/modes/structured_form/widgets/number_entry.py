@@ -27,13 +27,14 @@ Date: May 2026
 from __future__ import annotations
 
 import logging
-import logging
 import re
 import tkinter as tk
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, Callable, Optional
 
 from src.gui.modes.structured_form.widgets.base_field import BaseField
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class NumberEntry(BaseField):
@@ -146,15 +147,15 @@ class NumberEntry(BaseField):
         """
         _ = event
         if self._entry is not None:
-             text = self._entry.get().replace(",", ".")
-             if text == "" or text == "-":
-                 self._value = None
-             else:
-                 try:
-                     self._value = Decimal(text)
-                 except (InvalidOperation, ValueError, TypeError) as e:
-                     logger.debug("Failed to parse decimal value: %s", text)
-                     self._value = None
+            text = self._entry.get().replace(",", ".")
+            if text == "" or text == "-":
+                self._value = None
+            else:
+                try:
+                    self._value = Decimal(text)
+                except (InvalidOperation, ValueError, TypeError):
+                    logger.debug("Failed to parse decimal value: %s", text)
+                    self._value = None
 
     def _on_focus_out(self, event: tk.Event[Any]) -> None:
         """Обработчик потери фокуса: clamp и on_change.
@@ -171,15 +172,15 @@ class NumberEntry(BaseField):
             self._value = None
             self._entry.delete(0, tk.END)
         else:
-             try:
-                 value = Decimal(text)
-                 self._value = self._clamp_and_round(value)
-                 formatted = self._format_value(self._value)
-                 self._entry.delete(0, tk.END)
-                 self._entry.insert(0, formatted)
-             except (ValueError, TypeError) as e:
-                 logger.debug("Failed to format/clam value: %s", value)
-                 self._value = None
+            try:
+                value = Decimal(text)
+                self._value = self._clamp_and_round(value)
+                formatted = self._format_value(self._value)
+                self._entry.delete(0, tk.END)
+                self._entry.insert(0, formatted)
+            except (ValueError, TypeError):
+                logger.debug("Failed to format/clam value: %s", value)
+                self._value = None
 
         if self._on_change is not None:
             self._on_change(self.field_id, self._value)
@@ -236,15 +237,15 @@ class NumberEntry(BaseField):
             if self._entry is not None:
                 self._entry.delete(0, tk.END)
         else:
-             try:
-                 d = Decimal(str(value))
-                 self._value = self._clamp_and_round(d)
-                 if self._entry is not None:
-                     self._entry.delete(0, tk.END)
-                     self._entry.insert(0, self._format_value(self._value))
-             except (InvalidOperation, ValueError, TypeError) as e:
-                 logger.debug("Failed to parse/set value: %s", value)
-                 self._value = None
+            try:
+                d = Decimal(str(value))
+                self._value = self._clamp_and_round(d)
+                if self._entry is not None:
+                    self._entry.delete(0, tk.END)
+                    self._entry.insert(0, self._format_value(self._value))
+            except (InvalidOperation, ValueError, TypeError):
+                logger.debug("Failed to parse/set value: %s", value)
+                self._value = None
 
         if self._on_change is not None:
             self._on_change(self.field_id, self._value)

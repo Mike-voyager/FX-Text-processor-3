@@ -36,6 +36,7 @@ from src.gui.dialogs.barcode_dialog import (
     BarcodeSettingsPanel,
     BarcodeTypeSelector,
 )
+from src.gui.dialogs.base_dialog import BaseDialog
 
 # Barcode dialogs (NEW - separated into individual modules)
 from src.gui.dialogs.calendar_dialog import CalendarDialog
@@ -119,6 +120,8 @@ from src.gui.dialogs.workflow_dialogs import (
 from src.gui.dialogs.workflow_timeline_dialog import WorkflowTimelineDialog
 
 __all__: list[str] = [
+    # Base dialog
+    "BaseDialog",
     # Calendar dialog
     "CalendarDialog",
     # File dialogs

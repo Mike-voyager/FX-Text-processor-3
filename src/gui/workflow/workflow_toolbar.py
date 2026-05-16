@@ -19,8 +19,8 @@ Date: May 2026
 
 from __future__ import annotations
 
-import tkinter as tk
 import logging
+import tkinter as tk
 from typing import TYPE_CHECKING, Callable, Final, Optional
 
 from src.gui.themes import ThemeRegistry
@@ -36,15 +36,13 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
     except Exception as e:
-        return "#3498db" # fallback color
-    except Exception as e:
         logging.getLogger(__name__).exception("Theme color retrieval failed for key %s: %s", key, e)
-        return "#3498db"
+        return "#3498db"  # fallback color
 
 
 # Данные кнопок: action_name → {отображаемый текст, ключ цвета в теме}
@@ -73,7 +71,7 @@ _HOVER_LIGHTEN_FACTOR: Final[float] = 1.10
 _BUTTON_PADX: Final[int] = 10
 _BUTTON_PADY: Final[int] = 4
 
-# Цвет текста на кнопках
+# Color текста на кнопках
 _BUTTON_FG: Final[str] = "white"
 
 

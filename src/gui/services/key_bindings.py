@@ -286,12 +286,12 @@ class KeyBindingsService:
         for m in mods:
             m_lower = m.strip().lower()
             if m_lower not in _VALID_MODIFIERS:
-                raise ValueError(f"Недопустимый модификатор: {m!r}")
+                raise ValueError(f"Invalid modifier: {m!r}")
             normalized_mods.append(m_lower.capitalize())
 
         key = key.strip()
         if not key:
-            raise ValueError("Клавиша не указана")
+            raise ValueError("Key not specified")
 
         # Нормализация букв: без Shift → lowercase, со Shift → uppercase.
         if len(key) == 1 and key.isalpha():
@@ -306,7 +306,7 @@ class KeyBindingsService:
         elif key.upper().startswith("F") and key[1:].isdigit() and 1 <= int(key[1:]) <= 12:
             key = key.upper()
         else:
-            raise ValueError(f"Недопустимая клавиша: {key!r}")
+            raise ValueError(f"Invalid key: {key!r}")
 
         return "+".join(normalized_mods + [key])
 

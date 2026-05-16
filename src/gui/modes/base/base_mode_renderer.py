@@ -49,7 +49,7 @@ class LifecycleError(Exception):
     Вызывается при вызове методов, требующих смонтированного рендерера.
 
     Example:
-        >>> raise LifecycleError("Рендерер не смонтирован")
+        >>> raise LifecycleError("Renderer not mounted")
     """
 
     pass
@@ -254,9 +254,9 @@ class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
             True
         """
         if parent is None:
-            raise ValueError("parent не может быть None")
+            raise ValueError("parent cannot be None")
         if self._mounted:
-            raise LifecycleError("Рендерер уже смонтирован")
+            raise LifecycleError("Renderer already mounted")
 
         self._parent = parent
         self._root_widget = self._do_create_root_widget(parent)
@@ -306,7 +306,7 @@ class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
             LifecycleError: Если рендерер не смонтирован.
         """
         if not self._mounted:
-            raise LifecycleError("Рендерер не смонтирован")
+            raise LifecycleError("Renderer not mounted")
 
     # ======================================================================
     # RENDERING

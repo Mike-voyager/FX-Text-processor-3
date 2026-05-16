@@ -83,7 +83,7 @@ SECURITY_PRESET_COLORS: Final[dict[str, tuple[str, str]]] = {
 }
 
 DEFAULT_SECURITY_COLOR: Final[tuple[str, str]] = ("#cccccc", "#333333")
-MODIFIED_COLOR: Final[str] = "#ff8c00"
+MODIFIED_COLOR: Final[str] = "#FFA500"
 
 MODE_NORMAL_BG: Final[str] = "#ccffcc"
 MODE_NORMAL_FG: Final[str] = "#006600"
@@ -97,7 +97,7 @@ MFA_REQUIRED_FG: Final[str] = "#cc9900"
 MFA_NONE_BG: Final[str] = "#cccccc"
 MFA_NONE_FG: Final[str] = "#333333"
 
-NOTIFICATION_ACTIVE_COLOR: Final[str] = "#ff8c00"
+NOTIFICATION_ACTIVE_COLOR: Final[str] = "#0080FF"
 NOTIFICATION_INACTIVE_COLOR: Final[str] = "#999999"
 
 # Workflow Timeline colors (static)
@@ -153,7 +153,7 @@ def _theme_color(key: str) -> str:
         key: Идентификатор цвета.
 
     Returns:
-        Цвет в формате HEX.
+        Color в формате HEX.
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
@@ -343,7 +343,7 @@ class ToastPanel:
         if not self._notifications:
             no_data_label = tk.Label(
                 self._items_frame,
-                text="Нет уведомлений",
+                text="No notifications",
                 bg=_theme_color("bg"),
                 fg="#999999",
                 font=("TkDefaultFont", 9),
@@ -516,6 +516,8 @@ class StatusBar(BaseWidget):
         self._mfa_status: str = "none"
         self._mfa_method: Optional[str] = None
         self._security_preset: str = "Standard"
+        self._encrypted: bool = False
+        self._readonly: bool = False
         self._page_current: int = 1
         self._page_total: int = 1
         self._zoom: int = 100
@@ -532,6 +534,8 @@ class StatusBar(BaseWidget):
         self._tk_mode_label: Optional[tk.Label] = None
         self._tk_mfa_label: Optional[tk.Label] = None
         self._tk_security_label: Optional[tk.Label] = None
+        self._tk_encrypted_label: Optional[tk.Label] = None
+        self._tk_readonly_label: Optional[tk.Label] = None
         self._tk_page_label: Optional[tk.Label] = None
         self._tk_zoom_label: Optional[tk.Label] = None
         self._tk_notification_label: Optional[tk.Label] = None
@@ -575,7 +579,7 @@ class StatusBar(BaseWidget):
             RuntimeError: Если виджет не смонтирован.
         """
         if self._tk_frame is None:
-            raise RuntimeError("StatusBar не смонтирован")
+            raise RuntimeError("StatusBar is not mounted")
         return self._tk_frame
 
     def show(self) -> None:
@@ -721,6 +725,32 @@ class StatusBar(BaseWidget):
         self._update_mfa_label()
         self._update_mfa_tooltip()
 
+    def set_encrypted(self, encrypted: bool) -> None:
+        """Устанавливает индикатор шифрования документа.
+
+        Args:
+            encrypted: True если документ зашифрован.
+        """
+        self._encrypted = encrypted
+        if self._tk_encrypted_label is not None:
+            if encrypted:
+                self._tk_encrypted_label.config(text="🔒", fg="#00FF00")
+            else:
+                self._tk_encrypted_label.config(text="", fg=_theme_color("fg"))
+
+    def set_readonly(self, readonly: bool) -> None:
+        """Устанавливает индикатор readonly документа.
+
+        Args:
+            readonly: True если документ только для чтения.
+        """
+        self._readonly = readonly
+        if self._tk_readonly_label is not None:
+            if readonly:
+                self._tk_readonly_label.config(text="👁️", fg="#808080")
+            else:
+                self._tk_readonly_label.config(text="", fg=_theme_color("fg"))
+
     def get_mfa_status(self) -> str:
         """Возвращает статус MFA.
 
@@ -782,7 +812,7 @@ class StatusBar(BaseWidget):
         """Устанавливает role badge индикатор.
 
         Отображает текущую роль с цветом и иконкой.
-        Цвета не зависят от темы: 🔵 OPERATOR / 🟢 EDITOR / 🟠 SUPERVISOR / 🔴 SIGNATORY.
+        Colorа не зависят от темы: 🔵 OPERATOR / 🟢 EDITOR / 🟠 SUPERVISOR / 🔴 SIGNATORY.
 
         Args:
             role: Текущая роль пользователя.
@@ -892,6 +922,7 @@ class StatusBar(BaseWidget):
             bd=1,
         )
         self._tk_frame.pack_propagate(False)
+        self._tk_frame.bind("<Destroy>", lambda _e: self._cancel_hide_toast(), add=True)
 
         self._tk_inner_frame = tk.Frame(self._tk_frame, bg=_theme_color("bg"))
         self._tk_inner_frame.pack(fill="both", expand=True, padx=PADDING_SMALL)
@@ -933,6 +964,8 @@ class StatusBar(BaseWidget):
         self._role_badge.mount(self._tk_inner_frame)
 
         self._tk_security_label = self._create_indicator(self._tk_inner_frame, "🔒 Standard")
+        self._tk_encrypted_label = self._create_indicator(self._tk_inner_frame, "")
+        self._tk_readonly_label = self._create_indicator(self._tk_inner_frame, "")
         self._tk_page_label = self._create_indicator(self._tk_inner_frame, "Page 1/1")
         self._tk_zoom_label = self._create_indicator(self._tk_inner_frame, "100%")
         self._tk_notification_label = self._create_indicator(self._tk_inner_frame, "")
@@ -978,7 +1011,7 @@ class StatusBar(BaseWidget):
     def _create_separators(self) -> None:
         """Создаёт разделительные метки │ между индикаторами.
 
-        Цвет разделителей фиксирован и не зависит от темы (UI_SPEC §7.4).
+        Color разделителей фиксирован и не зависит от темы (UI_SPEC §7.4).
         """
         if self._tk_inner_frame is None:
             return
@@ -1020,6 +1053,8 @@ class StatusBar(BaseWidget):
         self._tk_mode_label = None
         self._tk_mfa_label = None
         self._tk_security_label = None
+        self._tk_encrypted_label = None
+        self._tk_readonly_label = None
         self._tk_page_label = None
         self._tk_zoom_label = None
         self._tk_notification_label = None
@@ -1092,6 +1127,8 @@ class StatusBar(BaseWidget):
             self._tk_mode_label,
             self._tk_mfa_label,
             self._tk_security_label,
+            self._tk_encrypted_label,
+            self._tk_readonly_label,
             self._tk_page_label,
             self._tk_zoom_label,
             self._tk_notification_label,
@@ -1181,11 +1218,13 @@ class StatusBar(BaseWidget):
         pack_sep("left")
 
         # Right group (pack side="right" in order: far-right first)
-        # Visual left-to-right: security │ page │ zoom │ notification
+        # Visual left-to-right: security │ encrypted │ readonly │ page │ zoom │ notification
         right_widgets = [
             self._tk_notification_label,
             self._tk_zoom_label,
             self._tk_page_label,
+            self._tk_readonly_label,
+            self._tk_encrypted_label,
             self._tk_security_label,
         ]
         for i, widget in enumerate(right_widgets):
@@ -1237,13 +1276,19 @@ class StatusBar(BaseWidget):
         # Separator before right group
         pack_sep(master_row1, "left")
 
-        # Row 1 right group: visual page │ security │ notification
-        # Pack order side="right": notification, security, page
+        # Row 1 right group: visual page │ readonly │ encrypted │ security │ notification
+        # Pack order side="right": notification, security, encrypted, readonly, page
         if self._tk_notification_label is not None:
             self._tk_notification_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
             pack_sep(master_row1, "right")
         if self._tk_security_label is not None:
             self._tk_security_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
+            pack_sep(master_row1, "right")
+        if self._tk_encrypted_label is not None:
+            self._tk_encrypted_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
+            pack_sep(master_row1, "right")
+        if self._tk_readonly_label is not None:
+            self._tk_readonly_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
             pack_sep(master_row1, "right")
         if self._tk_page_label is not None:
             self._tk_page_label.pack(in_=master_row1, side="right", padx=(PADDING_SMALL, 0))
@@ -1340,7 +1385,7 @@ class StatusBar(BaseWidget):
 
         if self._mfa_status == "active":
             method_str = f" {self._mfa_method}" if self._mfa_method else ""
-            text = f"🔒{method_str}"
+            text = f"🛡️{method_str}"
             bg_color = MFA_ACTIVE_BG
             fg_color = MFA_ACTIVE_FG
         elif self._mfa_status == "required":
@@ -1538,6 +1583,15 @@ class StatusBar(BaseWidget):
             TOAST_PANEL_AUTO_HIDE_MS,
             self._do_hide_toast_panel,
         )
+
+    def _cancel_hide_toast(self) -> None:
+        """Отменяет pending after() для скрытия toast панели."""
+        if self._hide_after_id is not None and self._tk_frame is not None:
+            try:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            except tk.TclError:
+                pass
+            self._hide_after_id = None
 
     def _do_hide_toast_panel(self) -> None:
         """Выполняет фактическое скрытие панели."""

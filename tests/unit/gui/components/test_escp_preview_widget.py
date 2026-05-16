@@ -77,7 +77,7 @@ class TestESCPPreviewWidget:
         result = widget._escp_to_preview(escp_data)
 
         texts = [item[0] for item in result]
-        assert any("[FF - Разрыв страницы]" in t for t in texts)
+        assert any("[FF - Page Break]" in t for t in texts)
 
     def test_escp_line_feed(self, root, mock_renderer):
         """_escp_to_preview обрабатывает CR+LF как newline."""
@@ -284,4 +284,4 @@ class TestESCPPreviewIntegration:
         widget.show_document(mock_doc)
 
         label_text = widget._page_label.cget("text")
-        assert "Страница 1/3" == label_text
+        assert "Page 1/3" == label_text

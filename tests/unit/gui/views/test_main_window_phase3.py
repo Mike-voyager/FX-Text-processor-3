@@ -33,6 +33,13 @@ def reset_singleton() -> Generator[None, None, None]:
         ModeManager.reset_instance()
 
 
+@pytest.fixture(autouse=True)
+def no_auth_window() -> Generator[None, None, None]:
+    """Отключает auth window для избежания deadlock в headless тестах."""
+    with patch.object(MainWindow, "_check_session_and_auth", lambda self: None):
+        yield
+
+
 @pytest.fixture
 def mock_controller() -> MagicMock:
     """Создание мока контроллера."""
@@ -98,6 +105,7 @@ class TestMainWindowStartupHealthCheck:
 
             with patch.object(MainWindow, '_create_menubar'), \
                  patch.object(MainWindow, '_create_main_layout'), \
+                 patch.object(MainWindow, '_create_main_toolbar'), \
                  patch.object(MainWindow, '_show_welcome_toast'), \
                  patch.object(MainWindow, '_run_startup_health_check') as mock_health:
 
@@ -184,6 +192,7 @@ class TestMainWindowModeMenu:
 
             with patch.object(MainWindow, '_create_menubar') as mock_menubar, \
                  patch.object(MainWindow, '_create_main_layout'), \
+                 patch.object(MainWindow, '_create_main_toolbar'), \
                  patch.object(MainWindow, '_show_welcome_toast'), \
                  patch.object(MainWindow, '_run_startup_health_check'):
 
@@ -212,7 +221,7 @@ class TestMainWindowModeSwitching:
              patch('src.gui.views.main_window.CardFileTabBar'), \
              patch('src.gui.views.main_window.DocumentView'), \
              patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.gui.views.main_window.HealthCheckDialog') as mock_health_dialog, \
+             patch('src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog') as mock_health_dialog, \
              patch('src.gui.views.main_window.AuthOverlay') as mock_auth_overlay:
 
             mock_root = MagicMock()
@@ -223,12 +232,15 @@ class TestMainWindowModeSwitching:
             mock_toast_instance = MagicMock()
             mock_toast_service.return_value = mock_toast_instance
 
+            mock_dialog_instance = MagicMock()
+            mock_dialog_instance.show.return_value = True
+            mock_health_dialog.return_value = mock_dialog_instance
+
             window = MainWindow(controller=mock_controller)
             window._root = mock_root
             window._toast_service = mock_toast_instance
             window._health_checker = mock_health_checker
             window._mode_manager = MagicMock()
-            window._mode_manager.can_enter_special.return_value = (True, "ok")
 
             mock_auth_overlay_instance = MagicMock()
             mock_auth_overlay.return_value = mock_auth_overlay_instance
@@ -237,13 +249,16 @@ class TestMainWindowModeSwitching:
                 # Вызываем переход в Special Mode
                 window._on_mode_special()
 
-                # Проверяем что can_enter_special был вызван
-                window._mode_manager.can_enter_special.assert_called_once()
+                # Проверяем что SecurityHealthCheckDialog был создан и показан
+                mock_health_dialog.assert_called_once()
+                mock_dialog_instance.show.assert_called_once()
+                # Проверяем что показан AuthOverlay
+                mock_show_auth.assert_called_once()
 
     def test_mode_switch_to_special_shows_health_dialog(
         self, mock_controller: MagicMock
     ) -> None:
-        """Проверка что при невозможности входа показывается HealthCheckDialog."""
+        """Проверка что при отмене HealthCheckDialog показывается toast."""
         with patch('tkinter.Tk') as mock_tk, \
              patch('tkinter.StringVar'), \
              patch('src.gui.views.main_window.MainLayout'), \
@@ -252,7 +267,7 @@ class TestMainWindowModeSwitching:
              patch('src.gui.views.main_window.CardFileTabBar'), \
              patch('src.gui.views.main_window.DocumentView'), \
              patch('src.gui.services.toast_service.ToastService') as mock_toast_service, \
-             patch('src.gui.views.main_window.HealthCheckDialog') as mock_dialog:
+             patch('src.gui.dialogs.security_health_check_dialog.SecurityHealthCheckDialog') as mock_dialog:
 
             mock_root = MagicMock()
             mock_root.winfo_exists.return_value = True
@@ -263,19 +278,21 @@ class TestMainWindowModeSwitching:
             mock_toast_service.return_value = mock_toast_instance
 
             mock_dialog_instance = MagicMock()
-            mock_dialog_instance.has_critical_failures.return_value = True
+            mock_dialog_instance.show.return_value = False
             mock_dialog.return_value = mock_dialog_instance
 
             window = MainWindow(controller=mock_controller)
             window._root = mock_root
             window._mode_manager = MagicMock()
-            window._mode_manager.can_enter_special.return_value = (False, "health_check_failed")
             window._toast_service = mock_toast_instance
 
             window._on_mode_special()
 
-            # Проверяем что показан HealthCheckDialog
+            # Проверяем что показан SecurityHealthCheckDialog
             mock_dialog.assert_called_once()
+            mock_dialog_instance.show.assert_called_once()
+            # Проверяем что показан toast с сообщением об отмене
+            mock_toast_instance.show.assert_called_once()
 
     def test_mode_switch_to_normal_confirm(self, mock_controller: MagicMock) -> None:
         """Проверка перехода в Normal Mode с подтверждением."""

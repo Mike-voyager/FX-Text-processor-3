@@ -18,12 +18,15 @@ Example:
 Version: 1.1
 """
 
+from src.gui.security.auth_window import AuthWindow
 from src.gui.security.mfa_gate import MFAGate, MFAMethod, MFAResult
 from src.gui.security.mode_manager import ModeManager
 from src.gui.security.mode_toggle import Mode, ModeToggle
-from src.gui.security.session_lock import SessionLockScreen
+from src.gui.security.session_lock_screen import SessionLockScreen
 
 __all__ = [
+    # Auth
+    "AuthWindow",
     # MFA
     "MFAGate",
     "MFAMethod",

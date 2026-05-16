@@ -98,7 +98,7 @@ class TestWorkflowTimelineDialog:
             workflow_controller=mock_controller,
         )
 
-        assert "История workflow" in dialog.title()
+        assert "Document Workflow" in dialog.title()
         dialog.destroy()
 
     def test_status_widgets_created(self, root: tk.Tk, mock_controller) -> None:
@@ -158,7 +158,7 @@ class TestWorkflowTimelineDialog:
         assert len(children) == 1
 
         values = tree.item(children[0], "values")
-        assert "Нет данных" in str(values)
+        assert "No data" in str(values)
 
         dialog.destroy()
 
@@ -258,7 +258,7 @@ class TestWorkflowTimelineDialog:
 
         assert "2024-01-15 10:30:00" in formatted
         assert "Оператор" in formatted
-        assert "Подтверждено" in formatted
+        assert "Verified" in formatted
         assert "Test reason" in formatted
         assert "test-event-001" in formatted
 
@@ -483,7 +483,7 @@ class TestCommentsViewerDialog:
             document_id=uuid4(),
         )
 
-        assert "Комментарии" in dialog.title()
+        assert "Comments" in dialog.title()
         dialog.destroy()
 
     def test_empty_comments_message(self, root: tk.Tk) -> None:
@@ -500,7 +500,7 @@ class TestCommentsViewerDialog:
         assert len(children) == 1
 
         values = dialog._tree.item(children[0], "values")
-        assert "Нет комментариев" in str(values)
+        assert "No comments" in str(values)
 
         dialog.destroy()
 
@@ -629,7 +629,7 @@ class TestWorkflowTimelineDialogEdgeCases:
         formatted = dialog._format_event_details(mock_event)
 
         assert "2024-01-15 10:30:00" in formatted
-        assert "Причина:" not in formatted
+        assert "Reason:" not in formatted
 
         dialog.destroy()
 
@@ -693,7 +693,7 @@ class TestWorkflowTimelineDialogEdgeCases:
         tree = dialog._history_tree
         children = tree.get_children()
         values = tree.item(children[0], "values")
-        assert "Ошибка" in str(values)
+        assert "Error" in str(values)
         assert "Test error" in str(values)
 
         dialog.destroy()
@@ -717,7 +717,7 @@ class TestWorkflowTimelineDialogEdgeCases:
         tree = dialog._history_tree
         children = tree.get_children()
         values = tree.item(children[0], "values")
-        assert "Ошибка" in str(values)
+        assert "Error" in str(values)
 
         mock_controller.get_current_state.side_effect = None
         dialog.destroy()

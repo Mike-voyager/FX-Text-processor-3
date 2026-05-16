@@ -9,16 +9,13 @@ Coverage target: ≥90%
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from src.gui.form_designer.dialogs.options_editor_dialog import (
     FieldOption,
     OptionsEditorDialog,
 )
-
 
 # =============================================================================
 # FIXTURES
@@ -165,7 +162,7 @@ class TestDialogInitialization:
     def test_dialog_creation_without_field_id(self, root):
         """Тест создания диалога без field_id."""
         dialog = OptionsEditorDialog(parent=root, current_options=[])
-        assert dialog.title() == "Редактор опций"
+        assert dialog.title() == "Options Editor"
         dialog.destroy()
 
     @pytest.mark.gui
@@ -270,7 +267,7 @@ class TestValidation:
         dialog = OptionsEditorDialog(parent=root, current_options=sample_options)
         is_valid, error = dialog._validate_option("", "Метка")
         assert is_valid is False
-        assert "Значение" in error
+        assert "Value" in error
         dialog.destroy()
 
     @pytest.mark.gui
@@ -279,7 +276,7 @@ class TestValidation:
         dialog = OptionsEditorDialog(parent=root, current_options=sample_options)
         is_valid, error = dialog._validate_option("value", "")
         assert is_valid is False
-        assert "Метка на русском" in error
+        assert "Label (RU)" in error
         dialog.destroy()
 
     @pytest.mark.gui
@@ -297,7 +294,7 @@ class TestValidation:
         dialog = OptionsEditorDialog(parent=root, current_options=sample_options)
         is_valid, error = dialog._validate_option("yes", "Да Да")
         assert is_valid is False
-        assert "уже существует" in error
+        assert "already exists" in error
         dialog.destroy()
 
     @pytest.mark.gui
@@ -325,7 +322,7 @@ class TestValidation:
             exclude_index=1,
         )
         assert is_valid is False
-        assert "уже существует" in error
+        assert "already exists" in error
         dialog.destroy()
 
     @pytest.mark.gui
@@ -385,7 +382,7 @@ class TestAddOperation:
         dialog._on_add()
 
         assert len(dialog._options) == 3  # Не изменилось
-        assert "уже существует" in dialog._status_label.cget("text")
+        assert "already exists" in dialog._status_label.cget("text")
         dialog.destroy()
 
     @pytest.mark.gui
@@ -398,7 +395,7 @@ class TestAddOperation:
         dialog._on_add()
 
         assert len(dialog._options) == 0
-        assert "Значение" in dialog._status_label.cget("text")
+        assert "Value" in dialog._status_label.cget("text")
         dialog.destroy()
 
     @pytest.mark.gui
@@ -411,7 +408,7 @@ class TestAddOperation:
         dialog._on_add()
 
         assert len(dialog._options) == 0
-        assert "Метка" in dialog._status_label.cget("text")
+        assert "Label" in dialog._status_label.cget("text")
         dialog.destroy()
 
     @pytest.mark.gui
@@ -464,7 +461,7 @@ class TestUpdateOperation:
         dialog._label_ru_entry.insert(0, "метка")
         dialog._on_update()
 
-        assert "Выберите опцию" in dialog._status_label.cget("text")
+        assert "Select an option" in dialog._status_label.cget("text")
         assert len(dialog._options) == 3  # Не изменилось
         dialog.destroy()
 
@@ -483,7 +480,7 @@ class TestUpdateOperation:
 
         # Опция не изменилась
         assert dialog._options[0].value == "yes"
-        assert "уже существует" in dialog._status_label.cget("text")
+        assert "already exists" in dialog._status_label.cget("text")
         dialog.destroy()
 
     @pytest.mark.gui
@@ -518,7 +515,7 @@ class TestDeleteOperation:
         dialog = OptionsEditorDialog(parent=root, current_options=sample_options)
         dialog._tree.selection_set("0")
 
-        with patch.object(dialog, "_refresh_list") as mock_refresh:
+        with patch.object(dialog, "_refresh_list"):
             with patch("tkinter.messagebox.askyesno", return_value=True):
                 dialog._on_delete()
 
@@ -547,7 +544,7 @@ class TestDeleteOperation:
         dialog._on_delete()
 
         assert len(dialog._options) == 3  # Не изменилось
-        assert "Выберите опцию" in dialog._status_label.cget("text")
+        assert "Select an option" in dialog._status_label.cget("text")
         dialog.destroy()
 
     @pytest.mark.gui

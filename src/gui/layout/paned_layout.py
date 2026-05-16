@@ -26,6 +26,10 @@ import tkinter as tk
 from dataclasses import dataclass
 from typing import Final, Optional, Protocol, runtime_checkable
 
+__author__ = "FX Text Processor Team"
+__date__ = "April 2026"
+__version__ = "1.0"
+
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.events import BaseEvent
 from src.gui.core.exceptions import GUIError, LifecycleError
@@ -145,7 +149,7 @@ class PanedLayout(BaseWidget):
         super().__init__(widget_id=widget_id, controller=controller)
 
         if orientation not in ("horizontal", "vertical"):
-            raise ValueError(f"Невалидная orientation: {orientation}")
+            raise ValueError(f"Invalid orientation: {orientation}")
 
         self._orientation: str = orientation
         self._sash_callback: Optional[SashChangeCallback] = sash_callback
@@ -213,6 +217,7 @@ class PanedLayout(BaseWidget):
         # Bind на изменение позиции sash
         self._paned.bind("<B1-Motion>", self._on_sash_drag)
         self._paned.bind("<ButtonRelease-1>", self._on_sash_release)
+        self._paned.bind("<Destroy>", lambda _e: self._cancel_resize(), add=True)
 
         # Bind на resize с throttle
         self._paned.bind("<Configure>", self._on_configure)
@@ -244,9 +249,9 @@ class PanedLayout(BaseWidget):
         """
         self._ensure_mounted()
         if self._left_widget is not None:
-            raise GUIError("Левая панель уже добавлена")
+            raise GUIError("Left panel already added")
         if self._paned is None:
-            raise GUIError("PanedWindow не инициализирован")
+            raise GUIError("PanedWindow not initialized")
 
         self._left_widget = widget
         self._paned.add(widget, minsize=SIDEBAR_COLLAPSED_WIDTH)
@@ -266,9 +271,9 @@ class PanedLayout(BaseWidget):
         """
         self._ensure_mounted()
         if self._right_widget is not None:
-            raise GUIError("Правая панель уже добавлена")
+            raise GUIError("Right panel already added")
         if self._paned is None:
-            raise GUIError("PanedWindow не инициализирован")
+            raise GUIError("PanedWindow not initialized")
 
         self._right_widget = widget
         self._paned.add(widget)
@@ -361,7 +366,6 @@ class PanedLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="panel_collapsed",
             )
             self._controller.dispatch("panel_collapsed", event=event)
 
@@ -388,7 +392,6 @@ class PanedLayout(BaseWidget):
         if self._controller is not None:
             event = BaseEvent(
                 widget_id=self._widget_id,
-                event_type="panel_expanded",
             )
             self._controller.dispatch("panel_expanded", event=event)
 
@@ -448,7 +451,7 @@ class PanedLayout(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="paned_operation",
-                message="PanedLayout не смонтирован",
+                message="PanedLayout not mounted",
             )
 
     def _apply_sash_position(self) -> None:
@@ -470,7 +473,10 @@ class PanedLayout(BaseWidget):
         try:
             # Используем sash_place для установки позиции sash
             if hasattr(self._paned, "sash_place"):
-                self._paned.sash_place(0, sash_pos, 0)  # type: ignore[no-untyped-call]
+                if self._orientation == "horizontal":
+                    self._paned.sash_place(0, sash_pos, 0)  # type: ignore[no-untyped-call]
+                else:
+                    self._paned.sash_place(0, 0, sash_pos)  # type: ignore[no-untyped-call]
         except tk.TclError:
             # Sash ещё не создан или панели не добавлены
             pass
@@ -524,6 +530,15 @@ class PanedLayout(BaseWidget):
             self._RESIZE_THROTTLE_MS,
             self._on_throttled_resize,
         )
+
+    def _cancel_resize(self) -> None:
+        """Отменяет pending after() для resize."""
+        if self._resize_after_id is not None and self._paned is not None:
+            try:
+                self._paned.after_cancel(self._resize_after_id)
+            except tk.TclError:
+                pass
+            self._resize_after_id = None
 
     def _on_throttled_resize(self) -> None:
         """Обработчик throttled resize."""

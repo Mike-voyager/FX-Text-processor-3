@@ -38,7 +38,7 @@ TOAST_OFFSET_Y: Final[int] = 100
 
 
 class ToastColor(Enum):
-    """Цвета для разных уровней toast уведомлений."""
+    """Colorа для разных уровней toast уведомлений."""
 
     INFO_BG = "#1a73e8"  # Синий
     INFO_FG = "#ffffff"
@@ -128,6 +128,7 @@ class ToastWindow:
         self._level = level
         self._auto_close = auto_close
         self._after_id: str | None = None
+        self._is_closing = False
 
         # Создаём Toplevel окно
         self._window = tk.Toplevel(parent)
@@ -143,6 +144,10 @@ class ToastWindow:
 
         # Создаём UI
         self._create_ui(config, message)
+
+        # Отменяем after при уничтожении окна, чтобы избежать
+        # TclError "invalid command name" на уже удалённом виджете
+        self._window.bind("<Destroy>", lambda _e: self._on_destroyed(), add=True)
 
         # Запускаем таймер авто-закрытия
         if auto_close:
@@ -220,8 +225,24 @@ class ToastWindow:
         icon_label.bind("<Button-1>", lambda _: self._close())
         frame.bind("<Button-1>", lambda _: self._close())
 
+    def _on_destroyed(self) -> None:
+        """Обработчик уничтожения окна — отменяет pending after и notify сервис."""
+        if self._is_closing:
+            return
+        self._is_closing = True
+        if self._after_id is not None:
+            try:
+                self._window.after_cancel(self._after_id)
+            except tk.TclError:
+                pass
+            self._after_id = None
+        self._on_close(self._toast_id)
+
     def _close(self) -> None:
         """Закрывает окно и вызывает callback."""
+        if self._is_closing:
+            return
+        self._is_closing = True
         if self._after_id is not None:
             try:
                 self._window.after_cancel(self._after_id)
@@ -237,6 +258,8 @@ class ToastWindow:
 
     def close(self) -> None:
         """Публичный метод для закрытия окна."""
+        if self._is_closing:
+            return
         try:
             self._close()
         except tk.TclError:
@@ -244,6 +267,8 @@ class ToastWindow:
 
     def pin(self) -> None:
         """Отменяет авто-закрытие окна (Pin)."""
+        if self._is_closing:
+            return
         if self._after_id is not None:
             self._window.after_cancel(self._after_id)
             self._after_id = None
@@ -293,8 +318,7 @@ class ToastService:
         """
         if len(message) > MAX_MESSAGE_LENGTH:
             raise ValueError(
-                f"Сообщение превышает максимальную длину "
-                f"({MAX_MESSAGE_LENGTH} символов): {len(message)}"
+                f"Message exceeds maximum length ({MAX_MESSAGE_LENGTH} chars): {len(message)}"
             )
 
     def _cleanup_old_toasts(self) -> None:

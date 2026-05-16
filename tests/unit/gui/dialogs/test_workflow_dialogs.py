@@ -32,12 +32,10 @@ pytestmark = [
 
 from src.gui.dialogs.workflow_dialogs import (
     AddCommentDialog,
-    CommentData,
     CrossDocumentLookupPanel,
     PrefillDialog,
 )
 from src.services.prefill_search_service import PrefillMatch, PrefillSearchService
-
 
 # ---------------------------------------------------------------------------
 # Фикстуры
@@ -77,7 +75,7 @@ class TestAddCommentDialog:
             field_id="customer_name",
             field_label="Имя клиента",
         )
-        assert dialog.title() == "Добавить комментарий - Имя клиента"
+        assert dialog.title() == "Add Comment - Имя клиента"
         dialog.destroy()
 
     def test_cancel_returns_none(self, tk_root: tk.Tk) -> None:
@@ -102,7 +100,7 @@ class TestPrefillDialog:
             field_id="customer_name",
             field_label="Имя клиента",
         )
-        assert dialog.title() == "Автозаполнение: Имя клиента"
+        assert dialog.title() == "Prefill: Имя клиента"
         dialog.destroy()
 
     def test_no_sample_matches_after_search(self, tk_root: tk.Tk) -> None:
@@ -118,7 +116,7 @@ class TestPrefillDialog:
         # Одна fallback строка, если сервис не передан
         assert len(items) == 1
         values = dialog._tree.item(items[0])["values"]
-        assert values[0] == "Сервис поиска не настроен"
+        assert values[0] == "Search service is not configured"
         dialog.destroy()
 
     def test_search_calls_service(self, tk_root: tk.Tk, mock_search_service: MagicMock) -> None:
@@ -214,7 +212,7 @@ class TestCrossDocumentLookupPanel:
         items = panel._tree.get_children()
         assert len(items) == 1
         values = panel._tree.item(items[0])["values"]
-        assert values[0] == "Сервис поиска не настроен"
+        assert values[0] == "Search service is not configured"
 
     def test_search_uses_service(self, tk_root: tk.Tk, mock_search_service: MagicMock) -> None:
         """Использует сервис для заполнения Treeview."""

@@ -95,7 +95,7 @@ class TransitionDialog(BaseDialog):
         self._requires_mfa = requires_mfa
         self._allowed_reasons = allowed_reasons or []
         self._on_confirm = on_confirm
-        self._on_cancel = on_cancel
+        self._on_cancel_callback = on_cancel
 
         # Check if this is ARCHIVED transition
         to_str = to_state.value if hasattr(to_state, "value") else str(to_state)
@@ -111,9 +111,9 @@ class TransitionDialog(BaseDialog):
         (self._from_state.value if hasattr(self._from_state, "value") else str(self._from_state))
         (self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state))
 
-        title = "Подтверждение перехода"
+        title = "Confirm Transition"
         if self._is_archived:
-            title = "⚠️ Архивация документа"
+            title = "⚠️ Archive Document"
 
         self.title(title)
         self.geometry(f"{DIALOG_WIDTH}x{DIALOG_HEIGHT}")
@@ -158,7 +158,7 @@ class TransitionDialog(BaseDialog):
     def _create_header(self, parent: ttk.Frame) -> None:
         """Создаёт заголовок."""
         if self._is_archived:
-            header_text = "⚠️ ВНИМАНИЕ: Терминальный статус"
+            header_text = "⚠️ WARNING: Terminal Status"
             header = ttk.Label(
                 parent,
                 text=header_text,
@@ -166,7 +166,7 @@ class TransitionDialog(BaseDialog):
                 foreground="#dc3545",
             )
         else:
-            header_text = "Подтверждение перехода"
+            header_text = "Confirm Transition"
             header = ttk.Label(
                 parent,
                 text=header_text,
@@ -178,7 +178,7 @@ class TransitionDialog(BaseDialog):
         """Создаёт визуализацию перехода состояний."""
         from src.gui.workflow.constants import STATUS_COLORS, STATUS_NAMES_RU
 
-        viz_frame = ttk.LabelFrame(parent, text="Переход состояния", padding=PADDING_NORMAL)
+        viz_frame = ttk.LabelFrame(parent, text="Status Transition", padding=PADDING_NORMAL)
         viz_frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
         # Get state info
@@ -244,8 +244,8 @@ class TransitionDialog(BaseDialog):
         desc_frame = ttk.Frame(viz_frame)
         desc_frame.pack(fill=tk.X, pady=(PADDING_NORMAL, 0))
 
-        ttk.Label(desc_frame, text=f"Из: {from_name}", foreground="gray").pack(side=tk.LEFT)
-        ttk.Label(desc_frame, text=f"В: {to_name}", foreground="gray").pack(side=tk.RIGHT)
+        ttk.Label(desc_frame, text=f"From: {from_name}", foreground="gray").pack(side=tk.LEFT)
+        ttk.Label(desc_frame, text=f"To: {to_name}", foreground="gray").pack(side=tk.RIGHT)
 
     def _create_archived_warning(self, parent: ttk.Frame) -> None:
         """Создаёт блок предупреждения для ARCHIVED."""
@@ -261,9 +261,9 @@ class TransitionDialog(BaseDialog):
 
         # Warning icon and text
         warning_text = (
-            "🔒 Документ будет заблокирован для редактирования\n"
-            "🚫 Это необратимое действие\n"
-            "📁 После архивации доступно только чтение"
+            "🔒 Document will be locked for editing\n"
+            "🚫 This action is irreversible\n"
+            "📁 Only reading will be available after archiving"
         )
 
         warning_label = tk.Label(
@@ -282,11 +282,11 @@ class TransitionDialog(BaseDialog):
 
         ttk.Label(
             confirm_frame,
-            text=f'Для подтверждения введите: "{self.ARCHIVED_CONFIRMATION_TEXT}"',
+            text=f'To confirm, enter: "{self.ARCHIVED_CONFIRMATION_TEXT}"',
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w")
 
-        self._confirm_var = tk.StringVar()
+        self._confirm_var = tk.StringVar(master=self)
         self._confirm_entry = ttk.Entry(
             confirm_frame,
             textvariable=self._confirm_var,
@@ -297,12 +297,12 @@ class TransitionDialog(BaseDialog):
 
     def _create_reason_section(self, parent: ttk.Frame) -> None:
         """Создаёт секцию причины перехода."""
-        reason_frame = ttk.LabelFrame(parent, text="Причина перехода", padding=PADDING_NORMAL)
+        reason_frame = ttk.LabelFrame(parent, text="Transition Reason", padding=PADDING_NORMAL)
         reason_frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
         if self._allowed_reasons:
             # Combobox with predefined reasons
-            self._reason_var = tk.StringVar()
+            self._reason_var = tk.StringVar(master=self)
             self._reason_combo = ttk.Combobox(
                 reason_frame,
                 textvariable=self._reason_var,
@@ -313,7 +313,7 @@ class TransitionDialog(BaseDialog):
             self._reason_combo.set(self._allowed_reasons[0] if self._allowed_reasons else "")
         else:
             # Free text entry
-            self._reason_var = tk.StringVar()
+            self._reason_var = tk.StringVar(master=self)
             self._reason_entry = ttk.Entry(
                 reason_frame,
                 textvariable=self._reason_var,
@@ -339,7 +339,7 @@ class TransitionDialog(BaseDialog):
         )
         mfa_frame.pack(fill=tk.X, pady=(0, PADDING_NORMAL))
 
-        mfa_text = "🔐 Для этого перехода требуется MFA-подтверждение"
+        mfa_text = "🔐 MFA confirmation is required for this transition"
 
         mfa_label = tk.Label(
             mfa_frame,
@@ -358,7 +358,7 @@ class TransitionDialog(BaseDialog):
         # Cancel button
         self._cancel_btn = ttk.Button(
             btn_frame,
-            text="Отмена",
+            text="Cancel",
             command=self._on_cancel,
         )
         self._cancel_btn.pack(side=tk.RIGHT, padx=(PADDING_SMALL, 0))
@@ -366,7 +366,7 @@ class TransitionDialog(BaseDialog):
         # Confirm button
         self._confirm_btn = ttk.Button(
             btn_frame,
-            text="Подтвердить",
+            text="Confirm",
             command=self._on_confirm_click,
         )
         self._confirm_btn.pack(side=tk.RIGHT)
@@ -390,8 +390,8 @@ class TransitionDialog(BaseDialog):
         # Validate ARCHIVED confirmation
         if self._is_archived and not self._validate_confirmation():
             messagebox.showerror(
-                "Ошибка подтверждения",
-                f'Неверный текст подтверждения. Введите: "{self.ARCHIVED_CONFIRMATION_TEXT}"',
+                "Confirmation Error",
+                f'Incorrect confirmation text. Enter: "{self.ARCHIVED_CONFIRMATION_TEXT}"',
                 parent=self,
             )
             if hasattr(self, "_confirm_entry"):
@@ -404,8 +404,8 @@ class TransitionDialog(BaseDialog):
         # Validate reason length
         if len(reason) > 200:
             messagebox.showerror(
-                "Ошибка",
-                "Причина слишком длинная (максимум 200 символов)",
+                "Error",
+                "Reason is too long (maximum 200 characters)",
                 parent=self,
             )
             return
@@ -425,8 +425,8 @@ class TransitionDialog(BaseDialog):
         """Обработчик отмены."""
         self._result = None
 
-        if self._on_cancel:
-            self._on_cancel()
+        if self._on_cancel_callback:
+            self._on_cancel_callback()
 
         self.destroy()
 

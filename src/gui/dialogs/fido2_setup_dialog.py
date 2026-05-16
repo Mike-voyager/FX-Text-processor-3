@@ -555,7 +555,7 @@ class FIDO2SetupDialog(BaseDialog):
         """
         if CtapHidDevice is None:
             logger.warning("FIDO2 library not available, using simulation")
-            self.after(2000, self._on_device_detected_simulated)
+            self._after_ids.append(self.after(2000, self._on_device_detected_simulated))
             return
 
         def detect_device() -> None:
@@ -565,22 +565,28 @@ class FIDO2SetupDialog(BaseDialog):
                 devices = list(CtapHidDevice.list_devices())
                 if devices:
                     self._fido2_device = devices[0]
-                    self.after(0, self._on_device_detected)
+                    self._after_ids.append(self.after(0, self._on_device_detected))
                 else:
-                    self.after(0, self._on_device_not_found)
+                    self._after_ids.append(self.after(0, self._on_device_not_found))
             except (AuthError, CryptoError) as e:
                 logger.critical(
                     "Security error during FIDO2 device detection: %s", e, exc_info=True
                 )
                 error_msg = str(e)
-                self.after(
-                    0, cast(Callable[[], None], lambda msg=error_msg: self._on_device_error(msg))
+                self._after_ids.append(
+                    self.after(
+                        0,
+                        cast(Callable[[], None], lambda msg=error_msg: self._on_device_error(msg)),
+                    )
                 )
             except Exception as e:
                 logger.error("Unexpected FIDO2 device detection error: %s", e, exc_info=True)
                 error_msg = str(e)
-                self.after(
-                    0, cast(Callable[[], None], lambda msg=error_msg: self._on_device_error(msg))
+                self._after_ids.append(
+                    self.after(
+                        0,
+                        cast(Callable[[], None], lambda msg=error_msg: self._on_device_error(msg)),
+                    )
                 )
 
         # Запускаем в отдельном потоке
@@ -671,7 +677,7 @@ class FIDO2SetupDialog(BaseDialog):
         if Fido2Client is None or self._fido2_device is None:
             # Fallback на симуляцию
             logger.warning("FIDO2 not available, using simulation")
-            self.after(3000, self._on_touch_detected_simulated)
+            self._after_ids.append(self.after(3000, self._on_touch_detected_simulated))
             return
 
         def register_credential() -> None:
@@ -693,19 +699,23 @@ class FIDO2SetupDialog(BaseDialog):
                 )
 
                 self._credential_id = result.get("credential_id")
-                self.after(0, self._on_touch_detected)
+                self._after_ids.append(self.after(0, self._on_touch_detected))
 
             except (AuthError, CryptoError) as e:
                 logger.critical("FIDO2 registration security error: %s", e, exc_info=True)
                 error_msg = str(e)
-                self.after(
-                    0, cast(Callable[[], None], lambda msg=error_msg: self._on_touch_error(msg))
+                self._after_ids.append(
+                    self.after(
+                        0, cast(Callable[[], None], lambda msg=error_msg: self._on_touch_error(msg))
+                    )
                 )
             except Exception as e:
                 logger.error("Unexpected FIDO2 registration error: %s", e, exc_info=True)
                 error_msg = str(e)
-                self.after(
-                    0, cast(Callable[[], None], lambda msg=error_msg: self._on_touch_error(msg))
+                self._after_ids.append(
+                    self.after(
+                        0, cast(Callable[[], None], lambda msg=error_msg: self._on_touch_error(msg))
+                    )
                 )
 
         # Запускаем в отдельном потоке
@@ -808,7 +818,7 @@ class FIDO2SetupDialog(BaseDialog):
             if not hasattr(self, "_copy_btn"):
                 self._copy_btn = tk.Button(
                     self._button_frame,
-                    text="📋 Скопировать",
+                    text="📋 Copy",
                     width=16,
                     command=self._on_copy_codes,
                     font=("Arial", 9),
@@ -878,13 +888,13 @@ class FIDO2SetupDialog(BaseDialog):
             self.clipboard_append("\n".join(self._backup_codes))
             self.update()
             messagebox.showinfo(
-                "Готово",
-                "Коды скопированы в буфер обмена.\nОчистите буфер обмена после использования.",
+                "Done",
+                "Codes copied to clipboard.\nClear the clipboard after use.",
                 parent=self,
             )
         except Exception as e:
             logger.error("Не удалось скопировать коды: %s", e)
-            messagebox.showerror("Ошибка", "Не удалось скопировать коды", parent=self)
+            messagebox.showerror("Error", "Failed to copy codes", parent=self)
 
     def _on_save_codes(self) -> None:
         """Сохраняет резервные коды в файл."""
@@ -894,26 +904,26 @@ class FIDO2SetupDialog(BaseDialog):
 
         path = filedialog.asksaveasfilename(
             defaultextension=".txt",
-            filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")],
-            title="Сохранить резервные коды",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            title="Save backup codes",
             parent=self,
         )
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8") as f:
-                f.write("# Резервные коды FIDO2\n")
-                f.write("# Сохраните в безопасном месте. Каждый код используется ОДИН раз.\n\n")
+                f.write("# FIDO2 Backup Codes\n")
+                f.write("# Store in a secure place. Each code can be used ONCE.\n\n")
                 f.write("\n".join(self._backup_codes))
             messagebox.showwarning(
-                "Безопасность",
-                "Файл содержит резервные коды. "
-                "Сохраните его на съёмный носитель и удалите с локального диска.",
+                "Security",
+                "File contains backup codes. "
+                "Save it to removable media and delete it from the local disk.",
                 parent=self,
             )
         except Exception as e:
             logger.error("Не удалось сохранить коды: %s", e)
-            messagebox.showerror("Ошибка", f"Не удалось сохранить файл:\n{e}", parent=self)
+            messagebox.showerror("Error", f"Failed to save file:\n{e}", parent=self)
 
     def show(self) -> Optional[dict[str, Any]]:
         """Показывает диалог модально.

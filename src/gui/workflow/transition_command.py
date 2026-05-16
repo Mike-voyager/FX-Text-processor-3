@@ -331,10 +331,11 @@ class WorkflowCommandHistory:
             return None
 
         command = self._undo_stack.pop()
-        if command.undo():
+        try:
+            command.undo()
             self._redo_stack.append(command)
             return command
-        else:
+        except Exception:
             # Restore to undo stack if undo failed
             self._undo_stack.append(command)
             return None
@@ -349,10 +350,11 @@ class WorkflowCommandHistory:
             return None
 
         command = self._redo_stack.pop()
-        if command.redo():
+        try:
+            command.redo()
             self._undo_stack.append(command)
             return command
-        else:
+        except Exception:
             # Restore to redo stack if redo failed
             self._redo_stack.append(command)
             return None

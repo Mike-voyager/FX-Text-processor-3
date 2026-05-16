@@ -89,6 +89,7 @@ class ProgressIndicator(BaseWidget):
             highlightthickness=0,
         )
         self._canvas.pack(fill=tk.X, expand=True)
+        self._canvas.bind("<Destroy>", lambda _e: self._stop_indeterminate(), add=True)
 
         if self._show_text:
             self._label = tk.Label(

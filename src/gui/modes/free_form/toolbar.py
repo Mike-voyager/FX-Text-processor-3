@@ -428,7 +428,7 @@ class FreeFormToolbar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_cpi",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         if cpi not in {10, 12, 15, 17, 20}:
@@ -459,7 +459,7 @@ class FreeFormToolbar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_font",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         self._current_font = font
@@ -493,7 +493,7 @@ class FreeFormToolbar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="toggle_format",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         valid_formats = {"bold", "italic", "underline", "subscript", "superscript"}
@@ -540,7 +540,7 @@ class FreeFormToolbar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="clear_active_formats",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Сохраняем копию для обновления UI
@@ -564,7 +564,7 @@ class FreeFormToolbar(BaseWidget):
             raise LifecycleError(
                 widget_id=self._widget_id,
                 operation="set_enabled",
-                message="Виджет не смонтирован",
+                message="Widget not mounted",
             )
 
         # Dropdowns - используем Any для обхода строгой типизации

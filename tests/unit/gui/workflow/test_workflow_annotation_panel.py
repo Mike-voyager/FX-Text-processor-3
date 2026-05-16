@@ -11,44 +11,6 @@ import sys
 import types
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parents[4])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Pre-emptively break the circular import chain by replacing
-# ``src.gui.components`` with a namespace package that only exposes
-# ``src.gui.components.base.widget`` without pulling in form_field→dialogs→renderers.
-# We evict anything that may have been loaded already by pytest or its plugins.
-for key in list(sys.modules.keys()):
-    if key.startswith("src.gui.components"):
-        del sys.modules[key]
-
-for _mod_name, _relpath in [
-    ("src.gui.components", "src/gui/components"),
-    ("src.gui.components.base", "src/gui/components/base"),
-    ("src.gui.components.base.widget", "src/gui/components/base/widget.py"),
-]:
-    if _mod_name not in sys.modules:
-        _m = types.ModuleType(_mod_name)
-        if _relpath.endswith(".py"):
-            _m.__file__ = os.path.join(_project_root, _relpath)
-        else:
-            _m.__path__ = [os.path.join(_project_root, _relpath)]
-        sys.modules[_mod_name] = _m
-
-# Inject widget submodule so import of BaseWidget works without loading
-# the real __init__.py of src.gui.components.
-from importlib.machinery import SourceFileLoader  # noqa: E402
-_widget_mod = SourceFileLoader(
-    "src.gui.components.base.widget",
-    os.path.join(_project_root, "src/gui/components/base/widget.py"),
-).load_module()
-
-sys.modules["src.gui.components.base.widget"] = _widget_mod
-sys.modules["src.gui.components.base"].widget = _widget_mod
-sys.modules["src.gui.components"].BaseWidget = _widget_mod.BaseWidget
-sys.modules["src.gui.components"].SmartBaseWidget = _widget_mod.SmartBaseWidget
-
 import tkinter as tk
 from datetime import datetime
 from typing import Generator

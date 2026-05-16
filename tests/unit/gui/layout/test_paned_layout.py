@@ -98,7 +98,7 @@ class TestPanedLayoutCreation:
 
     def test_paned_layout_creation_invalid_orientation(self) -> None:
         """Невалидная ориентация вызывает ValueError."""
-        with pytest.raises(ValueError, match="Невалидная orientation"):
+        with pytest.raises(ValueError, match="Invalid orientation"):
             PanedLayout(widget_id="test_invalid", orientation="invalid")
 
     def test_paned_layout_creation_with_callbacks(
@@ -138,7 +138,7 @@ class TestPanedLayoutMountUnmount:
         self, mounted_paned_layout: PanedLayout, tk_root: tk.Tk
     ) -> None:
         """Повторный mount() вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="уже смонтирован"):
+        with pytest.raises(LifecycleError, match="already mounted"):
             mounted_paned_layout.mount(tk_root)
 
     def test_unmount_cleans_resources(
@@ -151,8 +151,8 @@ class TestPanedLayoutMountUnmount:
         assert not paned_layout.is_mounted()
 
     def test_unmount_not_mounted_raises_error(self, paned_layout: PanedLayout) -> None:
-        """unmount() для не смонтированного вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        """unmount() для not mountedного вызывает LifecycleError."""
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.unmount()
 
 
@@ -184,7 +184,7 @@ class TestAddPanels:
     ) -> None:
         """add_left_panel() без mount вызывает LifecycleError."""
         left_frame = tk.Frame(tk_root)
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.add_left_panel(left_frame)
 
     def test_add_right_panel_not_mounted_raises_error(
@@ -192,7 +192,7 @@ class TestAddPanels:
     ) -> None:
         """add_right_panel() без mount вызывает LifecycleError."""
         right_frame = tk.Frame(tk_root)
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.add_right_panel(right_frame)
 
     def test_add_left_panel_twice_raises_error(
@@ -202,7 +202,7 @@ class TestAddPanels:
         left_frame = tk.Frame(tk_root)
         mounted_paned_layout.add_left_panel(left_frame)
 
-        with pytest.raises(GUIError, match="Левая панель уже добавлена"):
+        with pytest.raises(GUIError, match="Left panel already added"):
             mounted_paned_layout.add_left_panel(tk.Frame(tk_root))
 
     def test_add_right_panel_twice_raises_error(
@@ -212,7 +212,7 @@ class TestAddPanels:
         right_frame = tk.Frame(tk_root)
         mounted_paned_layout.add_right_panel(right_frame)
 
-        with pytest.raises(GUIError, match="Правая панель уже добавлена"):
+        with pytest.raises(GUIError, match="Right panel already added"):
             mounted_paned_layout.add_right_panel(tk.Frame(tk_root))
 
 
@@ -276,21 +276,21 @@ class TestSashPosition:
         self, paned_layout: PanedLayout
     ) -> None:
         """set_sash_position() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.set_sash_position(0.25)
 
     def test_get_sash_position_not_mounted_raises_error(
         self, paned_layout: PanedLayout
     ) -> None:
         """get_sash_position() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.get_sash_position()
 
     def test_get_sash_pixels_not_mounted_raises_error(
         self, paned_layout: PanedLayout
     ) -> None:
         """get_sash_pixels() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.get_sash_pixels()
 
     def test_get_sash_pixels_returns_int(
@@ -400,14 +400,14 @@ class TestCollapseExpand:
         self, paned_layout: PanedLayout
     ) -> None:
         """collapse_left() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.collapse_left()
 
     def test_expand_left_not_mounted_raises_error(
         self, paned_layout: PanedLayout
     ) -> None:
         """expand_left() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.expand_left()
 
 
@@ -497,7 +497,7 @@ class TestSaveRestoreState:
         self, paned_layout: PanedLayout
     ) -> None:
         """save_state() без mount вызывает LifecycleError."""
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.save_state()
 
     def test_restore_state_not_mounted_raises_error(
@@ -510,7 +510,7 @@ class TestSaveRestoreState:
             width=800,
             height=600,
         )
-        with pytest.raises(LifecycleError, match="не смонтирован"):
+        with pytest.raises(LifecycleError, match="not mounted"):
             paned_layout.restore_state(state)
 
 

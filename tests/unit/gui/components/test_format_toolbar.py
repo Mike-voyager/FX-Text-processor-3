@@ -99,7 +99,7 @@ class TestCPIManagement:
 
     def test_set_cpi_invalid_raises(self, format_toolbar: FormatToolbar) -> None:
         """set_cpi() с невалидным CPI вызывает ValueError."""
-        with pytest.raises(ValueError, match="Недопустимое значение CPI"):
+        with pytest.raises(ValueError, match="Invalid CPI value"):
             format_toolbar.set_cpi(99)
 
     def test_valid_cpi_values(self, format_toolbar: FormatToolbar) -> None:
@@ -139,12 +139,12 @@ class TestFormatManagement:
 
     def test_set_format_invalid_raises(self, format_toolbar: FormatToolbar) -> None:
         """set_format_active() с невалидным форматом вызывает ValueError."""
-        with pytest.raises(ValueError, match="Неизвестный тип форматирования"):
+        with pytest.raises(ValueError, match="Unknown format type"):
             format_toolbar.set_format_active("invalid_format", True)
 
     def test_is_format_invalid_raises(self, format_toolbar: FormatToolbar) -> None:
         """is_format_active() с невалидным форматом вызывает ValueError."""
-        with pytest.raises(ValueError, match="Неизвестный тип форматирования"):
+        with pytest.raises(ValueError, match="Unknown format type"):
             format_toolbar.is_format_active("invalid_format")
 
     def test_reset_formats(self, format_toolbar: FormatToolbar) -> None:
@@ -333,10 +333,10 @@ class TestScriptManagement:
 
     def test_is_script_active_invalid(self, format_toolbar: FormatToolbar) -> None:
         """is_script_active() с невалидным типом вызывает ValueError."""
-        with pytest.raises(ValueError, match="Недопустимый тип script-форматирования"):
+        with pytest.raises(ValueError, match="Invalid script formatting type"):
             format_toolbar.is_script_active("bold")  # Не script тип
 
-        with pytest.raises(ValueError, match="Недопустимый тип script-форматирования"):
+        with pytest.raises(ValueError, match="Invalid script formatting type"):
             format_toolbar.is_script_active("invalid")
 
     def test_script_toggle_callback(self, tk_root: tk.Tk) -> None:
@@ -393,7 +393,7 @@ class TestScriptManagement:
         toolbar = FormatToolbar(widget_id="test")
         toolbar.mount(tk_root)
 
-        with pytest.raises(ValueError, match="Недопустимый тип script-форматирования"):
+        with pytest.raises(ValueError, match="Invalid script formatting type"):
             toolbar._apply_script("bold", True)
 
 

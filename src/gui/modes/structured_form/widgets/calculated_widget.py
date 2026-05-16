@@ -196,12 +196,12 @@ class CalculatedWidget(BaseFieldWidget):
         # Проверяем некорректные оставшиеся скобки
         leftover = re.findall(r"\{([^}]*)\}", result)
         if leftover:
-            raise FormulaSyntaxError(f"Некорректное содержимое в скобках: {{{leftover[0]}}}")
+            raise FormulaSyntaxError(f"Invalid content in brackets: {{{leftover[0]}}}")
 
         # Проверяем, что имена переменных не конфликтуют с ключевыми словами
         for name in remaining:
             if name in {"__import__", "eval", "exec", "compile", "open", "dir"}:
-                raise FormulaSecurityError(f"Запрещённый идентификатор: {name}")
+                raise FormulaSecurityError(f"Forbidden identifier: {name}")
 
         return result
 
@@ -243,10 +243,10 @@ class CalculatedWidget(BaseFieldWidget):
         for node in ast.walk(tree):
             node_type = type(node)
             if node_type not in self._ALLOWED_NODES:
-                raise FormulaSecurityError(f"Запрещённый тип AST узла: {node_type.__name__}")
+                raise FormulaSecurityError(f"Forbidden AST node type: {node_type.__name__}")
             # Запрещаем dunder-атрибуты
             if isinstance(node, ast.Attribute):
-                raise FormulaSecurityError("Доступ к атрибутам объектов запрещён")
+                raise FormulaSecurityError("Object attribute access is forbidden")
             # Запрещаем импорты / getattr / eval / exec
             if isinstance(node, ast.Name):
                 if node.id in {
@@ -264,7 +264,7 @@ class CalculatedWidget(BaseFieldWidget):
                     "locals",
                     "vars",
                 }:
-                    raise FormulaSecurityError(f"Запрещённое имя: {node.id}")
+                    raise FormulaSecurityError(f"Forbidden name: {node.id}")
 
     def _eval_node(self, node: ast.AST, context: dict[str, Union[int, float, str]]) -> Any:
         """Рекурсивно вычисляет AST узел с подстановкой контекста.
@@ -292,7 +292,7 @@ class CalculatedWidget(BaseFieldWidget):
                     except ValueError:
                         return value
                 return value
-            raise FormulaSecurityError(f"Неизвестная переменная: {node.id}")
+            raise FormulaSecurityError(f"Unknown variable: {node.id}")
 
         if isinstance(node, ast.BinOp):
             left = self._eval_node(node.left, context)
@@ -346,7 +346,7 @@ class CalculatedWidget(BaseFieldWidget):
         if isinstance(node, ast.Tuple):
             return tuple(self._eval_node(elt, context) for elt in node.elts)
 
-        raise FormulaEvaluationError(f"Неподдерживаемый тип узла: {type(node).__name__}")
+        raise FormulaEvaluationError(f"Unsupported node type: {type(node).__name__}")
 
     def _set_display_value(self, value: Any) -> None:
         """Обновляет внутреннее значение и отображение без on_change."""

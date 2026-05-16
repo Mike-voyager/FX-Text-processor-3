@@ -13,21 +13,19 @@ Note:
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any
+from collections.abc import Iterator
 
 import pytest
-
 from src.gui.components.primitive.label import ThemedLabel
 from src.gui.core.exceptions import LifecycleError
-
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
 
 
-@pytest.fixture
-def tk_app() -> tk.Tk:
+@pytest.fixture  # type: ignore[misc]
+def tk_app() -> Iterator[tk.Tk]:
     """Fixture: создаёт корневое окно Tk."""
     root = tk.Tk()
     root.withdraw()  # Скрываем окно
@@ -35,7 +33,7 @@ def tk_app() -> tk.Tk:
     root.destroy()
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def parent_frame(tk_app: tk.Tk) -> tk.Frame:
     """Fixture: создаёт родительский фрейм."""
     frame = tk.Frame(tk_app)
@@ -148,7 +146,7 @@ class TestThemedLabelLifecycle:
         """Тест: mount() с невалидным parent вызывает TypeError."""
         label = ThemedLabel(widget_id="test")
         with pytest.raises(TypeError, match="parent"):
-            label.mount("invalid_parent")
+            label.mount("invalid_parent")  # type: ignore[arg-type]
 
     def test_double_mount_raises_lifecycle_error(self, parent_frame: tk.Frame) -> None:
         """Тест: повторный mount() вызывает LifecycleError."""

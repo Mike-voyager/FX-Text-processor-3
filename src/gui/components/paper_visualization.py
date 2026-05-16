@@ -506,7 +506,7 @@ class CodepageStatusWidget(BaseWidget):
         elif status == "warning":
             self._icon_label.config(text="⚠", fg="#B8860B")
             self._count_label.config(
-                text=f"PC866: {self._invalid_count} замен",
+                text=f"PC866: {self._invalid_count} replacements",
                 fg="#B8860B",
             )
             if self._frame:
@@ -516,7 +516,7 @@ class CodepageStatusWidget(BaseWidget):
         else:
             self._icon_label.config(text="✗", fg="red")
             self._count_label.config(
-                text=f"PC866: {self._invalid_count} ошибок",
+                text=f"PC866: {self._invalid_count} errors",
                 fg="red",
             )
             if self._frame:

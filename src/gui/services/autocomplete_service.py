@@ -268,7 +268,7 @@ class AutocompleteServiceGui:
         if root is not None and self._root is None:
             self._root = root
 
-        var = tk.StringVar()
+        var = tk.StringVar(master=effective_root)
 
         def on_var_change(*args: object) -> None:
             """Обработчик изменения переменной."""

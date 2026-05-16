@@ -14,11 +14,31 @@ Date: April 2026
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from src.documents.types.type_schema import FieldDefinition
 from src.gui.core.commands.command import Command
-from src.gui.renderers.form_canvas import FieldPosition, FormCanvas, FormFieldWidget
+from src.gui.renderers.form_canvas import FieldPosition, FormFieldWidget
+
+# =============================================================================
+# LOCAL STUBS (form_canvas under development)
+# =============================================================================
+
+
+class FormCanvas(Protocol):
+    """Protocol для canvas формы."""
+
+    def get_fields(self) -> dict[str, FormFieldWidget]: ...
+
+    def create_field(
+        self, field_def: Any, x: int, y: int, width: int = ..., height: int = ...
+    ) -> FormFieldWidget: ...
+
+    def remove_field(self, field_id: str) -> bool: ...
+
+    def select_field(self, field_id: Optional[str]) -> None: ...
+
+    def _redraw_fields(self) -> None: ...
 
 
 def _get_field(canvas: FormCanvas, field_id: str) -> Optional[FormFieldWidget]:
@@ -29,7 +49,7 @@ def _get_field(canvas: FormCanvas, field_id: str) -> Optional[FormFieldWidget]:
         field_id: ID поля.
 
     Returns:
-        Поле или None если не найдено.
+        Поле или None если not found.
     """
     return canvas.get_fields().get(field_id)
 
@@ -145,7 +165,7 @@ class FieldMoveCommand(Command):
             width=field.position.width,
             height=field.position.height,
         )
-        self._canvas._redraw_field(field)
+        self._canvas._redraw_fields()
         self._is_executed = True
 
     def undo(self) -> None:
@@ -159,7 +179,7 @@ class FieldMoveCommand(Command):
             width=field.position.width,
             height=field.position.height,
         )
-        self._canvas._redraw_field(field)
+        self._canvas._redraw_fields()
         self._is_executed = False
 
     def redo(self) -> None:
@@ -222,7 +242,7 @@ class FieldResizeCommand(Command):
             width=self._new_size[0],
             height=self._new_size[1],
         )
-        self._canvas._redraw_field(field)
+        self._canvas._redraw_fields()
         self._is_executed = True
 
     def undo(self) -> None:
@@ -236,7 +256,7 @@ class FieldResizeCommand(Command):
             width=self._old_size[0],
             height=self._old_size[1],
         )
-        self._canvas._redraw_field(field)
+        self._canvas._redraw_fields()
         self._is_executed = False
 
     def redo(self) -> None:
@@ -461,7 +481,7 @@ class PropertyChangeCommand(Command):
             value: Новое значение свойства.
 
         Raises:
-            RuntimeError: Если поле не найдено.
+            RuntimeError: Если поле not found.
         """
         field = _get_field(self._canvas, self._field_id)
         if field is None:
@@ -518,7 +538,7 @@ class PropertyChangeCommand(Command):
                     setattr(field, self._property_name, value)
 
         # Redraw field to reflect changes
-        self._canvas._redraw_field(field)
+        self._canvas._redraw_fields()
 
     def get_description(self) -> str:
         """Возвращает описание команды для UI.

@@ -12,22 +12,20 @@ from __future__ import annotations
 
 import tkinter as tk
 from datetime import date
-from typing import Generator
+from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.documents.types.type_schema import FieldDefinition, FieldType
 from src.gui.components.form_field import FormField
 from src.gui.services.autocomplete_service import AutocompleteServiceGui
-
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def tk_root() -> Generator[tk.Tk, None, None]:
     """Fixture для Tk root окна."""
     root = tk.Tk()
@@ -36,7 +34,7 @@ def tk_root() -> Generator[tk.Tk, None, None]:
     root.destroy()
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def mock_core_service() -> Generator[MagicMock, None, None]:
     """Создаёт мок AutocompleteService."""
     service = MagicMock()
@@ -49,7 +47,7 @@ def mock_core_service() -> Generator[MagicMock, None, None]:
     yield service
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def autocomplete_service(
     tk_root: tk.Tk, mock_core_service: MagicMock
 ) -> Generator[AutocompleteServiceGui, None, None]:
@@ -61,7 +59,7 @@ def autocomplete_service(
     yield service
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def text_field_def() -> FieldDefinition:
     """Текстовое поле."""
     return FieldDefinition(
@@ -71,7 +69,7 @@ def text_field_def() -> FieldDefinition:
     )
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def autocomplete_field_def() -> FieldDefinition:
     """Поле с автокомплитом."""
     return FieldDefinition(
@@ -82,7 +80,7 @@ def autocomplete_field_def() -> FieldDefinition:
     )
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def required_field_def() -> FieldDefinition:
     """Обязательное поле."""
     return FieldDefinition(
@@ -93,7 +91,7 @@ def required_field_def() -> FieldDefinition:
     )
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def number_field_def() -> FieldDefinition:
     """Числовое поле."""
     return FieldDefinition(
@@ -105,7 +103,7 @@ def number_field_def() -> FieldDefinition:
     )
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def date_field_def() -> FieldDefinition:
     """Поле даты."""
     return FieldDefinition(
@@ -115,7 +113,7 @@ def date_field_def() -> FieldDefinition:
     )
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def dropdown_field_def() -> FieldDefinition:
     """Выпадающий список."""
     return FieldDefinition(
@@ -137,7 +135,7 @@ def dropdown_field_def() -> FieldDefinition:
 class TestFormFieldAutocompleteIntegration:
     """Интеграция FormField с AutocompleteServiceGui."""
 
-    @patch("src.gui.components.form_field.AutocompleteEntry")
+    @patch("src.gui.modes.structured_form.widgets.autocomplete_entry.AutocompleteEntry")
     def test_form_field_with_autocomplete_service(
         self,
         mock_autocomplete_entry: MagicMock,
@@ -151,7 +149,7 @@ class TestFormFieldAutocompleteIntegration:
         mock_autocomplete_entry.return_value = mock_widget
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=autocomplete_field_def,
             document_index="DVN-44-K53-IX",
             autocomplete_service=autocomplete_service,
@@ -168,7 +166,7 @@ class TestFormFieldAutocompleteIntegration:
     ) -> None:
         """Значение поля записывается в историю."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=autocomplete_field_def,
             document_index="DVN-44-K53-IX",
             autocomplete_service=autocomplete_service,
@@ -197,12 +195,14 @@ class TestFormFieldAutocompleteIntegration:
     ) -> None:
         """Поиск использует кэш сервиса."""
         # Prime cache
-        autocomplete_service._cache[(
-            "recipient",
-            "DVN-44-K53-IX",
-            "ООО",
-            5,
-        )] = ([("Cached Company", 10)], __import__("time").time())
+        autocomplete_service._cache[
+            (
+                "recipient",
+                "DVN-44-K53-IX",
+                "ООО",
+                5,
+            )
+        ] = ([("Cached Company", 10)], __import__("time").time())
 
         # Search through service
         results = autocomplete_service.search(
@@ -283,9 +283,7 @@ class TestPrefillDialogIntegration:
 class TestBookmarksDialogNavigation:
     """Навигация в диалоге закладок."""
 
-    def test_bookmarks_dialog_navigation(
-        self, tk_root: tk.Tk
-    ) -> None:
+    def test_bookmarks_dialog_navigation(self, tk_root: tk.Tk) -> None:
         """Переход к закладке работает."""
         # Simulate bookmark navigation structure
         bookmarks = [
@@ -394,7 +392,7 @@ class TestValidationErrorDisplay:
     ) -> None:
         """Ошибка валидации отображается в FormField."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=text_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -412,7 +410,7 @@ class TestValidationErrorDisplay:
     ) -> None:
         """Индикатор ошибки показывается при валидации."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=required_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -431,7 +429,7 @@ class TestValidationErrorDisplay:
     ) -> None:
         """Ошибка очищается при вводе валидного значения."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=required_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -499,7 +497,7 @@ class TestDocumentIndexIntegration:
         document_index = "DVN-44-K53-IX"
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=text_field_def,
             document_index=document_index,
         )
@@ -513,11 +511,10 @@ class TestDocumentIndexIntegration:
         autocomplete_service: AutocompleteServiceGui,
     ) -> None:
         """Иерархия индекса используется для поиска."""
-        parent_index = "DVN-44-K53"
         full_index = "DVN-44-K53-IX"
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=autocomplete_field_def,
             document_index=full_index,
             autocomplete_service=autocomplete_service,
@@ -548,7 +545,7 @@ class TestCallbackIntegration:
             change_calls.append((field_id, value))
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=text_field_def,
             document_index="DVN-44-K53-IX",
             on_change=on_change,
@@ -573,7 +570,7 @@ class TestCallbackIntegration:
             validate_calls.append((field_id, is_valid, error))
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=required_field_def,
             document_index="DVN-44-K53-IX",
             on_validate=on_validate,
@@ -605,7 +602,7 @@ class TestFormTypesIntegration:
     ) -> None:
         """Текстовое поле работает в форме."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=text_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -622,7 +619,7 @@ class TestFormTypesIntegration:
     ) -> None:
         """Числовое поле работает в форме."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=number_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -640,7 +637,7 @@ class TestFormTypesIntegration:
         from tkinter import ttk
 
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=dropdown_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -657,7 +654,7 @@ class TestFormTypesIntegration:
     ) -> None:
         """Поле даты работает в форме."""
         field = FormField(
-            parent=tk_root,
+            parent=tk.Frame(tk_root),
             field_def=date_field_def,
             document_index="DVN-44-K53-IX",
         )
@@ -734,4 +731,10 @@ class TestSecurityIntegration:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=src.gui.components.form_field,src.gui.services.autocomplete_service"])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--cov=src.gui.components.form_field,src.gui.services.autocomplete_service",
+        ]
+    )

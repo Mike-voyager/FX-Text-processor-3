@@ -117,7 +117,7 @@ class TableWidget(BaseFieldWidget):
             # No schema - show placeholder
             tk.Label(
                 frame,
-                text="(Нет схемы таблицы)",
+                text="(No table schema)",
                 fg="gray",
             ).pack(pady=20)
             return frame
@@ -154,7 +154,7 @@ class TableWidget(BaseFieldWidget):
         # Edit button
         self._edit_button = tk.Button(
             frame,
-            text="Редактировать таблицу...",
+            text="Edit Table...",
             command=self.show_table_editor,
             padx=10,
             pady=2,
@@ -437,7 +437,10 @@ class TableEditorDialog:
         self._dialog.title("Редактирование таблицы")
         self._dialog.geometry("800x600")
         self._dialog.transient(self._parent.winfo_toplevel())
-        self._dialog.grab_set()
+        try:
+            self._dialog.grab_set()
+        except tk.TclError:
+            pass
 
         self._create_widgets()
         self._populate_data()
@@ -467,21 +470,19 @@ class TableEditorDialog:
         toolbar.pack(fill=tk.X, pady=(0, 10))
 
         if not self._readonly:
-            tk.Button(toolbar, text="Добавить строку", command=self._add_row).pack(
+            tk.Button(toolbar, text="Add Row", command=self._add_row).pack(
                 side=tk.LEFT, padx=(0, 5)
             )
-            tk.Button(toolbar, text="Удалить строку", command=self._delete_row).pack(
+            tk.Button(toolbar, text="Delete Row", command=self._delete_row).pack(
                 side=tk.LEFT, padx=(0, 5)
             )
-            tk.Button(toolbar, text="Вставить из Excel", command=self._paste_from_clipboard).pack(
+            tk.Button(toolbar, text="Paste from Excel", command=self._paste_from_clipboard).pack(
                 side=tk.LEFT, padx=(0, 5)
             )
 
-        tk.Button(toolbar, text="Отмена", command=self._cancel).pack(side=tk.RIGHT)
+        tk.Button(toolbar, text="Cancel", command=self._cancel).pack(side=tk.RIGHT)
         if not self._readonly:
-            tk.Button(toolbar, text="Сохранить", command=self._save).pack(
-                side=tk.RIGHT, padx=(0, 5)
-            )
+            tk.Button(toolbar, text="Save", command=self._save).pack(side=tk.RIGHT, padx=(0, 5))
 
         # Scrollable frame for table
         canvas_frame = tk.Frame(main_frame)
@@ -560,7 +561,7 @@ class TableEditorDialog:
         """Добавляет новую строку."""
         if self._schema.max_rows is not None:
             if len(self._entries) >= self._schema.max_rows:
-                messagebox.showwarning("Лимит", f"Максимум {self._schema.max_rows} строк")
+                messagebox.showwarning("Limit", f"Maximum {self._schema.max_rows} rows")
                 return
 
         # Collect current data
@@ -578,7 +579,7 @@ class TableEditorDialog:
     def _delete_row(self) -> None:
         """Удаляет выбранную строку."""
         if len(self._entries) <= self._schema.min_rows:
-            messagebox.showwarning("Лимит", f"Минимум {self._schema.min_rows} строк")
+            messagebox.showwarning("Limit", f"Minimum {self._schema.min_rows} rows")
             return
 
         # Show simple dialog for row number
@@ -623,7 +624,7 @@ class TableEditorDialog:
         try:
             clipboard = self._dialog.clipboard_get()
         except tk.TclError:
-            messagebox.showinfo("Буфер обмена", "Буфер обмена пуст")
+            messagebox.showinfo("Clipboard", "Clipboard is empty")
             return
 
         # Parse tab-separated data
@@ -662,10 +663,10 @@ class TableEditorDialog:
         # Validate
         errors: list[str] = []
         if len(self._data.rows) < self._schema.min_rows:
-            errors.append(f"Минимум {self._schema.min_rows} строк")
+            errors.append(f"Minimum {self._schema.min_rows} rows")
 
         if errors:
-            messagebox.showerror("Ошибка", "\n".join(errors))
+            messagebox.showerror("Error", "\n".join(errors))
             return
 
         self._result = self._data

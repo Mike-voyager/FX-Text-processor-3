@@ -398,7 +398,7 @@ class TestWidgetProperty:
         """widget property до mount вызывает RuntimeError."""
         bar = StatusBar()
 
-        with pytest.raises(RuntimeError, match="не смонтирован"):
+        with pytest.raises(RuntimeError, match="is not mounted"):
             _ = bar.widget
 
 
@@ -731,7 +731,7 @@ class TestStatusBarToastIntegration:
             NOTIFICATION_INACTIVE_COLOR,
         )
 
-        assert NOTIFICATION_ACTIVE_COLOR == "#ff8c00"
+        assert NOTIFICATION_ACTIVE_COLOR == "#0080FF"
         assert NOTIFICATION_INACTIVE_COLOR == "#999999"
 
     def test_toast_panel_constants_exist(self) -> None:

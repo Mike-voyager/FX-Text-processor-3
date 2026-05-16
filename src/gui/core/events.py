@@ -1,27 +1,26 @@
-"""
-Типы событий GUI.
+"""Система событий GUI для FX Text Processor 3.
 
-Определяет иерархию событий для внутренней коммуникации GUI-компонентов.
-Все события immutable (frozen dataclasses) для thread-safety и предсказуемости.
+Модуль определяет иерархию событий, используемых для коммуникации
+между виджетами и контроллерами. Все события реализуют EventProtocol
+и являются неизменяемыми (frozen dataclasses).
 
-Иерархия событий:
-    BaseEvent
-    ├── ValueChangedEvent  # Изменение значения поля
-    ├── FocusLostEvent     # Потеря фокуса
-    ├── FocusGainedEvent   # Получение фокуса
-    ├── ActionEvent        # Действие пользователя
-    ├── MountEvent         # Монтирование виджета
-    └── UnmountEvent       # Демонтирование виджета
+Classes:
+    BaseEvent: Базовое событие с widget_id и timestamp.
+    ActionEvent: Событие действия (например, нажатие кнопки).
+    FocusGainedEvent: Событие получения фокуса.
+    FocusLostEvent: Событие потери фокуса.
+    MountEvent: Событие монтирования виджета.
+    UnmountEvent: Событие демонтирования виджета.
+    ValueChangedEvent: Событие изменения значения.
 
-Usage:
-    >>> from src.gui.core.events import ValueChangedEvent
+Example:
     >>> event = ValueChangedEvent(
-    ...     widget_id="entry_1",
-    ...     event_type="value_changed",
-    ...     field_id="username",
-    ...     old_value="",
-    ...     new_value="admin"
+    ...     widget_id="field_01",
+    ...     old_value="old",
+    ...     new_value="new"
     ... )
+    >>> isinstance(event, EventProtocol)
+    True
 
 Version: 1.0
 Date: April 2026
@@ -30,12 +29,16 @@ Date: April 2026
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import time
+from typing import Any, Final
 
-__author__ = "FX Text Processor Team"
-__date__ = "April 2026"
-__version__ = "1.0"
-from datetime import datetime
-from typing import Any, Dict, Optional
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+MAX_WIDGET_ID_LENGTH: Final[int] = 100
+"""Максимальная длина идентификатора виджета (security: UI DoS protection)."""
+
 
 # =============================================================================
 # BASE EVENT
@@ -44,309 +47,249 @@ from typing import Any, Dict, Optional
 
 @dataclass(frozen=True)
 class BaseEvent:
-    """
-    Базовый класс для всех событий GUI.
+    """Базовый класс для всех событий GUI.
+
+    Реализует EventProtocol через структурное подтипирование.
+    Все события неизменяемы (frozen=True) для предотвращения
+    случайных модификаций при распространении.
 
     Attributes:
-        widget_id: Уникальный идентификатор виджета-источника события.
-        event_type: Строковый тип события для маршрутизации.
-        timestamp: Время создания события (UTC, автоматически).
+        widget_id: Идентификатор виджета-источника события.
+            Соответствует source_widget_id в EventProtocol.
+        timestamp: Временная метка создания события (Unix timestamp).
 
     Example:
-        >>> event = BaseEvent(
-        ...     widget_id="button_1",
-        ...     event_type="click",
-        ...     timestamp=datetime.now()
-        ... )
-        >>> event.widget_id
-        'button_1'
+        >>> event = BaseEvent(widget_id="btn_01")
+        >>> event.timestamp > 0
+        True
+        >>> isinstance(event, BaseEvent)
+        True
+
+    Security:
+        - widget_id обрезается до MAX_WIDGET_ID_LENGTH символов.
+        - timestamp автоматически устанавливается при создании.
     """
 
     widget_id: str
-    event_type: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: float = field(default_factory=time)
 
     def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        if not self.widget_id or not self.widget_id.strip():
-            raise ValueError("widget_id не может быть пустым")
-        if not self.event_type or not self.event_type.strip():
-            raise ValueError("event_type не может быть пустым")
+        """Пост-инициализация: обрезка widget_id и установка event_type."""
+        # Security: truncate long widget_id
+        object.__setattr__(self, "widget_id", self.widget_id[:MAX_WIDGET_ID_LENGTH])
+        object.__setattr__(self, "_propagation_stopped", False)
 
-
-# =============================================================================
-# VALUE EVENTS
-# =============================================================================
-
-
-@dataclass(frozen=True)
-class ValueChangedEvent(BaseEvent):
-    """
-    Событие изменения значения поля.
-
-    Генерируется когда пользователь изменяет значение поля ввода
-    и покидает его (FocusOut) или явно подтверждает изменение.
-
-    Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        event_type: Тип события (всегда 'value_changed').
-        timestamp: Время создания события.
-        field_id: Идентификатор поля в схеме документа.
-        old_value: Предыдущее значение поля.
-        new_value: Новое значение поля.
-
-    Example:
-        >>> event = ValueChangedEvent(
-        ...     widget_id="entry_username",
-        ...     field_id="username",
-        ...     old_value="",
-        ...     new_value="admin"
-        ... )
-        >>> event.old_value
-        ''
-        >>> event.new_value
-        'admin'
-    """
-
-    field_id: str = field(default="")
-    old_value: Any = field(default=None)
-    new_value: Any = field(default=None)
-
-    def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        super().__post_init__()
-        if not self.field_id or not self.field_id.strip():
-            raise ValueError("field_id не может быть пустым")
-
-    def has_changed(self) -> bool:
-        """
-        Проверяет, действительно ли значение изменилось.
+    @property
+    def source_widget_id(self) -> str:
+        """Идентификатор виджета-источника (совместимость с EventProtocol).
 
         Returns:
-            True если old_value != new_value, иначе False.
+            Значение widget_id.
+        """
+        return self.widget_id
+
+    @property
+    def event_type(self) -> str:
+        """Тип события (совместимость с EventProtocol).
+
+        Returns:
+            Название класса в нижнем регистре.
+        """
+        return self.__class__.__name__.lower().replace("event", "")
+
+    def get_data(self) -> dict[str, Any]:
+        """Возвращает данные события в виде словаря.
+
+        Returns:
+            Словарь с полями события.
 
         Example:
-            >>> event = ValueChangedEvent(
-            ...     widget_id="e1", field_id="f1",
-            ...     old_value="a", new_value="a"
-            ... )
-            >>> event.has_changed()
-            False
+            >>> event = BaseEvent(widget_id="test")
+            >>> data = event.get_data()
+            >>> "widget_id" in data
+            True
         """
-        return bool(self.old_value != self.new_value)
+        return {
+            "widget_id": self.widget_id,
+            "timestamp": self.timestamp,
+            "event_type": self.event_type,
+        }
+
+    def is_propagation_stopped(self) -> bool:
+        """Проверяет, остановлено ли распространение события.
+
+        Returns:
+            True если событие не должно передаваться дальше.
+        """
+        return bool(getattr(self, "_propagation_stopped", False))
+
+    def stop_propagation(self) -> None:
+        """Останавливает распространение события.
+
+        После вызова событие не будет передано родительским
+        виджетам или контроллерам.
+
+        Note:
+            Использует object.__setattr__ т.к. dataclass frozen=True.
+
+        Example:
+            >>> event = BaseEvent(widget_id="test")
+            >>> event.stop_propagation()
+            >>> event.is_propagation_stopped()
+            True
+        """
+        object.__setattr__(self, "_propagation_stopped", True)
 
 
 # =============================================================================
-# FOCUS EVENTS
-# =============================================================================
-
-
-@dataclass(frozen=True)
-class FocusLostEvent(BaseEvent):
-    """
-    Событие потери фокуса виджетом.
-
-    Генерируется когда виджет теряет фокус ввода (например, пользователь
-    переключился на другое поле или нажал Tab).
-
-    Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        event_type: Тип события (всегда 'focus_lost').
-        timestamp: Время создания события.
-        field_id: Идентификатор поля в схеме документа.
-
-    Example:
-        >>> event = FocusLostEvent(
-        ...     widget_id="entry_username",
-        ...     field_id="username"
-        ... )
-        >>> event.field_id
-        'username'
-    """
-
-    field_id: str = field(default="")
-
-    def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        super().__post_init__()
-        if not self.field_id or not self.field_id.strip():
-            raise ValueError("field_id не может быть пустым")
-
-
-@dataclass(frozen=True)
-class FocusGainedEvent(BaseEvent):
-    """
-    Событие получения фокуса виджетом.
-
-    Генерируется когда виджет получает фокус ввода (например, пользователь
-    кликнул на поле или переключился Tab-ом).
-
-    Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        event_type: Тип события (всегда 'focus_gained').
-        timestamp: Время создания события.
-        field_id: Идентификатор поля в схеме документа.
-
-    Example:
-        >>> event = FocusGainedEvent(
-        ...     widget_id="entry_username",
-        ...     field_id="username"
-        ... )
-        >>> event.field_id
-        'username'
-    """
-
-    field_id: str = field(default="")
-
-    def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        super().__post_init__()
-        if not self.field_id or not self.field_id.strip():
-            raise ValueError("field_id не может быть пустым")
-
-
-# =============================================================================
-# ACTION EVENTS
+# CONCRETE EVENTS
 # =============================================================================
 
 
 @dataclass(frozen=True)
 class ActionEvent(BaseEvent):
-    """
-    Событие действия пользователя.
-
-    Генерируется при явных действиях: нажатие кнопки, выбор пункта меню,
-    горячая клавиша и т.д.
+    """Событие действия (например, нажатие кнопки или выбор меню).
 
     Attributes:
-        widget_id: Уникальный идентификатор виджета-источника.
-        event_type: Тип события (всегда 'action').
-        timestamp: Время создания события.
-        action_name: Имя действия (например, 'save_document', 'print').
-        action_data: Дополнительные данные действия (контекст).
+        action: Идентификатор действия (например, "save", "open").
+        handler_name: Имя обработчика или None.
 
     Example:
         >>> event = ActionEvent(
         ...     widget_id="btn_save",
-        ...     action_name="save_document",
-        ...     action_data={"path": "/tmp/doc.fxsd"}
+        ...     action="save_document"
         ... )
-        >>> event.action_name
+        >>> event.action
         'save_document'
-        >>> event.action_data.get("path")
-        '/tmp/doc.fxsd'
     """
 
-    action_name: str = field(default="")
-    action_data: Dict[str, Any] = field(default_factory=dict)
+    action: str = ""
+    handler_name: str | None = None
 
-    def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        super().__post_init__()
-        if not self.action_name or not self.action_name.strip():
-            raise ValueError("action_name не может быть пустым")
-
-    def get_data(self, key: str, default: Optional[Any] = None) -> Any:
-        """
-        Получает значение из action_data по ключу.
-
-        Args:
-            key: Ключ для поиска.
-            default: Значение по умолчанию, если ключ не найден.
-
-        Returns:
-            Значение из action_data или default.
-
-        Example:
-            >>> event = ActionEvent(
-            ...     widget_id="btn1", action_name="print",
-            ...     action_data={"copies": 2}
-            ... )
-            >>> event.get_data("copies")
-            2
-            >>> event.get_data("color", False)
-            False
-        """
-        return self.action_data.get(key, default)
+    def get_data(self) -> dict[str, Any]:
+        """Возвращает данные события действия."""
+        data = super().get_data()
+        data["action"] = self.action
+        data["handler_name"] = self.handler_name
+        return data
 
 
-# =============================================================================
-# LIFECYCLE EVENTS
-# =============================================================================
+@dataclass(frozen=True)
+class FocusGainedEvent(BaseEvent):
+    """Событие получения фокуса виджетом.
+
+    Attributes:
+        previous_widget_id: Идентификатор виджета, который потерял фокус.
+
+    Example:
+        >>> event = FocusGainedEvent(
+        ...     widget_id="entry_01",
+        ...     previous_widget_id="entry_00"
+        ... )
+        >>> event.previous_widget_id
+        'entry_00'
+    """
+
+    previous_widget_id: str | None = None
+
+    def get_data(self) -> dict[str, Any]:
+        """Возвращает данные события фокуса."""
+        data = super().get_data()
+        data["previous_widget_id"] = self.previous_widget_id
+        return data
+
+
+@dataclass(frozen=True)
+class FocusLostEvent(BaseEvent):
+    """Событие потери фокуса виджетом.
+
+    Attributes:
+        next_widget_id: Идентификатор виджета, который получил фокус.
+
+    Example:
+        >>> event = FocusLostEvent(
+        ...     widget_id="entry_01",
+        ...     next_widget_id="entry_02"
+        ... )
+        >>> event.next_widget_id
+        'entry_02'
+    """
+
+    next_widget_id: str | None = None
+
+    def get_data(self) -> dict[str, Any]:
+        """Возвращает данные события потери фокуса."""
+        data = super().get_data()
+        data["next_widget_id"] = self.next_widget_id
+        return data
 
 
 @dataclass(frozen=True)
 class MountEvent(BaseEvent):
-    """
-    Событие монтирования виджета в дерево GUI.
-
-    Генерируется когда виджет добавляется в родительский контейнер
-    и становится частью иерархии GUI.
-
-    Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        event_type: Тип события (всегда 'mount').
-        timestamp: Время создания события.
-        parent_widget: Идентификатор родительского виджета.
+    """Событие монтирования виджета в родительский контейнер.
 
     Example:
-        >>> event = MountEvent(
-        ...     widget_id="dialog_settings",
-        ...     parent_widget="main_window"
-        ... )
-        >>> event.parent_widget
-        'main_window'
+        >>> event = MountEvent(widget_id="panel_01")
+        >>> event.event_type
+        'mount'
     """
 
-    parent_widget: str = field(default="")
-
-    def __post_init__(self) -> None:
-        """Валидация полей после инициализации."""
-        super().__post_init__()
-        if not self.parent_widget or not self.parent_widget.strip():
-            raise ValueError("parent_widget не может быть пустым")
+    # Нет дополнительных полей
 
 
 @dataclass(frozen=True)
 class UnmountEvent(BaseEvent):
-    """
-    Событие демонтирования виджета из дерева GUI.
-
-    Генерируется когда виджет удаляется из родительского контейнера.
-    Используется для cleanup ресурсов (unbind, удаление ссылок).
-
-    Attributes:
-        widget_id: Уникальный идентификатор виджета.
-        event_type: Тип события (всегда 'unmount').
-        timestamp: Время создания события.
+    """Событие демонтирования виджета и освобождения ресурсов.
 
     Example:
-        >>> event = UnmountEvent(
-        ...     widget_id="dialog_settings"
-        ... )
+        >>> event = UnmountEvent(widget_id="panel_01")
         >>> event.event_type
         'unmount'
     """
 
-    pass
+    # Нет дополнительных полей
+
+
+@dataclass(frozen=True)
+class ValueChangedEvent(BaseEvent):
+    """Событие изменения значения виджета.
+
+    Attributes:
+        old_value: Предыдущее значение.
+        new_value: Новое значение.
+
+    Example:
+        >>> event = ValueChangedEvent(
+        ...     widget_id="field_01",
+        ...     old_value="old",
+        ...     new_value="new"
+        ... )
+        >>> event.old_value
+        'old'
+    """
+
+    old_value: Any = None
+    new_value: Any = None
+
+    def get_data(self) -> dict[str, Any]:
+        """Возвращает данные события изменения значения."""
+        data = super().get_data()
+        data["old_value"] = self.old_value
+        data["new_value"] = self.new_value
+        return data
 
 
 # =============================================================================
 # MODULE EXPORTS
 # =============================================================================
 
-
 __all__: list[str] = [
-    # Base class
     "BaseEvent",
-    # Value events
-    "ValueChangedEvent",
-    # Focus events
-    "FocusLostEvent",
-    "FocusGainedEvent",
-    # Action events
     "ActionEvent",
-    # Lifecycle events
+    "FocusGainedEvent",
+    "FocusLostEvent",
     "MountEvent",
     "UnmountEvent",
+    "ValueChangedEvent",
+    "MAX_WIDGET_ID_LENGTH",
 ]

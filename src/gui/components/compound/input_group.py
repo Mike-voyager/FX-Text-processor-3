@@ -25,7 +25,6 @@ from typing import Callable, Optional
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.protocols import ControllerProtocol
 
-
 ValidatorResult = Optional[str]
 ValidatorCallable = Optional[Callable[[str], ValidatorResult]]
 
@@ -154,9 +153,17 @@ class InputGroup(BaseWidget):
             self._error_widget.config(text=text)
             if self._entry_widget is not None:
                 if text:
-                    self._entry_widget.config(highlightbackground="#F44336", highlightcolor="#F44336", highlightthickness=2)
+                    self._entry_widget.config(
+                        highlightbackground="#F44336",
+                        highlightcolor="#F44336",
+                        highlightthickness=2,
+                    )
                 else:
-                    self._entry_widget.config(highlightbackground="#9E9E9E", highlightcolor="#2196F3", highlightthickness=1)
+                    self._entry_widget.config(
+                        highlightbackground="#9E9E9E",
+                        highlightcolor="#2196F3",
+                        highlightthickness=1,
+                    )
 
     def clear_error(self) -> None:
         """Очищает сообщение об ошибке."""

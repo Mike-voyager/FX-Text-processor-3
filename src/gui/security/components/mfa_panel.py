@@ -87,7 +87,7 @@ class MFAPanel(tk.Frame):
 
         self._selected_method: str = self._methods[0] if self._methods else "totp"
         self._method_var: tk.StringVar = tk.StringVar(value=self._selected_method)
-        self._code_var: tk.StringVar = tk.StringVar()
+        self._code_var: tk.StringVar = tk.StringVar(master=self)
 
         # UI элементы
         self._code_entry: Optional[tk.Entry] = None
@@ -125,7 +125,7 @@ class MFAPanel(tk.Frame):
         # Фрейм для выбора метода
         method_frame = tk.LabelFrame(
             self,
-            text="Метод двухфакторной аутентификации",
+            text="Two-factor authentication method",
             padx=10,
             pady=5,
         )
@@ -169,7 +169,7 @@ class MFAPanel(tk.Frame):
         # Метка и поле ввода
         code_label = tk.Label(
             code_frame,
-            text="Код подтверждения:",
+            text="Verification code:",
         )
         code_label.pack(side=tk.LEFT, padx=(0, 5))
 
@@ -198,7 +198,7 @@ class MFAPanel(tk.Frame):
         # Кнопка подтверждения
         self._verify_btn = tk.Button(
             self,
-            text="Подтвердить",
+            text="Confirm",
             command=self._on_verify_click,
             padx=15,
             pady=5,

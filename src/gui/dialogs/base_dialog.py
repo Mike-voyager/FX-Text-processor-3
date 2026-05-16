@@ -33,7 +33,7 @@ class BaseDialog(tk.Toplevel):
 
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: tk.Misc,
         title: str = "",
         modal: bool = True,
         center_on_parent: bool = True,
@@ -53,7 +53,7 @@ class BaseDialog(tk.Toplevel):
             **kwargs: Дополнительные именованные аргументы для Toplevel.
         """
         super().__init__(parent, *args, **kwargs)
-        self._parent: tk.Widget = parent
+        self._parent: tk.Misc = parent
         self._on_close_callback: Optional[Callable[[], None]] = on_close
         self._result: Any = None
         self._after_ids: list[str] = []
@@ -66,6 +66,9 @@ class BaseDialog(tk.Toplevel):
             self.bind("<Escape>", self._on_escape)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # Отменяем pending after() при уничтожении окна (избежать TclError)
+        self.bind("<Destroy>", lambda _e: self._cancel_afters(), add=True)
 
         if center_on_parent:
             self.after_idle(self._center_window)
@@ -144,6 +147,9 @@ class BaseDialog(tk.Toplevel):
         """
         self.deiconify()
         self.wait_visibility()
-        self.grab_set()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
         self.wait_window()
         return self.get_result()

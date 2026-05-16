@@ -11,13 +11,13 @@ Version: 1.0
 from __future__ import annotations
 
 import sys
+import tkinter as tk
 import types
 from pathlib import Path
 from typing import Any, Generator, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-import tkinter as tk
 
 # Add src to path before importing
 project_root = Path("/home/Mike/Dev/FX-Text-processor/FX-Text-processor-3")
@@ -216,14 +216,14 @@ class TestTemplateExportDialogValidation:
         """Валидация пустого названия."""
         dialog._name_var.set("")
         error = dialog._validate_inputs()
-        assert error == "Название шаблона обязательно"
+        assert error == "Template name is required"
 
     def test_validate_empty_version(self, dialog: TemplateExportDialog) -> None:
         """Валидация пустой версии."""
         dialog._name_var.set("Test")
         dialog._version_var.set("")
         error = dialog._validate_inputs()
-        assert error == "Версия обязательна"
+        assert error == "Version is required"
 
     def test_validate_invalid_semver(self, dialog: TemplateExportDialog) -> None:
         """Валидация неверного semver."""
@@ -247,7 +247,7 @@ class TestTemplateExportDialogValidation:
         dialog._version_var.set("1.0.0")
         dialog._path_var.set("")
         error = dialog._validate_inputs()
-        assert error == "Выберите место сохранения"
+        assert error == "Select a save location"
 
 
 @pytest.mark.gui
@@ -311,13 +311,13 @@ class TestTemplateExportDialogCategory:
 
     def test_category_default(self, dialog: TemplateExportDialog) -> None:
         """Категория по умолчанию."""
-        assert dialog._category_var.get() == "Общие"
+        assert dialog._category_var.get() == "General"
 
     def test_category_values(self) -> None:
         """Доступные категории."""
-        assert "Общие" in TEMPLATE_CATEGORIES
-        assert "Бухгалтерия" in TEMPLATE_CATEGORIES
-        assert "Логистика" in TEMPLATE_CATEGORIES
+        assert "General" in TEMPLATE_CATEGORIES
+        assert "Accounting" in TEMPLATE_CATEGORIES
+        assert "Logistics" in TEMPLATE_CATEGORIES
 
 
 @pytest.mark.gui

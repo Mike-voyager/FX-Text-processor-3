@@ -63,7 +63,7 @@ class WipeButton(tk.Button):
             >>> wipe_btn = WipeButton(root, target=my_entry, text="Clear")
         """
         if not isinstance(target, SecureEntry):
-            raise TypeError(f"target должен быть SecureEntry, получен {type(target).__name__}")
+            raise TypeError(f"target must be SecureEntry, got {type(target).__name__}")
 
         self._target: SecureEntry = target
         self._default_text: str = text
@@ -97,7 +97,7 @@ class WipeButton(tk.Button):
             >>> wipe_btn.set_target(new_entry)
         """
         if not isinstance(target, SecureEntry):
-            raise TypeError(f"target должен быть SecureEntry, получен {type(target).__name__}")
+            raise TypeError(f"target must be SecureEntry, got {type(target).__name__}")
         self._target = target
 
     def get_target(self) -> Optional[SecureEntry]:

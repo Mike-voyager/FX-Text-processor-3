@@ -20,7 +20,6 @@ from typing import Optional
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.protocols import ControllerProtocol
 
-
 _STATUS_COLORS: dict[str, tuple[str, str]] = {
     "default": ("#9E9E9E", "#FFFFFF"),
     "success": ("#4CAF50", "#FFFFFF"),
@@ -31,7 +30,7 @@ _STATUS_COLORS: dict[str, tuple[str, str]] = {
 
 
 class StatusBadge(BaseWidget):
-    """Цветной статус-бейдж.
+    """Colorной статус-бейдж.
 
     Отображает текст внутри pill-области с configurable цветом.
 
@@ -61,7 +60,7 @@ class StatusBadge(BaseWidget):
         """
         super().__init__(widget_id=widget_id, controller=controller)
         if variant not in _STATUS_COLORS:
-            raise ValueError(f"Неизвестный variant: {variant}")
+            raise ValueError(f"Unknown variant: {variant}")
         self._text: str = text
         self._variant: str = variant
         self._label: Optional[tk.Label] = None
@@ -115,7 +114,7 @@ class StatusBadge(BaseWidget):
             ValueError: Если variant неизвестен.
         """
         if variant not in _STATUS_COLORS:
-            raise ValueError(f"Неизвестный variant: {variant}")
+            raise ValueError(f"Unknown variant: {variant}")
         self._variant = variant
         if self._tk_widget is not None and self._label is not None:
             bg, fg = _STATUS_COLORS[variant]
