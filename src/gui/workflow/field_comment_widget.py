@@ -23,7 +23,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from tkinter import messagebox
-from typing import Any, Final, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Final, Optional, Protocol
+
+from src.gui.components.base.widget import BaseWidget
+from src.gui.workflow.role_badge import WorkflowRole  # noqa: F811
+
+if TYPE_CHECKING:
+    from src.gui.core.protocols import ControllerProtocol
 
 
 class Severity(Enum):
@@ -32,26 +38,6 @@ class Severity(Enum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
-
-
-class Role(Enum):
-    """Роль пользователя."""
-
-    OPERATOR = "operator"
-    EDITOR = "editor"
-    SUPERVISOR = "supervisor"
-    SIGNATORY = "signatory"
-
-    @property
-    def display_name(self) -> str:
-        """Возвращает локализованное название роли."""
-        names: dict[Role, str] = {
-            Role.OPERATOR: "Оператор",
-            Role.EDITOR: "Редактор",
-            Role.SUPERVISOR: "Супервайзер",
-            Role.SIGNATORY: "Подписант",
-        }
-        return names.get(self, self.value)
 
 
 @dataclass(frozen=True)
@@ -63,7 +49,7 @@ class Comment:
         field_id: Идентификатор поля.
         text: Текст комментария.
         author: Имя автора комментария.
-        author_role: Роль автора.
+        author_role: Роль автора (WorkflowRole).
         severity: Уровень важности.
         created_at: Время создания.
         resolved: Решён ли комментарий.
@@ -75,7 +61,7 @@ class Comment:
     field_id: str
     text: str
     author: str
-    author_role: Role
+    author_role: WorkflowRole
     severity: Severity
     created_at: datetime
     resolved: bool = False
@@ -120,7 +106,7 @@ class OnResolveCallback(Protocol):
         ...
 
 
-class FieldCommentWidget:
+class FieldCommentWidget(BaseWidget):
     """Виджет комментариев к полю формы.
 
     Отображает иконку рядом с полем, открывает popup
@@ -160,7 +146,9 @@ class FieldCommentWidget:
         on_add: OnAddCallback,
         on_resolve: OnResolveCallback,
         current_user: str = "",
-        current_role: Role = Role.OPERATOR,
+        current_role: WorkflowRole = WorkflowRole.OPERATOR,
+        widget_id: str = "field_comment_widget",
+        controller: Optional[ControllerProtocol] = None,
     ) -> None:
         """Инициализация виджета комментариев.
 
@@ -172,20 +160,24 @@ class FieldCommentWidget:
             on_resolve: Callback при разрешении комментария.
             current_user: Имя текущего пользователя.
             current_role: Роль текущего пользователя.
+            widget_id: Уникальный идентификатор виджета.
+            controller: Опциональная ссылка на контроллер.
         """
+        super().__init__(widget_id=widget_id, controller=controller)
         self._parent: tk.Widget = parent
         self._field_id: str = field_id
         self._comments: list[Comment] = list(comments)
         self._on_add: OnAddCallback = on_add
         self._on_resolve: OnResolveCallback = on_resolve
         self._current_user: str = current_user
-        self._current_role: Role = current_role
+        self._current_role: WorkflowRole = current_role
 
         # UI элементы
         self._icon_label: Optional[tk.Label] = None
         self._popup: Optional[tk.Toplevel] = None
+        self._popup_canvas: Optional[tk.Canvas] = None
         self._comments_frame: Optional[tk.Frame] = None
-        self._severity_var: tk.StringVar = tk.StringVar(value=Severity.INFO.value)
+        self._severity_var: tk.StringVar = tk.StringVar(master=parent, value=Severity.INFO.value)
 
     @property
     def field_id(self) -> str:
@@ -212,8 +204,8 @@ class FieldCommentWidget:
             return Severity.WARNING
         return Severity.INFO
 
-    def mount(self, parent: tk.Widget) -> tk.Widget:
-        """Создаёт и возвращает Tkinter виджет.
+    def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
+        """Создаёт Tkinter виджет иконки комментария.
 
         Args:
             parent: Родительский виджет для размещения.
@@ -227,9 +219,14 @@ class FieldCommentWidget:
             cursor="hand2",
             font=("TkDefaultFont", 12),
         )
-        self._icon_label.bind("<Button-1>", lambda e: self._show_popup())
         self._update_icon()
         return self._icon_label
+
+    def _setup_bindings(self) -> None:
+        """Настраивает привязки событий виджета."""
+        if self._icon_label is not None:
+            self._icon_label.bind("<Button-1>", lambda e: self._show_popup())
+            self._icon_label.bind("<Destroy>", lambda e: self._cleanup())
 
     def _get_icon(self) -> str:
         """Возвращает иконку на основе максимального уровня важности."""
@@ -320,11 +317,14 @@ class FieldCommentWidget:
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Bind mousewheel
+        # Сохраняем ссылку на canvas для корректной отвязки обработчика
+        self._popup_canvas = canvas
+
+        # Bind mousewheel (только к canvas, не bind_all — BUG-06)
         def _on_mousewheel(event: Any) -> None:
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind("<MouseWheel>", _on_mousewheel)
 
         # Refresh comments display
         self._refresh_comments_display()
@@ -384,19 +384,16 @@ class FieldCommentWidget:
             font=("TkDefaultFont", 9, "bold"),
         ).pack(side=tk.LEFT, padx=(0, 5))
 
+        # Cleanup on close (отвязка от конкретного canvas — BUG-06)
+        def on_popup_close() -> None:
+            self.close_popup()
+
         tk.Button(
             btn_frame,
             text="Закрыть",
-            command=self._popup.destroy,
+            command=on_popup_close,
             font=("TkDefaultFont", 9),
         ).pack(side=tk.RIGHT)
-
-        # Cleanup on close
-        def on_popup_close() -> None:
-            canvas.unbind_all("<MouseWheel>")
-            if self._popup is not None:
-                self._popup.destroy()
-                self._popup = None
 
         self._popup.protocol("WM_DELETE_WINDOW", on_popup_close)
 
@@ -529,8 +526,10 @@ class FieldCommentWidget:
         # Add separator
         tk.Frame(self._comments_frame, height=1, bg="#ecf0f1").pack(fill=tk.X, pady=2)
 
-    def _get_role_color(self, role: Role) -> str:
+    def _get_role_color(self, role: WorkflowRole) -> str:
         """Возвращает цвет для роли.
+
+        Использует ROLE_COLORS из constants как единый источник.
 
         Args:
             role: Роль пользователя.
@@ -538,13 +537,9 @@ class FieldCommentWidget:
         Returns:
             Color в hex формате.
         """
-        colors: dict[Role, str] = {
-            Role.OPERATOR: "#3498db",
-            Role.EDITOR: "#2ecc71",
-            Role.SUPERVISOR: "#f39c12",
-            Role.SIGNATORY: "#e74c3c",
-        }
-        return colors.get(role, "#95a5a6")
+        from src.gui.workflow.constants import ROLE_COLORS
+
+        return ROLE_COLORS.get(role.value, "#95a5a6")
 
     def _add_comment(self, text: str, severity: Severity) -> None:
         """Добавляет новый комментарий.
@@ -639,15 +634,36 @@ class FieldCommentWidget:
             self._refresh_comments_display()
 
     def close_popup(self) -> None:
-        """Закрывает popup окно если открыто."""
-        if self._popup is not None and self._popup.winfo_exists():
-            self._popup.destroy()
+        """Закрывает popup окно если открыто.
+
+        Отвязывает обработчик скролла от canvas перед уничтожением
+        popup, чтобы избежать утечки обработчиков.
+        """
+        # BUG-06: отвязка обработчика скролла от конкретного canvas
+        if self._popup_canvas is not None:
+            try:
+                if self._popup_canvas.winfo_exists():
+                    self._popup_canvas.unbind("<MouseWheel>")
+            except tk.TclError:
+                pass
+            self._popup_canvas = None
+        if self._popup is not None:
+            try:
+                if self._popup.winfo_exists():
+                    self._popup.destroy()
+            except tk.TclError:
+                pass
             self._popup = None
+
+    def _cleanup(self) -> None:
+        """Очищает ресурсы виджета перед демонтированием."""
+        self.close_popup()
+        self._comments.clear()
+        super()._cleanup()
 
 
 __all__: list[str] = [
     "FieldCommentWidget",
     "Comment",
     "Severity",
-    "Role",
 ]

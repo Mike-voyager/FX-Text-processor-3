@@ -113,7 +113,7 @@ class TestWorkflowIndicator:
         indicator.mount(root)
 
         # Вызываем обработчик клика напрямую
-        indicator._on_click_handler()
+        indicator._on_click_handler(tk.Event())  # type: ignore[arg-type]
 
         mock_click.assert_called_once()
         indicator.widget.destroy()
@@ -128,7 +128,7 @@ class TestWorkflowIndicator:
         indicator.mount(root)
 
         # Не должно вызывать ошибок
-        indicator._on_click_handler()
+        indicator._on_click_handler(tk.Event())  # type: ignore[arg-type]
 
         indicator.widget.destroy()
 
@@ -205,11 +205,11 @@ class TestWorkflowIndicator:
         indicator.mount(root)
 
         # Тестируем enter
-        indicator._on_enter()
+        indicator._on_enter(tk.Event())  # type: ignore[arg-type]
         # Курсор должен измениться на "hand2"
 
         # Тестируем leave
-        indicator._on_leave()
+        indicator._on_leave(tk.Event())  # type: ignore[arg-type]
         # Курсор должен вернуться к стандартному
 
         indicator.widget.destroy()

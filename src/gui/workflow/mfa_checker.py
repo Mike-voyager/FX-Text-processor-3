@@ -1,15 +1,24 @@
 """MFA requirement checker для workflow.
 
-Предоставляет функции проверки необходимости MFA
-для различных операций workflow.
+Тонкая обёртка над константами из constants.py для проверки
+необходимости MFA при переходах состояний и смене ролей.
 
-Version: 1.0
-Date: April 2026
+Бизнес-правила (MFA_REQUIRED_TRANSITIONS, MFA_REQUIRED_ROLES,
+MFA_EXEMPT_TRANSITIONS) определены в constants.py — единый источник.
+
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Set, Tuple
+
+from src.gui.workflow.constants import (
+    MFA_EXEMPT_TRANSITIONS,
+    MFA_REQUIRED_ROLES,
+    MFA_REQUIRED_TRANSITIONS,
+)
 
 if TYPE_CHECKING:
     from src.controller.workflow_controller import FormStatus, WorkflowRole
@@ -18,46 +27,29 @@ if TYPE_CHECKING:
 class MFARequirementChecker:
     """Проверщик необходимости MFA для workflow операций.
 
-    Централизованная логика определения, когда требуется MFA:
-    - Для переходов состояний
-    - Для смены ролей
-    - Для специальных операций
+    Тонкая обёртка над константами из constants.py.
+    Бизнес-правила (переходы и роли, требующие MFA) определены
+    в constants.py — единый источник истины.
 
     Attributes:
-        _required_transitions: Набор переходов, требующих MFA.
-        _privileged_roles: Роли, всегда требующие MFA.
+        _required_transitions: Набор переходов, требующих MFA (копия, можно мутировать).
+        _privileged_roles: Роли, всегда требующие MFA (копия).
         _free_mode_enabled: Режим свободного переключения (все операции требуют MFA).
 
     Example:
         >>> checker = MFARequirementChecker()
         >>> checker.is_transition_mfa_required(FormStatus.FILLED, FormStatus.VALIDATED)
         True
-        >>> checker.is_role_mfa_required(WorkflowRole.OPERATOR, WorkflowRole.SUPERVISOR)
+        >>> checker.is_role_switch_mfa_required(WorkflowRole.OPERATOR, WorkflowRole.SUPERVISOR)
         True
     """
 
-    # Переходы, всегда требующие MFA
-    DEFAULT_REQUIRED_TRANSITIONS: Set[Tuple[str, str]] = {
-        ("filled", "validated"),
-        ("validated", "approved"),
-        ("approved", "signed"),
-        ("signed", "archived"),
-        ("validated", "filled"),  # Откат
-        ("approved", "validated"),  # Откат
-        ("signed", "approved"),  # Откат
-    }
+    # Дефолтные значения из constants.py (для восстановления при reset)
+    DEFAULT_REQUIRED_TRANSITIONS: Set[Tuple[str, str]] = set(MFA_REQUIRED_TRANSITIONS)
+    DEFAULT_PRIVILEGED_ROLES: Set[str] = set(MFA_REQUIRED_ROLES)
 
-    # Роли, всегда требующие MFA для входа
-    DEFAULT_PRIVILEGED_ROLES: Set[str] = {
-        "supervisor",
-        "signatory",
-    }
-
-    # Переходы, для которых MFA не требуется даже в free mode
-    MFA_EXEMPT_TRANSITIONS: Set[Tuple[str, str]] = {
-        ("draft", "filled"),
-        ("rejected", "draft"),
-    }
+    # Переходы, освобождённые от MFA даже в free mode — из constants.py
+    MFA_EXEMPT_TRANSITIONS: Set[Tuple[str, str]] = set(MFA_EXEMPT_TRANSITIONS)
 
     def __init__(self, free_mode_enabled: bool = False) -> None:
         """Инициализация проверщика.
@@ -66,8 +58,8 @@ class MFARequirementChecker:
             free_mode_enabled: Если True, все операции требуют MFA
                 (кроме явно освобождённых).
         """
-        self._required_transitions = self.DEFAULT_REQUIRED_TRANSITIONS.copy()
-        self._privileged_roles = self.DEFAULT_PRIVILEGED_ROLES.copy()
+        self._required_transitions = set(MFA_REQUIRED_TRANSITIONS)
+        self._privileged_roles = set(MFA_REQUIRED_ROLES)
         self._free_mode_enabled = free_mode_enabled
 
     @property
@@ -94,8 +86,8 @@ class MFARequirementChecker:
         Returns:
             True если MFA требуется.
         """
-        from_str = from_state.value if hasattr(from_state, "value") else str(from_state)
-        to_str = to_state.value if hasattr(to_state, "value") else str(to_state)
+        from_str = from_state.value
+        to_str = to_state.value
 
         transition = (from_str, to_str)
 
@@ -126,8 +118,8 @@ class MFARequirementChecker:
         Returns:
             True если MFA требуется.
         """
-        from_str = from_role.value if hasattr(from_role, "value") else str(from_role)
-        to_str = to_role.value if hasattr(to_role, "value") else str(to_role)
+        from_str = from_role.value
+        to_str = to_role.value
 
         # Если роли одинаковые - MFA не требуется
         if from_str == to_str:
@@ -160,7 +152,7 @@ class MFARequirementChecker:
         Returns:
             True если переход в ARCHIVED.
         """
-        to_str = to_state.value if hasattr(to_state, "value") else str(to_state)
+        to_str = to_state.value
         return to_str == "archived"
 
     def requires_extra_confirmation(self, to_state: "FormStatus") -> bool:
@@ -188,8 +180,8 @@ class MFARequirementChecker:
         Returns:
             Строка описания операции.
         """
-        from_str = from_state.value if hasattr(from_state, "value") else str(from_state)
-        to_str = to_state.value if hasattr(to_state, "value") else str(to_state)
+        from_str = from_state.value
+        to_str = to_state.value
 
         # Определяем тип операции
         if self.is_archived_transition(to_state):
@@ -219,8 +211,8 @@ class MFARequirementChecker:
         Returns:
             Строка описания операции.
         """
-        from_str = from_role.value if hasattr(from_role, "value") else str(from_role)
-        to_str = to_role.value if hasattr(to_role, "value") else str(to_role)
+        from_str = from_role.value
+        to_str = to_role.value
 
         if self._free_mode_enabled:
             return f"Смена роли (свободный режим): {from_str} → {to_str}"

@@ -102,7 +102,7 @@ class WorkflowManager:
     """Менеджер видимости workflow действий по роли и статусу.
 
     Attributes:
-        current_role: Текущая активная роль.
+        current_role: Строковое значение текущей активной роли.
     """
 
     def __init__(self, initial_role: str = "operator") -> None:
@@ -118,15 +118,16 @@ class WorkflowManager:
     # -------------------------------------------------------------------------
 
     @property
-    def current_role(self) -> WorkflowRole:
-        """Возвращает текущую активную роль.
+    def current_role(self) -> str:
+        """Возвращает строковое значение текущей активной роли.
+
+        Возвращает строковое значение роли (например, "operator", "editor"),
+        чтобы избежать runtime импорта из controller слоя.
 
         Returns:
-            Текущая роль пользователя.
+            Строковое значение текущей роли пользователя.
         """
-        from src.controller.workflow_controller import WorkflowRole
-
-        return WorkflowRole(self._current_role_value)
+        return self._current_role_value
 
     def set_role(self, role: WorkflowRole) -> None:
         """Устанавливает текущую роль.

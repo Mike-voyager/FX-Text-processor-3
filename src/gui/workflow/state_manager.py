@@ -13,7 +13,7 @@ import logging
 import threading
 import tkinter as tk
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Final, List, Optional, Set
+from typing import TYPE_CHECKING, Callable, Dict, Final, List, Optional, Set
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -68,26 +68,15 @@ _FULL_MODE_ACTIONS: Final[dict[str, list[str]]] = {
 
 # Все состояния Full Mode (строковые значения)
 _FULL_MODE_STATES: Final[list[str]] = [
-    "draft", "filled", "validated", "approved",
-    "signed", "printed", "archived", "rejected",
+    "draft",
+    "filled",
+    "validated",
+    "approved",
+    "signed",
+    "printed",
+    "archived",
+    "rejected",
 ]
-
-
-@dataclass(frozen=True)
-class TransitionRequest:
-    """Запрос на переход состояния.
-
-    Attributes:
-        doc_id: ID документа.
-        target_state: Целевое состояние.
-        reason: Причина перехода.
-        skip_mfa: Пропустить MFA (только для внутреннего использования).
-    """
-
-    doc_id: UUID
-    target_state: "FormStatus"
-    reason: str
-    skip_mfa: bool = False
 
 
 @dataclass(frozen=True)
@@ -152,6 +141,7 @@ class WorkflowStateManager:
         mfa_gate: "MFAGate",
         max_undo_steps: int = 50,
         simple_mode: bool = False,
+        tk_root: Optional[tk.Tk] = None,
     ) -> None:
         """Инициализация менеджера состояний.
 
@@ -160,6 +150,7 @@ class WorkflowStateManager:
             mfa_gate: MFA gate для проверки.
             max_undo_steps: Максимальное количество undo шагов.
             simple_mode: Если True, использовать упрощённый workflow.
+            tk_root: Корневое окно Tkinter для планирования вызовов в главном потоке.
         """
         if workflow_controller is None:
             raise ValueError("workflow_controller обязателен")
@@ -175,6 +166,7 @@ class WorkflowStateManager:
         self.listeners: List["WorkflowStateListener"] = []
         self._command_histories: Dict[UUID, "WorkflowCommandHistory"] = {}
         self._lock = threading.Lock()
+        self._tk_root: Optional[tk.Tk] = tk_root
 
         # Initialize snapshot manager
         from src.gui.workflow.snapshot import SnapshotManager
@@ -234,6 +226,15 @@ class WorkflowStateManager:
         """
         return self._simple_mode
 
+    def _assert_main_thread(self) -> None:
+        """Проверяет, что вызов произведён из главного потока.
+
+        Raises:
+            RuntimeError: Если вызов произведён не из главного потока.
+        """
+        if threading.current_thread() is not threading.main_thread():
+            raise RuntimeError("Методы WorkflowStateManager должны вызываться из главного потока")
+
     def _is_allowed_state(self, state: str) -> bool:
         """Проверяет, доступно ли состояние в текущем режиме.
 
@@ -259,6 +260,76 @@ class WorkflowStateManager:
         if not self._simple_mode:
             return True
         return action in _SIMPLE_MODE_ACTIONS
+
+    def _make_state_changed_callback(
+        self,
+        listener: "WorkflowStateListener",
+        doc_id: UUID,
+        old_state: "FormStatus",
+        new_state: "FormStatus",
+        role: "WorkflowRole",
+    ) -> Callable[[], None]:
+        """Создаёт callback для планирования уведомления через tk.after().
+
+        Args:
+            listener: Слушатель.
+            doc_id: ID документа.
+            old_state: Предыдущее состояние.
+            new_state: Новое состояние.
+            role: Роль пользователя.
+
+        Returns:
+            Callback без аргументов для tk.after().
+        """
+
+        def callback() -> None:
+            listener.on_state_changed(doc_id, old_state, new_state, role)
+
+        return callback
+
+    def _make_undo_callback(
+        self,
+        listener: "WorkflowStateListener",
+        doc_id: UUID,
+        description: str,
+    ) -> Callable[[], None]:
+        """Создаёт callback для планирования уведомления undo через tk.after().
+
+        Args:
+            listener: Слушатель.
+            doc_id: ID документа.
+            description: Описание операции.
+
+        Returns:
+            Callback без аргументов для tk.after().
+        """
+
+        def callback() -> None:
+            listener.on_undo_available(doc_id, description)
+
+        return callback
+
+    def _make_redo_callback(
+        self,
+        listener: "WorkflowStateListener",
+        doc_id: UUID,
+        description: str,
+    ) -> Callable[[], None]:
+        """Создаёт callback для планирования уведомления redo через tk.after().
+
+        Args:
+            listener: Слушатель.
+            doc_id: ID документа.
+            description: Описание операции.
+
+        Returns:
+            Callback без аргументов для tk.after().
+        """
+
+        def callback() -> None:
+            listener.on_redo_available(doc_id, description)
+
+        return callback
 
     # -------------------------------------------------------------------------
     # Listeners Management
@@ -301,7 +372,19 @@ class WorkflowStateManager:
         """
         for listener in self.listeners:
             try:
-                listener.on_state_changed(doc_id, old_state, new_state, role)
+                if threading.current_thread() is threading.main_thread():
+                    listener.on_state_changed(doc_id, old_state, new_state, role)
+                elif self._tk_root is not None:
+                    self._tk_root.after(
+                        0,
+                        self._make_state_changed_callback(
+                            listener, doc_id, old_state, new_state, role
+                        ),
+                    )
+                else:
+                    logging.getLogger(__name__).warning(
+                        "Уведомление пропущено: не главный поток, tk_root не задан"
+                    )
             except (KeyError, ValueError, TypeError) as e:
                 # Log but continue
                 logging.getLogger(__name__).exception(
@@ -317,7 +400,17 @@ class WorkflowStateManager:
         """
         for listener in self.listeners:
             try:
-                listener.on_undo_available(doc_id, description)
+                if threading.current_thread() is threading.main_thread():
+                    listener.on_undo_available(doc_id, description)
+                elif self._tk_root is not None:
+                    self._tk_root.after(
+                        0,
+                        self._make_undo_callback(listener, doc_id, description),
+                    )
+                else:
+                    logging.getLogger(__name__).warning(
+                        "Уведомление пропущено: не главный поток, tk_root не задан"
+                    )
             except (KeyError, ValueError, TypeError) as e:
                 logging.getLogger(__name__).exception(
                     "Exception ignored during undo notification: %s", e
@@ -332,7 +425,17 @@ class WorkflowStateManager:
         """
         for listener in self.listeners:
             try:
-                listener.on_redo_available(doc_id, description)
+                if threading.current_thread() is threading.main_thread():
+                    listener.on_redo_available(doc_id, description)
+                elif self._tk_root is not None:
+                    self._tk_root.after(
+                        0,
+                        self._make_redo_callback(listener, doc_id, description),
+                    )
+                else:
+                    logging.getLogger(__name__).warning(
+                        "Уведомление пропущено: не главный поток, tk_root не задан"
+                    )
             except (KeyError, ValueError, TypeError) as e:
                 logging.getLogger(__name__).exception(
                     "Exception ignored during redo notification: %s", e
@@ -365,22 +468,25 @@ class WorkflowStateManager:
         Returns:
             Результат перехода.
         """
+        self._assert_main_thread()
+
         # Get current state
         current_state = self.workflow_controller.get_current_state(doc_id)
 
-        # Simple Mode validation
+        # Simple Mode: фильтрация на уровне UI (бизнес-логика в контроллере)
         if self._simple_mode:
-            if not self._is_allowed_transition(current_state.value, target_state.value):
+            allowed = _SIMPLE_MODE_ALLOWED_TRANSITIONS.get(current_state.value, [])
+            if target_state.value not in allowed:
                 return TransitionResult(
                     success=False,
-                    error_message="Transition not available in Simple Mode",
+                    error_message="Переход недоступен в простом режиме",
                 )
 
         # Check if transition is valid via backend
         if not self.workflow_controller.can_transition(doc_id, target_state):
             return TransitionResult(
                 success=False,
-                error_message="Invalid transition",
+                error_message="Недопустимый переход",
             )
 
         # Check MFA requirement
@@ -423,21 +529,6 @@ class WorkflowStateManager:
         # Execute transition without MFA
         return self._execute_transition(doc_id, current_state, target_state, reason)
 
-    def _is_allowed_transition(self, from_state: str, to_state: str) -> bool:
-        """Проверяет допустимость перехода в текущем режиме.
-
-        Args:
-            from_state: Исходное состояние (строка).
-            to_state: Целевое состояние (строка).
-
-        Returns:
-            True если переход допустим.
-        """
-        if not self._simple_mode:
-            return True
-        allowed = _SIMPLE_MODE_ALLOWED_TRANSITIONS.get(from_state, [])
-        return to_state in allowed
-
     def _execute_transition(
         self,
         doc_id: UUID,
@@ -456,6 +547,18 @@ class WorkflowStateManager:
         Returns:
             Результат перехода.
         """
+        self._assert_main_thread()
+
+        # Отложенный импорт ошибок контроллера для isinstance-проверки
+        from src.controller.workflow_controller import (
+            DocumentNotFoundError,
+            MFARequiredError,
+            WorkflowTransitionError,
+        )
+        from src.controller.workflow_controller import (
+            PermissionError as WorkflowPermissionError,
+        )
+
         try:
             # Create snapshot before transition
             snapshot = self._create_snapshot(doc_id, from_state)
@@ -503,19 +606,35 @@ class WorkflowStateManager:
                 command=command,
             )
 
-        except (KeyError, ValueError) as e:
-            # Workflow state error: log and return failure (state revert handled by controller)
+        except (KeyError, ValueError, TypeError) as e:
+            # Ошибка данных при переходе: детали в логе, generic-сообщение для UI
             logger = logging.getLogger(__name__)
             logger.warning("Workflow transition state error: %s", e)
             return TransitionResult(
                 success=False,
-                error_message=f"State error: {str(e)}",
+                error_message="Ошибка изменения состояния",
             )
         except Exception as e:
+            # Ловим только известные ошибки контроллера workflow
+            if isinstance(
+                e,
+                (
+                    WorkflowTransitionError,
+                    MFARequiredError,
+                    DocumentNotFoundError,
+                    WorkflowPermissionError,
+                ),
+            ):
+                logging.warning("Workflow controller error: %s", e)
+                return TransitionResult(
+                    success=False,
+                    error_message="Ошибка изменения состояния",
+                )
+            # Непредвиденная ошибка: детали в логе, generic-сообщение для UI
             logging.exception("Unexpected error during transition execution: %s", e)
             return TransitionResult(
                 success=False,
-                error_message=str(e),
+                error_message="Внутренняя ошибка",
             )
 
     def _create_snapshot(
@@ -535,14 +654,15 @@ class WorkflowStateManager:
         from datetime import datetime
 
         # Get field values if available
-        field_values: Dict[str, Any] = {}
+        field_values: Dict[str, str] = {}
         if hasattr(self.workflow_controller, "get_field_values"):
             field_values = self.workflow_controller.get_field_values(doc_id)
 
-        # Get comments
-        comments: List[Any] = []
+        # Get comments (store IDs only for snapshot)
+        comments: List[str] = []
         if hasattr(self.workflow_controller, "get_all_comments"):
-            comments = self.workflow_controller.get_all_comments(doc_id)
+            raw_comments = self.workflow_controller.get_all_comments(doc_id)
+            comments = [c.comment_id for c in raw_comments]
 
         from src.gui.workflow.snapshot import TransitionSnapshot
 
@@ -585,6 +705,8 @@ class WorkflowStateManager:
         Returns:
             True если отмена выполнена.
         """
+        self._assert_main_thread()
+
         history = self._command_histories.get(doc_id)
         if not history:
             return False
@@ -605,6 +727,8 @@ class WorkflowStateManager:
         Returns:
             True если повтор выполнен.
         """
+        self._assert_main_thread()
+
         history = self._command_histories.get(doc_id)
         if not history:
             return False
@@ -697,30 +821,26 @@ class WorkflowStateManager:
             return list(_SIMPLE_MODE_ACTIONS)
         return _FULL_MODE_ACTIONS.get(state, []).copy()
 
-    def get_allowed_transitions(self, state: str) -> list[str]:
+    def get_allowed_transitions(self, state: str, doc_id: Optional[UUID] = None) -> list[str]:
         """Возвращает допустимые переходы из состояния.
 
         В Simple Mode: DRAFT → [SIGNED], SIGNED → [DRAFT].
-        В Full Mode — через ApprovalWorkflow.
+        В Full Mode — через WorkflowController.
 
         Args:
             state: Исходное состояние.
+            doc_id: ID документа (обязателен для Full Mode).
 
         Returns:
             Список допустимых целевых состояний.
         """
         if self._simple_mode:
             return list(_SIMPLE_MODE_ALLOWED_TRANSITIONS.get(state, []))
-        # Full Mode — напрямую через ApprovalWorkflow с минимальной инфраструктурой
-        from src.controller.workflow_controller import ApprovalWorkflow, FormStatus
-
-        engine = ApprovalWorkflow()
-        try:
-            from_state = FormStatus(state)
-            all_allowed = engine.get_allowed_transitions(from_state)
-            return [s.value for s in all_allowed]
-        except (ValueError, KeyError):
-            return []
+        # Full Mode — через контроллер workflow (GUI не инстанцирует бизнес-объекты)
+        if doc_id is not None:
+            allowed = self.workflow_controller.get_allowed_transitions(doc_id)
+            return [s.value for s in allowed]
+        return []
 
     def is_state_visible(self, state: str) -> bool:
         """Проверяет, не скрыто ли состояние в текущем режиме.
@@ -769,9 +889,19 @@ class WorkflowStateManager:
 
         self._snapshot_manager.clear_snapshots(str(doc_id))
 
+    def cleanup_document(self, doc_id: UUID) -> None:
+        """Очищает все ресурсы менеджера состояний для документа.
+
+        Вызывать при закрытии документа для предотвращения утечки памяти.
+        Удаляет историю команд и снимки состояния.
+
+        Args:
+            doc_id: ID документа.
+        """
+        self.clear_document_history(doc_id)
+
 
 __all__ = [
     "WorkflowStateManager",
-    "TransitionRequest",
     "TransitionResult",
 ]

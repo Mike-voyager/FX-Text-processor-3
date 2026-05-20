@@ -162,13 +162,13 @@ class TestWorkflowManagerRoleProperty:
     def test_default_role_is_operator(self) -> None:
         """По умолчанию роль OPERATOR."""
         manager = WorkflowManager()
-        assert manager.current_role == WorkflowRole.OPERATOR
+        assert manager.current_role == WorkflowRole.OPERATOR.value
 
     def test_set_role(self) -> None:
         """set_role обновляет current_role."""
         manager = WorkflowManager()
         manager.set_role(WorkflowRole.SUPERVISOR)
-        assert manager.current_role == WorkflowRole.SUPERVISOR
+        assert manager.current_role == WorkflowRole.SUPERVISOR.value
 
 
 if __name__ == "__main__":

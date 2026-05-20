@@ -3,12 +3,16 @@
 Реализует undo/redo функциональность для переходов
 состояний документов через паттерн Command.
 
-Version: 1.0
-Date: April 2026
+Лог-файлы могут содержать sanitized сообщения об ошибках.
+Доступ к лог-файлам должен быть ограничен административным персоналом.
+
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, List, Optional
 
 from src.gui.core.commands.command import Command
@@ -23,6 +27,8 @@ if TYPE_CHECKING:
         WorkflowRole,
     )
     from src.gui.workflow.snapshot import TransitionSnapshot
+
+_logger = logging.getLogger(__name__)
 
 
 class WorkflowTransitionCommand(Command):
@@ -113,29 +119,22 @@ class WorkflowTransitionCommand(Command):
         """
         from src.gui.workflow.constants import NON_UNDOABLE_STATES
 
-        to_str = self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state)
-        return to_str not in NON_UNDOABLE_STATES
+        return self._to_state.value not in NON_UNDOABLE_STATES
 
     @property
     def description(self) -> str:
         """Описание команды для UI."""
-        from_str = (
-            self._from_state.value if hasattr(self._from_state, "value") else str(self._from_state)
-        )
-        to_str = self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state)
-        return f"Переход {from_str} → {to_str}"
+        return f"Переход {self._from_state.value} → {self._to_state.value}"
 
     @property
     def description_for_undo(self) -> str:
         """Описание для undo меню."""
-        to_str = self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state)
-        return f"Отменить переход в {to_str}"
+        return f"Отменить переход в {self._to_state.value}"
 
     @property
     def description_for_redo(self) -> str:
         """Описание для redo меню."""
-        to_str = self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state)
-        return f"Повторить переход в {to_str}"
+        return f"Повторить переход в {self._to_state.value}"
 
     def execute(self) -> None:
         """Выполняет переход состояния."""
@@ -153,14 +152,17 @@ class WorkflowTransitionCommand(Command):
             self._undone = False
 
         except Exception as e:
-            # Log error and raise
-            import logging
-
-            logging.getLogger(__name__).error(f"Failed to execute transition: {e}")
+            # Sanitized логирование: только тип исключения, без деталей.
+            # Доступ к лог-файлам должен быть ограничен административным персоналом.
+            _logger.error("Failed to execute transition: %s", type(e).__name__)
             raise
 
     def undo(self) -> None:
-        """Отменяет переход, восстанавливая исходное состояние."""
+        """Отменяет переход, восстанавливая исходное состояние.
+
+        Восстановление статуса выполняется через контроллер
+        (restore_status), а не через прямой доступ к document_store.
+        """
         if not self._executed:
             return
 
@@ -168,31 +170,20 @@ class WorkflowTransitionCommand(Command):
             return
 
         try:
-            # Restore form status from snapshot
-            if hasattr(self._workflow_controller, "document_store"):
-                doc_store = self._workflow_controller.document_store
-                if doc_store is not None:
-                    doc_store.set_status(
-                        self._doc_id,
-                        self._before_snapshot.form_status.value
-                        if hasattr(self._before_snapshot.form_status, "value")
-                        else str(self._before_snapshot.form_status),
-                    )
-
-            # Restore field values if supported
-            if hasattr(self._workflow_controller, "restore_field_values"):
-                self._workflow_controller.restore_field_values(
+            # BUG-03: восстановление через контроллер, не напрямую к document_store
+            if hasattr(self._workflow_controller, "restore_status"):
+                self._workflow_controller.restore_status(
                     self._doc_id,
-                    self._before_snapshot.field_values,
+                    self._before_snapshot.form_status,
                 )
 
             self._undone = True
             self._executed = False
 
         except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).error(f"Failed to undo transition: {e}")
+            # Sanitized логирование: только тип исключения, без деталей.
+            # Доступ к лог-файлам должен быть ограничен административным персоналом.
+            _logger.error("Failed to undo transition: %s", type(e).__name__)
             raise
 
     def redo(self) -> None:
@@ -335,7 +326,10 @@ class WorkflowCommandHistory:
             command.undo()
             self._redo_stack.append(command)
             return command
-        except Exception:
+        except Exception as e:
+            # Sanitized логирование: только тип исключения.
+            # Доступ к лог-файлам должен быть ограничен административным персоналом.
+            _logger.exception("Undo failed: %s", type(e).__name__)
             # Restore to undo stack if undo failed
             self._undo_stack.append(command)
             return None
@@ -354,7 +348,10 @@ class WorkflowCommandHistory:
             command.redo()
             self._undo_stack.append(command)
             return command
-        except Exception:
+        except Exception as e:
+            # Sanitized логирование: только тип исключения.
+            # Доступ к лог-файлам должен быть ограничен административным персоналом.
+            _logger.exception("Redo failed: %s", type(e).__name__)
             # Restore to redo stack if redo failed
             self._redo_stack.append(command)
             return None

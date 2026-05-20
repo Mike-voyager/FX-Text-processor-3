@@ -1,17 +1,14 @@
 """Константы для workflow UI компонентов.
 
 Централизованное хранение всех констант, используемых
-в workflow-related компонентах.
+в workflow-related компонентах. Единственный источник истины
+для цветов, имён, MFA-требований и других параметров workflow.
 
-Version: 1.0
-Date: April 2026
+Version: 1.1
+Date: May 2026
 """
 
-from typing import TYPE_CHECKING, Dict, Final, Set, Tuple
-
-if TYPE_CHECKING:
-    pass
-
+from typing import Dict, Final, Set, Tuple
 
 # =============================================================================
 # ЦВЕТА СОСТОЯНИЙ (Status Colors)
@@ -115,6 +112,12 @@ MFA_REQUIRED_ROLES: Final[Set[str]] = {
     "signatory",
 }
 
+# Переходы, для которых MFA не требуется даже в free mode
+MFA_EXEMPT_TRANSITIONS: Final[Set[Tuple[str, str]]] = {
+    ("draft", "filled"),
+    ("rejected", "draft"),
+}
+
 
 # =============================================================================
 # UNDO/REDO (Undo/Redo Settings)
@@ -208,6 +211,7 @@ __all__ = [
     # MFA
     "MFA_REQUIRED_TRANSITIONS",
     "MFA_REQUIRED_ROLES",
+    "MFA_EXEMPT_TRANSITIONS",
     # Undo/Redo
     "UNDO_REDO_ICONS",
     "UNDO_REDO_SHORTCUTS",

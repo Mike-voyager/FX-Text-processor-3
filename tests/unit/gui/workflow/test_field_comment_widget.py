@@ -15,8 +15,8 @@ from src.gui.workflow.field_comment_widget import (
     FieldCommentWidget,
     Comment,
     Severity,
-    Role,
 )
+from src.gui.workflow.role_badge import WorkflowRole
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="Test comment",
                 author="User1",
-                author_role=Role.OPERATOR,
+                author_role=WorkflowRole.OPERATOR,
                 severity=Severity.WARNING,
                 created_at=datetime.now(),
             ),
@@ -99,7 +99,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="Info",
                 author="User1",
-                author_role=Role.OPERATOR,
+                author_role=WorkflowRole.OPERATOR,
                 severity=Severity.INFO,
                 created_at=datetime.now(),
             ),
@@ -108,7 +108,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="Warning",
                 author="User2",
-                author_role=Role.EDITOR,
+                author_role=WorkflowRole.EDITOR,
                 severity=Severity.WARNING,
                 created_at=datetime.now(),
             ),
@@ -135,7 +135,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="Test",
                 author="User",
-                author_role=Role.OPERATOR,
+                author_role=WorkflowRole.OPERATOR,
                 severity=severity,
                 created_at=datetime.now(),
             )
@@ -164,7 +164,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="New comment",
                 author="User1",
-                author_role=Role.OPERATOR,
+                author_role=WorkflowRole.OPERATOR,
                 severity=Severity.INFO,
                 created_at=datetime.now(),
             ),
@@ -183,7 +183,7 @@ class TestFieldCommentWidget:
                 field_id="field_1",
                 text="Resolved",
                 author="User1",
-                author_role=Role.OPERATOR,
+                author_role=WorkflowRole.OPERATOR,
                 severity=Severity.ERROR,
                 created_at=datetime.now(),
                 resolved=True,
@@ -218,10 +218,10 @@ class TestFieldCommentWidget:
 
     def test_role_display_name(self) -> None:
         """Тест отображения названия роли."""
-        assert Role.OPERATOR.display_name == "Оператор"
-        assert Role.EDITOR.display_name == "Редактор"
-        assert Role.SUPERVISOR.display_name == "Супервайзер"
-        assert Role.SIGNATORY.display_name == "Подписант"
+        assert WorkflowRole.OPERATOR.display_name == "Оператор"
+        assert WorkflowRole.EDITOR.display_name == "Редактор"
+        assert WorkflowRole.SUPERVISOR.display_name == "Супервайзер"
+        assert WorkflowRole.SIGNATORY.display_name == "Подписант"
 
     def test_comment_immutable(self) -> None:
         """Тест что Comment immutable (frozen=True)."""
@@ -230,7 +230,7 @@ class TestFieldCommentWidget:
             field_id="f1",
             text="Text",
             author="User",
-            author_role=Role.OPERATOR,
+            author_role=WorkflowRole.OPERATOR,
             severity=Severity.INFO,
             created_at=datetime.now(),
         )

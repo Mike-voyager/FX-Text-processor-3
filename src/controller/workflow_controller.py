@@ -633,6 +633,42 @@ class WorkflowController:
         # Очищаем pending состояние
         self._pending_transition_state = None
 
+    def restore_status(self, doc_id: UUID, status: FormStatus) -> None:
+        """Восстанавливает статус документа (для undo операций).
+
+        В отличие от transition(), не проверяет допустимость перехода.
+        Используется только для отмены ранее выполненных переходов.
+        Обновляет document_store (если доступен) и добавляет запись в историю.
+
+        Args:
+            doc_id: Идентификатор документа.
+            status: Целевое состояние для восстановления.
+        """
+        current = self.get_current_state(doc_id)
+
+        if self.document_store is not None:
+            self.document_store.set_status(doc_id, status.value)
+
+        # Добавляем запись в историю для корректной работы get_current_state
+        event = WorkflowEvent(
+            event_id=f"{doc_id}_{datetime.now().isoformat()}_restore",
+            doc_id=doc_id,
+            from_state=current,
+            to_state=status,
+            role=self.current_role,
+            timestamp=datetime.now(),
+            reason="Восстановление (undo)",
+        )
+        if doc_id not in self._history:
+            self._history[doc_id] = []
+        self._history[doc_id].append(event)
+
+        logger.info(
+            "Документ %s: восстановлен статус %s (undo)",
+            doc_id,
+            status.value,
+        )
+
     def get_allowed_transitions(self, doc_id: UUID) -> list[FormStatus]:
         """Возвращает список разрешённых следующих состояний.
 

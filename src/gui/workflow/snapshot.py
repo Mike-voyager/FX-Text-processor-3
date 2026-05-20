@@ -3,15 +3,15 @@
 Предоставляет dataclasses для сохранения и восстановления
 состояния документа при операциях undo/redo.
 
-Version: 1.0
-Date: April 2026
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
     from src.controller.workflow_controller import FormStatus, WorkflowRole
@@ -26,8 +26,8 @@ class TransitionSnapshot:
 
     Attributes:
         form_status: Состояние формы (DRAFT, FILLED, и т.д.).
-        field_values: Значения полей формы.
-        comments: Комментарии к полям.
+        field_values: Значения полей формы (ключ поля -> строковое значение).
+        comments: Идентификаторы комментариев к полям.
         timestamp: Время создания снимка.
         role: Роль пользователя при создании снимка.
         document_metadata: Дополнительные метаданные документа.
@@ -45,34 +45,17 @@ class TransitionSnapshot:
     """
 
     form_status: "FormStatus"
-    field_values: Dict[str, Any]
-    comments: List[Any]
+    field_values: Dict[str, str]
+    comments: List[str]
     timestamp: datetime
     role: "WorkflowRole"
-    document_metadata: Dict[str, Any] = field(default_factory=dict)
+    document_metadata: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Валидация после создания."""
         # Проверяем что timestamp не в будущем
         if self.timestamp > datetime.now():
             raise ValueError("Timestamp cannot be in the future")
-
-
-@dataclass(frozen=True)
-class SnapshotMetadata:
-    """Метаданные для управления снимками.
-
-    Attributes:
-        doc_id: ID документа.
-        snapshot_id: Уникальный ID снимка.
-        created_at: Время создания.
-        size_bytes: Размер снимка в байтах (приблизительный).
-    """
-
-    doc_id: str
-    snapshot_id: str
-    created_at: datetime
-    size_bytes: int = 0
 
 
 class SnapshotManager:
@@ -104,10 +87,10 @@ class SnapshotManager:
         self,
         doc_id: str,
         form_status: "FormStatus",
-        field_values: Dict[str, Any],
-        comments: List[Any],
+        field_values: Dict[str, str],
+        comments: List[str],
         role: "WorkflowRole",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, str]] = None,
     ) -> TransitionSnapshot:
         """Создаёт новый снимок состояния.
 
@@ -115,7 +98,7 @@ class SnapshotManager:
             doc_id: ID документа.
             form_status: Текущее состояние формы.
             field_values: Значения полей.
-            comments: Комментарии.
+            comments: Идентификаторы комментариев.
             role: Текущая роль.
             metadata: Дополнительные метаданные.
 
@@ -182,6 +165,5 @@ class SnapshotManager:
 
 __all__ = [
     "TransitionSnapshot",
-    "SnapshotMetadata",
     "SnapshotManager",
 ]

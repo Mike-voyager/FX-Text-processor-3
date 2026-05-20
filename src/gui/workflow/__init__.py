@@ -18,6 +18,7 @@ from src.gui.workflow.constants import (
     ARCHIVED_CONFIRMATION_TEXT,
     FREE_ROLE_SWITCHING_LABEL,
     MAX_UNDO_STEPS,
+    MFA_EXEMPT_TRANSITIONS,
     MFA_REQUIRED_ROLES,
     MFA_REQUIRED_TRANSITIONS,
     ROLE_COLORS,
@@ -46,7 +47,6 @@ from src.gui.workflow.field_comment_widget import (
     Comment,
     FieldCommentWidget,
 )
-from src.gui.workflow.field_comment_widget import Role as Role
 from src.gui.workflow.field_comment_widget import Severity as Severity
 
 # MFA checker (A5)
@@ -62,16 +62,17 @@ from src.gui.workflow.protocols import (
     WorkflowUIProtocol,
 )
 
+# RoleBadge (WorkflowRole — единый enum для ролей)
+from src.gui.workflow.role_badge import WorkflowRole
+
 # Snapshot (A2)
 from src.gui.workflow.snapshot import (
     SnapshotManager,
-    SnapshotMetadata,
     TransitionSnapshot,
 )
 
 # State Manager (B1)
 from src.gui.workflow.state_manager import (
-    TransitionRequest,
     TransitionResult,
     WorkflowStateManager,
 )
@@ -115,14 +116,13 @@ __all__ = [
     "FieldCommentWidget",
     "Comment",
     "Severity",
-    "Role",
+    "WorkflowRole",
     # Protocols
     "WorkflowUIProtocol",
     "WorkflowStateListener",
     "WorkflowTransitionResult",
     # Snapshot
     "TransitionSnapshot",
-    "SnapshotMetadata",
     "SnapshotManager",
     # Constants
     "STATUS_COLORS",
@@ -132,6 +132,7 @@ __all__ = [
     "ROLE_NAMES_RU",
     "MFA_REQUIRED_TRANSITIONS",
     "MFA_REQUIRED_ROLES",
+    "MFA_EXEMPT_TRANSITIONS",
     "UNDO_REDO_ICONS",
     "MAX_UNDO_STEPS",
     "ARCHIVED_CONFIRMATION_TEXT",
@@ -158,7 +159,6 @@ __all__ = [
     "WorkflowCommandHistory",
     # State Manager
     "WorkflowStateManager",
-    "TransitionRequest",
     "TransitionResult",
     # Workflow Toolbar
     "WorkflowToolbar",

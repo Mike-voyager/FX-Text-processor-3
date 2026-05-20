@@ -9,7 +9,8 @@ Date: April 2026
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+import tkinter as tk
+from typing import TYPE_CHECKING, Callable, Optional
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -65,7 +66,7 @@ class WorkflowUIFactory:
 
     def create_transition_dialog(
         self,
-        parent: Any,
+        parent: tk.Widget,
         from_state: "FormStatus",
         to_state: "FormStatus",
         reason: str = "",
@@ -100,7 +101,7 @@ class WorkflowUIFactory:
 
     def create_role_switch_dialog(
         self,
-        parent: Any,
+        parent: tk.Widget,
         current_role: "WorkflowRole",
         free_mode: bool = False,
         on_role_selected: Optional[Callable[["WorkflowRole", bool], None]] = None,

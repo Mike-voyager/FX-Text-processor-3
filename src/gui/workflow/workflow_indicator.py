@@ -34,34 +34,11 @@ import tkinter as tk
 from typing import TYPE_CHECKING, Callable, Final, Optional
 
 from src.gui.components.base.widget import BaseWidget
+from src.gui.workflow.constants import STATUS_COLORS
+from src.gui.workflow.constants import STATUS_NAMES_RU as STATUS_NAMES
 
 if TYPE_CHECKING:
     from src.documents.constructor.form_status import FormStatus
-
-
-# Colorа для статусов (соответствуют form_status.py)
-STATUS_COLORS: Final[dict[str, str]] = {
-    "draft": "#95a5a6",  # Gray
-    "filled": "#3498db",  # Blue
-    "validated": "#f39c12",  # Orange
-    "approved": "#27ae60",  # Green (same as signed)
-    "signed": "#27ae60",  # Green
-    "printed": "#9b59b6",  # Purple
-    "archived": "#2c3e50",  # Dark blue
-    "rejected": "#e74c3c",  # Red
-}
-
-# Локализованные названия статусов
-STATUS_NAMES: Final[dict[str, str]] = {
-    "draft": "Черновик",
-    "filled": "Заполнена",
-    "validated": "Проверена",
-    "approved": "Утверждена",
-    "signed": "Подписана",
-    "printed": "Напечатана",
-    "archived": "Архивирована",
-    "rejected": "Отклонена",
-}
 
 # Размер точки индикатора
 DOT_SIZE: Final[int] = 12
@@ -241,29 +218,29 @@ class WorkflowIndicator(BaseWidget):
             child.bind("<Enter>", self._on_enter)
             child.bind("<Leave>", self._on_leave)
 
-    def _on_click_handler(self, event: Optional[tk.Event] = None) -> None:
+    def _on_click_handler(self, event: tk.Event) -> None:  # noqa: ARG002
         """Обрабатывает клик на индикатор.
 
         Args:
-            event: Событие клика (опционально).
+            event: Событие клика (передаётся Tkinter).
         """
         if self._on_click is not None:
             self._on_click()
 
-    def _on_enter(self, event: Optional[tk.Event] = None) -> None:
+    def _on_enter(self, event: tk.Event) -> None:  # noqa: ARG002
         """Обрабатывает наведение мыши.
 
         Args:
-            event: Событие наведения (опционально).
+            event: Событие наведения (передаётся Tkinter).
         """
         if self._main_frame is not None:
             self._main_frame.config(cursor="hand2")
 
-    def _on_leave(self, event: Optional[tk.Event] = None) -> None:
+    def _on_leave(self, event: tk.Event) -> None:  # noqa: ARG002
         """Обрабатывает уход мыши.
 
         Args:
-            event: Событие ухода (опционально).
+            event: Событие ухода (передаётся Tkinter).
         """
         if self._main_frame is not None:
             self._main_frame.config(cursor="")

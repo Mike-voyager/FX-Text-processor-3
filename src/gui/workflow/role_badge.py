@@ -30,14 +30,29 @@ Date: April 2026
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from enum import Enum
 from typing import TYPE_CHECKING, Callable, Final, Optional
 
 from src.gui.components.base.widget import BaseWidget
+from src.gui.workflow.constants import (
+    MFA_REQUIRED_ROLES as _MFA_REQUIRED_ROLES_STR,
+)
+from src.gui.workflow.constants import (
+    ROLE_COLORS as _ROLE_COLORS_STR,
+)
+from src.gui.workflow.constants import (
+    ROLE_ICONS as _ROLE_ICONS_STR,
+)
+from src.gui.workflow.constants import (
+    ROLE_NAMES_RU as _ROLE_NAMES_RU_STR,
+)
 
 if TYPE_CHECKING:
     from src.gui.security.mode_manager import ModeManager
+
+_logger = logging.getLogger(__name__)
 
 
 class WorkflowRole(Enum):
@@ -54,6 +69,14 @@ class WorkflowRole(Enum):
     EDITOR = "editor"
     SUPERVISOR = "supervisor"
     SIGNATORY = "signatory"
+
+    @property
+    def display_name(self) -> str:
+        """Возвращает локализованное название роли.
+
+        Источник данных: ROLE_NAMES_RU из constants.py.
+        """
+        return _ROLE_NAMES_RU_STR.get(self.value, self.value)
 
 
 class RoleBadge(BaseWidget):
@@ -92,35 +115,23 @@ class RoleBadge(BaseWidget):
             raise RuntimeError("RoleBadge not mounted")
         return self._main_frame
 
-    # Colorа ролей (синий, зелёный, оранжевый, красный)
+    # Цвета ролей — единый источник: constants.ROLE_COLORS
     ROLE_COLORS: Final[dict[WorkflowRole, str]] = {
-        WorkflowRole.OPERATOR: "#3498db",  # Синий
-        WorkflowRole.EDITOR: "#2ecc71",  # Зелёный
-        WorkflowRole.SUPERVISOR: "#f39c12",  # Оранжевый
-        WorkflowRole.SIGNATORY: "#e74c3c",  # Красный
+        WorkflowRole(k): v for k, v in _ROLE_COLORS_STR.items()
     }
 
-    # Иконки ролей
+    # Иконки ролей — единый источник: constants.ROLE_ICONS
     ROLE_ICONS: Final[dict[WorkflowRole, str]] = {
-        WorkflowRole.OPERATOR: "👤",
-        WorkflowRole.EDITOR: "✏️",
-        WorkflowRole.SUPERVISOR: "👁️",
-        WorkflowRole.SIGNATORY: "🔏",
+        WorkflowRole(k): v for k, v in _ROLE_ICONS_STR.items()
     }
 
-    # Локализованные названия ролей
+    # Локализованные названия ролей — единый источник: constants.ROLE_NAMES_RU
     ROLE_NAMES: Final[dict[WorkflowRole, str]] = {
-        WorkflowRole.OPERATOR: "Оператор",
-        WorkflowRole.EDITOR: "Редактор",
-        WorkflowRole.SUPERVISOR: "Супервайзер",
-        WorkflowRole.SIGNATORY: "Подписант",
+        WorkflowRole(k): v for k, v in _ROLE_NAMES_RU_STR.items()
     }
 
-    # MFA требуется для привилегированных ролей
-    PRIVILEGED_ROLES: Final[set[WorkflowRole]] = {
-        WorkflowRole.SUPERVISOR,
-        WorkflowRole.SIGNATORY,
-    }
+    # MFA требуется для привилегированных ролей -- единый источник: constants.MFA_REQUIRED_ROLES
+    PRIVILEGED_ROLES: Final[set[WorkflowRole]] = {WorkflowRole(r) for r in _MFA_REQUIRED_ROLES_STR}
 
     def __init__(
         self,
@@ -128,6 +139,7 @@ class RoleBadge(BaseWidget):
         current_role: WorkflowRole = WorkflowRole.OPERATOR,
         on_role_change: Optional[Callable[[WorkflowRole], None]] = None,
         mode_manager: Optional["ModeManager"] = None,
+        mfa_required_callback: Optional[Callable[[WorkflowRole, Callable[[], None]], None]] = None,
     ) -> None:
         """Инициализация бейджа роли.
 
@@ -136,6 +148,9 @@ class RoleBadge(BaseWidget):
             current_role: Начальная роль (по умолчанию OPERATOR).
             on_role_change: Callback при смене роли.
             mode_manager: ModeManager для проверки MFA.
+            mfa_required_callback: Callback для MFA-проверки при смене на
+                привилегированную роль. Принимает целевую роль и callback,
+                который вызывается после успешной MFA-проверки.
         """
         super().__init__(widget_id="role_badge", controller=None)
 
@@ -143,6 +158,9 @@ class RoleBadge(BaseWidget):
         self._current_role: WorkflowRole = current_role
         self._on_role_change: Optional[Callable[[WorkflowRole], None]] = on_role_change
         self._mode_manager: Optional["ModeManager"] = mode_manager
+        self._mfa_required_callback: Optional[
+            Callable[[WorkflowRole, Callable[[], None]], None]
+        ] = mfa_required_callback
 
         # Tk widgets
         self._main_frame: Optional[tk.Frame] = None
@@ -242,20 +260,55 @@ class RoleBadge(BaseWidget):
         """
         return role in self.PRIVILEGED_ROLES
 
+    def _make_role_handler(self, role: WorkflowRole) -> Callable[[], None]:
+        """Создаёт обработчик для выбора роли из dropdown.
+
+        Args:
+            role: Роль для обработчика.
+
+        Returns:
+            Функцию-обработчик без аргументов.
+        """
+
+        def _handler() -> None:
+            self._on_role_selected(role)
+
+        return _handler
+
+    def _make_apply_handler(self, role: WorkflowRole) -> Callable[[], None]:
+        """Создаёт обработчик для применения смены роли после MFA.
+
+        Args:
+            role: Роль для применения.
+
+        Returns:
+            Функцию-обработчик без аргументов.
+        """
+
+        def _handler() -> None:
+            self._apply_role_change(role)
+
+        return _handler
+
     def _show_dropdown(self) -> None:
         """Показывает dropdown меню для выбора роли."""
-        if self._menu is None:
-            self._menu = tk.Menu(self._parent, tearoff=0)
-            for role in WorkflowRole:
-                mfa_indicator = " 🔒" if self._requires_mfa(role) else ""
+        # BUG-24: Пересоздаём меню при каждом открытии,
+        # чтобы индикаторы MFA всегда актуальны.
+        if self._menu is not None:
+            try:
+                self._menu.destroy()
+            except tk.TclError:
+                pass
+        self._menu = tk.Menu(self._parent, tearoff=0)
 
-                def make_handler(r: WorkflowRole = role) -> Callable[[], None]:
-                    return lambda: self._on_role_selected(r)
+        for role in WorkflowRole:
+            mfa_indicator = " 🔒" if self._requires_mfa(role) else ""
 
-                self._menu.add_command(
-                    label=f"{self.ROLE_ICONS[role]} {self.ROLE_NAMES[role]}{mfa_indicator}",
-                    command=make_handler(role),
-                )
+            # BUG-38: Упрощённый handler вместо make_handler.
+            self._menu.add_command(
+                label=f"{self.ROLE_ICONS[role]} {self.ROLE_NAMES[role]}{mfa_indicator}",
+                command=self._make_role_handler(role),
+            )
 
         if self._dropdown_button is not None:
             self._menu.post(
@@ -266,8 +319,24 @@ class RoleBadge(BaseWidget):
     def _on_role_selected(self, role: WorkflowRole) -> None:
         """Обработчик выбора роли из dropdown.
 
+        Если целевая роль требует MFA и задан ``mfa_required_callback``,
+        смена роли откладывается до подтверждения MFA. Без callback
+        смена выполняется немедленно (обратная совместимость).
+
         Args:
             role: Выбранная роль.
+        """
+        if self._requires_mfa(role) and self._mfa_required_callback is not None:
+            # BUG-23: MFA gate — откладываем смену роли до подтверждения.
+            self._mfa_required_callback(role, self._make_apply_handler(role))
+        else:
+            self._apply_role_change(role)
+
+    def _apply_role_change(self, role: WorkflowRole) -> None:
+        """Применяет смену роли после прохождения проверок.
+
+        Args:
+            role: Новая роль.
         """
         self._current_role = role
         self._update_display()
@@ -307,8 +376,8 @@ class RoleBadge(BaseWidget):
         if self._menu is not None:
             try:
                 self._menu.destroy()
-            except tk.TclError:
-                pass
+            except tk.TclError as e:
+                _logger.debug("TclError in destroy: %s", e)
             self._menu = None
         super()._cleanup()
 

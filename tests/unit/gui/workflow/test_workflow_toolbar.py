@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.documents.constructor.form_status import FormStatus
+from src.gui.components.base.widget import BaseWidget
 from src.gui.workflow.workflow_toolbar import (
     _BUTTON_CONFIG,
     _lighten_color,
@@ -31,7 +32,11 @@ def root() -> Generator[tk.Tk, None, None]:
 @pytest.fixture
 def toolbar(root: tk.Tk) -> WorkflowToolbar:
     """Фикстура для WorkflowToolbar."""
-    return WorkflowToolbar(parent=root)
+    tb = WorkflowToolbar()
+    tb.mount(root)
+    yield tb
+    if tb.is_mounted():
+        tb.unmount()
 
 
 @pytest.fixture
@@ -43,10 +48,10 @@ def mock_callback() -> MagicMock:
 class TestWorkflowToolbarInit:
     """Тесты инициализации WorkflowToolbar."""
 
-    def test_init_creates_frame(self, root: tk.Tk) -> None:
-        """Тест что инициализация создаёт Frame."""
-        toolbar = WorkflowToolbar(parent=root)
-        assert isinstance(toolbar, tk.Frame)
+    def test_init_creates_base_widget(self, root: tk.Tk) -> None:
+        """Тест что инициализация создаёт BaseWidget."""
+        toolbar = WorkflowToolbar()
+        assert isinstance(toolbar, BaseWidget)
 
     def test_default_all_buttons_hidden(self, toolbar: WorkflowToolbar) -> None:
         """Тест что по умолчанию все кнопки скрыты."""
@@ -241,19 +246,36 @@ class TestWorkflowToolbarColors:
         result = _lighten_color("#ffffff", factor=1.2)
         assert result == "#ffffff"
 
+    def test_lighten_color_invalid_short(self) -> None:
+        """Тест что _lighten_color возвращает исходный цвет для #RGB."""
+        assert _lighten_color("#fff") == "#fff"
+
+    def test_lighten_color_invalid_empty(self) -> None:
+        """Тест что _lighten_color возвращает исходный цвет для пустой строки."""
+        assert _lighten_color("") == ""
+
+    def test_lighten_color_invalid_no_hash(self) -> None:
+        """Тест что _lighten_color возвращает исходный цвет без #."""
+        assert _lighten_color("3498db") == "3498db"
+
+    def test_lighten_color_invalid_hex_chars(self) -> None:
+        """Тест что _lighten_color возвращает исходный цвет при невалидных hex символах."""
+        assert _lighten_color("#zzzzzz") == "#zzzzzz"
+
 
 class TestWorkflowToolbarLifecycle:
     """Тесты жизненного цикла."""
 
-    def test_destroy_clears_callback(
+    def test_cleanup_clears_callback(
         self, root: tk.Tk, mock_callback: MagicMock
     ) -> None:
-        """Тест что destroy очищает callback."""
-        toolbar = WorkflowToolbar(parent=root)
+        """Тест что cleanup очищает callback."""
+        toolbar = WorkflowToolbar()
+        toolbar.mount(root)
         toolbar.on_action(mock_callback)
-        toolbar.destroy()
+        toolbar._cleanup()
 
-        # После destroy callback должен быть очищен
+        # После cleanup callback должен быть очищен
         assert toolbar._action_callback is None
 
 

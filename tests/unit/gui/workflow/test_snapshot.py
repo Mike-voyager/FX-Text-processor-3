@@ -14,7 +14,6 @@ import pytest
 
 from src.gui.workflow.snapshot import (
     SnapshotManager,
-    SnapshotMetadata,
     TransitionSnapshot,
 )
 
@@ -93,31 +92,6 @@ class TestTransitionSnapshot:
             document_metadata={"index": "DVN-44-K53-I"},
         )
         assert snapshot.document_metadata["index"] == "DVN-44-K53-I"
-
-
-class TestSnapshotMetadata:
-    """Тесты SnapshotMetadata."""
-
-    def test_create_metadata(self) -> None:
-        """Метаданные создаются корректно."""
-        meta = SnapshotMetadata(
-            doc_id="doc_1",
-            snapshot_id="snap_1",
-            created_at=datetime.now(),
-            size_bytes=1024,
-        )
-        assert meta.doc_id == "doc_1"
-        assert meta.snapshot_id == "snap_1"
-        assert meta.size_bytes == 1024
-
-    def test_size_bytes_default_zero(self) -> None:
-        """size_bytes по умолчанию 0."""
-        meta = SnapshotMetadata(
-            doc_id="doc_1",
-            snapshot_id="snap_1",
-            created_at=datetime.now(),
-        )
-        assert meta.size_bytes == 0
 
 
 class TestSnapshotManager:

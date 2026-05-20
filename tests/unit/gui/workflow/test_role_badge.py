@@ -192,5 +192,108 @@ class TestWorkflowRoleEnum:
         assert WorkflowRole.SIGNATORY.value == "signatory"
 
 
+class TestBug23MfaGate:
+    """Тесты для бага BUG-23: MFA gate при смене на привилегированную роль."""
+
+    def test_privileged_role_without_mfa_callback_changes_immediately(
+        self, root: tk.Tk, mock_role_change: MagicMock
+    ) -> None:
+        """Без mfa_required_callback смена на SUPERVISOR выполняется немедленно."""
+        badge = RoleBadge(
+            parent=root,
+            current_role=WorkflowRole.OPERATOR,
+            on_role_change=mock_role_change,
+        )
+        badge.mount(root)
+
+        badge._on_role_selected(WorkflowRole.SUPERVISOR)
+
+        # Роль должна смениться немедленно (обратная совместимость)
+        assert badge.get_role() == WorkflowRole.SUPERVISOR
+        mock_role_change.assert_called_once_with(WorkflowRole.SUPERVISOR)
+        badge.widget.destroy()
+
+    def test_privileged_role_with_mfa_callback_defers_change(
+        self, root: tk.Tk, mock_role_change: MagicMock
+    ) -> None:
+        """С mfa_required_callback смена на SUPERVISOR откладывается до MFA."""
+        mfa_callback = MagicMock()
+        badge = RoleBadge(
+            parent=root,
+            current_role=WorkflowRole.OPERATOR,
+            on_role_change=mock_role_change,
+            mfa_required_callback=mfa_callback,
+        )
+        badge.mount(root)
+
+        badge._on_role_selected(WorkflowRole.SUPERVISOR)
+
+        # Роль НЕ должна смениться немедленно
+        assert badge.get_role() == WorkflowRole.OPERATOR
+        mock_role_change.assert_not_called()
+
+        # mfa_required_callback должен быть вызван
+        mfa_callback.assert_called_once()
+        call_args = mfa_callback.call_args
+        assert call_args[0][0] == WorkflowRole.SUPERVISOR
+        # Второй аргумент — continuation callback
+        assert callable(call_args[0][1])
+
+        badge.widget.destroy()
+
+    def test_mfa_callback_continuation_applies_role(
+        self, root: tk.Tk, mock_role_change: MagicMock
+    ) -> None:
+        """Continuation callback из mfa_required_callback применяет смену роли."""
+        continuation: list[Callable[[], None]] = []
+
+        def capture_mfa(role: WorkflowRole, on_success: Callable[[], None]) -> None:
+            continuation.append(on_success)
+
+        badge = RoleBadge(
+            parent=root,
+            current_role=WorkflowRole.OPERATOR,
+            on_role_change=mock_role_change,
+            mfa_required_callback=capture_mfa,
+        )
+        badge.mount(root)
+
+        badge._on_role_selected(WorkflowRole.SIGNATORY)
+
+        # Роль ещё не сменена
+        assert badge.get_role() == WorkflowRole.OPERATOR
+        mock_role_change.assert_not_called()
+
+        # Вызываем continuation (имитируем успешную MFA-проверку)
+        assert len(continuation) == 1
+        continuation[0]()
+
+        # Теперь роль сменена
+        assert badge.get_role() == WorkflowRole.SIGNATORY
+        mock_role_change.assert_called_once_with(WorkflowRole.SIGNATORY)
+        badge.widget.destroy()
+
+    def test_non_privileged_role_bypasses_mfa_callback(
+        self, root: tk.Tk, mock_role_change: MagicMock
+    ) -> None:
+        """Смена на EDITOR (не привилегированная) обходит mfa_required_callback."""
+        mfa_callback = MagicMock()
+        badge = RoleBadge(
+            parent=root,
+            current_role=WorkflowRole.OPERATOR,
+            on_role_change=mock_role_change,
+            mfa_required_callback=mfa_callback,
+        )
+        badge.mount(root)
+
+        badge._on_role_selected(WorkflowRole.EDITOR)
+
+        # Роль должна смениться немедленно
+        assert badge.get_role() == WorkflowRole.EDITOR
+        mock_role_change.assert_called_once_with(WorkflowRole.EDITOR)
+        mfa_callback.assert_not_called()
+        badge.widget.destroy()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

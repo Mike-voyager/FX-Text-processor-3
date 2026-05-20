@@ -72,20 +72,36 @@ class StateTransitionEvent(WorkflowUIEvent):
         """True если переход вперёд по workflow."""
         from src.gui.workflow.constants import STATUS_ORDER
 
-        from_val = (
-            self.from_state.value if hasattr(self.from_state, "value") else str(self.from_state)
-        )
-        to_val = self.to_state.value if hasattr(self.to_state, "value") else str(self.to_state)
+        from_val = self.from_state.value
+        to_val = self.to_state.value
+
+        # Тот же состояние — не переход вперёд и не назад
+        if from_val == to_val:
+            return False
 
         try:
             return STATUS_ORDER.index(to_val) > STATUS_ORDER.index(from_val)
         except ValueError:
+            # Неизвестное состояние — не вперёд и не назад
             return False
 
     @property
     def is_backward(self) -> bool:
         """True если переход назад по workflow."""
-        return not self.is_forward
+        from src.gui.workflow.constants import STATUS_ORDER
+
+        from_val = self.from_state.value
+        to_val = self.to_state.value
+
+        # Тот же состояние — не переход
+        if from_val == to_val:
+            return False
+
+        try:
+            return STATUS_ORDER.index(to_val) < STATUS_ORDER.index(from_val)
+        except ValueError:
+            # Неизвестное состояние — не вперёд и не назад
+            return False
 
 
 @dataclass(frozen=True)
@@ -250,7 +266,7 @@ class WorkflowEventBus:
                 handler(event)
             except (AttributeError, ValueError, TypeError, RuntimeError) as e:
                 # Log but don't stop other handlers
-                logging.getLogger(__name__).debug("Exception ignored in handler: %s", e)
+                logging.getLogger(__name__).warning("Exception ignored in handler: %s", e)
 
         # Специфичные подписчики
         event_type = event.event_type
@@ -260,7 +276,7 @@ class WorkflowEventBus:
                     handler(event)
                 except (AttributeError, ValueError, TypeError, RuntimeError) as e:
                     # Log but don't stop other handlers
-                    logging.getLogger(__name__).debug("Exception ignored in handler: %s", e)
+                    logging.getLogger(__name__).warning("Exception ignored in handler: %s", e)
 
     def clear(self) -> None:
         """Очищает все подписки."""
@@ -296,7 +312,7 @@ def create_transition_event(
     # Determine if undoable
     from src.gui.workflow.constants import NON_UNDOABLE_STATES
 
-    to_str = to_state.value if hasattr(to_state, "value") else str(to_state)
+    to_str = to_state.value
     undoable = to_str not in NON_UNDOABLE_STATES
 
     return StateTransitionEvent(

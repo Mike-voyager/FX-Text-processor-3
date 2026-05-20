@@ -29,6 +29,7 @@ import tkinter as tk
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from functools import partial
 from typing import TYPE_CHECKING, Final, Optional, Protocol
 
 from src.gui.components.base.widget import BaseWidget
@@ -102,7 +103,7 @@ class WorkflowAnnotation:
     status: AnnotationStatus = AnnotationStatus.OPEN
     resolved_by: Optional[str] = None
     resolved_at: Optional[datetime] = None
-    replies: list[WorkflowAnnotation] = field(default_factory=list)
+    replies: tuple[WorkflowAnnotation, ...] = field(default_factory=tuple)
 
 
 # =============================================================================
@@ -296,6 +297,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         self._toggle_all_btn: Optional[tk.Button] = None
         self._history_visible: dict[str, bool] = {}
         self._reply_texts: dict[str, tk.Text] = {}
+        self._card_by_annotation_id: dict[str, tk.Frame] = {}
 
     # -------------------------------------------------------------------------
     # Tkinter widget construction
@@ -384,7 +386,9 @@ class WorkflowAnnotationPanel(BaseWidget):
             event: Событие Configure.
         """
         if self._canvas is not None:
-            self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+            bbox = self._canvas.bbox("all")
+            if bbox is not None:
+                self._canvas.configure(scrollregion=bbox)
 
     def _create_add_section(self, parent: tk.Frame) -> None:
         """Создаёт область добавления новой аннотации.
@@ -399,7 +403,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         type_frame = tk.Frame(add_frame)
         type_frame.pack(fill=tk.X, pady=(0, 3))
 
-        self._type_var = tk.StringVar(value=AnnotationType.COMMENT.value)
+        self._type_var = tk.StringVar(master=parent, value=AnnotationType.COMMENT.value)
 
         for atype in AnnotationType:
             rb = tk.Radiobutton(
@@ -437,6 +441,11 @@ class WorkflowAnnotationPanel(BaseWidget):
         if self._annotations_frame is None:
             return
 
+        # BUG-29: очистка устаревших ссылок на виджеты ответов перед уничтожением
+        self._reply_texts.clear()
+        # BUG-14: очистка маппинга карточек перед пересозданием
+        self._card_by_annotation_id.clear()
+
         # Очистка
         for child in self._annotations_frame.winfo_children():
             child.destroy()
@@ -473,7 +482,8 @@ class WorkflowAnnotationPanel(BaseWidget):
             bg="white",
         )
         card.pack(fill=tk.X, pady=(0, 8))
-        card._annotation_id = annotation.annotation_id  # type: ignore[attr-defined]
+        # BUG-14: сохраняем маппинг annotation_id -> card вместо monkey-patching
+        self._card_by_annotation_id[annotation.annotation_id] = card
 
         # Верхняя строка: иконка + автор + роль + время + статус
         header = tk.Frame(card, bg="white")
@@ -564,8 +574,6 @@ class WorkflowAnnotationPanel(BaseWidget):
         actions.pack(fill=tk.X, pady=(5, 0))
 
         if annotation.status == AnnotationStatus.OPEN:
-            from functools import partial
-
             tk.Button(
                 actions,
                 text="Ответить",
@@ -585,7 +593,6 @@ class WorkflowAnnotationPanel(BaseWidget):
         # История ответов (reply-аннотации)
         if annotation.replies:
             visible = self._history_visible.get(annotation.annotation_id, False)
-            from functools import partial
 
             history_btn = tk.Button(
                 card,
@@ -599,7 +606,11 @@ class WorkflowAnnotationPanel(BaseWidget):
             if visible:
                 self._create_replies_section(card, annotation.replies)
 
-    def _create_replies_section(self, parent: tk.Frame, replies: list[WorkflowAnnotation]) -> None:
+    def _create_replies_section(
+        self,
+        parent: tk.Frame,
+        replies: tuple[WorkflowAnnotation, ...],
+    ) -> None:
         """Создаёт секцию ответов внутри карточки.
 
         Args:
@@ -727,23 +738,17 @@ class WorkflowAnnotationPanel(BaseWidget):
         if reply_key in self._reply_texts:
             return
 
-        # Находим карточку по annotation_id (сохраняем в widget dict)
-        target_card: Optional[tk.Widget] = None
-        if self._annotations_frame is not None:
-            for card in self._annotations_frame.winfo_children():
-                # Проверяем, соответствует ли карточка нужной аннотации
-                if hasattr(card, "_annotation_id"):
-                    card_annotation_id = card._annotation_id  # noqa: SLF001
-                    if card_annotation_id == annotation_id:
-                        target_card = card
-                        break
+        # BUG-14: ищем карточку через dict вместо monkey-patching
+        target_card: Optional[tk.Frame] = self._card_by_annotation_id.get(annotation_id)
 
-        # Если не нашли по атрибуту, ищем по позиции (порядок карточек = порядок аннотаций)
+        # Fallback по позиции (порядок карточек = порядок аннотаций)
         if target_card is None and self._annotations_frame is not None:
             children = self._annotations_frame.winfo_children()
             for i, annotation in enumerate(self._annotations):
                 if annotation.annotation_id == annotation_id and i < len(children):
-                    target_card = children[i]
+                    child = children[i]
+                    if isinstance(child, tk.Frame):
+                        target_card = child
                     break
 
         if target_card is None:
@@ -806,8 +811,8 @@ class WorkflowAnnotationPanel(BaseWidget):
                             timestamp=datetime.now(),
                             text=text,
                         )
-                        # Замена замороженного объекта
-                        updated_replies = list(annotation.replies) + [reply]
+                        # BUG-22: tuple concatenation для immutable replies
+                        updated_replies = annotation.replies + (reply,)
                         self._annotations[i] = WorkflowAnnotation(
                             annotation_id=annotation.annotation_id,
                             annot_type=annotation.annot_type,
@@ -939,6 +944,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         self._on_reply = None
         self._history_visible.clear()
         self._reply_texts.clear()
+        self._card_by_annotation_id.clear()
         super()._cleanup()
 
 

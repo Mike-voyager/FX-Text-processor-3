@@ -1,19 +1,20 @@
-"""WorkflowToolbar — панель кнопок для workflow операций с динамической видимостью.
+"""WorkflowToolbar -- панель кнопок для workflow операций с динамической видимостью.
 
 Предоставляет:
-- tk.Frame с кнопками для workflow действий
+- BaseWidget с кнопками для workflow действий
 - Динамическое управление видимостью через set_available_actions
 - Hover-эффекты с изменением цвета
 - Универсальный callback для всех действий
 
 Example:
     >>> from src.documents.constructor.form_status import FormStatus
-    >>> toolbar = WorkflowToolbar(parent=frame)
+    >>> toolbar = WorkflowToolbar(widget_id="workflow_toolbar")
+    >>> toolbar.mount(parent_frame)
     >>> toolbar.on_action(lambda action: print(f"Action: {action}"))
     >>> toolbar.set_available_actions({"save_draft", "validate"})
     >>> toolbar.set_current_state(FormStatus.DRAFT)
 
-Version: 1.0
+Version: 1.1
 Date: May 2026
 """
 
@@ -23,6 +24,7 @@ import logging
 import tkinter as tk
 from typing import TYPE_CHECKING, Callable, Final, Optional
 
+from src.gui.components.base.widget import BaseWidget
 from src.gui.themes import ThemeRegistry
 
 if TYPE_CHECKING:
@@ -83,12 +85,19 @@ def _lighten_color(hex_color: str, factor: float = _HOVER_LIGHTEN_FACTOR) -> str
         factor: Множитель для RGB компонент (1.0 = без изменений).
 
     Returns:
-        Осветлённый HEX цвет.
+        Осветлённый HEX цвет. При невалидном формате возвращает исходный цвет.
     """
-    hex_color = hex_color.lstrip("#")
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
+    # BUG-37: Валидация формата — #RRGGBB (длина 7).
+    if not hex_color.startswith("#") or len(hex_color) != 7:
+        return hex_color
+
+    stripped = hex_color.lstrip("#")
+    try:
+        r = int(stripped[0:2], 16)
+        g = int(stripped[2:4], 16)
+        b = int(stripped[4:6], 16)
+    except ValueError:
+        return hex_color
 
     r = min(255, int(r * factor))
     g = min(255, int(g * factor))
@@ -97,46 +106,73 @@ def _lighten_color(hex_color: str, factor: float = _HOVER_LIGHTEN_FACTOR) -> str
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-class WorkflowToolbar(tk.Frame):
+class WorkflowToolbar(BaseWidget):
     """Панель кнопок workflow с динамической видимостью.
 
     Создаёт набор кнопок для workflow операций. По умолчанию все кнопки скрыты.
     Видимость управляется через ``set_available_actions``, которая показывает
     только указанные кнопки, а остальные скрывает.
 
+    Наследует от :class:`BaseWidget` для поддержки lifecycle (mount/unmount/_cleanup).
+
     Attributes:
         _buttons: Словарь action_name → tk.Button.
         _action_callback: Универсальный callback при нажатии.
         _current_state: Текущее состояние формы (опционально).
+        _visible_actions: Множество видимых действий.
 
     Example:
-        >>> toolbar = WorkflowToolbar(parent=root)
-        >>> toolbar.pack(fill=tk.X)
+        >>> toolbar = WorkflowToolbar(widget_id="workflow_toolbar")
+        >>> frame = toolbar.mount(parent)
         >>> toolbar.on_action(lambda a: print(a))
         >>> toolbar.set_available_actions({"save_draft", "validate"})
     """
 
-    def __init__(self, parent: tk.Widget) -> None:
+    @property
+    def widget(self) -> tk.Widget:
+        """Возвращает tkinter widget для размещения.
+
+        Returns:
+            Корневой Frame панели.
+
+        Raises:
+            RuntimeError: Если виджет не смонтирован.
+        """
+        if self._main_frame is None:
+            raise RuntimeError("WorkflowToolbar not mounted")
+        return self._main_frame
+
+    def __init__(self, widget_id: str = "workflow_toolbar") -> None:
         """Инициализация панели workflow.
 
         Args:
-            parent: Родительский Tkinter виджет.
+            widget_id: Уникальный идентификатор виджета.
         """
-        super().__init__(parent)
+        super().__init__(widget_id=widget_id, controller=None)
 
         self._buttons: dict[str, tk.Button] = {}
         self._action_callback: Optional[Callable[[str], None]] = None
         self._current_state: Optional["FormStatus"] = None
         self._button_colors: dict[str, str] = {}
+        self._main_frame: Optional[tk.Frame] = None
+        # BUG-27: Отдельный атрибут для видимых действий вместо winfo_manager().
+        self._visible_actions: set[str] = set()
 
-        self._create_buttons()
+    def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
+        """Создаёт Tkinter виджет панели с кнопками.
 
-    def _create_buttons(self) -> None:
-        """Создаёт кнопки и скрывает их по умолчанию."""
+        Args:
+            parent: Родительский виджет.
+
+        Returns:
+            Созданный фрейм с кнопками.
+        """
+        self._main_frame = tk.Frame(parent)
+
         for action, config in _BUTTON_CONFIG.items():
             color = _theme_color(config["theme_key"])
             button = tk.Button(
-                self,
+                self._main_frame,
                 text=config["text"],
                 bg=color,
                 fg=_BUTTON_FG,
@@ -165,6 +201,8 @@ class WorkflowToolbar(tk.Frame):
         # По умолчанию все скрыты
         self._hide_all_buttons()
 
+        return self._main_frame
+
     def _make_handler(self, action: str) -> Callable[[], None]:
         """Создаёт обработчик нажатия для указанного действия.
 
@@ -183,6 +221,7 @@ class WorkflowToolbar(tk.Frame):
 
     def _hide_all_buttons(self) -> None:
         """Скрывает все кнопки через pack_forget."""
+        self._visible_actions = set()
         for button in self._buttons.values():
             button.pack_forget()
 
@@ -195,6 +234,7 @@ class WorkflowToolbar(tk.Frame):
         Example:
             >>> toolbar.set_available_actions({"save_draft", "validate"})
         """
+        self._visible_actions = actions.copy()
         for action, button in self._buttons.items():
             if action in actions:
                 button.pack(side=tk.LEFT, padx=2, pady=2)
@@ -256,22 +296,13 @@ class WorkflowToolbar(tk.Frame):
         Returns:
             True если кнопка видима, False если скрыта или неизвестна.
         """
-        button = self._buttons.get(action)
-        if button is None:
-            return False
-        return button.winfo_manager() == "pack"
+        return action in self._visible_actions and action in self._buttons
 
-    def destroy(self) -> None:
-        """Очищает ресурсы перед уничтожением."""
+    def _cleanup(self) -> None:
+        """Очищает ресурсы перед демонтированием."""
         self._action_callback = None
-        super().destroy()
-
-    def unmount(self) -> None:
-        """Совместимость с BaseWidget lifecycle.
-
-        Вызывает destroy() для освобождения ресурсов Tkinter.
-        """
-        self.destroy()
+        self._visible_actions = set()
+        super()._cleanup()
 
 
 __all__: list[str] = [
