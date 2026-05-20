@@ -50,8 +50,8 @@ from src.gui.modes.structured_form.widgets import (
     create_inline_widget,
 )
 from src.gui.modes.structured_form.widgets.base_field import BaseField
-from src.gui.renderers.form_canvas import FormCanvas, FormFieldWidget
-from src.gui.renderers.protocols import implements
+from src.gui.renderers.form_canvas import FieldPosition, FormCanvas, FormFieldWidget
+from src.gui.renderers.protocols import DocumentRendererProtocol, implements
 from src.gui.security.mode_manager import ModeManager
 from src.gui.services.autocomplete_service import AutocompleteServiceGui
 from src.gui.workflow.workflow_toolbar import WorkflowToolbar
@@ -65,7 +65,7 @@ logger: Final = logging.getLogger(__name__)
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class HeaderFooterConfig:
     """Конфигурация колонтитула.
 
@@ -112,7 +112,7 @@ class HeaderFooterConfig:
         return result
 
 
-@dataclass
+@dataclass(frozen=True)
 class PageData:
     """Данные страницы формы.
 
@@ -180,7 +180,7 @@ class StructuredFormDocument:
 # =============================================================================
 
 
-@implements(Any)
+@implements(DocumentRendererProtocol)
 class StructuredFormRenderer(BaseWidget):
     """Renderer для STRUCTURED_FORM с multi-page support.
 
@@ -854,8 +854,6 @@ class StructuredFormRenderer(BaseWidget):
             source_page.fields.pop(field_index)
 
             # Update field position
-            from src.gui.renderers.form_canvas import FieldPosition
-
             field_widget.position = FieldPosition(
                 col=new_x,
                 row=new_y,
@@ -915,7 +913,7 @@ class StructuredFormRenderer(BaseWidget):
                     data[field_id] = widget.get_value()
                 except Exception as e:
                     data[field_id] = None
-                    logger.warning(f"Failed to get value for field {field_id}: {e}")
+                    logger.warning("Failed to get value for field %s: %s", field_id, e)
             return data
 
         for page in self._pages:
@@ -930,10 +928,10 @@ class StructuredFormRenderer(BaseWidget):
                         data[field_id] = widget.get_value()
                     else:
                         data[field_id] = None
-                        logger.warning(f"Widget for field {field_id} has no get_value method")
+                        logger.warning("Widget for field %s has no get_value method", field_id)
                 except Exception as e:
                     data[field_id] = None
-                    logger.warning(f"Failed to get value for field {field_id}: {e}")
+                    logger.warning("Failed to get value for field %s: %s", field_id, e)
 
         return data
 
@@ -962,7 +960,7 @@ class StructuredFormRenderer(BaseWidget):
                             report.add_field_error(field_id, str(error_msg))
                 except Exception as e:
                     report.add_field_error(field_id, f"Ошибка валидации: {e}")
-                    logger.warning(f"Validation failed for field {field_id}: {e}")
+                    logger.warning("Validation failed for field %s: %s", field_id, e)
             return report
 
         # Track all field IDs across pages
@@ -1020,7 +1018,7 @@ class StructuredFormRenderer(BaseWidget):
                                 report.add_field_error(field_id, str(error_msg))
                 except Exception as e:
                     report.add_field_error(field_id, f"Ошибка валидации: {e}")
-                    logger.warning(f"Validation failed for field {field_id}: {e}")
+                    logger.warning("Validation failed for field %s: %s", field_id, e)
 
         return report
 
@@ -1541,8 +1539,6 @@ class StructuredFormRenderer(BaseWidget):
         Returns:
             Созданный виджет поля.
         """
-        from src.gui.renderers.form_canvas import FieldPosition
-
         return FormFieldWidget(
             field_id=field_def.field_id,
             field_def=field_def,
@@ -1775,7 +1771,7 @@ class StructuredFormRenderer(BaseWidget):
             value: Новое значение.
         """
         # Trigger validation on change if needed
-        logger.debug(f"Field {field_id} changed to: {value}")
+        logger.debug("Field %s changed to: %s", field_id, value)
 
         # Propagate to external callback
         if self._on_field_change_callback is not None:
@@ -1804,7 +1800,7 @@ class StructuredFormRenderer(BaseWidget):
         """
         # Log validation result
         if not is_valid and error:
-            logger.warning(f"Field {field_id} validation failed: {error}")
+            logger.warning("Field %s validation failed: %s", field_id, error)
 
     def _renumber_pages(self) -> None:
         """Пересчитывает индексы страниц."""
@@ -2461,7 +2457,9 @@ class StructuredFormRenderer(BaseWidget):
                 "switch_to_supervisor": "supervisor",
                 "switch_to_signatory": "signatory",
             }
-            from src.controller.workflow_controller import WorkflowRole
+            from src.controller.workflow_controller import (
+                WorkflowRole,  # noqa: PLC0415  # noqa: PLC0415
+            )
 
             new_role = WorkflowRole(role_map[action])
             if self._workflow_manager is not None:
@@ -2493,7 +2491,7 @@ class StructuredFormRenderer(BaseWidget):
                     requires_mfa=True,
                 )
             except Exception as e:
-                logger.warning(f"MFA transition failed: {e}")
+                logger.warning("MFA transition failed: %s", e)
         else:
             self._do_transition(new_status)
 
@@ -2578,7 +2576,7 @@ class StructuredFormRenderer(BaseWidget):
         """Показывает диалог смены роли."""
         if self._tk_frame is None:
             return
-        from src.controller.workflow_controller import WorkflowRole
+        from src.controller.workflow_controller import WorkflowRole  # noqa: PLC0415
 
         dialog = RoleSwitchDialog(
             parent=self._tk_frame,

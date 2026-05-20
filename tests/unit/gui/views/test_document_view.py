@@ -14,6 +14,7 @@ from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
+from src.gui.renderers.factory import register_default_renderers
 from src.gui.views.document_view import (
     DEFAULT_PLACEHOLDER_MESSAGE,
     MAX_DOCUMENT_ID_LENGTH,
@@ -45,6 +46,7 @@ class MockDocument:
 @pytest.fixture
 def tk_root() -> Generator[tk.Tk, None, None]:
     """Fixture для Tk root окна."""
+    register_default_renderers()
     root = tk.Tk()
     root.withdraw()
     yield root

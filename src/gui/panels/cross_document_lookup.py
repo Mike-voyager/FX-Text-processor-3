@@ -29,11 +29,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from tkinter import ttk
-from typing import Any, Callable, Dict, Final, List, Optional, Protocol, Tuple
+from typing import Callable, Final, Optional, Protocol, runtime_checkable
 
 from src.documents.types.index_formatter import parse_index
 from src.gui.components.base.widget import BaseWidget
-from src.gui.core.protocols import ControllerProtocol
+from src.gui.core.protocols import ControllerProtocol, EventProtocol
 
 logger: Final = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class HierarchyLevel(Enum):
 class FieldValueResult:
     """Результат поиска значения поля.
 
-    Attrs:
+    Attributes:
         document_id: Уникальный идентификатор документа.
         document_index: Полный индекс документа.
         field_id: Идентификатор поля.
@@ -102,7 +102,7 @@ class FieldValueResult:
     created_at: datetime
     modified_at: datetime
 
-    def to_treeview_values(self) -> Tuple[str, str, str]:
+    def to_treeview_values(self) -> tuple[str, str, str]:
         """Возвращает значения для отображения в Treeview.
 
         Returns:
@@ -114,17 +114,17 @@ class FieldValueResult:
         return (self.document_index, display_value, date_str)
 
 
-@dataclass
+@dataclass(frozen=True)
 class CacheEntry:
     """Запись в кеше результатов.
 
-    Attrs:
+    Attributes:
         results: Список результатов.
         timestamp: Время создания записи.
         query_hash: Хеш запроса для инвалидации.
     """
 
-    results: List[FieldValueResult]
+    results: list[FieldValueResult]
     timestamp: datetime = field(default_factory=datetime.now)
     query_hash: str = ""
 
@@ -133,7 +133,7 @@ class CacheEntry:
 class SearchCriteria:
     """Критерии поиска для кеширования.
 
-    Attrs:
+    Attributes:
         field_id: Идентификатор поля.
         hierarchy_level: Уровень иерархии.
         current_index: Текущий индекс документа.
@@ -166,6 +166,7 @@ class SearchCriteria:
 # =============================================================================
 
 
+@runtime_checkable
 class DocumentServiceProtocol(Protocol):
     """Протокол сервиса документов для поиска.
 
@@ -179,7 +180,7 @@ class DocumentServiceProtocol(Protocol):
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
         limit: int = 1000,
-    ) -> List[FieldValueResult]:
+    ) -> list[FieldValueResult]:
         """Ищет значения полей по шаблону индекса.
 
         Args:
@@ -198,7 +199,7 @@ class DocumentServiceProtocol(Protocol):
         self,
         index_prefix: str,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, object]]:
         """Возвращает историю документов по префиксу индекса.
 
         Args:
@@ -211,6 +212,7 @@ class DocumentServiceProtocol(Protocol):
         ...
 
 
+@runtime_checkable
 class ValueSelectedCallback(Protocol):
     """Протокол callback функции при выборе значения."""
 
@@ -280,20 +282,25 @@ class CrossDocumentLookupPanel(BaseWidget):
         self._index_segments = parse_index(current_index)
 
         # Кеш результатов
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
 
         # Текущее состояние
-        self._current_results: List[FieldValueResult] = []
+        self._current_results: list[FieldValueResult] = []
         self._selected_result: Optional[FieldValueResult] = None
 
-        # UI компоненты (инициализируются в _create_tk_widget)
-        self._search_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
-        self._hierarchy_var: tk.StringVar = tk.StringVar(value=HierarchyLevel.SERIES.name)
-        self._date_from_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
-        self._date_to_var: tk.StringVar = tk.StringVar(master=self._tk_widget)
-        self._status_var: tk.StringVar = tk.StringVar(value="Готов к поиску")
+        # UI переменные (master=parent — корневое окно доступно через родителя)
+        self._search_var: tk.StringVar = tk.StringVar(master=parent)
+        self._hierarchy_var: tk.StringVar = tk.StringVar(
+            master=parent,
+            value=HierarchyLevel.SERIES.name,
+        )
+        self._date_from_var: tk.StringVar = tk.StringVar(master=parent)
+        self._date_to_var: tk.StringVar = tk.StringVar(master=parent)
+        self._status_var: tk.StringVar = tk.StringVar(
+            master=parent,
+            value="Готов к поиску",
+        )
 
-        self._tk_widget: Optional[tk.Widget] = None
         self._results_tree: Optional[ttk.Treeview] = None
         self._use_button: Optional[tk.Button] = None
         self._search_button: Optional[tk.Button] = None
@@ -744,7 +751,7 @@ class CrossDocumentLookupPanel(BaseWidget):
 
         return entry
 
-    def _add_to_cache(self, cache_key: str, results: List[FieldValueResult]) -> None:
+    def _add_to_cache(self, cache_key: str, results: list[FieldValueResult]) -> None:
         """Добавляет запись в кеш с ограничением размера.
 
         Args:
@@ -774,7 +781,7 @@ class CrossDocumentLookupPanel(BaseWidget):
         logger.debug("Кеш очищен: %d записей", count)
         return count
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, object]:
         """Возвращает статистику кеша.
 
         Returns:
@@ -834,7 +841,7 @@ class CrossDocumentLookupPanel(BaseWidget):
             logger.error("Ошибка поиска: %s", exc)
             return []
 
-    def handle_event(self, event: Any) -> bool:
+    def handle_event(self, event: EventProtocol) -> bool:
         """Обрабатывает события.
 
         Args:
@@ -907,11 +914,14 @@ class CrossDocumentLookupDialog(tk.Toplevel):
         self._document_index: str = document_index
         self._on_select: Callable[[str], None] = on_select
 
-        self._pattern_var: tk.StringVar = tk.StringVar(value=self._default_pattern(document_index))
-        self._status_var: tk.StringVar = tk.StringVar(value="")
+        self._pattern_var: tk.StringVar = tk.StringVar(
+            master=self,
+            value=self._default_pattern(document_index),
+        )
+        self._status_var: tk.StringVar = tk.StringVar(master=self, value="")
 
         self._tree: Optional[ttk.Treeview] = None
-        self._results: List[FieldValueResult] = []
+        self._results: list[FieldValueResult] = []
         self._after_ids: list[str] = []
 
         self._create_ui()

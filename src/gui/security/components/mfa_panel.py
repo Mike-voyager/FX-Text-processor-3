@@ -118,7 +118,7 @@ class MFAPanel(tk.Frame):
             self._theme_manager.apply_to_widget(self)
         except (AttributeError, KeyError, tk.TclError) as e:
             # Игнорируем ошибки применения темы
-            logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+            logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
     def _create_ui(self) -> None:
         """Создаёт UI элементы панели."""
@@ -135,7 +135,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(method_frame)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Radio buttons для методов
         for method in self._methods:
@@ -154,7 +154,7 @@ class MFAPanel(tk.Frame):
                 try:
                     self._theme_manager.apply_to_widget(rb)
                 except (AttributeError, KeyError, tk.TclError) as e:
-                    logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                    logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Фрейм для ввода кода
         code_frame = tk.Frame(self)
@@ -164,7 +164,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(code_frame)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Метка и поле ввода
         code_label = tk.Label(
@@ -177,7 +177,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(code_label)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         self._code_entry = tk.Entry(
             code_frame,
@@ -193,7 +193,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(self._code_entry)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Кнопка подтверждения
         self._verify_btn = tk.Button(
@@ -209,7 +209,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(self._verify_btn)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Label для ошибок
         self._error_label = tk.Label(
@@ -224,7 +224,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(self._error_label)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Label для успеха
         self._success_label = tk.Label(
@@ -239,7 +239,7 @@ class MFAPanel(tk.Frame):
             try:
                 self._theme_manager.apply_to_widget(self._success_label)
             except (AttributeError, KeyError, tk.TclError) as e:
-                logging.getLogger(__name__).warning(f"Theme application failed: {e}")
+                logging.getLogger(__name__).warning("Theme application failed: %s", e)
 
         # Обновляем placeholder в зависимости от метода
         self._update_code_placeholder()
@@ -285,10 +285,12 @@ class MFAPanel(tk.Frame):
             return
 
         if self._selected_method == "totp":
-            self._code_entry.configure(show="*")
+            # TOTP коды должны быть видны пользователю для проверки
+            self._code_entry.configure(show="")
         elif self._selected_method == "backup_code":
             self._code_entry.configure(show="")
         else:
+            # Для неизвестных методов — скрываем
             self._code_entry.configure(show="*")
 
     def _on_verify_click(self) -> None:
@@ -417,3 +419,8 @@ class MFAPanel(tk.Frame):
         if self._selected_method not in self._methods and self._methods:
             self._method_var.set(self._methods[0])
             self._selected_method = self._methods[0]
+
+
+__all__ = [
+    "MFAPanel",
+]

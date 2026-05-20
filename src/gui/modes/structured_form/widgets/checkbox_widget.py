@@ -51,7 +51,7 @@ class CheckboxWidget(BaseFieldWidget):
             on_validate: Callback при валидации.
         """
         super().__init__(parent, field_def, on_change, on_validate)
-        self._var: tk.BooleanVar = tk.BooleanVar(master=self._tk_widget)
+        self._var: tk.BooleanVar = tk.BooleanVar(master=parent)
         self._checkbutton: Optional[tk.Checkbutton] = None
 
     def _create_widget(self) -> tk.Widget:

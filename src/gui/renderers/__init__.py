@@ -3,7 +3,6 @@
 Модуль предоставляет рендереры для отображения различных типов документов:
 - FreeFormRenderer: свободное текстовое редактирование
 - StructuredFormRenderer: структурированные формы
-- PrintPreviewRenderer: предпросмотр печати
 
 Example:
     >>> from src.gui.renderers import FreeFormRenderer, FreeFormDocument

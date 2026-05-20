@@ -7,6 +7,9 @@ Example:
     >>> service = KeyBindingsService()
     >>> bid = service.register("Ctrl+N", callback=new_doc, scope="global")
     >>> handled = service.dispatch(event)
+
+Version: 1.0
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -112,6 +115,9 @@ class KeyBindingsService:
     ) -> str:
         """Регистрирует keyboard shortcut.
 
+        Если shortcut уже зарегистрирован в том же scope, старый binding
+        автоматически удаляется для предотвращения утечки памяти.
+
         Args:
             shortcut: Строка вида ``Ctrl+N``, ``Ctrl+Shift+B``, ``Ctrl++``.
             callback: Функция без аргументов, вызываемая при нажатии.
@@ -128,6 +134,12 @@ class KeyBindingsService:
         tk_seq = self._shortcut_to_tk_sequence(normalized)
 
         with self._service_lock:
+            # Удаляем предыдущий binding для того же shortcut в том же scope
+            scope_map = self._scopes.setdefault(scope, {})
+            old_binding_id = scope_map.get(normalized)
+            if old_binding_id is not None:
+                self._bindings.pop(old_binding_id, None)
+
             self._counter += 1
             binding_id = f"kb-{self._counter:04d}"
             binding = _Binding(
@@ -139,7 +151,7 @@ class KeyBindingsService:
                 tk_sequence=tk_seq,
             )
             self._bindings[binding_id] = binding
-            self._scopes.setdefault(scope, {})[normalized] = binding_id
+            scope_map[normalized] = binding_id
 
         logger.debug(
             "Registered shortcut %s (id=%s) in scope=%s",
@@ -170,11 +182,17 @@ class KeyBindingsService:
         logger.debug("Unregistered binding_id=%s", binding_id)
         return True
 
-    def dispatch(self, event: tk.Event) -> bool:
+    def dispatch(self, event: tk.Event, scope: str = "global") -> bool:
         """Диспетчеризует событие клавиатуры.
+
+        Ищет binding в указанном scope, а затем в global scope
+        если указанный scope не содержит подходящего binding.
 
         Args:
             event: Событие Tkinter ``<Key>`` или аналогичное.
+            scope: Область действия для поиска (default: "global").
+                Если binding не найден в указанном scope, производится
+                fallback в global scope.
 
         Returns:
             True если событие было обработано (shortcut найден и вызван).
@@ -184,9 +202,20 @@ class KeyBindingsService:
             return False
 
         with self._service_lock:
-            scope_map = self._scopes.get("global", {})
-            binding_id = scope_map.get(shortcut)
-            binding = self._bindings.get(binding_id) if binding_id is not None else None
+            # Поиск в указанном scope
+            binding: Optional[_Binding] = None
+            if scope != "global":
+                scope_map = self._scopes.get(scope, {})
+                binding_id = scope_map.get(shortcut)
+                if binding_id is not None:
+                    binding = self._bindings.get(binding_id)
+
+            # Fallback в global scope
+            if binding is None:
+                scope_map = self._scopes.get("global", {})
+                binding_id = scope_map.get(shortcut)
+                if binding_id is not None:
+                    binding = self._bindings.get(binding_id)
 
         if binding is None:
             return False
@@ -390,3 +419,12 @@ class KeyBindingsService:
             return self._normalize_and_validate_shortcut(raw)
         except ValueError:
             return None
+
+
+# =============================================================================
+# MODULE EXPORTS
+# =============================================================================
+
+__all__: list[str] = [
+    "KeyBindingsService",
+]

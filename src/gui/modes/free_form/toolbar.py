@@ -19,10 +19,9 @@ Date: April 2026
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Callable, Optional, Tuple, cast
+from typing import Any, Callable, Optional
 
 from src.gui.components.base.widget import BaseWidget
-from src.gui.components.primitive.button import ThemedButton
 from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
 from src.gui.themes import get_theme_manager
@@ -99,7 +98,7 @@ class FreeFormToolbar(BaseWidget):
         self._tk_frame: Optional[tk.Frame] = None
         self._cpi_var: Optional[tk.StringVar] = None
         self._font_var: Optional[tk.StringVar] = None
-        self._buttons: dict[str, ThemedButton] = {}
+        self._buttons: dict[str, tk.Button] = {}
 
         # Dropdown widgets
         self._cpi_dropdown: Optional[tk.OptionMenu] = None
@@ -206,7 +205,7 @@ class FreeFormToolbar(BaseWidget):
         Args:
             parent: Родительский Frame.
         """
-        formatting_configs: list[Tuple[str, str, str]] = [
+        formatting_configs: list[tuple[str, str, str]] = [
             ("bold", "B", "Ж"),
             ("italic", "I", "К"),
             ("underline", "U", "Ч"),
@@ -233,7 +232,7 @@ class FreeFormToolbar(BaseWidget):
             self._theme_manager.apply_to_widget(button)
 
             # Сохраняем ссылку для обновления состояния
-            self._buttons[name] = button  # type: ignore[assignment]
+            self._buttons[name] = button
 
     def _create_script_buttons(self, parent: tk.Frame) -> None:
         """Создаёт кнопки subscript/superscript.
@@ -241,7 +240,7 @@ class FreeFormToolbar(BaseWidget):
         Args:
             parent: Родительский Frame.
         """
-        script_configs: list[Tuple[str, str]] = [
+        script_configs: list[tuple[str, str]] = [
             ("subscript", "x₂"),
             ("superscript", "x²"),
         ]
@@ -266,7 +265,7 @@ class FreeFormToolbar(BaseWidget):
             button.pack(side=tk.LEFT, padx=1)
             self._theme_manager.apply_to_widget(button)
 
-            self._buttons[name] = button  # type: ignore[assignment]
+            self._buttons[name] = button
 
     def _create_separator(self, parent: tk.Frame) -> None:
         """Создаёт разделитель между группами элементов.
@@ -300,7 +299,7 @@ class FreeFormToolbar(BaseWidget):
         if name not in self._buttons:
             return
 
-        button = cast(tk.Button, self._buttons[name])
+        button = self._buttons[name]
         is_active = name in self._active_formats
 
         bg_color = self._get_toggle_color(is_active)
@@ -575,7 +574,7 @@ class FreeFormToolbar(BaseWidget):
 
         # Buttons
         for button in self._buttons.values():
-            cast(tk.Button, button).configure(**{"state": "normal" if enabled else "disabled"})
+            button.configure(**{"state": "normal" if enabled else "disabled"})
 
     def set_on_cpi_change(self, callback: Callable[[int], None]) -> None:
         """Устанавливает callback для изменения CPI.
@@ -619,4 +618,4 @@ class FreeFormToolbar(BaseWidget):
         self._tk_frame = None
 
 
-__all__ = ["FreeFormToolbar"]
+__all__: list[str] = ["FreeFormToolbar"]

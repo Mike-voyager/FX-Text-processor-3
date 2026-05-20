@@ -103,7 +103,7 @@ class AppContext:
         self.services: dict[str, Any] = {}
 
         # Initialize crypto service with selected profile
-        self.crypto_service: CryptoService = CryptoService(profile=crypto_profile)
+        self.crypto_service: CryptoService = CryptoService.get_instance(profile=crypto_profile)
 
     def register_service(self, name: str, service: Any) -> None:
         """

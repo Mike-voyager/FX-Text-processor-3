@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable, Final, Optional
+from typing import Callable, Final, Literal, Optional
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.layout.layout_constants import PADDING_NORMAL, TOOLBAR_HEIGHT
@@ -682,9 +682,7 @@ class FormatToolbar(BaseWidget):
             >>> toolbar.set_fix_validation_enabled(False)
         """
         if self._fix_button is not None:
-            from typing import Literal
-
-            state: Literal["normal", "active", "disabled"] = "normal" if enabled else "disabled"
+            state: Literal["normal", "disabled"] = "normal" if enabled else "disabled"
             self._fix_button.config(state=state)
 
     def set_on_fix_validation_callback(self, callback: Optional[Callable[[], None]]) -> None:

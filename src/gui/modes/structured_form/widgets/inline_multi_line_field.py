@@ -139,7 +139,7 @@ class InlineMultiLineField(BaseField):
         """
         _ = event
         if self._text_widget and self._placeholder:
-            current = self._text_widget.get("1.0", tk.END).strip()
+            current = self._text_widget.get("1.0", tk.END).rstrip("\n")
             if not current:
                 self._text_widget.insert("1.0", self._placeholder)
                 self._text_widget.config(fg="gray")

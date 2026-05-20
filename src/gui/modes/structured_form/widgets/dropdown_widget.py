@@ -53,7 +53,7 @@ class DropdownWidget(BaseFieldWidget):
             on_validate: Callback при валидации.
         """
         super().__init__(parent, field_def, on_change, on_validate)
-        self._var: tk.StringVar = tk.StringVar(master=self._tk_widget)
+        self._var: tk.StringVar = tk.StringVar(master=parent)
         self._combobox: Optional[ttk.Combobox] = None
         self._options: tuple[str, ...] = field_def.options or ()
 

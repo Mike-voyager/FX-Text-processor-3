@@ -83,6 +83,9 @@ class AutocompleteServiceGui:
         self._core_service: AutocompleteService = core_service or AutocompleteService()
         self._cache: dict[CacheKey, CacheEntry] = {}
         self._pending_after_id: Optional[str] = None
+        self._pending_search_params: Optional[
+            tuple[str, str, str, Callable[[list[tuple[str, int]]], None], int]
+        ] = None
         self._debounce_ms: int = DEBOUNCE_MS
         self._ttl_seconds: int = TTL_SECONDS
         self._root: Optional[tk.Tk] = root
@@ -206,11 +209,11 @@ class AutocompleteServiceGui:
         """Выполняет отложенный поиск и вызывает callback."""
         self._pending_after_id = None
 
-        if not hasattr(self, "_pending_search_params"):
+        if self._pending_search_params is None:
             return
 
         field_id, document_index, query, callback, limit = self._pending_search_params
-        delattr(self, "_pending_search_params")
+        self._pending_search_params = None
 
         results = self.search(field_id, document_index, query, limit)
         callback(results)

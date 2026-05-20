@@ -48,7 +48,7 @@ COLOR_SELECTED: Final[str] = "#cce5ff"
 COLOR_ERROR: Final[str] = "#f8d7da"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FieldOption:
     """Опция для DROPDOWN/RADIO_GROUP поля.
 

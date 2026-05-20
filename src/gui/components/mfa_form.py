@@ -521,7 +521,6 @@ class MFAForm(tk.Frame):
         if self._submit_btn is not None:
             self._submit_btn.config(state="disabled", text="Authenticating...")
 
-        self._show_error("")
         self._show_error("Коснитесь FIDO2 ключа...")
 
         try:

@@ -79,8 +79,10 @@ VALID_CATEGORIES: Final[frozenset[str]] = frozenset(
 # ==============================================================================
 
 
-class NotificationPriority(Enum):
+class NotificationPriority(int, Enum):
     """Уровни приоритета уведомлений.
+
+    Наследует int для поддержки операций сравнения (<, >, <=, >=).
 
     Attributes:
         LOW: Фоновые уведомления, минимальное внимание
@@ -93,6 +95,8 @@ class NotificationPriority(Enum):
         <NotificationPriority.LOW: 1>
         >>> NotificationPriority.CRITICAL.value
         4
+        >>> NotificationPriority.LOW < NotificationPriority.NORMAL
+        True
     """
 
     LOW = 1

@@ -73,7 +73,7 @@ TEMPLATE_CATEGORIES: Final[list[str]] = [
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExportResult:
     """Результат экспорта шаблона.
 
@@ -176,8 +176,10 @@ class TemplateExportDialog(BaseDialog):
         self._canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Bind mouse wheel
-        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Bind mouse wheel (только для canvas, не bind_all)
+        self._canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self._canvas.bind("<Button-4>", self._on_mousewheel_linux)
+        self._canvas.bind("<Button-5>", self._on_mousewheel_linux)
 
         # Header
         self._create_header()
@@ -201,8 +203,15 @@ class TemplateExportDialog(BaseDialog):
         self._create_buttons()
 
     def _on_mousewheel(self, event: tk.Event[Any]) -> None:
-        """Обработчик прокрутки мышью."""
+        """Обработчик прокрутки мышью (Windows/macOS)."""
         self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _on_mousewheel_linux(self, event: tk.Event[Any]) -> None:
+        """Обработчик прокрутки мышью (Linux)."""
+        if event.num == 4:
+            self._canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self._canvas.yview_scroll(1, "units")
 
     def _create_header(self) -> None:
         """Создаёт заголовок диалога."""
@@ -405,7 +414,7 @@ class TemplateExportDialog(BaseDialog):
             self._update_floppy_ui(analysis)
 
         except Exception as e:
-            logger.warning(f"Failed to calculate template size: {e}")
+            logger.warning("Failed to calculate template size: %s", e)
             self._original_size = 0
             self._optimized_size = 0
 
@@ -450,9 +459,6 @@ class TemplateExportDialog(BaseDialog):
         """
         import uuid
         from datetime import datetime
-
-        # Get description from text widget
-        self._desc_text.get("1.0", tk.END).strip()
 
         # Build template from form data
         template = FormTemplate(
@@ -538,11 +544,11 @@ class TemplateExportDialog(BaseDialog):
                 version=template.version,
             )
 
-            logger.info(f"Template exported: {saved_path}, signed={signed}")
+            logger.info("Template exported: %s, signed=%s", saved_path, signed)
             self.destroy()
 
         except Exception as e:
-            logger.error(f"Template export failed: {e}")
+            logger.error("Template export failed: %s", e)
             messagebox.showerror("Export Error", f"Failed to export template:\n{e}", parent=self)
 
     def _on_cancel(self) -> None:

@@ -155,11 +155,12 @@ class TrustChainDialog(BaseDialog):
         style.configure("TrustTree.Treeview", background=COLOR_BG, foreground=COLOR_TEXT)
         style.configure("TrustTree.Treeview.Heading", font=("Helvetica", 10, "bold"))
 
-        # Tag configurations for colored rows
-        self._tree.tag_configure("valid", foreground=COLOR_VALID)
-        self._tree.tag_configure("warning", foreground=COLOR_WARNING)
-        self._tree.tag_configure("invalid", foreground=COLOR_INVALID)
-        self._tree.tag_configure("info", foreground=COLOR_INFO)
+        # Tag configurations for colored rows (безопасно: _tree создан в _create_ui)
+        if hasattr(self, "_tree") and self._tree is not None:
+            self._tree.tag_configure("valid", foreground=COLOR_VALID)
+            self._tree.tag_configure("warning", foreground=COLOR_WARNING)
+            self._tree.tag_configure("invalid", foreground=COLOR_INVALID)
+            self._tree.tag_configure("info", foreground=COLOR_INFO)
 
     def _create_ui(self) -> None:
         """Создаёт UI компоненты диалога."""

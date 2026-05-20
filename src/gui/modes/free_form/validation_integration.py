@@ -27,7 +27,7 @@ Date: April 2026
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.gui.components.codepage_validator import CodepageValidator, ValidationResult
 from src.gui.views import ToastLevel
@@ -87,7 +87,7 @@ class FreeFormValidationController:
         self._validator: CodepageValidator = CodepageValidator()
         self._toast_service: Optional[ToastServiceProtocol] = toast_service
         self._current_invalid_count: int = 0
-        self._validation_results: List[ValidationResult] = []
+        self._validation_results: list[ValidationResult] = []
         self._last_fixed_count: int = 0
 
         # Устанавливаем callback для кнопки исправления
@@ -194,7 +194,7 @@ class FreeFormValidationController:
         """
         return self._current_invalid_count
 
-    def get_validation_results(self) -> List[ValidationResult]:
+    def get_validation_results(self) -> list[ValidationResult]:
         """Возвращает детальные результаты валидации.
 
         Returns:
@@ -235,7 +235,7 @@ class FreeFormValidationController:
         """
         if self._toast_service is not None:
             self._toast_service.show(
-                message="Non-PC866 characters detected",
+                message="Обнаружены символы не из PC866",
                 level=ToastLevel.WARNING,
             )
 
@@ -246,9 +246,12 @@ class FreeFormValidationController:
         """
         if self._toast_service is not None:
             count = self._last_fixed_count
-            message = f"Fixed {count} character" + ("s" if count != 1 else "")
             if count == 0:
-                message = "No characters fixed"
+                message = "Символы для исправления не найдены"
+            elif count == 1:
+                message = "Исправлен 1 символ"
+            else:
+                message = f"Исправлено {count} символов"
             self._toast_service.show(
                 message=message,
                 level=ToastLevel.SUCCESS,
@@ -276,6 +279,6 @@ class FreeFormValidationController:
         self._update_toolbar_ui()
 
 
-__all__ = [
+__all__: list[str] = [
     "FreeFormValidationController",
 ]

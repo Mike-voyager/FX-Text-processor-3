@@ -51,7 +51,7 @@ logger: Final = logging.getLogger(__name__)
 DIALOG_WIDTH: Final[int] = 500
 DIALOG_HEIGHT: Final[int] = 600
 
-# Colorа (fallback, если ThemeManager недоступен)
+# Colors (fallback, если ThemeManager недоступен)
 COLOR_BG: Final[str] = "#f8f9fa"
 COLOR_FG: Final[str] = "#2c3e50"
 COLOR_ACCENT: Final[str] = "#3498db"
@@ -184,10 +184,12 @@ class AutoLockSettingsDialog(BaseDialog):
         self._timeout_scale: Optional[tk.Scale] = None
         self._timeout_label: Optional[tk.Label] = None
         self._preset_buttons: list[tk.Button] = []
+        self._master_checkbox: tk.Checkbutton = None  # type: ignore[assignment]
         self._options_frame: Optional[tk.LabelFrame] = None
         self._warning_label: Optional[tk.Label] = None
         self._status_label: Optional[tk.Label] = None
         self._idle_timer_id: Optional[str] = None
+        self._save_btn: tk.Button = None  # type: ignore[assignment]
 
         # Configure window
         self._configure_window()
@@ -690,7 +692,8 @@ class AutoLockSettingsDialog(BaseDialog):
         # Schedule next update
         if self.winfo_exists():
             self._idle_timer_id = self.after(IDLE_UPDATE_INTERVAL, self._update_idle_display)
-            self._after_ids.append(self._idle_timer_id)
+            if self._idle_timer_id is not None:
+                self._after_ids.append(self._idle_timer_id)
 
     def _save_settings(self) -> None:
         """Сохраняет настройки и закрывает диалог."""
@@ -731,7 +734,7 @@ class AutoLockSettingsDialog(BaseDialog):
         if self._idle_timer_id is not None:
             self.after_cancel(self._idle_timer_id)
 
-        self.destroy()
+        self.close(self._result)
 
     def _check_restart_required(self, new_config: LockConfig) -> bool:
         """Проверяет, требуется ли перезапуск сервиса.
@@ -760,8 +763,7 @@ class AutoLockSettingsDialog(BaseDialog):
         if self._idle_timer_id is not None:
             self.after_cancel(self._idle_timer_id)
 
-        self._result = None
-        self.destroy()
+        self.close(None)
 
     def show(self) -> Optional[AutoLockSettingsResult]:
         """Показывает диалог модально и возвращает результат.
@@ -769,7 +771,7 @@ class AutoLockSettingsDialog(BaseDialog):
         Returns:
             AutoLockSettingsResult с новой конфигурацией или None если отменено.
         """
-        self.wait_window()
+        super().show()
         return self._result
 
 

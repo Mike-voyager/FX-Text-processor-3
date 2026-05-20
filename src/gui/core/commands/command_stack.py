@@ -136,7 +136,7 @@ class CommandStack:
             try:
                 cmd.execute()
             except Exception as exc:
-                raise RuntimeError(f"Command execution failed: {exc}") from exc
+                raise RuntimeError(f"Ошибка выполнения команды: {exc}") from exc
 
             self._undo_stack.append(cmd)
             self._redo_stack.clear()
@@ -172,7 +172,7 @@ class CommandStack:
             except Exception as exc:
                 # Возвращаем команду обратно в стек при ошибке
                 self._undo_stack.append(cmd)
-                raise RuntimeError(f"Undo failed: {exc}") from exc
+                raise RuntimeError(f"Ошибка отмены команды: {exc}") from exc
 
             self._redo_stack.append(cmd)
 
@@ -204,7 +204,7 @@ class CommandStack:
             except Exception as exc:
                 # Возвращаем команду обратно в стек при ошибке
                 self._redo_stack.append(cmd)
-                raise RuntimeError(f"Redo failed: {exc}") from exc
+                raise RuntimeError(f"Ошибка повтора команды: {exc}") from exc
 
             self._undo_stack.append(cmd)
 

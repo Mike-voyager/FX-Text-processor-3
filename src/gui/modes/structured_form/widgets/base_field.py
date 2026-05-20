@@ -137,7 +137,7 @@ class BaseField(tk.Frame):
             self._is_valid = True
         else:
             self._error_label.config(text=message)
-            # Переупаковываем, если был скрыт
+            # Переупаковываем под полем ввода (если подкласс добавил виджеты между)
             self._error_label.pack(fill=tk.X, pady=(2, 0))
             self._is_valid = False
 

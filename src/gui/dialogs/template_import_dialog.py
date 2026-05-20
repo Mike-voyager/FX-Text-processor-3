@@ -67,7 +67,7 @@ COLOR_WARNING: Final[str] = "#ffc107"
 MAX_FLOPPY_SIZE: Final[int] = 1_350_000  # ~1.35MB safety margin
 
 
-@dataclass
+@dataclass(frozen=True)
 class ImportResult:
     """Результат импорта шаблона.
 
@@ -298,7 +298,7 @@ class TemplateImportDialog(BaseDialog):
 
     def __init__(
         self,
-        parent: Optional[tk.Widget],
+        parent: tk.Widget,
         template_manager: TemplateManager,
         trust_chain_service: TrustChainService,
         floppy_optimizer: FloppyOptimizer,
@@ -317,12 +317,6 @@ class TemplateImportDialog(BaseDialog):
             on_new_document: Callback при создании документа из шаблона (template_id).
             on_print_blank: Callback при печати бланка из шаблона (template_id).
         """
-        # Handle None parent
-        if parent is None:
-            # Create a temporary root window if no parent provided
-            root = tk.Tk()
-            parent = cast(tk.Widget, root)
-
         super().__init__(parent)
 
         self._parent: tk.Widget = parent
@@ -631,10 +625,6 @@ class TemplateImportDialog(BaseDialog):
             return
 
         try:
-            # Read file data
-            with open(self._selected_path, "rb") as f:
-                _ = f.read()
-
             # Check if template has signature
             is_valid = False
             if self._template.signature:

@@ -19,7 +19,7 @@ Date: April 2026
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Optional
+from typing import Any
 
 from src.gui.security.components.secure_entry import SecureEntry
 
@@ -100,16 +100,15 @@ class WipeButton(tk.Button):
             raise TypeError(f"target must be SecureEntry, got {type(target).__name__}")
         self._target = target
 
-    def get_target(self) -> Optional[SecureEntry]:
+    def get_target(self) -> SecureEntry:
         """Возвращает текущий связанный SecureEntry.
 
         Returns:
-            Связанный SecureEntry или None.
+            Связанный SecureEntry.
 
         Example:
             >>> target = wipe_btn.get_target()
-            >>> if target:
-            ...     print(target.widget_id)
+            >>> print(type(target))
         """
         return self._target
 

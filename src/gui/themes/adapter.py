@@ -97,7 +97,7 @@ class ThemeAdapter:
         attr = _COLOR_KEY_MAP.get(key, f"{key}_color")
         color: Optional[str] = getattr(self._theme, attr, None)
         if color is None:
-            raise KeyError(f"Color '{key}' not found in theme '{self.name}'")
+            raise KeyError(f"Цвет '{key}' не найден в теме '{self.name}'")
         return color
 
     def get_font(self, key: str) -> tuple[str, int, str]:

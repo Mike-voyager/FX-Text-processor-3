@@ -373,14 +373,14 @@ class TestWidgetCategory:
         assert WidgetCategory.CUSTOM.value == "custom"
 
     def test_label_method(self) -> None:
-        """label() возвращает английские названия."""
-        assert WidgetCategory.CONTAINER.label() == "Container"
-        assert WidgetCategory.INPUT.label() == "Input"
-        assert WidgetCategory.DISPLAY.label() == "Display"
-        assert WidgetCategory.DIALOG.label() == "Dialog"
-        assert WidgetCategory.MENU.label() == "Menu"
-        assert WidgetCategory.TOOLBAR.label() == "Toolbar"
-        assert WidgetCategory.CUSTOM.label() == "Custom"
+        """label() возвращает локализованные русские названия."""
+        assert WidgetCategory.CONTAINER.label() == "Контейнер"
+        assert WidgetCategory.INPUT.label() == "Ввод"
+        assert WidgetCategory.DISPLAY.label() == "Отображение"
+        assert WidgetCategory.DIALOG.label() == "Диалог"
+        assert WidgetCategory.MENU.label() == "Меню"
+        assert WidgetCategory.TOOLBAR.label() == "Панель инструментов"
+        assert WidgetCategory.CUSTOM.label() == "Пользовательский"
 
     def test_from_str_valid(self) -> None:
         """from_str() парсит валидные значения (case-insensitive)."""
@@ -405,10 +405,10 @@ class TestWidgetComplexity:
         assert WidgetComplexity.COMPOSITE.value == "composite"
 
     def test_label_method(self) -> None:
-        """label() возвращает английские названия."""
-        assert WidgetComplexity.PRIMITIVE.label() == "Primitive"
-        assert WidgetComplexity.COMPOUND.label() == "Compound"
-        assert WidgetComplexity.COMPOSITE.label() == "Composite"
+        """label() возвращает локализованные русские названия."""
+        assert WidgetComplexity.PRIMITIVE.label() == "Примитивный"
+        assert WidgetComplexity.COMPOUND.label() == "Составной"
+        assert WidgetComplexity.COMPOSITE.label() == "Композитный"
 
     def test_from_str_valid(self) -> None:
         """from_str() парсит валидные значения (case-insensitive)."""

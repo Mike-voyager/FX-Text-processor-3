@@ -1,8 +1,8 @@
-"""Base widget classes.
+"""Базовые классы виджетов GUI.
 
-Provides:
-- BaseWidget: "dumb" widget with explicit lifecycle
-- SmartBaseWidget: widget with local edit state
+Предоставляет:
+- BaseWidget: «глупый» виджет с явным жизненным циклом mount/unmount.
+- SmartBaseWidget: виджет с локальным состоянием редактирования.
 
 Example:
     >>> from src.gui.components.base.widget import BaseWidget
@@ -15,7 +15,7 @@ Version: 1.0
 
 from src.gui.components.base.widget import BaseWidget, SmartBaseWidget
 
-__all__ = [
+__all__: list[str] = [
     "BaseWidget",
     "SmartBaseWidget",
 ]

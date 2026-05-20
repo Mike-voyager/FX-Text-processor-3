@@ -345,7 +345,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
         self._toggle_all_btn = tk.Button(
             header,
-            text="Show history",
+            text="Показать историю",
             font=("TkDefaultFont", 8),
             command=self._toggle_all_history,
         )
@@ -392,7 +392,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         Args:
             parent: Родительский фрейм.
         """
-        add_frame = tk.LabelFrame(parent, text="Add annotation", padx=5, pady=5)
+        add_frame = tk.LabelFrame(parent, text="Добавить аннотацию", padx=5, pady=5)
         add_frame.pack(fill=tk.X, pady=(5, 0))
 
         # Выбор типа
@@ -421,7 +421,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
         tk.Button(
             btn_frame,
-            text="Add",
+            text="Добавить",
             bg="#3498db",
             fg="white",
             font=("TkDefaultFont", 9, "bold"),
@@ -444,7 +444,7 @@ class WorkflowAnnotationPanel(BaseWidget):
         if not self._annotations:
             tk.Label(
                 self._annotations_frame,
-                text="No annotations",
+                text="Нет аннотаций",
                 fg="#7f8c8d",
                 font=("TkDefaultFont", 10, "italic"),
             ).pack(pady=20)
@@ -473,6 +473,7 @@ class WorkflowAnnotationPanel(BaseWidget):
             bg="white",
         )
         card.pack(fill=tk.X, pady=(0, 8))
+        card._annotation_id = annotation.annotation_id  # type: ignore[attr-defined]
 
         # Верхняя строка: иконка + автор + роль + время + статус
         header = tk.Frame(card, bg="white")
@@ -567,14 +568,14 @@ class WorkflowAnnotationPanel(BaseWidget):
 
             tk.Button(
                 actions,
-                text="Reply",
+                text="Ответить",
                 font=("TkDefaultFont", 8),
                 command=partial(self._on_reply_clicked, annotation.annotation_id),
             ).pack(side=tk.LEFT, padx=(0, 5))
 
             tk.Button(
                 actions,
-                text="Close",
+                text="Закрыть",
                 font=("TkDefaultFont", 8),
                 bg="#27ae60",
                 fg="white",
@@ -588,7 +589,7 @@ class WorkflowAnnotationPanel(BaseWidget):
 
             history_btn = tk.Button(
                 card,
-                text=f"History ({len(annotation.replies)}) {'▼' if visible else '▶'}",
+                text=f"История ({len(annotation.replies)}) {'▼' if visible else '▶'}",
                 font=("TkDefaultFont", 8),
                 bg="white",
                 command=partial(self._toggle_history, annotation.annotation_id),
@@ -726,36 +727,56 @@ class WorkflowAnnotationPanel(BaseWidget):
         if reply_key in self._reply_texts:
             return
 
-        # Находим карточку
-        for card in self._annotations_frame.winfo_children() if self._annotations_frame else []:
-            # Создаём поле для ввода ответа внутри карточки
-            reply_frame = tk.Frame(card, bg="white")
-            reply_frame.pack(fill=tk.X, pady=(5, 0))
+        # Находим карточку по annotation_id (сохраняем в widget dict)
+        target_card: Optional[tk.Widget] = None
+        if self._annotations_frame is not None:
+            for card in self._annotations_frame.winfo_children():
+                # Проверяем, соответствует ли карточка нужной аннотации
+                if hasattr(card, "_annotation_id"):
+                    card_annotation_id = card._annotation_id  # noqa: SLF001
+                    if card_annotation_id == annotation_id:
+                        target_card = card
+                        break
 
-            text_widget = tk.Text(reply_frame, height=2, width=30, font=("TkDefaultFont", 8))
-            text_widget.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            self._reply_texts[reply_key] = text_widget
+        # Если не нашли по атрибуту, ищем по позиции (порядок карточек = порядок аннотаций)
+        if target_card is None and self._annotations_frame is not None:
+            children = self._annotations_frame.winfo_children()
+            for i, annotation in enumerate(self._annotations):
+                if annotation.annotation_id == annotation_id and i < len(children):
+                    target_card = children[i]
+                    break
 
-            def send_reply(
-                aid: str = annotation_id,
-                tw: tk.Text = text_widget,
-                rf: tk.Frame = reply_frame,
-            ) -> None:
-                text = tw.get("1.0", tk.END).strip()
-                if not text:
-                    return
-                self._do_reply(aid, text)
-                tw.destroy()
-                rf.destroy()
+        if target_card is None:
+            return
+
+        # Создаём поле для ввода ответа внутри карточки
+        reply_frame = tk.Frame(target_card, bg="white")
+        reply_frame.pack(fill=tk.X, pady=(5, 0))
+
+        text_widget = tk.Text(reply_frame, height=2, width=30, font=("TkDefaultFont", 8))
+        text_widget.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self._reply_texts[reply_key] = text_widget
+
+        def send_reply(
+            aid: str = annotation_id,
+            tw: tk.Text = text_widget,
+            rf: tk.Frame = reply_frame,
+        ) -> None:
+            text = tw.get("1.0", tk.END).strip()
+            if not text:
+                return
+            self._do_reply(aid, text)
+            tw.destroy()
+            rf.destroy()
+            if reply_key in self._reply_texts:
                 del self._reply_texts[reply_key]
 
-            tk.Button(
-                reply_frame,
-                text="Send",
-                font=("TkDefaultFont", 8),
-                command=send_reply,
-            ).pack(side=tk.RIGHT, padx=(5, 0))
-            break
+        tk.Button(
+            reply_frame,
+            text="Отправить",
+            font=("TkDefaultFont", 8),
+            command=send_reply,
+        ).pack(side=tk.RIGHT, padx=(5, 0))
 
     def _do_reply(self, parent_id: str, text: str) -> None:
         """Выполняет добавление ответа.

@@ -29,8 +29,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
-    Any,
     Callable,
+    Generator,
     Optional,
     Protocol,
     TypeVar,
@@ -141,8 +141,6 @@ class LifecycleAware(Protocol):
     Methods:
         mount: Монтирует компонент в родительский контейнер
         unmount: Демонтирует компонент и освобождает ресурсы
-        is_mounted: Проверяет, смонтирован ли компонент
-        get_widget: Возвращает Tkinter виджет
 
     Example:
         >>> class MyWidget(LifecycleAware):
@@ -150,10 +148,6 @@ class LifecycleAware(Protocol):
         ...         return tk.Button(parent, text="Click")
         ...     def unmount(self) -> None:
         ...         pass
-        ...     def is_mounted(self) -> bool:
-        ...         return True
-        ...     def get_widget(self) -> Optional[tk.Widget]:
-        ...         return self._widget
     """
 
     def mount(self, parent: tk.Widget) -> tk.Widget:
@@ -167,6 +161,18 @@ class LifecycleAware(Protocol):
 
         Raises:
             ValueError: Если widget_id пустой или уже зарегистрирован.
+        """
+        ...
+
+    def unmount(self) -> None:
+        """Демонтирует компонент и освобождает ресурсы.
+
+        Вызывается SafeMount при выходе из контекста для гарантии
+        корректной очистки ресурсов компонента.
+
+        Security:
+            При демонтировании sensitive виджетов должна выполняться
+            очистка памяти (secure_zero) для чувствительных данных.
         """
         ...
 
@@ -478,7 +484,7 @@ def SafeMount(
     component: LifecycleAware,
     parent: tk.Widget,
     manager: Optional["LifecycleManager"] = None,
-) -> Any:
+) -> Generator[Optional[tk.Widget], None, None]:
     """Контекстный менеджер для безопасного mount/unmount.
 
     Автоматически монтирует компонент при входе в контекст
@@ -505,6 +511,7 @@ def SafeMount(
     """
     widget: Optional[tk.Widget] = None
     registered = False
+    widget_id: str = ""
 
     try:
         # Монтируем компонент
@@ -519,8 +526,7 @@ def SafeMount(
                 manager.transition_to(widget_id, LifecycleState.MOUNTED)
                 registered = True
             except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110
-                _wid = widget_id if "widget_id" in locals() else "unknown"
-                logging.exception(f"Registration error for {_wid}: {e}")
+                logging.exception(f"Registration error for {widget_id or 'unknown'}: {e}")
                 pass  # noqa: S110
 
         yield widget
@@ -538,11 +544,10 @@ def SafeMount(
                     manager.transition_to(widget_id, LifecycleState.UNMOUNTED)
                     manager.unregister(widget_id)
                 except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
-                    _wid = widget_id if "widget_id" in locals() else "unknown"
-                    logging.exception(f"Cleanup error for {_wid}: {e}")
+                    logging.exception(f"Cleanup error for {widget_id or 'unknown'}: {e}")
                     pass  # noqa: S110
 
-            component.unmount()  # type: ignore[attr-defined]
+            component.unmount()
         except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
             logging.exception(f"Critical cleanup error: {e}")
             pass  # Игнорируем ошибки при cleanup  # noqa: S110

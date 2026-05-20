@@ -152,7 +152,7 @@ class BarcodeController:
             result = dialog.show()
 
             if result:
-                logger.info(f"Barcode selected: {result.barcode_type}, mode: {result.mode.name}")
+                logger.info("Barcode selected: %s, mode: %s", result.barcode_type, result.mode.name)
 
                 # Check for hardware/software conflict
                 if self._check_hardware_conflict(result):
@@ -164,7 +164,7 @@ class BarcodeController:
             return result
 
         except (OSError, ValueError) as e:
-            logger.error(f"Error showing barcode dialog: {e}")
+            logger.error("Error showing barcode dialog: %s", e)
             messagebox.showerror(
                 "Ошибка",
                 f"Не удалось открыть диалог штрих-кода:\n{e}",
@@ -253,7 +253,7 @@ class BarcodeController:
             return result
 
         except (OSError, ValueError) as e:
-            logger.error(f"Error showing QR dialog: {e}")
+            logger.error("Error showing QR dialog: %s", e)
             messagebox.showerror(
                 "Ошибка",
                 f"Не удалось открыть диалог QR:\n{e}",
@@ -370,7 +370,10 @@ class BarcodeController:
             else:
                 # Fallback: just log
                 logger.info(
-                    f"Would insert barcode: {result.barcode_type}={result.data} in {mode_str} mode"
+                    "Would insert barcode: %s=%s in %s mode",
+                    result.barcode_type,
+                    result.data,
+                    mode_str,
                 )
                 success = True
 
@@ -380,7 +383,7 @@ class BarcodeController:
             return success
 
         except (OSError, ValueError) as e:
-            logger.error(f"Error inserting barcode: {e}")
+            logger.error("Error inserting barcode: %s", e)
             messagebox.showerror(
                 "Ошибка",
                 f"Не удалось вставить штрих-код:\n{e}",
@@ -412,7 +415,7 @@ class BarcodeController:
                 )
             else:
                 # Fallback: just log
-                logger.info(f"Would insert QR: {result.settings.data[:50]}...")
+                logger.info("Would insert QR: %s...", result.settings.data[:50])
                 success = True
 
             if success and self._on_insert_callback:
@@ -421,7 +424,7 @@ class BarcodeController:
             return success
 
         except (OSError, ValueError) as e:
-            logger.error(f"Error inserting QR: {e}")
+            logger.error("Error inserting QR: %s", e)
             messagebox.showerror(
                 "Ошибка",
                 f"Не удалось вставить QR-код:\n{e}",
@@ -563,3 +566,11 @@ def format_barcode_data(barcode_type: str, data: str) -> str:
         return data.upper()
 
     return data
+
+
+__all__ = [
+    "BarcodeController",
+    "BarcodeViewProtocol",
+    "validate_barcode_data",
+    "format_barcode_data",
+]

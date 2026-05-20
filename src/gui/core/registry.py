@@ -95,13 +95,13 @@ class WidgetCategory(str, Enum):
             'Контейнер'
         """
         labels = {
-            WidgetCategory.CONTAINER: "Container",
-            WidgetCategory.INPUT: "Input",
-            WidgetCategory.DISPLAY: "Display",
-            WidgetCategory.DIALOG: "Dialog",
-            WidgetCategory.MENU: "Menu",
-            WidgetCategory.TOOLBAR: "Toolbar",
-            WidgetCategory.CUSTOM: "Custom",
+            WidgetCategory.CONTAINER: "Контейнер",
+            WidgetCategory.INPUT: "Ввод",
+            WidgetCategory.DISPLAY: "Отображение",
+            WidgetCategory.DIALOG: "Диалог",
+            WidgetCategory.MENU: "Меню",
+            WidgetCategory.TOOLBAR: "Панель инструментов",
+            WidgetCategory.CUSTOM: "Пользовательский",
         }
         return labels[self]
 
@@ -159,9 +159,9 @@ class WidgetComplexity(str, Enum):
             Локализованное название
         """
         labels = {
-            WidgetComplexity.PRIMITIVE: "Primitive",
-            WidgetComplexity.COMPOUND: "Compound",
-            WidgetComplexity.COMPOSITE: "Composite",
+            WidgetComplexity.PRIMITIVE: "Примитивный",
+            WidgetComplexity.COMPOUND: "Составной",
+            WidgetComplexity.COMPOSITE: "Композитный",
         }
         return labels[self]
 

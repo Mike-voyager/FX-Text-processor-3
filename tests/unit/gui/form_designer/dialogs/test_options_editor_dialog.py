@@ -8,6 +8,7 @@ Coverage target: ≥90%
 
 from __future__ import annotations
 
+import dataclasses
 import tkinter as tk
 from unittest.mock import patch
 
@@ -112,11 +113,10 @@ class TestFieldOption:
         assert "Да" in repr_str
 
     def test_field_option_immutable(self):
-        """Тест immutability (frozen-like) через dataclass."""
-        # FieldOption не frozen, но проверим атрибуты
+        """Тест immutability (frozen) через dataclass."""
         option = FieldOption("yes", "Да", "Yes")
-        option.value = "no"  # Можно изменить
-        assert option.value == "no"
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            option.value = "no"
 
 
 # =============================================================================

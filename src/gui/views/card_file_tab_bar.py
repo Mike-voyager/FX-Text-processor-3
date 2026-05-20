@@ -194,6 +194,7 @@ class CardFileTabBar(BaseWidget):
         self._tk_scroll_frame: Optional[tk.Frame] = None
         self._tk_new_btn: Optional[tk.Button] = None
         self._tk_context_menu: Optional[tk.Menu] = None
+        self._canvas_window_id: Optional[int] = None
 
         # Scroll state
         self._scroll_x: int = 0
@@ -564,7 +565,7 @@ class CardFileTabBar(BaseWidget):
             height=TABBAR_HEIGHT - 2,
             bg=_theme_color("tab_inactive_bg"),
         )
-        self._tk_canvas.create_window(
+        self._canvas_window_id = self._tk_canvas.create_window(
             (0, 0),
             window=self._tk_scroll_frame,
             anchor="nw",
@@ -613,6 +614,7 @@ class CardFileTabBar(BaseWidget):
         self._tk_scroll_frame = None
         self._tk_canvas = None
         self._tk_frame = None
+        self._canvas_window_id = None
 
     def _is_valid_document_id(self, document_id: str) -> bool:
         """Проверяет валидность document_id.
@@ -896,6 +898,11 @@ class CardFileTabBar(BaseWidget):
         if bbox:
             self._tk_canvas.config(scrollregion=bbox)
             self._max_scroll = max(0, bbox[2] - self._tk_canvas.winfo_width())
+
+        # Resize canvas window to match scroll frame content width
+        if self._canvas_window_id is not None:
+            req_width = self._tk_scroll_frame.winfo_reqwidth()
+            self._tk_canvas.itemconfig(self._canvas_window_id, width=req_width)
 
     def _scroll_to_tab(self, document_id: str) -> None:
         """Прокручивает к указанной вкладке.

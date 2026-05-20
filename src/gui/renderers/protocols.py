@@ -239,6 +239,14 @@ class DocumentRendererProtocol(Protocol[DocumentT, ContentT]):
         """
         ...
 
+    def show(self) -> None:
+        """Показывает виджет рендерера."""
+        ...
+
+    def hide(self) -> None:
+        """Скрывает виджет рендерера."""
+        ...
+
 
 @runtime_checkable
 class RendererCleanupProtocol(Protocol):
@@ -288,7 +296,7 @@ AnyDocumentRenderer = Union[
 # =============================================================================
 
 
-def implements(protocol: type) -> Callable[..., type]:
+def implements(protocol: type) -> Callable[[type], type]:
     """Декоратор для явного указания реализации Protocol.
 
     Используется для документирования intent и проверки типов.

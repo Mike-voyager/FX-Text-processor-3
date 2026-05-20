@@ -84,7 +84,8 @@ class GUIErrorHandler:
         Args:
             error: Исключение для обработки
             context: Контекст ошибки (widget_id, operation и т.д.)
-            ui_callback: Опциональный callback для UI уведомления
+            ui_callback: Опциональный callback для UI уведомления.
+                Переопределяет callback, заданный в конструкторе.
 
         Example:
             >>> try:
@@ -92,14 +93,23 @@ class GUIErrorHandler:
             ... except (GUIError, SecurityError, AuditError, LifecycleError, RendererError) as e:
             ...     handler.handle(e, {"operation": "save"})
         """
-        # Find most specific handler
-        for error_type, handler in self._error_callbacks.items():
-            if isinstance(error, error_type):
-                handler(error, context)
-                return
+        # Use per-call callback if provided, otherwise fall back to instance callback
+        original_callback = self._ui_callback
+        if ui_callback is not None:
+            self._ui_callback = ui_callback
 
-        # Default handler for unknown exceptions
-        self._handle_unknown_error(error, context)
+        try:
+            # Find most specific handler
+            for error_type, handler_fn in self._error_callbacks.items():
+                if isinstance(error, error_type):
+                    handler_fn(error, context)
+                    return
+
+            # Default handler for unknown exceptions
+            self._handle_unknown_error(error, context)
+        finally:
+            # Restore original callback
+            self._ui_callback = original_callback
 
     def handle_silent(
         self,

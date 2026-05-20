@@ -314,6 +314,7 @@ class MFAVerificationDialog(BaseDialog):
 
     def _on_method_changed(self) -> None:
         """Обработчик смены метода MFA."""
+        method: str = self._current_method
         if self._method_var is not None:
             method = self._method_var.get()
             self._current_method = method

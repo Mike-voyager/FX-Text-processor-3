@@ -131,6 +131,7 @@ class AutocompleteEntry(BaseField):
         self._selected_index: int = -1
         self._suggestions: list[tuple[str, int]] = []
         self._pending_hide_id: Optional[str] = None
+        self._suppress_search: bool = False  # Флаг для подавления поиска при программном выборе
 
         # Tkinter виджеты
         self._entry: Optional[tk.Entry] = None
@@ -169,14 +170,14 @@ class AutocompleteEntry(BaseField):
             )
             self._lookup_btn.pack(side=tk.RIGHT, padx=(4, 0))
 
-        # Навигация и выбор
-        self._entry.bind("<KeyRelease>", self._on_key_release)
+        # Навигация и выбор (KeyRelease только для навигационных клавиш,
+        # поиск запускается через trace_add на StringVar)
         self._entry.bind("<Down>", self._on_key_down)
         self._entry.bind("<Up>", self._on_key_up)
         self._entry.bind("<Return>", self._on_key_return)
         self._entry.bind("<Escape>", self._on_key_escape)
         self._entry.bind("<FocusOut>", self._on_focus_out)
-        self._entry.bind("<Tab>", self._on_key_escape)
+        self._entry.bind("<Tab>", self._on_key_tab)
         self._entry.bind("<Control-space>", self._on_ctrl_space)
 
     def _parse_index(self, index: str) -> list[str]:
@@ -192,6 +193,8 @@ class AutocompleteEntry(BaseField):
             >>> self._parse_index("DVN-44-K53-IX")
             ['DVN', 'DVN-44', 'DVN-44-K53', 'DVN-44-K53-IX']
         """
+        if not index:
+            return []
         parts = index.split("-")
         hierarchy: list[str] = []
         for i in range(1, len(parts) + 1):
@@ -203,12 +206,16 @@ class AutocompleteEntry(BaseField):
     # ------------------------------------------------------------------
 
     def _on_text_change_trace(self, *args: Any) -> None:
-        """Обработчик trace_add write на StringVar."""
-        _ = args
-        self._on_text_change()
+        """Обработчик trace_add write на StringVar.
 
-    def _on_text_change(self) -> None:
-        """Запускает debounced поиск при изменении текста."""
+        Запускает debounced поиск при каждом изменении текста.
+        Навигационные клавиши обрабатываются отдельными биндами.
+        Подавляется при программном выборе из popup (_suppress_search).
+        """
+        _ = args
+        if self._suppress_search:
+            return
+
         query = self._text_var.get()
         if len(query) >= self.MIN_CHARS:
             self._current_query = query
@@ -317,8 +324,12 @@ class AutocompleteEntry(BaseField):
                 index = int(selection[0])
                 if 0 <= index < len(self._suggestions):
                     selected_value = self._suggestions[index][0]
-                    self._text_var.set(selected_value)
-                    self.set_value(selected_value)
+                    self._suppress_search = True
+                    try:
+                        self._text_var.set(selected_value)
+                        self.set_value(selected_value)
+                    finally:
+                        self._suppress_search = False
         self._hide_popup()
         if self._entry is not None:
             self._entry.focus_set()
@@ -326,16 +337,6 @@ class AutocompleteEntry(BaseField):
     # ------------------------------------------------------------------
     # Keyboard handlers
     # ------------------------------------------------------------------
-
-    def _on_key_release(self, event: tk.Event[Any]) -> None:
-        """Обработчик отпускания клавиши.
-
-        Args:
-            event: Событие клавиши.
-        """
-        if event.keysym in ("Up", "Down", "Return", "Escape", "Tab"):
-            return
-        self._on_text_change()
 
     def _on_key_down(self, event: tk.Event[Any]) -> Optional[str]:
         """Обработчик стрелки вниз.
@@ -386,8 +387,12 @@ class AutocompleteEntry(BaseField):
         if self._popup is not None and self._selected_index >= 0:
             if 0 <= self._selected_index < len(self._suggestions):
                 selected_value = self._suggestions[self._selected_index][0]
-                self._text_var.set(selected_value)
-                self.set_value(selected_value)
+                self._suppress_search = True
+                try:
+                    self._text_var.set(selected_value)
+                    self.set_value(selected_value)
+                finally:
+                    self._suppress_search = False
             self._hide_popup()
             return "break"
         return None
@@ -434,13 +439,13 @@ class AutocompleteEntry(BaseField):
         )
 
     def _on_key_escape(self, event: tk.Event[Any]) -> Optional[str]:
-        """Обработчик Escape или Tab.
+        """Обработчик Escape (закрывает popup).
 
         Args:
             event: Событие клавиши.
 
         Returns:
-            "break" если popup был скрыт.
+            "break" если popup был скрыт, None для стандартной обработки.
         """
         _ = event
         if self._popup is not None:
@@ -450,8 +455,24 @@ class AutocompleteEntry(BaseField):
             return "break"
         return None
 
+    def _on_key_tab(self, event: tk.Event[Any]) -> Optional[str]:
+        """Обработчик Tab: закрывает popup и передаёт фокус далее.
+
+        Args:
+            event: Событие клавиши.
+
+        Returns:
+            None для стандартной навигации Tab.
+        """
+        _ = event
+        if self._popup is not None:
+            self._hide_popup()
+        return None  # Разрешаем стандартную навигацию Tab
+
     def _on_focus_out(self, event: tk.Event[Any]) -> None:
         """Обработчик потери фокуса.
+
+        Скрывает popup с задержкой и фиксирует текущее значение.
 
         Args:
             event: Событие Tkinter.
@@ -461,7 +482,11 @@ class AutocompleteEntry(BaseField):
             self._cancel_hide_popup()
             self._pending_hide_id = self._entry.after(150, self._hide_popup)
             value = self._text_var.get()
-            self.set_value(value)
+            self._suppress_search = True
+            try:
+                self.set_value(value)
+            finally:
+                self._suppress_search = False
 
     # ------------------------------------------------------------------
     # BaseField interface

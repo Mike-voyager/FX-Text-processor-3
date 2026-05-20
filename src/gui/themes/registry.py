@@ -1,17 +1,16 @@
 """Реестр тем для FX Text Processor 3.
 
 Предоставляет thread-safe singleton ThemeRegistry для регистрации,
-выбора и получения тем оформления GUI.
+выбора и получения тем оформления GUI через протокол ThemeProtocol.
 
 Architecture:
     - ThemeRegistry: singleton с RLock
-    - Lazy registration встроенных тем
+    - Lazy registration встроенных тем через ThemeAdapter
     - Thread-safe доступ к текущей теме
 
 Example:
-    >>> from src.gui.themes import ThemeRegistry
-    >>> registry = ThemeRegistry.get_instance()
-    >>> registry.register(my_theme)
+    >>> from src.gui.themes import ThemeRegistry, get_registry
+    >>> registry = get_registry()
     >>> registry.set_current("classic_green")
     >>> theme = registry.get_current()
     >>> theme.get_color("bg")
@@ -23,44 +22,15 @@ Date: May 2026
 
 from __future__ import annotations
 
+import importlib
+import logging
 import threading
 from typing import ClassVar, Optional
 
-from src.gui.core.exceptions import GUIError
+from src.gui.themes._exceptions import ThemeNotFoundError, ThemeRegistryError
 from src.gui.themes.protocol import ThemeProtocol
 
-
-class ThemeRegistryError(GUIError):
-    """Ошибка реестра тем.
-
-    Attributes:
-        message: Описание ошибки.
-    """
-
-    def __init__(self, message: str = "") -> None:
-        """Инициализация ошибки реестра.
-
-        Args:
-            message: Описание ошибки.
-        """
-        super().__init__(message or "Ошибка реестра тем")
-
-
-class ThemeNotFoundError(ThemeRegistryError):
-    """Theme не найдена в реестре.
-
-    Attributes:
-        theme_name: Имя ненайденной темы.
-    """
-
-    def __init__(self, name: str) -> None:
-        """Инициализация ошибки.
-
-        Args:
-            name: Имя ненайденной темы.
-        """
-        self.theme_name = name
-        super().__init__(f"Theme '{name}' не найдена")
+logger = logging.getLogger(__name__)
 
 
 class ThemeRegistry:
@@ -151,30 +121,32 @@ class ThemeRegistry:
         """Регистрация встроенных тем из подмодулей.
 
         Использует отложенный импорт для избежания циклических зависимостей.
+        Каждая тема импортируется отдельно — ошибка загрузки одной темы
+        не блокирует регистрацию остальных.
         """
-        try:
-            from src.gui.themes.implementations import (
-                amber,
-                classic_green,
-                high_contrast,
-                phosphor_white,
-                retro_green,
-            )
+        theme_modules: dict[str, str] = {
+            "classic_green": "src.gui.themes.implementations.classic_green",
+            "retro_green": "src.gui.themes.implementations.retro_green",
+            "amber": "src.gui.themes.implementations.amber",
+            "phosphor_white": "src.gui.themes.implementations.phosphor_white",
+            "high_contrast": "src.gui.themes.implementations.high_contrast",
+        }
 
-            # Регистрируем темы если они экспортируют адаптированные экземпляры
-            for module, attr_name in (
-                (classic_green, "CLASSIC_GREEN_THEME"),
-                (retro_green, "RETRO_GREEN_THEME"),
-                (amber, "AMBER_THEME"),
-                (phosphor_white, "PHOSPHOR_WHITE_THEME"),
-                (high_contrast, "HIGH_CONTRAST_THEME"),
-            ):
-                theme = getattr(module, attr_name, None)
+        for name, module_path in theme_modules.items():
+            try:
+                module = importlib.import_module(module_path)
+                theme: Optional[ThemeProtocol] = getattr(module, f"{name.upper()}_THEME", None)
                 if theme is not None:
                     self.register(theme)
-
-        except ImportError as exc:
-            raise ThemeRegistryError(f"Error loading built-in themes: {exc}") from exc
+                else:
+                    logger.warning("Тема '%s': адаптер THEME не найден в модуле", name)
+            except ImportError:
+                logger.warning(
+                    "Тема '%s': не удалось импортировать модуль %s",
+                    name,
+                    module_path,
+                    exc_info=True,
+                )
 
     def register(self, theme: ThemeProtocol) -> None:
         """Регистрирует тему.
@@ -190,7 +162,7 @@ class ThemeRegistry:
         """
         with self._operation_lock:
             if theme.name in self._themes:
-                raise ThemeRegistryError(f"Theme '{theme.name}' already registered")
+                raise ThemeRegistryError(theme.name, f"Тема '{theme.name}' уже зарегистрирована")
             self._themes[theme.name] = theme
 
     def get(self, name: str) -> ThemeProtocol:
@@ -238,7 +210,7 @@ class ThemeRegistry:
         """
         with self._operation_lock:
             if not self._current_name:
-                # Fallback to the first available theme if none is set
+                # Fallback: выбрать первую доступную тему, если текущая не задана
                 if self._themes:
                     first_theme_name = next(iter(self._themes))
                     self._current_name = first_theme_name
@@ -291,4 +263,5 @@ __all__ = [
     "ThemeRegistryError",
     "ThemeNotFoundError",
     "get_registry",
+    "logger",
 ]

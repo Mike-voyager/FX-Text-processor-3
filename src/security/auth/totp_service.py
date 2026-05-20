@@ -42,7 +42,7 @@ try:
     from src.security.crypto.service.crypto_service import CryptoService
     from src.security.crypto.service.profiles import CryptoProfile
 
-    _default_crypto_service = CryptoService(profile=CryptoProfile.STANDARD)
+    _default_crypto_service = CryptoService.get_instance(profile=CryptoProfile.STANDARD)
 
     def _get_crypto_service_impl() -> CryptoService:
         """Implementation: Получить CryptoService из app_context или создать default."""

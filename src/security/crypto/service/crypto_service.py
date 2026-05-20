@@ -57,7 +57,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 from src.security.audit import AuditEventType
 from src.security.crypto.advanced.hybrid_encryption import (
@@ -297,6 +297,25 @@ class CryptoService:
 
     __slots__ = ("profile", "config", "_registry", "_audit_log")
 
+    _default_instance: ClassVar[CryptoService | None] = None
+
+    @classmethod
+    def get_instance(cls, profile: CryptoProfile = CryptoProfile.STANDARD) -> CryptoService:
+        """Возвращает singleton-экземпляр CryptoService.
+
+        Создаёт экземпляр при первом вызове, затем возвращает его же.
+        Thread-safe: повторные вызовы возвращают тот же объект.
+
+        Args:
+            profile: Профиль (используется только при первом вызове).
+
+        Returns:
+            Singleton CryptoService.
+        """
+        if cls._default_instance is None:
+            cls._default_instance = cls(profile=profile)
+        return cls._default_instance
+
     def __init__(
         self,
         profile: CryptoProfile = CryptoProfile.STANDARD,
@@ -434,7 +453,6 @@ class CryptoService:
             )
 
         private_key, public_key = algorithm.generate_keypair()
-        pub_hint = public_key[:8].hex() if len(public_key) >= 8 else public_key.hex()
         self._log_operation(AuditEventType.CRYPTO_KEY_GENERATED, algo_id, key_type="asymmetric")
         return private_key, public_key
 

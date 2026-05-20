@@ -24,6 +24,8 @@ import tkinter as tk
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from src.gui.security.components.secure_entry import SecureEntry
+from src.gui.security.components.wipe_button import WipeButton
 from src.gui.security.mfa_gate import MFAGate
 from src.gui.themes import get_theme_manager
 
@@ -707,12 +709,20 @@ class AuthWindow:
 
         Security:
             Очищает переменную пароля для предотвращения
-            утечки в памяти.
+            утечки в памяти. Также вызывает wipe() на SecureEntry,
+            если используется.
 
         Example:
             >>> auth_window.wipe_credentials()
         """
         self._password_var.set("")
+        # Secure wipe если виджеты ещё существуют
+        if self._password_entry is not None:
+            try:
+                if isinstance(self._password_entry, SecureEntry):
+                    self._password_entry.wipe()
+            except tk.TclError:
+                pass  # виджет уже уничтожен
 
 
 # =============================================================================

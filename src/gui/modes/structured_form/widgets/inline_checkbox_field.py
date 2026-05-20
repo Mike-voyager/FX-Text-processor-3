@@ -75,7 +75,7 @@ class InlineCheckboxField(BaseField):
         self._var: tk.BooleanVar = tk.BooleanVar(master=self, value=False)
         self._checkbutton: Optional[tk.Checkbutton] = None
 
-        # Переупаковываем label: слева от checkbox
+        # Скрываем label от BaseField (он в self, а нам нужен в container)
         self._label_widget.pack_forget()
 
         container = tk.Frame(self)
@@ -89,8 +89,14 @@ class InlineCheckboxField(BaseField):
         )
         self._checkbutton.pack(side=tk.LEFT)
 
-        self._label_widget.config(font=("TkDefaultFont", 10))
-        self._label_widget.pack(side=tk.LEFT, padx=(4, 0))
+        # Создаём новый label внутри container (Tkinter не позволяет переносить виджеты)
+        self._inline_label: tk.Label = tk.Label(
+            container,
+            text=self.label,
+            font=("TkDefaultFont", 10),
+            anchor=tk.W,
+        )
+        self._inline_label.pack(side=tk.LEFT, padx=(4, 0))
 
         if self._readonly:
             self._checkbutton.config(state="disabled")

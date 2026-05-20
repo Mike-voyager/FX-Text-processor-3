@@ -17,7 +17,7 @@ from __future__ import annotations
 import time
 import tkinter as tk
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Optional
 
@@ -25,9 +25,9 @@ from typing import Final, Optional
 MAX_WINDOWS: Final[int] = 50
 
 
-@dataclass
+@dataclass(frozen=True)
 class WindowInfo:
-    """Информация о зарегистрированном окне.
+    """Информация о зарегистрированном окне (иммутабельная).
 
     Attributes:
         window_id: Уникальный идентификатор окна (UUID).
@@ -38,7 +38,7 @@ class WindowInfo:
         created_at: Временная метка создания (Unix timestamp).
         z_order: Z-order порядок окна для управления слоями.
         is_minimized: True если окно свёрнуто.
-        documents: Список привязанных документов.
+        documents: Кортеж привязанных документов.
 
     Example:
         >>> info = WindowInfo(
@@ -60,18 +60,12 @@ class WindowInfo:
     created_at: float
     z_order: int
     is_minimized: bool = False
-    documents: list[str] = field(default_factory=list)
+    documents: tuple[str, ...] = ()
 
     @property
     def window(self) -> tk.Toplevel | tk.Tk:
         """Ссылка на виджет окна (алиас для toplevel)."""
         return self.toplevel
-
-    def __post_init__(self) -> None:
-        if self.document_path is not None:
-            doc_id = str(self.document_path)
-            if doc_id not in self.documents:
-                self.documents.append(doc_id)
 
 
 class WindowManager:
@@ -183,6 +177,11 @@ class WindowManager:
         z_order = self._next_z_order
         self._next_z_order += 1
 
+        # Автоматически добавляем document_path в documents
+        initial_docs: tuple[str, ...] = ()
+        if document_path is not None:
+            initial_docs = (str(document_path),)
+
         window_info = WindowInfo(
             window_id=window_id,
             toplevel=window,
@@ -192,6 +191,7 @@ class WindowManager:
             created_at=time.time(),
             z_order=z_order,
             is_minimized=False,
+            documents=initial_docs,
         )
 
         self._windows[window_id] = window_info
@@ -209,13 +209,13 @@ class WindowManager:
             window_id: Идентификатор окна для удаления.
 
         Raises:
-            KeyError: Если окно с таким ID not found.
+            KeyError: Если окно с таким ID не найдено.
 
         Example:
             >>> manager.unregister_window(window_id)
         """
         if window_id not in self._windows:
-            raise ValueError(f"Window not found: {window_id}")
+            raise KeyError(f"Window not found: {window_id}")
 
         del self._windows[window_id]
 
@@ -256,7 +256,7 @@ class WindowManager:
         if info is None:
             raise KeyError(f"Window with ID '{window_id}' not found")
 
-        # Обновляем Z-order
+        # Обновляем Z-order, сохраняя документы и состояние сворачивания
         old_info = self._windows[window_id]
         new_z_order = self._next_z_order
         self._next_z_order += 1
@@ -269,6 +269,8 @@ class WindowManager:
             is_modal=old_info.is_modal,
             created_at=old_info.created_at,
             z_order=new_z_order,
+            is_minimized=old_info.is_minimized,
+            documents=old_info.documents,
         )
         self._windows[window_id] = new_info
 
@@ -307,6 +309,7 @@ class WindowManager:
             created_at=old_info.created_at,
             z_order=old_info.z_order,
             is_minimized=old_info.is_minimized,
+            documents=old_info.documents,
         )
         self._windows[window_id] = new_info
         return True
@@ -405,6 +408,8 @@ class WindowManager:
     def transfer_document(self, from_id: str, to_id: str, doc_id: str) -> bool:
         """Передаёт документ от одного окна к другому.
 
+        Создаёт новые иммутабельные WindowInfo с обновлённым списком документов.
+
         Args:
             from_id: Идентификатор исходного окна.
             to_id: Идентификатор целевого окна.
@@ -423,10 +428,33 @@ class WindowManager:
         if doc_id not in from_info.documents:
             return False
 
-        # Переносим документ
-        from_info.documents.remove(doc_id)
+        # Переносим документ — создаём новые иммутабельные WindowInfo
+        new_from_docs = tuple(d for d in from_info.documents if d != doc_id)
+        self._windows[from_id] = WindowInfo(
+            window_id=from_info.window_id,
+            toplevel=from_info.toplevel,
+            title=from_info.title,
+            document_path=from_info.document_path,
+            is_modal=from_info.is_modal,
+            created_at=from_info.created_at,
+            z_order=from_info.z_order,
+            is_minimized=from_info.is_minimized,
+            documents=new_from_docs,
+        )
+
         if doc_id not in to_info.documents:
-            to_info.documents.append(doc_id)
+            new_to_docs = to_info.documents + (doc_id,)
+            self._windows[to_id] = WindowInfo(
+                window_id=to_info.window_id,
+                toplevel=to_info.toplevel,
+                title=to_info.title,
+                document_path=to_info.document_path,
+                is_modal=to_info.is_modal,
+                created_at=to_info.created_at,
+                z_order=to_info.z_order,
+                is_minimized=to_info.is_minimized,
+                documents=new_to_docs,
+            )
 
         return True
 
@@ -459,7 +487,9 @@ class WindowManager:
         return window_id in self._windows
 
     def assign_document(self, window_id: str, doc_id: str) -> bool:
-        """Назначает документ окну (добавляет в список documents).
+        """Назначает документ окну (добавляет в кортеж documents).
+
+        Создаёт новый иммутабельный WindowInfo с обновлённым списком документов.
 
         Args:
             window_id: Идентификатор окна.
@@ -473,7 +503,18 @@ class WindowManager:
 
         info = self._windows[window_id]
         if doc_id not in info.documents:
-            info.documents.append(doc_id)
+            new_docs = info.documents + (doc_id,)
+            self._windows[window_id] = WindowInfo(
+                window_id=info.window_id,
+                toplevel=info.toplevel,
+                title=info.title,
+                document_path=info.document_path,
+                is_modal=info.is_modal,
+                created_at=info.created_at,
+                z_order=info.z_order,
+                is_minimized=info.is_minimized,
+                documents=new_docs,
+            )
         return True
 
     def get_window_info(self, window_id: str) -> Optional[WindowInfo]:

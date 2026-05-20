@@ -5,7 +5,7 @@
 с Controller через BaseWidget.
 
 Classes:
-    ThemedCheckbox: Themeтизированный чекбокс.
+    ThemedCheckbox: Тематизированный чекбокс.
 
 Example:
     >>> checkbox = ThemedCheckbox(
@@ -34,7 +34,7 @@ from src.gui.themes import get_theme_manager
 
 
 class ThemedCheckbox(BaseWidget):
-    """Themeтизированный чекбокс.
+    """Тематизированный чекбокс.
 
     Расширяет BaseWidget, добавляя функциональность чекбокса:
     - Получение/установка состояния (checked/unchecked)

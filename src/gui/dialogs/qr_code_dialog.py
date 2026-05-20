@@ -553,8 +553,8 @@ class QRCodeSettingsDialog(BaseDialog):
                 self._status_var.set("Generation error")
 
         except Exception as e:
-            logger.error(f"QR preview generation error: {e}")
-            self._show_placeholder(f"⚠️ Error:\n{str(e)[:50]}")
+            logger.error("QR preview generation error: %s", e)
+            self._show_placeholder(f"Error:\n{str(e)[:50]}")
             self._status_var.set(f"Error: {e}")
 
     def _generate_preview(
@@ -630,7 +630,7 @@ class QRCodeSettingsDialog(BaseDialog):
             logger.warning("qrcode library not available for preview")
             return None
         except Exception as e:
-            logger.error(f"QR generation error: {e}")
+            logger.error("QR generation error: %s", e)
             return None
 
     def _show_image(self, image: Any) -> None:
@@ -753,7 +753,7 @@ class QRCodeSettingsDialog(BaseDialog):
                 )
 
         except Exception as e:
-            logger.error(f"QR export error: {e}")
+            logger.error("QR export error: %s", e)
             messagebox.showerror(
                 "Error",
                 f"Failed to save QR code:\n{e}",

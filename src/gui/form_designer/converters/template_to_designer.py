@@ -167,7 +167,7 @@ class TemplateToDesignerConverter:
         # Добавляем в список полей страницы
         page.fields.append(field_widget)
 
-        logger.debug(f"Created field {field_id} on page {page.index}")
+        logger.debug("Created field %s on page %d", field_id, page.index)
 
     def _create_field_definition(
         self, field_id: str, field_data: dict[str, Any]

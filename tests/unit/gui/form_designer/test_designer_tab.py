@@ -543,6 +543,8 @@ class TestPropertyPanelIntegration:
 
     def test_on_panel_property_change_label(self, designer_tab, sample_profile):
         """Test label property change uses on_property_change."""
+        from src.gui.form_designer.types import DesignerPage
+
         designer_tab.add_page(sample_profile)
         mock_field = MagicMock()
         mock_field.field_id = "test_field"
@@ -551,7 +553,11 @@ class TestPropertyPanelIntegration:
         mock_field.position = MagicMock()
 
         designer_tab._current_field = mock_field
-        designer_tab._pages[0].fields = [mock_field]
+        p = designer_tab._pages[0]
+        designer_tab._pages[0] = DesignerPage(
+            index=p.index, profile=p.profile, canvas=p.canvas,
+            frame=p.frame, fields=[mock_field], page_break_id=p.page_break_id,
+        )
         designer_tab._panel_state_cache = {"label": "Old"}
 
         with patch.object(designer_tab, "on_property_change") as mock_change:
@@ -561,6 +567,7 @@ class TestPropertyPanelIntegration:
     def test_on_panel_property_change_position(self, designer_tab, sample_profile):
         """Test position property change creates FieldMoveCommand."""
         from dataclasses import dataclass
+        from src.gui.form_designer.types import DesignerPage
         from src.gui.renderers.form_canvas import FieldPosition
         from src.gui.core.commands.design_commands import FieldMoveCommand
 
@@ -584,7 +591,11 @@ class TestPropertyPanelIntegration:
         mock_field.field_def = MockFieldDef()
 
         designer_tab._current_field = mock_field
-        designer_tab._pages[0].fields = [mock_field]
+        p = designer_tab._pages[0]
+        designer_tab._pages[0] = DesignerPage(
+            index=p.index, profile=p.profile, canvas=p.canvas,
+            frame=p.frame, fields=[mock_field], page_break_id=p.page_break_id,
+        )
         designer_tab._panel_state_cache = {"position": mock_field.position}
 
         with patch(
@@ -599,6 +610,7 @@ class TestPropertyPanelIntegration:
         """Test duplicate calls on_field_create."""
         from dataclasses import dataclass
         from src.documents.types.type_schema import FieldType as FT
+        from src.gui.form_designer.types import DesignerPage
 
         @dataclass
         class MockFieldDef:
@@ -618,7 +630,11 @@ class TestPropertyPanelIntegration:
         mock_field.position.row = 3
 
         designer_tab._current_field = mock_field
-        designer_tab._pages[0].fields = [mock_field]
+        p = designer_tab._pages[0]
+        designer_tab._pages[0] = DesignerPage(
+            index=p.index, profile=p.profile, canvas=p.canvas,
+            frame=p.frame, fields=[mock_field], page_break_id=p.page_break_id,
+        )
 
         with patch.object(designer_tab, "on_field_create") as mock_create:
             designer_tab._on_panel_field_duplicate()

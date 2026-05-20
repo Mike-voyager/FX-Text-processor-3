@@ -43,7 +43,7 @@ Date: May 2026
 from __future__ import annotations
 
 import tkinter as tk
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional
+from typing import TYPE_CHECKING, Any, Callable, Final, Literal, Optional
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
@@ -971,6 +971,22 @@ class StatusBar(BaseWidget):
         self._tk_notification_label = self._create_indicator(self._tk_inner_frame, "")
         self._update_notification_label()
 
+        # Индикатор DEBUG MODE
+        import os
+        if os.getenv("FX_DEBUG_MODE", "0") == "1":
+            self._tk_debug_label = tk.Label(
+                self._tk_inner_frame,
+                text="⚠ DEBUG MODE",
+                bg="#FF0000",
+                fg="#FFFFFF",
+                font=("TkDefaultFont", 9, "bold"),
+                padx=6,
+                pady=1,
+            )
+            self._tk_debug_label.pack(side=tk.RIGHT, padx=(0, PADDING_SMALL))
+        else:
+            self._tk_debug_label = None
+
         self._create_separators()
         self._setup_bindings()
         self._apply_layout()
@@ -1178,13 +1194,14 @@ class StatusBar(BaseWidget):
         master = self._tk_inner_frame
 
         def pack_sep(side: str = "left") -> None:
-            from tkinter import LEFT, RIGHT
-            from typing import Any, cast
-
             idx = sep_index[0]
             if idx < len(self._separator_labels):
+                target_side: Literal["left", "right", "top", "bottom"] = (
+                    "right" if side == "right" else "left"
+                )
                 self._separator_labels[idx].pack(
-                    in_=master, side=cast(Any, RIGHT if side == "right" else LEFT)
+                    in_=master,
+                    side=target_side,
                 )
                 sep_index[0] = idx + 1
 
@@ -1249,12 +1266,11 @@ class StatusBar(BaseWidget):
         master_row1 = self._tk_inner_frame
 
         def pack_sep(master: tk.Widget, side: str = "left") -> None:
-            from tkinter import LEFT, RIGHT
-            from typing import Any, cast
-
             idx = sep_index[0]
             if idx < len(self._separator_labels):
-                mapped_side = cast(Any, RIGHT if side == "right" else LEFT)
+                mapped_side: Literal["left", "right", "top", "bottom"] = (
+                    "right" if side == "right" else "left"
+                )
                 self._separator_labels[idx].pack(in_=master, side=mapped_side)
                 sep_index[0] = idx + 1
 
@@ -1618,7 +1634,6 @@ __date__: Final[str] = "May 2026"
 __all__: list[str] = [
     "StatusBar",
     "ToastPanel",
-    "PaperSetupDialog",
     "SECURITY_PRESET_COLORS",
     "DEFAULT_SECURITY_COLOR",
     "MODIFIED_COLOR",

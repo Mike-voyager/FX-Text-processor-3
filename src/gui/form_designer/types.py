@@ -1,4 +1,4 @@
-"""Data classes for Form Designer.
+"""Data classes для Form Designer.
 
 Module: src/gui/form_designer/types.py
 """
@@ -13,7 +13,7 @@ from src.gui.renderers.form_canvas import FormCanvas, FormFieldWidget
 from src.services.paper_format_service import PaperProfile
 
 
-@dataclass
+@dataclass(frozen=True)
 class DesignerPage:
     """Страница в DesignerTab.
 

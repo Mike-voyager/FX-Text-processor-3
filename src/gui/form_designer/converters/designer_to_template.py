@@ -76,7 +76,7 @@ class DesignerToTemplateConverter:
             },
         )
 
-        logger.debug(f"Converted {len(pages)} pages to template with {len(field_defaults)} fields")
+        logger.debug("Converted %d pages to template with %d fields", len(pages), len(field_defaults))
         return template
 
     def _convert_field_widget(self, widget: FormFieldWidget, page_index: int) -> dict[str, Any]:

@@ -218,10 +218,10 @@ class TestFieldCommentWidget:
 
     def test_role_display_name(self) -> None:
         """Тест отображения названия роли."""
-        assert Role.OPERATOR.display_name == "Operator"
-        assert Role.EDITOR.display_name == "Editor"
-        assert Role.SUPERVISOR.display_name == "Supervisor"
-        assert Role.SIGNATORY.display_name == "Signatory"
+        assert Role.OPERATOR.display_name == "Оператор"
+        assert Role.EDITOR.display_name == "Редактор"
+        assert Role.SUPERVISOR.display_name == "Супервайзер"
+        assert Role.SIGNATORY.display_name == "Подписант"
 
     def test_comment_immutable(self) -> None:
         """Тест что Comment immutable (frozen=True)."""

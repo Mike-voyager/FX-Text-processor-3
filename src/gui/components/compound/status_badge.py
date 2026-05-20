@@ -15,7 +15,7 @@ Date: May 2026
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Optional
+from typing import Optional, cast
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.protocols import ControllerProtocol
@@ -118,9 +118,7 @@ class StatusBadge(BaseWidget):
         self._variant = variant
         if self._tk_widget is not None and self._label is not None:
             bg, fg = _STATUS_COLORS[variant]
-            self._tk_widget.config(  # type: ignore[attr-defined]
-                bg=bg, highlightbackground=bg, highlightcolor=bg
-            )
+            cast(tk.Frame, self._tk_widget).config(bg=bg, highlightbackground=bg, highlightcolor=bg)
             self._label.config(bg=bg, fg=fg)
 
     def _cleanup(self) -> None:

@@ -145,7 +145,7 @@ _THEMED_ENTRY_METADATA = WidgetMetadata(
     complexity=WidgetComplexity.PRIMITIVE,
     version="1.0.0",
     author="FX Team",
-    description="Themeтизированное поле ввода текста с локальным состоянием",
+    description="Стилизованное поле ввода текста с локальным состоянием",
     supported_events={"focus", "change", "blur"},
     requires_mfa=False,
 )
@@ -155,7 +155,7 @@ _THEMED_CHECKBOX_METADATA = WidgetMetadata(
     complexity=WidgetComplexity.PRIMITIVE,
     version="1.0.0",
     author="FX Team",
-    description="Themeтизированный чекбокс с callback при изменении состояния",
+    description="Стилизованный чекбокс с callback при изменении состояния",
     supported_events={"change", "click"},
     requires_mfa=False,
 )

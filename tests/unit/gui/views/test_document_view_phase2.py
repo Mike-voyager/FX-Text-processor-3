@@ -20,6 +20,7 @@ from src.gui.components.format_toolbar import FormatToolbar
 from src.gui.components.navigator import Navigator
 from src.gui.components.ruler import Ruler
 from src.gui.renderers.free_form_renderer import FreeFormDocument, FreeFormRenderer
+from src.gui.renderers.factory import register_default_renderers
 from src.gui.views.document_view import (
     DEFAULT_PLACEHOLDER_MESSAGE,
     DocumentProtocol,
@@ -58,6 +59,7 @@ class MockDocument:
 @pytest.fixture
 def tk_root() -> Generator[tk.Tk, None, None]:
     """Fixture для Tk root окна."""
+    register_default_renderers()
     root = tk.Tk()
     root.withdraw()
     yield root

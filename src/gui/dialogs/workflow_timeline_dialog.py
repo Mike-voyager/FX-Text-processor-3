@@ -610,7 +610,7 @@ class WorkflowTimelineDialog(BaseDialog):
             self._update_timeline_timestamps()
             self._load_history()
         except Exception as e:
-            logger.exception(f"Error loading workflow data: {e}")
+            logger.exception("Error loading workflow data: %s", e)
             self._show_error("Failed to load workflow data")
 
     def _update_timeline_timestamps(self) -> None:
@@ -838,7 +838,7 @@ class WorkflowTimelineDialog(BaseDialog):
             )
             dialog.wait_window()
         except Exception as e:
-            logger.exception(f"Error opening comments: {e}")
+            logger.exception("Error opening comments: %s", e)
 
     def _is_state_before(self, status_code: str, current_code: str) -> bool:
         """Проверяет, находится ли состояние до текущего в последовательности.

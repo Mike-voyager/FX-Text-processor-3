@@ -220,7 +220,7 @@ class TableWidget(BaseFieldWidget):
 
     def _update_cache(self) -> None:
         """Обновляет кэш данных."""
-        if self._data:
+        if self._data.rows:
             self._cached_rows = deepcopy(self._data.rows)
         else:
             self._cached_rows = None

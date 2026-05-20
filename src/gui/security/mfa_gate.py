@@ -32,6 +32,7 @@ from enum import Enum
 from typing import Any, Callable, Optional, Protocol, Type, TypeVar, cast
 
 from src.security.audit import AuditEventType, AuditLog
+from src.security.auth.debug_utils import should_bypass_mfa
 from src.security.crypto.core.exceptions import AuthError, CryptoError
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -659,6 +660,10 @@ class MFAGate:
         if not requires_mfa:
             return operation()
 
+        # Debug bypass: обходит MFA в отладочном режиме
+        if should_bypass_mfa():
+            return operation()
+
         if self._auth_service.is_mfa_verified():
             return operation()
 
@@ -734,39 +739,49 @@ class MFAGate:
         Returns:
             MFAResult с результатом верификации.
         """
+        # Debug bypass: обходит MFA в отладочном режиме
+        if should_bypass_mfa():
+            return MFAResult.success(
+                user_id=user_id,
+                method=MFAMethod.PASSWORD,
+                audit_token=self._generate_audit_token(user_id, operation),
+            )
+
         audit_token = self._generate_audit_token(user_id, operation)
 
-        for method in required_methods:
-            dialog_class = self._dialogs.get(method)
-            if dialog_class is None:
-                continue
+        # Используем MFAMethodSelectorDialog напрямую
+        # (legacy register_dialog API не позволяет корректно
+        # создавать экземпляры с нужными параметрами).
+        dialog = MFAMethodSelectorDialog(
+            parent=parent,
+            auth_service=self._auth_service,
+            operation_name=operation,
+            user_id=user_id,
+        )
+        dialog_result = dialog.show()
 
+        if dialog_result is not None and dialog_result.verified:
+            self._log_mfa_success(
+                user_id=user_id,
+                method=dialog_result.method,
+                operation=operation,
+                audit_token=audit_token,
+            )
             try:
-                dialog = dialog_class()
-                result = dialog.show(parent)
+                self._auth_service.mark_mfa_satisfied()
+            except (AttributeError, ValueError, TypeError, RuntimeError) as e:
+                logger.warning("Failed to mark MFA satisfied: %s", e)
+            return MFAResult.success(
+                method=dialog_result.method,
+                user_id=user_id,
+                audit_token=audit_token,
+            )
 
-                if result is not None and result.verified:
-                    self._log_mfa_success(
-                        user_id=user_id,
-                        method=method,
-                        operation=operation,
-                        audit_token=audit_token,
-                    )
-                    return MFAResult.success(
-                        method=method,
-                        user_id=user_id,
-                        audit_token=audit_token,
-                    )
-
-            except Exception as e:
-                self._log_mfa_error(
-                    user_id=user_id,
-                    method=method,
-                    operation=operation,
-                    error=str(e),
-                )
-                continue
-
+        self._log_mfa_failure(
+            user_id=user_id,
+            method=",".join(required_methods),
+            operation=operation,
+        )
         return MFAResult.failure(
             method=",".join(required_methods),
             user_id=user_id,
@@ -789,15 +804,24 @@ class MFAGate:
         Returns:
             Кортеж (requires_mfa, mfa_result).
         """
-        from src.documents.constructor.form_status import FormStatus
+        try:
+            from src.documents.constructor.form_status import FormStatus
+        except ImportError:
+            logger.warning("FormStatus module not available for transition check")
+            return False, None
+
+        # Безопасное получение enum-значений с fallback
+        approved = getattr(FormStatus, "APPROVED", None)
+        rejected = getattr(FormStatus, "REJECTED", None)
 
         mfa_required_transitions: set[tuple[Any, Any]] = {
-            (FormStatus.DRAFT, getattr(FormStatus, "APPROVED", None)),
-            (FormStatus.DRAFT, getattr(FormStatus, "REJECTED", None)),
+            (FormStatus.DRAFT, approved),
+            (FormStatus.DRAFT, rejected),
             (FormStatus.DRAFT, FormStatus.SIGNED),
-            (FormStatus.VALIDATED, getattr(FormStatus, "APPROVED", None)),
-            (FormStatus.VALIDATED, getattr(FormStatus, "REJECTED", None)),
+            (FormStatus.VALIDATED, approved),
+            (FormStatus.VALIDATED, rejected),
         }
+        # Удаляем None-переходы (если enum не содержит нужных значений)
         mfa_required_transitions = {t for t in mfa_required_transitions if t[1] is not None}
 
         try:

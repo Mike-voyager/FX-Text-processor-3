@@ -33,7 +33,7 @@ from src.services.paper_format_service import PaperProfile
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class SidebarPageInfo:
     """Информация о странице для sidebar.
 
@@ -548,7 +548,7 @@ class PageSidebar(BaseWidget):
                 frame.config(bg="#ffffff", relief=tk.RAISED)
                 for child in frame.winfo_children():
                     if isinstance(child, tk.Label):
-                        if child.cget("text").startswith("Стр."):
+                        if child.cget("text").startswith("Pg."):
                             child.config(bg="#ffffff", fg="black")
                         else:
                             child.config(bg="#e8e8e8", fg="black")

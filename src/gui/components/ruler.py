@@ -938,12 +938,9 @@ class Ruler(BaseWidget):
         self._frame = None
         self._context_menu = None
         self._tab_markers.clear()
-        self._drag_data = {
-            "tab_stop": None,
-            "drag_id": None,
-            "start_x": 0,
-            "current_x": 0,
-        }
+        self._drag_tab_stop = None
+        self._drag_start_x = 0
+        self._drag_current_x = 0
 
 
 # =============================================================================

@@ -273,4 +273,4 @@ class MainToolbar(BaseWidget):
 # MODULE EXPORTS
 # =============================================================================
 
-__all__ = ["MainToolbar"]
+__all__: list[str] = ["MainToolbar"]

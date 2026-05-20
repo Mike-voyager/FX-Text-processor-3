@@ -5,7 +5,7 @@
 с Controller через SmartBaseWidget.
 
 Classes:
-    ThemedEntry: Themeтизированное поле ввода текста с локальным состоянием.
+    ThemedEntry: Тематизированное поле ввода текста с локальным состоянием.
 
 Example:
     >>> entry = ThemedEntry(
@@ -28,13 +28,12 @@ import tkinter as tk
 from typing import Callable, Optional, cast
 
 from src.gui.components.base.widget import SmartBaseWidget
-from src.gui.core.exceptions import LifecycleError
 from src.gui.core.protocols import ControllerProtocol
 from src.gui.themes import get_theme_manager
 
 
 class ThemedEntry(SmartBaseWidget):
-    """Themeтизированное поле ввода текста с локальным состоянием.
+    """Тематизированное поле ввода текста с локальным состоянием.
 
     Расширяет SmartBaseWidget, добавляя функциональность поля ввода:
     - Placeholder текст (подсказка при пустом поле)
@@ -244,12 +243,20 @@ class ThemedEntry(SmartBaseWidget):
         Настраивает:
         - FocusIn: вход в режим редактирования, скрытие placeholder
         - FocusOut: выход из режима редактирования, показ placeholder если пусто
+
+        Также отображает placeholder при первичном монтировании,
+        если поле пустое и placeholder задан.
         """
         if self._tk_widget is None:
             return
 
         self._tk_widget.bind("<FocusIn>", self._on_focus_in)
         self._tk_widget.bind("<FocusOut>", self._on_focus_out)
+
+        # Показываем placeholder при первичном монтировании,
+        # если поле пустое и placeholder задан
+        if self._placeholder and not self._show:
+            self._update_placeholder_display()
 
     def _on_focus_in(self, event: Optional[tk.Event] = None) -> None:
         """Обработчик получения фокуса.
@@ -271,12 +278,6 @@ class ThemedEntry(SmartBaseWidget):
             event: Событие Tkinter (опционально).
         """
         self.exit_edit_mode()
-        # Показываем placeholder если поле пустое
-        if self._tk_widget is not None:
-            entry_widget = cast(tk.Entry, self._tk_widget)
-            current_text = entry_widget.get()
-            if not current_text:
-                self._update_placeholder_display()
 
     def _update_placeholder_display(self) -> None:
         """Обновляет отображение placeholder текста."""
@@ -295,21 +296,12 @@ class ThemedEntry(SmartBaseWidget):
     def enter_edit_mode(self) -> None:
         """Входит в режим редактирования.
 
-        Сохраняет начальное значение для сравнения при выходе.
-        Переопределяет родительский метод для восстановления цвета текста.
+        Вызывает родительский метод, затем восстанавливает цвет текста.
 
         Raises:
             LifecycleError: Если виджет не смонтирован.
         """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="enter_edit_mode",
-                message=f"Widget '{self._widget_id}' not mounted",
-            )
-
-        self._is_editing = True
-        self._initial_value = self.get_edit_value()
+        super().enter_edit_mode()
 
         # Восстанавливаем цвет текста при входе в редактирование
         if self._tk_widget is not None:
@@ -321,23 +313,20 @@ class ThemedEntry(SmartBaseWidget):
     def exit_edit_mode(self) -> None:
         """Выходит из режима редактирования.
 
-        При наличии изменений вызывает sync_to_model().
+        Вызывает родительский метод (который синхронизирует с моделью
+        при наличии изменений), затем показывает placeholder если поле пустое.
 
         Raises:
             LifecycleError: Если виджет не смонтирован.
         """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="exit_edit_mode",
-                message=f"Widget '{self._widget_id}' not mounted",
-            )
+        super().exit_edit_mode()
 
-        self._is_editing = False
-
-        # Синхронизируем с моделью если были изменения
-        if self.has_changes():
-            self.sync_to_model()
+        # Показываем placeholder если поле пустое
+        if self._tk_widget is not None:
+            entry_widget = cast(tk.Entry, self._tk_widget)
+            current_text = entry_widget.get()
+            if not current_text:
+                self._update_placeholder_display()
 
     def sync_to_model(self) -> bool:
         """Синхронизирует локальное состояние с моделью.
@@ -347,17 +336,7 @@ class ThemedEntry(SmartBaseWidget):
         Returns:
             True если синхронизация выполнена (значение изменилось),
             False если изменений не было.
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
         """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="sync_to_model",
-                message=f"Widget '{self._widget_id}' not mounted",
-            )
-
         text = self.get_edit_value()
         if text == self._initial_value:
             return False
@@ -373,17 +352,7 @@ class ThemedEntry(SmartBaseWidget):
 
         Returns:
             Текущее значение поля ввода (без placeholder).
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
         """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="get_edit_value",
-                message=f"Widget '{self._widget_id}' not mounted",
-            )
-
         return self.get_text()
 
     def set_edit_value(self, value: str) -> None:
@@ -391,27 +360,20 @@ class ThemedEntry(SmartBaseWidget):
 
         Args:
             value: Новое значение для поля.
-
-        Raises:
-            LifecycleError: Если виджет не смонтирован.
         """
-        if not self._is_mounted:
-            raise LifecycleError(
-                widget_id=self._widget_id,
-                operation="set_edit_value",
-                message=f"Widget '{self._widget_id}' not mounted",
-            )
-
         self.set_text(value)
 
-    def has_changes(self) -> bool:
-        """Проверяет, изменилось ли значение с момента входа в edit mode.
+    # has_changes() наследуется от SmartBaseWidget —
+    # логика идентична: сравнение get_edit_value() с _initial_value
 
-        Returns:
-            True если значение изменилось, иначе False.
+    def _cleanup(self) -> None:
+        """Очищает ресурсы при демонтировании.
+
+        Отвязывает FocusIn/FocusOut обработчики от Tkinter виджета.
         """
-        current_value = self.get_edit_value()
-        return current_value != self._initial_value
+        if self._tk_widget is not None:
+            self._tk_widget.unbind("<FocusIn>")
+            self._tk_widget.unbind("<FocusOut>")
 
 
 __all__: list[str] = ["ThemedEntry"]

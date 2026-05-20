@@ -13,6 +13,7 @@ Example:
     >>> tooltip_mgr.hide()
 
 Version: 1.0
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ class TooltipManager:
 
     # Singleton instance
     _instance: ClassVar[Optional["TooltipManager"]] = None
+    _initialized: ClassVar[bool] = False
 
     def __new__(cls) -> "TooltipManager":
         """Реализация Singleton паттерна."""
@@ -58,11 +60,10 @@ class TooltipManager:
 
     def __init__(self) -> None:
         """Инициализация менеджера тултипов."""
-        # Use hasattr to avoid re-initialization
-        if hasattr(self, "_initialized") and self._initialized:
+        if TooltipManager._initialized:
             return
 
-        self._initialized: bool = True
+        TooltipManager._initialized = True
         self._tooltip: Optional[tk.Toplevel] = None
         self._label: Optional[tk.Label] = None
         self._after_id: Optional[str] = None

@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 from src.gui.dialogs.base_dialog import BaseDialog
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Forward imports for type checking
 if TYPE_CHECKING:
@@ -540,7 +540,7 @@ class FloppyOptimizerDialog(BaseDialog):
             self.destroy()
 
         except Exception as e:
-            logger.error(f"Optimization failed: {e}")
+            logger.error("Optimization failed: %s", e)
             self._status_var.set(f"❌ Error: {e}")
             self._set_busy(False)
             self._hide_progress()
@@ -816,12 +816,12 @@ class FloppyOptimizerDialog(BaseDialog):
 # MODULE EXPORTS
 # =============================================================================
 
-__all__ = [
+__all__: list[str] = [
     "FloppyOptimizerDialog",
     "OptimizationOptions",
     "EstimatedSavings",
 ]
 
-__version__ = "1.0.0"
-__author__ = "Mike Voyager"
-__date__ = "2026-04-11"
+__version__: str = "1.0.0"
+__author__: str = "Mike Voyager"
+__date__: str = "2026-04-11"

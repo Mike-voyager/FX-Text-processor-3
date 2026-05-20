@@ -20,6 +20,7 @@ Date: April 2026
 from __future__ import annotations
 
 from src.gui.modes.base import BaseModeRenderer
+from src.gui.modes.mode_integration import ModeIntegration
 from src.gui.modes.protocols import (
     DocumentModeRendererProtocol,
     ModeContext,
@@ -31,6 +32,7 @@ from src.gui.modes.protocols import (
 __all__: list[str] = [
     "BaseModeRenderer",
     "DocumentModeRendererProtocol",
+    "ModeIntegration",
     "ModeContext",
     "ModeState",
     "ModeSwitchEvent",

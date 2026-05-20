@@ -19,106 +19,26 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import logging
 import re
 import threading
 import tkinter as tk
 from typing import Any, ClassVar, Optional
 
+from src.gui.themes._exceptions import (
+    ThemeApplicationError,
+    ThemeError,
+    ThemeNotFoundError,
+    ThemeRegistryError,
+)
 from src.gui.themes.adapter import ThemeAdapter
 from src.gui.themes.protocol import ThemeProtocol
 from src.gui.themes.registry import (
     ThemeRegistry,
-    ThemeRegistryError,
     get_registry,
 )
 
-# =============================================================================
-# EXCEPTIONS
-# =============================================================================
-
-
-class ThemeError(Exception):
-    """Базовое исключение для ошибок темы.
-
-    Attributes:
-        theme_name: Имя темы, связанной с ошибкой.
-
-    Example:
-        >>> raise ThemeError("custom_theme", "Custom error message")
-        ThemeError: custom_theme - Custom error message
-    """
-
-    def __init__(self, theme_name: str = "", message: str = "") -> None:
-        """Инициализация исключения темы.
-
-        Args:
-            theme_name: Имя темы, связанной с ошибкой.
-            message: Описание ошибки.
-        """
-        self.theme_name = theme_name
-        super().__init__(message)
-
-    def __str__(self) -> str:
-        """Строковое представление исключения."""
-        parts = [self.theme_name] if self.theme_name else []
-        if self.args and self.args[0]:
-            parts.append(str(self.args[0]))
-        return " - ".join(parts) if parts else self.__class__.__name__
-
-
-class ThemeNotFoundError(ThemeError):
-    """Тема не найдена в реестре.
-
-    Attributes:
-        theme_name: Имя ненайденной темы.
-
-    Example:
-        >>> raise ThemeNotFoundError("missing_theme")
-        ThemeNotFoundError: missing_theme - Theme 'missing_theme' не найдена
-    """
-
-    def __init__(self, name: str = "") -> None:
-        """Инициализация исключения.
-
-        Args:
-            name: Имя ненайденной темы.
-        """
-        self.theme_name = name
-        super().__init__(name, f"Theme '{name}' не найдена")
-
-
-class ThemeApplicationError(ThemeError):
-    """Ошибка применения темы к виджету.
-
-    Attributes:
-        widget_type: Тип виджета, к которому применялась тема.
-        cause: Исходное исключение, вызвавшее ошибку.
-
-    Example:
-        >>> cause = ValueError("Original error")
-        >>> raise ThemeApplicationError("Button", "classic_green", cause)
-        ThemeApplicationError: Button - classic_green - ...
-    """
-
-    def __init__(
-        self,
-        widget_type: str = "",
-        theme_name: str = "",
-        cause: Optional[Exception] = None,
-    ) -> None:
-        """Инициализация исключения.
-
-        Args:
-            widget_type: Тип виджета.
-            theme_name: Имя темы.
-            cause: Исходное исключение.
-        """
-        self.widget_type = widget_type
-        self.cause = cause
-        super().__init__(
-            theme_name,
-            f"Ошибка применения темы '{theme_name}' к виджету '{widget_type}'",
-        )
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -288,28 +208,34 @@ class ThemeManager:
         """Регистрация встроенных тем из подмодулей.
 
         Использует отложенный импорт для избежания циклических зависимостей.
+        Каждая тема импортируется отдельно — ошибка загрузки одной темы
+        не блокирует регистрацию остальных.
         """
-        try:
-            from src.gui.themes.implementations import (
-                amber,
-                classic_green,
-                high_contrast,
-                phosphor_white,
-                retro_green,
-            )
+        import importlib
 
-            mapping: dict[str, Optional[Theme]] = {
-                "classic_green": classic_green.THEME,
-                "retro_green": retro_green.THEME,
-                "amber": amber.THEME,
-                "phosphor_white": phosphor_white.THEME,
-                "high_contrast": high_contrast.THEME,
-            }
-            for name, theme in mapping.items():
+        theme_modules: dict[str, str] = {
+            "classic_green": "src.gui.themes.implementations.classic_green",
+            "retro_green": "src.gui.themes.implementations.retro_green",
+            "amber": "src.gui.themes.implementations.amber",
+            "phosphor_white": "src.gui.themes.implementations.phosphor_white",
+            "high_contrast": "src.gui.themes.implementations.high_contrast",
+        }
+
+        for name, module_path in theme_modules.items():
+            try:
+                module = importlib.import_module(module_path)
+                theme: Optional[Theme] = getattr(module, "THEME", None)
                 if theme is not None:
                     self._themes[name] = theme
-        except ImportError:
-            pass
+                else:
+                    logger.warning("Тема '%s': атрибут THEME не найден", name)
+            except ImportError:
+                logger.warning(
+                    "Тема '%s': не удалось импортировать модуль %s",
+                    name,
+                    module_path,
+                    exc_info=True,
+                )
 
     def reset(self) -> None:
         """Сброс singleton состояния.
@@ -404,7 +330,7 @@ class ThemeManager:
         """
         with self._operation_lock:
             if name in self._themes:
-                raise ThemeError(name, f"Theme '{name}' уже зарегистрирована")
+                raise ThemeError(name, f"Тема '{name}' уже зарегистрирована")
             self._themes[name] = theme
 
     def unregister_theme(self, name: str) -> None:

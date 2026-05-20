@@ -15,4 +15,4 @@ from __future__ import annotations
 
 from src.gui.components.factories.form_field_factory import create_form_field
 
-__all__ = ["create_form_field"]
+__all__: list[str] = ["create_form_field"]

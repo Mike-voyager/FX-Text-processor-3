@@ -751,12 +751,14 @@ class ModeToggle(tk.Frame):
         self._current_mode = mode
 
         # Уведомляем ModeManager
-        if hasattr(self._mode_manager, "enter_special"):
+        if hasattr(self._mode_manager, "force_mode"):
             if mode == Mode.SPECIAL:
+                # MFA уже пройдена через _request_mfa_for_special(),
+                # поэтому переключаем режим напрямую без повторной проверки.
                 try:
-                    self._mode_manager.enter_special({"password": "", "totp": ""})  # nosec: B105
+                    self._mode_manager.force_mode("special")
                 except Exception as exc:
-                    logger.warning("Failed to enter special mode: %s", exc)
+                    logger.warning("Failed to force special mode: %s", exc)
             elif hasattr(self._mode_manager, "exit_special"):
                 try:
                     self._mode_manager.exit_special(confirm=False)

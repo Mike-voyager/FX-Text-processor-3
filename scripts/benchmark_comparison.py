@@ -8,9 +8,9 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from security.crypto.pqc import KyberKEM, DilithiumSigner
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from security.crypto.pqc import DilithiumSigner, KyberKEM
 
 
 def benchmark_rsa() -> dict:

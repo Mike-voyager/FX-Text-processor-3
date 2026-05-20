@@ -20,7 +20,7 @@ import logging
 import tkinter as tk
 from dataclasses import dataclass, field
 from tkinter import messagebox, simpledialog, ttk
-from typing import Any, Callable, Final, List, Optional
+from typing import Any, Callable, Final, Optional
 
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.model.bookmark import Bookmark, BookmarkManager
@@ -40,7 +40,7 @@ COLOR_SUCCESS: Final[str] = "#28a745"
 COLOR_ERROR: Final[str] = "#dc3545"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BookmarkItem:
     """Элемент закладки для UI.
 
@@ -86,7 +86,7 @@ class GotoDialog(BaseDialog):
         total_pages: int,
         current_page: int = 1,
         total_lines: Optional[int] = None,
-        bookmarks: Optional[List[BookmarkItem]] = None,
+        bookmarks: Optional[list[BookmarkItem]] = None,
     ) -> None:
         """Инициализация диалога перехода.
 
@@ -103,7 +103,7 @@ class GotoDialog(BaseDialog):
         self._total_pages: int = max(1, total_pages)
         self._current_page: int = max(1, min(current_page, total_pages))
         self._total_lines: Optional[int] = total_lines
-        self._bookmarks: List[BookmarkItem] = bookmarks or []
+        self._bookmarks: list[BookmarkItem] = bookmarks or []
         self._result: Optional[dict[str, int]] = None
 
         self._create_ui()

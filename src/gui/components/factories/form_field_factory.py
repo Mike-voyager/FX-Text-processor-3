@@ -13,10 +13,13 @@ Date: May 2026
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from src.documents.types.type_schema import FieldDefinition
 from src.services.autocomplete_service import AutocompleteService
+
+if TYPE_CHECKING:
+    from src.gui.components.form_field import FormField
 
 
 def create_form_field(
@@ -26,7 +29,7 @@ def create_form_field(
     autocomplete_service: Optional[AutocompleteService] = None,
     on_change: Optional[Callable[[str, Any], None]] = None,
     on_validate: Optional[Callable[[str, bool, Optional[str]], None]] = None,
-) -> Any:
+) -> FormField:
     """Создаёт FormField через ленивый импорт.
 
     Lazy import разрывает circular import между renderers и components.

@@ -13,15 +13,16 @@ Example:
     >>> renderer.mount(parent_frame)
     >>> renderer.render(FreeFormDocument(content="Hello World", cpi=12))
 
-Version: 1.0
-Date: April 2026
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
 
 import tkinter as tk
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional, Set, Tuple
+from typing import Any, Callable, Final, Optional
 
+from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
@@ -35,18 +36,15 @@ from src.gui.renderers.free_form_renderer import (
 from src.gui.renderers.protocols import DocumentRendererProtocol, implements
 from src.model.enums import CharactersPerInch
 
-# Constants for double-height row styling
+# Константы для стилей строк двойной высоты
 SHADOW_ROW_BG_COLOR: Final[str] = "#e8e8e8"
-DOUBLE_HEIGHT_MARKER: Final[str] = "📏"
+DOUBLE_HEIGHT_MARKER: Final[str] = "\U0001f4cf"  # Измерительная линейка (emoji-free fallback)
 DOUBLE_HEIGHT_TAG: Final[str] = "double_height_row"
 ROW_MARKER_TAG: Final[str] = "double_height_marker"
 
-# Constants for validation highlighting
+# Константы для подсветки валидации
 INVALID_CHAR_TAG: Final[str] = "invalid_char"
 INVALID_CHAR_BG_COLOR: Final[str] = "#ff6b6b"  # Красный фон для невалидных символов
-
-if TYPE_CHECKING:
-    from src.gui.renderers.protocols import DocumentRendererProtocol
 
 
 @implements(DocumentRendererProtocol)
@@ -123,8 +121,8 @@ class FreeFormModeRenderer(BaseWidget):
         self._grid_column_width: int = 8  # Пикселей на колонку (примерно)
 
         # Double-height row tracking
-        self._double_height_rows: Set[int] = set()
-        self._shadow_row_lines: Set[int] = set()
+        self._double_height_rows: set[int] = set()
+        self._shadow_row_lines: set[int] = set()
         self._on_row_style_change_callback: Optional[Callable[[int, bool], None]] = None
 
     def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
@@ -149,6 +147,9 @@ class FreeFormModeRenderer(BaseWidget):
 
         # Настраиваем теги для валидации
         self._configure_validation_tags()
+
+        # Настраиваем привязки событий для Grid Canvas интеграции
+        self._setup_bindings()
 
         return base_widget
 
@@ -415,6 +416,23 @@ class FreeFormModeRenderer(BaseWidget):
             self._on_content_change_callback(content)
 
     # ==========================================================================
+    # MODE IDENTIFICATION
+    # ==========================================================================
+
+    def get_mode(self) -> DocumentMode:
+        """Возвращает режим документа, поддерживаемый рендерером.
+
+        Returns:
+            DocumentMode.FREE_FORM — данный рендерер работает
+            в режиме свободного редактирования.
+
+        Example:
+            >>> renderer.get_mode()
+            <DocumentMode.FREE_FORM: 'free_form'>
+        """
+        return DocumentMode.FREE_FORM
+
+    # ==========================================================================
     # CPI-AWARE RENDERING
     # ==========================================================================
 
@@ -555,7 +573,7 @@ class FreeFormModeRenderer(BaseWidget):
 
         self._base_renderer.set_text(content)
 
-    def get_cursor_position(self) -> Tuple[int, int]:
+    def get_cursor_position(self) -> tuple[int, int]:
         """Возвращает позицию курсора.
 
         Returns:
@@ -745,7 +763,7 @@ class FreeFormModeRenderer(BaseWidget):
 
     def _apply_row_styles(
         self,
-        double_height_rows: Set[int],
+        double_height_rows: set[int],
     ) -> None:
         """Применяет визуальные стили к строкам с double-height символами.
 
@@ -843,7 +861,7 @@ class FreeFormModeRenderer(BaseWidget):
             >>> renderer.update_row_styles_from_document(doc)
         """
         # Определяем строки с double-height на основе форматирования
-        double_height_rows: Set[int] = set()
+        double_height_rows: set[int] = set()
 
         # Анализируем ranges форматирования
         for fmt_range in document.formatting:
@@ -878,7 +896,7 @@ class FreeFormModeRenderer(BaseWidget):
         """
         return line in self._double_height_rows
 
-    def get_double_height_rows(self) -> Set[int]:
+    def get_double_height_rows(self) -> set[int]:
         """Возвращает множество строк с double-height символами.
 
         Returns:
@@ -891,7 +909,7 @@ class FreeFormModeRenderer(BaseWidget):
         """
         return self._double_height_rows.copy()
 
-    def get_shadow_row_lines(self) -> Set[int]:
+    def get_shadow_row_lines(self) -> set[int]:
         """Возвращает множество shadow row строк.
 
         Shadow rows - это строки следующие за double-height строками.
@@ -966,7 +984,7 @@ class FreeFormModeRenderer(BaseWidget):
         self._clear_row_styles()
 
 
-__all__ = [
+__all__: list[str] = [
     "FreeFormModeRenderer",
     "DOUBLE_HEIGHT_TAG",
     "ROW_MARKER_TAG",

@@ -824,7 +824,7 @@ class OpenFileDialog:
         return Path(filename) if filename else None
 
 
-__all__ = [
+__all__: list[str] = [
     "OpenDialog",
     "OpenResult",
     "OpenFileDialog",

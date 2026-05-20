@@ -54,9 +54,9 @@ class DropOperation(str, Enum):
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class DragData:
-    """Данные drag-операции.
+    """Данные drag-операции (иммутабельная).
 
     Attributes:
         source_window_id: ID окна-источника.
@@ -73,7 +73,7 @@ class DragData:
     data_type: Optional[str] = None
     data: Optional[dict[str, Any]] = None
     preview_text: Optional[str] = None
-    allowed_operations: Optional[list[DropOperation]] = None
+    allowed_operations: Optional[tuple[DropOperation, ...]] = None
     field_type: Optional[Any] = None
     start_x: Optional[int] = None
     start_y: Optional[int] = None
@@ -83,19 +83,23 @@ class DragData:
 class DropTarget:
     """Целевая зона для drop.
 
+    Note:
+        Не frozen — содержит callable и mutable коллекции.
+        Для иммутабельности используйте tuple для accepted_types/accepted_operations.
+
     Attributes:
         target_id: Уникальный идентификатор цели.
         widget: Виджет Tkinter.
         accepted_types: Коллекция принимаемых типов данных.
         accepted_operations: Коллекция принимаемых операций.
-        on_drop: Callback при drop.
+        on_drop: Callback при drop, возвращает Any (bool или None).
     """
 
     target_id: str
     widget: tk.Widget
-    accepted_types: Collection[str] = field(default_factory=list)
-    accepted_operations: Collection[DropOperation] = field(default_factory=list)
-    on_drop: Callable[..., None] = field(default_factory=lambda: lambda *args, **kwargs: None)
+    accepted_types: Collection[str] = field(default_factory=tuple)
+    accepted_operations: Collection[DropOperation] = field(default_factory=tuple)
+    on_drop: Callable[..., Any] = field(default_factory=lambda: lambda *args, **kwargs: None)
 
 
 # =============================================================================
@@ -235,6 +239,9 @@ class DragDropService:
     def drop(self, target_id: str) -> bool:
         """Выполняет drop на указанную цель.
 
+        Пробует вызвать on_drop с одним аргументом (drag_data), а при
+        несовпадении сигнатуры — с тремя (drag_data, widget, event).
+
         Args:
             target_id: Идентификатор целевой зоны.
 
@@ -251,12 +258,8 @@ class DragDropService:
         if not self._can_drop_on_target(target):
             return False
 
-        on_drop: Any = getattr(target, "on_drop", None)
-        if on_drop is None:
-            return False
-
         try:
-            result = on_drop(self._drag_data)
+            result = target.on_drop(self._drag_data)
         except TypeError:
             dummy_event: Any = type(
                 "DummyEvent",
@@ -264,7 +267,7 @@ class DragDropService:
                 {"x": 0, "y": 0, "x_root": 0, "y_root": 0},
             )()
             try:
-                result = on_drop(self._drag_data, target.widget, dummy_event)
+                result = target.on_drop(self._drag_data, target.widget, dummy_event)
             except TypeError:
                 return False
 
@@ -381,26 +384,22 @@ class DragDropService:
     def _on_target_enter(self, target_id: str) -> None:
         """Вызывает callback при входе курсора в целевую зону.
 
+        Зарезервировано для будущей реализации on_enter/on_leave в DropTarget.
+
         Args:
             target_id: Идентификатор цели.
         """
-        target = self._drop_targets.get(target_id)
-        if target is not None:
-            on_enter: Any = getattr(target, "on_enter", None)
-            if on_enter is not None:
-                on_enter()
+        pass
 
     def _on_target_leave(self, target_id: str) -> None:
         """Вызывает callback при выходе курсора из целевой зоны.
 
+        Зарезервировано для будущей реализации on_enter/on_leave в DropTarget.
+
         Args:
             target_id: Идентификатор цели.
         """
-        target = self._drop_targets.get(target_id)
-        if target is not None:
-            on_leave: Any = getattr(target, "on_leave", None)
-            if on_leave is not None:
-                on_leave()
+        pass
 
 
 # =============================================================================

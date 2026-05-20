@@ -153,14 +153,11 @@ class NumberInputWidget(BaseFieldWidget):
         """Форматирует число для отображения.
 
         Args:
-            value: Числовое значение.
+            value: Числовое значение (Decimal, не None).
 
         Returns:
-            Отформатированная строка.
+            Отформатированная строка. Пустая строка при нулевом значении.
         """
-        if value is None:
-            return ""
-
         # Format with decimal places
         formatted = f"{value:,.{self._decimal_places}f}"
 

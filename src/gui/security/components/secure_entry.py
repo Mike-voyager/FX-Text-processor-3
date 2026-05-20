@@ -102,16 +102,28 @@ class SecureEntry(tk.Entry):
         for _ in range(self._wipe_count):
             # Перезапись разной длины для затруднения анализа
             self._variable.set("0" * value_len)
-            self.update()
+            self._safe_update()
             self._variable.set("\x00" * value_len)
-            self.update()
+            self._safe_update()
 
         # Финальная очистка
         self._variable.set("")
-        self.update()
+        self._safe_update()
 
         # Очищаем локальную переменную
         current_value = ""
+
+    def _safe_update(self) -> None:
+        """Безопасный вызов update() с обработкой TclError.
+
+        Обёртка для предотвращения исключений при вызове update()
+        из фонового потока или после уничтожения виджета.
+        """
+        try:
+            if self.winfo_exists():
+                self.update()
+        except tk.TclError:
+            pass
 
     def get_secure(self) -> str:
         """Возвращает значение и сразу выполняет wipe.

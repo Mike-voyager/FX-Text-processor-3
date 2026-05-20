@@ -40,7 +40,11 @@ logger: Final = logging.getLogger(__name__)
 
 
 class FieldType(str, Enum):
-    """Типы полей для палитры.
+    """Типы полей для палитры (локальный enum для UI).
+
+    Note:
+        Это локальный enum для палитры полей панели инструментов,
+        не путать с FieldType из src.documents.types.type_schema.
 
     Attributes:
         TEXT: Текстовое поле.
@@ -486,7 +490,7 @@ class StructuredFormToolbar(BaseWidget):
         Args:
             field_type: Выбранный тип поля.
         """
-        logger.debug(f"Field type selected: {field_type.value}")
+        logger.debug("Field type selected: %s", field_type.value)
         if self._on_field_add is not None:
             self._on_field_add(field_type)
 
@@ -501,7 +505,7 @@ class StructuredFormToolbar(BaseWidget):
                 fg=self.TOGGLE_ON_FG if self._validation_enabled else "#000000",
             )
 
-        logger.debug(f"Validation toggled: {self._validation_enabled}")
+        logger.debug("Validation toggled: %s", self._validation_enabled)
 
         # Вызываем callback
         if self._on_validate_toggle is not None:
@@ -518,7 +522,7 @@ class StructuredFormToolbar(BaseWidget):
                 fg=self.TOGGLE_ON_FG if self._snap_to_grid else "#000000",
             )
 
-        logger.debug(f"Snap-to-grid toggled: {self._snap_to_grid}")
+        logger.debug("Snap-to-grid toggled: %s", self._snap_to_grid)
 
         # Вызываем callback
         if self._on_snap_toggle is not None:
@@ -594,7 +598,7 @@ class StructuredFormToolbar(BaseWidget):
                 text=self._get_role_display_name(role),
             )
 
-        logger.debug(f"Role changed: {old_role.value} -> {role.value}")
+        logger.debug("Role changed: %s -> %s", old_role.value, role.value)
 
         # Вызываем callback
         if self._on_role_change is not None:

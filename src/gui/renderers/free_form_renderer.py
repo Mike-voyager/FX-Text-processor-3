@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional, Set, Tuple
+from typing import Any, Callable, Final, Optional
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
@@ -52,11 +52,11 @@ from src.gui.renderers.barcode_canvas_renderer import (
     BarcodeRenderMode,
     create_barcode_renderer,
 )
-from src.gui.renderers.protocols import implements
+from src.gui.renderers.protocols import (
+    DocumentRendererProtocol,
+    implements,
+)
 from src.gui.renderers.qr_canvas_renderer import QRRenderMode, create_qr_renderer
-
-if TYPE_CHECKING:
-    pass
 
 logger: Final = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class PrinterFontMode:
 
 
 # Mapping: mode -> (font_family, weight)
-PRINTER_FONT_CONFIG: Final[dict[str, Tuple[str, str]]] = {
+PRINTER_FONT_CONFIG: Final[dict[str, tuple[str, str]]] = {
     PrinterFontMode.DRAFT: ("Courier New", "normal"),
     PrinterFontMode.ROMAN: ("Courier New", "bold"),
     PrinterFontMode.SANS_SERIF: ("Arial", "normal"),
@@ -217,7 +217,7 @@ class FreeFormDocument:
 # =============================================================================
 
 
-@implements(Any)
+@implements(DocumentRendererProtocol)
 class FreeFormRenderer(BaseWidget):
     """Рендерер для свободного текстового редактирования.
 
@@ -281,7 +281,7 @@ class FreeFormRenderer(BaseWidget):
         # SmartEdit state
         self._is_editing: bool = False
         self._edit_start_text: str = ""
-        self._edit_start_cursor: Tuple[int, int] = (1, 1)
+        self._edit_start_cursor: tuple[int, int] = (1, 1)
 
         # Callbacks
         self._on_text_change_callback: Optional[Callable[[str], None]] = None
@@ -291,7 +291,7 @@ class FreeFormRenderer(BaseWidget):
         self._current_text: str = ""
         self._content_hidden: bool = False
         self._hidden_content_backup: str = ""
-        self._last_cursor_position: Tuple[int, int] = (1, 1)
+        self._last_cursor_position: tuple[int, int] = (1, 1)
 
         # Font configuration
         self._font_family: str = DEFAULT_FONT_FAMILY
@@ -386,7 +386,7 @@ class FreeFormRenderer(BaseWidget):
         )
         self._tk_placeholder_label = tk.Label(
             self._tk_placeholder_frame,
-            text="🔒 Session Locked",
+            text="[LOCK] Session Locked",
             font=(self._font_family, 14),
             bg="#f0f0f0",
             fg="#666666",
@@ -1127,7 +1127,7 @@ class FreeFormRenderer(BaseWidget):
 
         self._current_text = safe_text
 
-    def get_cursor_position(self) -> Tuple[int, int]:
+    def get_cursor_position(self) -> tuple[int, int]:
         """Возвращает позицию курсора.
 
         Returns:
@@ -1182,7 +1182,7 @@ class FreeFormRenderer(BaseWidget):
 
         self._last_cursor_position = (line, column)
 
-    def get_selection(self) -> Optional[Tuple[str, str]]:
+    def get_selection(self) -> Optional[tuple[str, str]]:
         """Возвращает выделенный диапазон.
 
         Returns:
@@ -1616,7 +1616,7 @@ class FreeFormRenderer(BaseWidget):
         self._tk_text.tag_remove("shadow_row", "1.0", tk.END)
 
         # Находим все строки с double_height
-        double_height_lines: Set[int] = set()
+        double_height_lines: set[int] = set()
         ranges = self._tk_text.tag_ranges("double_height")
         for i in range(0, len(ranges), 2):
             if i + 1 >= len(ranges):
@@ -1638,7 +1638,7 @@ class FreeFormRenderer(BaseWidget):
             except tk.TclError:
                 pass  # Следующая строка не существует
 
-    def get_shadow_row_lines(self) -> Set[int]:
+    def get_shadow_row_lines(self) -> set[int]:
         """Возвращает множество shadow row строк.
 
         Shadow rows — строки, следующие за double-height строками.
@@ -1655,7 +1655,7 @@ class FreeFormRenderer(BaseWidget):
         if not self._is_mounted or self._tk_text is None:
             return set()
 
-        shadow_lines: Set[int] = set()
+        shadow_lines: set[int] = set()
         ranges = self._tk_text.tag_ranges("shadow_row")
         for i in range(0, len(ranges), 2):
             if i + 1 >= len(ranges):

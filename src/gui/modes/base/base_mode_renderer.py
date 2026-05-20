@@ -20,8 +20,8 @@ Example:
     ...     def _do_get_content(self) -> str:
     ...         return ""
 
-Version: 1.0
-Date: April 2026
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from typing import Generic, Optional, TypeVar
 from src.documents.types.document_type import DocumentMode
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
+from src.gui.core.exceptions import LifecycleError
 from src.gui.layout.layout_constants import ESCP_COLS, ESCP_ROWS
 from src.gui.modes.protocols import (
     ModeContext,
@@ -41,18 +42,6 @@ from src.gui.modes.protocols import (
 
 DocumentT = TypeVar("DocumentT")
 ContentT = TypeVar("ContentT")
-
-
-class LifecycleError(Exception):
-    """Ошибка жизненного цикла рендерера.
-
-    Вызывается при вызове методов, требующих смонтированного рендерера.
-
-    Example:
-        >>> raise LifecycleError("Renderer not mounted")
-    """
-
-    pass
 
 
 class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
@@ -256,7 +245,11 @@ class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
         if parent is None:
             raise ValueError("parent cannot be None")
         if self._mounted:
-            raise LifecycleError("Renderer already mounted")
+            raise LifecycleError(
+                widget_id=self.renderer_id,
+                operation="mount",
+                message="Renderer already mounted",
+            )
 
         self._parent = parent
         self._root_widget = self._do_create_root_widget(parent)
@@ -306,7 +299,11 @@ class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
             LifecycleError: Если рендерер не смонтирован.
         """
         if not self._mounted:
-            raise LifecycleError("Renderer not mounted")
+            raise LifecycleError(
+                widget_id=self.renderer_id,
+                operation="_ensure_mounted",
+                message="Renderer not mounted",
+            )
 
     # ======================================================================
     # RENDERING

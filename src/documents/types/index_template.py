@@ -301,7 +301,9 @@ class TemplateField:
             import re
 
             if not re.match(self.validation_pattern, val):
-                errors.append(f"Значение поля '{self.name}' не соответствует требуемому формату")
+                errors.append(
+                    f"Значение поля '{self.name}' не соответствует требуемому формату"
+                )
 
         # Проверка числового значения
         if self.field_type == FieldType.NUMBER and val:
@@ -491,7 +493,9 @@ class IndexTemplate:
             value = values[segment.name]
             # Проверка паттерна
             if not re.match(segment.pattern, value):
-                raise ValueError(f"Value '{value}' doesn't match pattern {segment.pattern}")
+                raise ValueError(
+                    f"Value '{value}' doesn't match pattern {segment.pattern}"
+                )
             segments.append(value)
 
         # Добавляем SEQUENCE (римские цифры)
@@ -517,7 +521,9 @@ class IndexTemplate:
         expected = len(self.segments)
 
         if len(parts) != expected:
-            raise ValueError(f"Index '{index_str}' has {len(parts)} segments, expected {expected}")
+            raise ValueError(
+                f"Index '{index_str}' has {len(parts)} segments, expected {expected}"
+            )
 
         values: dict[str, str] = {}
 
@@ -526,17 +532,23 @@ class IndexTemplate:
             value = parts[i]
             # Проверка паттерна
             if not re.match(segment.pattern, value):
-                raise ValueError(f"Segment '{value}' doesn't match pattern {segment.pattern}")
+                raise ValueError(
+                    f"Segment '{value}' doesn't match pattern {segment.pattern}"
+                )
             # Проверка allowed_values
             if segment.allowed_values and value not in segment.allowed_values:
-                raise ValueError(f"Value '{value}' not in allowed values: {segment.allowed_values}")
+                raise ValueError(
+                    f"Value '{value}' not in allowed values: {segment.allowed_values}"
+                )
             values[segment.name] = value
 
         # Проверяем SEQUENCE
         seq_value = parts[-1]
         seq_segment = self.sequence_segment
         if not re.match(seq_segment.pattern, seq_value):
-            raise ValueError(f"Sequence '{seq_value}' doesn't match pattern {seq_segment.pattern}")
+            raise ValueError(
+                f"Sequence '{seq_value}' doesn't match pattern {seq_segment.pattern}"
+            )
 
         return values
 
@@ -620,7 +632,9 @@ class IndexTemplate:
                 if field:
                     value = data.get(rule.field_id)
                     if not self._check_rule(rule, value):
-                        errors.append(rule.error_message or f"Ошибка валидации: {rule.rule_id}")
+                        errors.append(
+                            rule.error_message or f"Ошибка валидации: {rule.rule_id}"
+                        )
 
         return errors
 

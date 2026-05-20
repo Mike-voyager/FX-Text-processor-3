@@ -178,8 +178,8 @@ class NumberEntry(BaseField):
                 formatted = self._format_value(self._value)
                 self._entry.delete(0, tk.END)
                 self._entry.insert(0, formatted)
-            except (ValueError, TypeError):
-                logger.debug("Failed to format/clam value: %s", value)
+            except (ValueError, TypeError, InvalidOperation):
+                logger.debug("Failed to format/clamp value: %s", text)
                 self._value = None
 
         if self._on_change is not None:

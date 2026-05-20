@@ -21,10 +21,10 @@ from io import BytesIO
 from typing import Callable, Optional
 
 try:
-    from PIL import Image, ImageTk
+    from PIL import Image, ImageTk  # type: ignore[import-untyped]
 except ImportError:
+    Image = None  # type: ignore[assignment,misc]
     ImageTk = None
-    from PIL import Image
 
 from src.documents.types.type_schema import FieldDefinition
 from src.gui.modes.structured_form.widgets.base_field_widget import BaseFieldWidget
@@ -91,6 +91,10 @@ class StampWidget(BaseFieldWidget):
             self._show_placeholder()
             return
 
+        if Image is None or ImageTk is None:
+            self._show_placeholder()
+            return
+
         try:
             with Image.open(BytesIO(self._stamp_data)) as img:
                 img.thumbnail((200, 100))
@@ -142,4 +146,4 @@ class StampWidget(BaseFieldWidget):
         pass
 
 
-__all__ = ["StampWidget"]
+__all__: list[str] = ["StampWidget"]

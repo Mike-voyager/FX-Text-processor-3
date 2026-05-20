@@ -361,4 +361,4 @@ class BarcodeWidget(BaseFieldWidget):
             self._entry.focus_set()
 
 
-__all__ = ["BarcodeWidget"]
+__all__: list[str] = ["BarcodeWidget"]

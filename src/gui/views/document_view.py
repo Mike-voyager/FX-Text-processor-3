@@ -27,13 +27,14 @@ Date: April 2026
 
 from __future__ import annotations
 
-__version__ = "2.0"
-__author__ = "FX Text Processor Team"
-__date__ = "April 2026"
+__version__: Final[str] = "2.0"
+__author__: Final[str] = "FX Text Processor Team"
+__date__: Final[str] = "April 2026"
 
 import logging
 import tkinter as tk
 from typing import Any, Callable, Final, Optional, Protocol, cast, runtime_checkable
+from uuid import UUID
 
 from src.documents.constructor.form_status import FormStatus
 from src.documents.printing.document_renderer import DocumentRenderer
@@ -57,6 +58,7 @@ from src.gui.renderers.structured_form_renderer import (
     StructuredFormRenderer,
 )
 from src.gui.themes import ThemeRegistry
+from src.gui.workflow.role_badge import WorkflowRole
 from src.services.clipboard_service import ClipboardService, PyperclipBackend
 
 logger = logging.getLogger(__name__)
@@ -657,8 +659,6 @@ class DocumentView(BaseWidget):
         # otherwise fall back to controller dispatch.
         try:
             if hasattr(self._workflow_state_manager, "request_transition_by_action"):
-                from uuid import UUID
-
                 doc_id = self._current_document_id
                 if doc_id:
                     self._workflow_state_manager.request_transition_by_action(
@@ -700,8 +700,6 @@ class DocumentView(BaseWidget):
             self._statusbar.set_workflow_timeline(status)
 
         # Map role switch actions to WorkflowRole
-        from src.gui.workflow.role_badge import WorkflowRole
-
         action_to_role: dict[str, WorkflowRole] = {
             "switch_to_operator": WorkflowRole.OPERATOR,
             "switch_to_editor": WorkflowRole.EDITOR,
@@ -726,8 +724,6 @@ class DocumentView(BaseWidget):
             try:
                 if hasattr(self._workflow_state_manager, "workflow_controller"):
                     wc = self._workflow_state_manager.workflow_controller
-                    from uuid import UUID
-
                     doc_uuid = (
                         UUID(self._current_document_id)
                         if isinstance(self._current_document_id, str)
@@ -771,8 +767,6 @@ class DocumentView(BaseWidget):
         role_attr = getattr(document, "role", None)
         if role_attr is not None:
             try:
-                from src.gui.workflow.role_badge import WorkflowRole
-
                 if isinstance(role_attr, WorkflowRole):
                     self._statusbar.set_role_badge(role_attr)
                 elif isinstance(role_attr, str):
@@ -964,6 +958,9 @@ class DocumentView(BaseWidget):
             text="📄 Document",
             relief=tk.SUNKEN,
             bg=_theme_color("accent"),
+            fg=_theme_color("fg"),
+            activebackground=_theme_color("accent"),
+            activeforeground=_theme_color("fg"),
             command=self.switch_to_document_mode,
         )
         doc_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -975,6 +972,9 @@ class DocumentView(BaseWidget):
             text="🎨 Designer",
             relief=tk.RAISED,
             bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
+            activebackground=_theme_color("bg"),
+            activeforeground=_theme_color("fg"),
             command=self.switch_to_designer_mode,
         )
         designer_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -986,6 +986,9 @@ class DocumentView(BaseWidget):
             text="👁 Preview",
             relief=tk.RAISED,
             bg=_theme_color("bg"),
+            fg=_theme_color("fg"),
+            activebackground=_theme_color("bg"),
+            activeforeground=_theme_color("fg"),
             command=self.switch_to_preview_mode,
         )
         preview_btn.pack(side=tk.LEFT, padx=2, pady=2)
@@ -1017,11 +1020,21 @@ class DocumentView(BaseWidget):
         if self._designer_tab is not None and hasattr(self._designer_tab, "hide"):
             self._designer_tab.hide()
 
+        # Hide Preview widget
+        if self._preview_widget is not None:
+            self._preview_widget.pack_forget()
+
         # Update tab buttons
         self._update_tab_button_state("document")
 
         # Show appropriate renderer (FreeForm or StructuredForm)
-        if self._current_mode == DocumentMode.FREE_FORM:
+        if self._current_renderer is not None and self._current_renderer.can_handle(
+            self._current_mode
+        ):
+            if self._tk_renderer_frame is not None:
+                self._tk_renderer_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+            self._current_renderer.show()
+        elif self._current_mode == DocumentMode.FREE_FORM:
             self._show_free_form_renderer()
         elif self._current_mode == DocumentMode.STRUCTURED_FORM:
             self._show_structured_form_renderer()
@@ -1057,7 +1070,7 @@ class DocumentView(BaseWidget):
                 self._tk_content_frame.pack_propagate(False)
 
     def _hide_all_renderers(self) -> None:
-        """Скрывает все рендереры."""
+        """Скрывает все рендереры и вспомогательные фреймы."""
         if self._free_form_renderer is not None:
             self._free_form_renderer.hide()
         if self._structured_renderer is not None:
@@ -1065,7 +1078,11 @@ class DocumentView(BaseWidget):
         if self._designer_tab is not None and hasattr(self._designer_tab, "hide"):
             self._designer_tab.hide()
         if self._preview_widget is not None:
-            self._preview_widget.grid_forget()
+            self._preview_widget.pack_forget()
+
+        # Hide renderer container frame so it does not block other widgets
+        if self._tk_renderer_frame is not None:
+            self._tk_renderer_frame.pack_forget()
 
         # Hide placeholder if showing
         if self._tk_placeholder_frame is not None:
@@ -1079,9 +1096,9 @@ class DocumentView(BaseWidget):
         """
         for tab_name, btn in self._mode_tab_buttons.items():
             if tab_name == active_tab:
-                btn.config(relief=tk.SUNKEN, bg=_theme_color("accent"))
+                btn.config(relief=tk.SUNKEN, bg=_theme_color("accent"), fg=_theme_color("fg"))
             else:
-                btn.config(relief=tk.RAISED, bg=_theme_color("bg"))
+                btn.config(relief=tk.RAISED, bg=_theme_color("bg"), fg=_theme_color("fg"))
 
     def _get_current_document(self) -> Optional[Any]:
         """Возвращает текущий документ.
@@ -1195,7 +1212,7 @@ class DocumentView(BaseWidget):
         self._current_mode = DocumentMode.FREE_FORM
 
         # Clear renderers
-        if self._free_form_renderer is not None:
+        if self._free_form_renderer is not None and hasattr(self._free_form_renderer, "set_text"):
             self._free_form_renderer.set_text("")
 
         # Clear command history

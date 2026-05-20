@@ -92,11 +92,10 @@ class TextInputWidget(BaseFieldWidget):
 
             # Bind focus events for placeholder
             self._entry.bind("<FocusIn>", self._on_focus_in)
-            self._entry.bind("<FocusOut>", self._on_focus_out)
 
-        # Bind value change
+        # Bind value change и валидация при потере фокуса
         self._entry.bind("<KeyRelease>", self._on_value_changed)
-        self._entry.bind("<FocusOut>", self._on_focus_out, add=True)
+        self._entry.bind("<FocusOut>", self._on_focus_out)
 
         # Set initial value
         if self._field_def.default_value:

@@ -30,7 +30,7 @@ from src.security.crypto.core.exceptions import AuthError, CryptoError
 try:
     import pyotp
 except ImportError:  # pragma: no cover
-    pyotp = None
+    pyotp = None  # type: ignore[assignment]
 
 logger: Final = logging.getLogger(__name__)
 
@@ -104,10 +104,6 @@ class TOTPSetupDialog(BaseDialog):
 
         # Create UI
         self._create_ui()
-
-        # Center window
-
-        # Protocol
 
     def _center_window(self) -> None:
         """Центрирует окно относительно родительского."""
@@ -529,10 +525,8 @@ class TOTPSetupDialog(BaseDialog):
 
         except (AuthError, CryptoError) as e:
             logger.critical("Security error saving TOTP secret: %s", e, exc_info=True)
-            logger.error("Failed to save TOTP secret: %s", e)
         except Exception as e:
             logger.error("Unexpected error saving TOTP secret: %s", e, exc_info=True)
-            logger.error("Failed to save TOTP secret: %s", e)
             # Don't raise - setup can complete but secret won't persist
 
     def _show_error(self, message: str) -> None:
@@ -563,7 +557,12 @@ class TOTPSetupDialog(BaseDialog):
 
     def _on_cancel(self) -> None:
         """Обработчик отмены."""
-        self._result = {"verified": False, "cancelled": True}
+        self._result = {
+            "verified": False,
+            "secret": None,
+            "method": "totp",
+            "cancelled": True,
+        }
         self.destroy()
 
     def show(self) -> Optional[dict[str, Any]]:

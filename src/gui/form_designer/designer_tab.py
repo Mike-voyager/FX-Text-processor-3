@@ -809,9 +809,16 @@ class DesignerTab(BaseWidget):
         # Remove from list
         self._pages.pop(index)
 
-        # Reindex remaining pages
+        # Reindex remaining pages (DesignerPage is frozen, recreate with new index)
         for i, p in enumerate(self._pages):
-            p.index = i
+            self._pages[i] = _DesignerPage(
+                index=i,
+                profile=p.profile,
+                canvas=p.canvas,
+                frame=p.frame,
+                fields=p.fields,
+                page_break_id=p.page_break_id,
+            )
 
         # Update selection
         if self._selected_page_index >= len(self._pages):
@@ -1485,6 +1492,16 @@ class DesignerTab(BaseWidget):
         self._panel_state_cache.clear()
 
         super()._cleanup()
+
+    def show(self) -> None:
+        """Показывает виджет дизайнера."""
+        if self._tk_widget is not None:
+            self._tk_widget.pack(fill=tk.BOTH, expand=True)
+
+    def hide(self) -> None:
+        """Скрывает виджет дизайнера."""
+        if self._tk_widget is not None:
+            self._tk_widget.pack_forget()
 
 
 # =============================================================================

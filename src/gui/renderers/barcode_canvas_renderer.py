@@ -22,6 +22,7 @@ import logging
 import tkinter as tk
 from abc import ABC, abstractmethod
 from enum import Enum, auto
+from io import BytesIO
 from typing import Any, Final, Optional, Protocol
 
 logger: Final = logging.getLogger(__name__)
@@ -311,12 +312,12 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
             return self._store_item(item_id)
 
         except ImportError as e:
-            logger.warning(f"Barcode library not available: {e}")
+            logger.warning("Barcode library not available: %s", e)
             return self._render_placeholder(
                 barcode_type, data, x, y, width, height, error="Library not available"
             )
         except Exception as e:
-            logger.error(f"Barcode render error: {e}")
+            logger.error("Barcode render error: %s", e)
             return self._render_placeholder(barcode_type, data, x, y, width, height, error=str(e))
 
     def _generate_barcode_image(
@@ -357,7 +358,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
 
             barcode_class = type_map.get(barcode_type)
             if barcode_class is None:
-                logger.warning(f"Unsupported barcode type: {barcode_type}")
+                logger.warning("Unsupported barcode type: %s", barcode_type)
                 return None
 
             # Generate barcode
@@ -375,8 +376,6 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
             barcode_instance = barcode_class(data, writer=writer)
 
             # Render to buffer
-            from io import BytesIO
-
             buffer = BytesIO()
             barcode_instance.write(buffer, options={"dpi": self._dpi})
             buffer.seek(0)
@@ -391,7 +390,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
             return img
 
         except Exception as e:
-            logger.error(f"Barcode generation error: {e}")
+            logger.error("Barcode generation error: %s", e)
             return None
 
     def _render_placeholder(
@@ -431,9 +430,9 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
         )
 
         # Label
-        label_text = f"📊 {barcode_type}"
+        label_text = f"[BAR] {barcode_type}"
         if error:
-            label_text += f"\n⚠️ {error[:30]}"
+            label_text += f"\n[!] {error[:30]}"
         else:
             label_text += f"\n{data[:20]}{'...' if len(data) > 20 else ''}"
 
@@ -530,7 +529,7 @@ class HardwareBarcodeRenderer(BarcodeCanvasRenderer):
         header_id = self._canvas.create_text(
             x + width // 2,
             y + 20,
-            text=f"📠 Hardware Mode: {barcode_type}",
+            text=f"[HW] Hardware Mode: {barcode_type}",
             fill=HARDWARE_FG,
             font=("Helvetica", 10, "bold"),
             anchor=tk.CENTER,
@@ -600,7 +599,7 @@ class HardwareBarcodeRenderer(BarcodeCanvasRenderer):
         )
 
         # Content
-        content = f"📠 {barcode_type}\nHardware Mode\nESC/P"
+        content = f"[HW] {barcode_type}\nHardware Mode\nESC/P"
         text_id = self._canvas.create_text(
             x + width // 2,
             y + height // 2,
@@ -714,7 +713,7 @@ class PlaceholderBarcodeRenderer(BarcodeCanvasRenderer):
         label_id = self._canvas.create_text(
             icon_x,
             y + height - 30,
-            text=f"📊 {barcode_type}",
+            text=f"[BAR] {barcode_type}",
             fill=PLACEHOLDER_FG,
             font=("Helvetica", 10, "bold"),
             anchor=tk.CENTER,

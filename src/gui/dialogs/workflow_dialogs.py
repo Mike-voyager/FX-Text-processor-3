@@ -50,7 +50,7 @@ COMMENT_SEVERITY: Final[list[tuple[str, str]]] = [
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class CommentData:
     """Данные комментария.
 

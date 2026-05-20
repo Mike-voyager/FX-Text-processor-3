@@ -111,6 +111,15 @@ class TreeItemSyncIndicator:
         """Базовый текст элемента."""
         return self._base_text
 
+    @base_text.setter
+    def base_text(self, value: str) -> None:
+        """Устанавливает базовый текст элемента.
+
+        Args:
+            value: Новый базовый текст.
+        """
+        self._base_text = value
+
     @property
     def current_icon(self) -> str:
         """Текущая иконка (с учётом анимации)."""
@@ -243,7 +252,7 @@ class SideBarSyncManager:
             status: Начальный статус (default: offline).
         """
         if item_id in self._indicators:
-            self._indicators[item_id]._base_text = base_text
+            self._indicators[item_id].base_text = base_text
             self.set_item_status(item_id, status)
             return
         indicator = TreeItemSyncIndicator(

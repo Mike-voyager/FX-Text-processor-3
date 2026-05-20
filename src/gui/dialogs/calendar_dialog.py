@@ -220,8 +220,7 @@ class CalendarDialog(BaseDialog):
             Выбранная дата или None при отмене.
         """
         self.deiconify()
-        self.update_idletasks()
-        self.wait_window()
+        super().show()
         return cast(Optional[date], self._result)
 
 

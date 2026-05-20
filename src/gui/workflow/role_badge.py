@@ -110,10 +110,10 @@ class RoleBadge(BaseWidget):
 
     # Локализованные названия ролей
     ROLE_NAMES: Final[dict[WorkflowRole, str]] = {
-        WorkflowRole.OPERATOR: "Operator",
-        WorkflowRole.EDITOR: "Editor",
-        WorkflowRole.SUPERVISOR: "Supervisor",
-        WorkflowRole.SIGNATORY: "Signatory",
+        WorkflowRole.OPERATOR: "Оператор",
+        WorkflowRole.EDITOR: "Редактор",
+        WorkflowRole.SUPERVISOR: "Супервайзер",
+        WorkflowRole.SIGNATORY: "Подписант",
     }
 
     # MFA требуется для привилегированных ролей

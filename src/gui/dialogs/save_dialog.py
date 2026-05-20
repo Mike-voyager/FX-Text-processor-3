@@ -24,6 +24,7 @@ import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Any as TypingAny
 from typing import Final, Optional, cast
 
 from src.documents.format.document_format import SecurityPreset
@@ -143,6 +144,7 @@ class SaveDialog(BaseDialog):
         self._parent: tk.Widget = parent
         self._document: Document = document
         self._default_path: Optional[Path] = default_path
+        self._current_path: Path = default_path or Path.home() / "Documents"
         self._result: Optional[SaveResult] = None
         self._password_hasher: PasswordHasher = PasswordHasher()
 
@@ -204,10 +206,10 @@ class SaveDialog(BaseDialog):
         self._create_metadata_section(main_frame, row=5)
 
         # File size indicator
-        self._create_size_indicator(main_frame, row=5)
+        self._create_size_indicator(main_frame, row=6)
 
         # Button bar
-        self._create_button_bar(main_frame, row=6)
+        self._create_button_bar(main_frame, row=7)
 
     def _create_file_section(self, parent: ttk.Frame, row: int) -> None:
         """Создаёт секцию выбора файла.
@@ -580,8 +582,6 @@ class SaveDialog(BaseDialog):
         Args:
             enabled: True для включения, False для отключения.
         """
-        from typing import Any as TypingAny
-
         state = tk.NORMAL if enabled else tk.DISABLED
         for child in self._password_frame.winfo_children():
             for widget in child.winfo_children():

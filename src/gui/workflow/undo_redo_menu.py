@@ -89,8 +89,18 @@ class UndoRedoMenuItems:
         redo_accel = UNDO_REDO_SHORTCUTS["redo"] if accelerator else ""
 
         if index is not None:
+            menu.add_command(
+                label=undo_label,
+                command=self._undo_callback,
+                accelerator=undo_accel,
+            )
             self._undo_menu_item = index
             self._redo_menu_item = index + 1
+            menu.add_command(
+                label=redo_label,
+                command=self._redo_callback,
+                accelerator=redo_accel,
+            )
         else:
             end_idx = menu.index(tk.END)
             self._undo_menu_item = int(end_idx) + 1 if end_idx is not None else 0

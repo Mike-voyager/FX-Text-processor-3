@@ -63,6 +63,7 @@ class ProgressIndicator(BaseWidget):
         self._status_text: str = ""
         self._indeterminate_running: bool = False
         self._after_id: Optional[str] = None
+        self._indeterminate_offset: int = 0
 
         self._canvas: Optional[tk.Canvas] = None
         self._label: Optional[tk.Label] = None
@@ -168,6 +169,7 @@ class ProgressIndicator(BaseWidget):
     def _start_indeterminate(self) -> None:
         """Запускает индетерминированную анимацию."""
         self._indeterminate_running = True
+        self._indeterminate_offset = 0
         self._animate_step()
 
     def _animate_step(self) -> None:
@@ -182,7 +184,8 @@ class ProgressIndicator(BaseWidget):
         if height <= 1:
             height = 16
         segment = width // 4
-        offset = (self._canvas.winfo_x() // 2) % (width + segment) - segment
+        self._indeterminate_offset = (self._indeterminate_offset + 8) % (width + segment)
+        offset = self._indeterminate_offset - segment
         self._canvas.create_rectangle(0, 0, width, height, fill="#E0E0E0", outline="")
         self._canvas.create_rectangle(
             offset,
@@ -197,6 +200,7 @@ class ProgressIndicator(BaseWidget):
     def _stop_indeterminate(self) -> None:
         """Останавливает анимацию."""
         self._indeterminate_running = False
+        self._indeterminate_offset = 0
         if self._after_id is not None and self._canvas is not None:
             try:
                 self._canvas.after_cancel(self._after_id)

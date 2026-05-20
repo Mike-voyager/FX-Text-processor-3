@@ -8,15 +8,16 @@ Date: May 2026
 
 from __future__ import annotations
 
+import tkinter as tk
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.protocols import ControllerProtocol
 from src.services.paper_format_service import Orientation, PaperSize
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaperConfig:
     """Конфигурация бумаги (placeholder).
 
@@ -75,10 +76,15 @@ class PaperToolbar(BaseWidget):
         """
         super().__init__(widget_id=widget_id, controller=controller)
 
-    def _create_tk_widget(self, parent: Any) -> Any:
-        """Создаёт placeholder виджет."""
-        import tkinter as tk
+    def _create_tk_widget(self, parent: tk.Widget) -> tk.Widget:
+        """Создаёт placeholder виджет.
 
+        Args:
+            parent: Родительский Tkinter виджет.
+
+        Returns:
+            Созданный Frame виджет.
+        """
         return tk.Frame(parent)
 
 

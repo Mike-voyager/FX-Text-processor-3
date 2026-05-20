@@ -47,21 +47,21 @@ def _theme_color(key: str) -> str:
 
 # Данные кнопок: action_name → {отображаемый текст, ключ цвета в теме}
 _BUTTON_CONFIG: Final[dict[str, dict[str, str]]] = {
-    "fill_fields": {"text": "📝 Fill Fields", "theme_key": "button_primary"},
-    "save_draft": {"text": "💾 Save Draft", "theme_key": "button_primary"},
-    "submit_for_validation": {"text": "📤 Submit", "theme_key": "success"},
-    "validate": {"text": "✅ Validate", "theme_key": "success"},
-    "approve": {"text": "👍 Approve", "theme_key": "success"},
-    "sign": {"text": "✍️ Sign", "theme_key": "error"},
-    "reject": {"text": "❌ Reject", "theme_key": "warning"},
-    "view_comments": {"text": "👁 View Comments", "theme_key": "border"},
-    "print": {"text": "🖨 Print", "theme_key": "border"},
-    "archive": {"text": "📦 Archive", "theme_key": "warning"},
-    "switch_role": {"text": "🔀 Switch Role", "theme_key": "border"},
-    "switch_to_editor": {"text": "🔀 Switch to Editor", "theme_key": "border"},
-    "switch_to_operator": {"text": "🔀 Switch to Operator", "theme_key": "border"},
-    "switch_to_supervisor": {"text": "🔀 Switch to Supervisor", "theme_key": "border"},
-    "switch_to_signatory": {"text": "🔀 Switch to Signatory", "theme_key": "border"},
+    "fill_fields": {"text": "📝 Заполнить", "theme_key": "button_primary"},
+    "save_draft": {"text": "💾 Сохранить", "theme_key": "button_primary"},
+    "submit_for_validation": {"text": "📤 Отправить", "theme_key": "success"},
+    "validate": {"text": "✅ Проверить", "theme_key": "success"},
+    "approve": {"text": "👍 Согласовать", "theme_key": "success"},
+    "sign": {"text": "✍️ Подписать", "theme_key": "error"},
+    "reject": {"text": "❌ Отклонить", "theme_key": "warning"},
+    "view_comments": {"text": "👁 Комментарии", "theme_key": "border"},
+    "print": {"text": "🖨 Печать", "theme_key": "border"},
+    "archive": {"text": "📦 Архив", "theme_key": "warning"},
+    "switch_role": {"text": "🔀 Смена роли", "theme_key": "border"},
+    "switch_to_editor": {"text": "🔀 Редактор", "theme_key": "border"},
+    "switch_to_operator": {"text": "🔀 Оператор", "theme_key": "border"},
+    "switch_to_supervisor": {"text": "🔀 Супервайзер", "theme_key": "border"},
+    "switch_to_signatory": {"text": "🔀 Подписант", "theme_key": "border"},
 }
 
 # Коэффициент осветления для hover (10%)

@@ -27,7 +27,7 @@ import logging
 import re
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Callable, Dict, Final, List, Optional, Tuple, cast
+from typing import Any, Callable, Final, Optional, cast
 
 from src.gui.components.paper_toolbar import PaperConfig
 from src.gui.dialogs.base_dialog import BaseDialog
@@ -35,7 +35,7 @@ from src.gui.layout.layout_constants import PADDING_LARGE, PADDING_NORMAL, PADDI
 from src.gui.themes import ThemeRegistry
 from src.services.paper_format_service import Orientation, PaperSize
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _theme_color(key: str) -> str:
@@ -69,20 +69,20 @@ MAX_CPI: Final[int] = 20
 NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[\d]+\.?\d*$")
 
 # Отображаемые названия ориентаций
-ORIENTATION_DISPLAY: Final[Dict[Orientation, str]] = {
+ORIENTATION_DISPLAY: Final[dict[Orientation, str]] = {
     Orientation.PORTRAIT: "Portrait",
     Orientation.LANDSCAPE: "Landscape",
 }
 
 # Отображаемые названия типов источников бумаги
-PAPER_SOURCE_DISPLAY: Final[Dict[str, str]] = {
+PAPER_SOURCE_DISPLAY: Final[dict[str, str]] = {
     "tractor": "Tractor feed",
     "manual": "Manual feed",
     "auto": "Auto select",
 }
 
 # Отображаемые названия типов бумажных форм
-PAPER_FORM_DISPLAY: Final[Dict[str, str]] = {
+PAPER_FORM_DISPLAY: Final[dict[str, str]] = {
     "custom": "Custom",
     "tractor_full": "Tractor Full 210×305",
     "tractor_half": "Tractor Half 210×152.5",
@@ -228,8 +228,8 @@ class PaperSetupDialog(BaseDialog):
         self.resizable(False, False)
 
         # Переменные для форм
-        self._vars: Dict[str, tk.StringVar] = {}
-        self._error_labels: Dict[str, tk.Label] = {}
+        self._vars: dict[str, tk.StringVar] = {}
+        self._error_labels: dict[str, tk.Label] = {}
         self._notebook: ttk.Notebook
         self._preview_canvas: tk.Canvas
 
@@ -504,7 +504,7 @@ class PaperSetupDialog(BaseDialog):
         row: int,
         label: str,
         var_name: str,
-        options: List[str],
+        options: list[str],
         default: str,
     ) -> ttk.Combobox:
         """Создаёт labeled dropdown.
@@ -931,7 +931,7 @@ class PaperSetupDialog(BaseDialog):
             return "1/8"
         return "custom"
 
-    def _validate_all(self) -> Tuple[bool, List[str]]:
+    def _validate_all(self) -> tuple[bool, list[str]]:
         """Валидирует все поля формы.
 
         Returns:

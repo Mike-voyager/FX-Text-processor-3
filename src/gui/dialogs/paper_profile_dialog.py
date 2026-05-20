@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Callable, Dict, Final, List, Literal, Optional, Tuple, cast
+from typing import Any, Callable, Final, Literal, Optional, cast
 
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.model.enums import FontFamily
@@ -38,7 +38,7 @@ from src.services.paper_profile_service import (
     PaperProfileService,
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 # =============================================================================
 # CONSTANTS
@@ -117,17 +117,17 @@ class PaperProfileDialog(BaseDialog):
         self._selected_profile: Optional[PaperProfile] = None
 
         # UI references
-        self._favorites_widgets: List[Dict[str, Any]] = []
+        self._favorites_widgets: list[dict[str, Any]] = []
         self._tree: Optional[ttk.Treeview] = None
         self._details_frame: Optional[tk.Widget] = None
 
         # Variables
-        self._profile_vars: Dict[str, tk.Variable] = {}
+        self._profile_vars: dict[str, tk.Variable] = {}
         self._tear_off_var: tk.BooleanVar = tk.BooleanVar(master=self)
         self._tear_off_check: Optional[tk.Checkbutton] = None
         self._tear_off_info: Optional[tk.Label] = None
-        self._printable_label: tk.Label = tk.Label(self)
-        self._recalc_btn: tk.Button = tk.Button(self)
+        self._printable_label: Optional[tk.Label] = None
+        self._recalc_btn: Optional[tk.Button] = None
 
         # Configure window
         self.title("Select Paper Profile")
@@ -401,7 +401,7 @@ class PaperProfileDialog(BaseDialog):
             self._tree.delete(item)
 
         # Categories
-        categories: Dict[str, Tuple[str, str]] = {
+        categories: dict[str, tuple[str, str]] = {
             "continuous": ("Continuous Forms", COLOR_CATEGORY_CONTINUOUS),
             "sheet": ("Sheet Feed", COLOR_CATEGORY_SHEET),
             "envelope": ("Envelopes", COLOR_CATEGORY_ENVELOPE),
@@ -628,19 +628,21 @@ class PaperProfileDialog(BaseDialog):
         printable_frame = tk.LabelFrame(frame, text="Printable Area", padx=5, pady=5)
         printable_frame.grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=PADDING_SMALL)
 
-        self._printable_label = tk.Label(
+        printable_label = tk.Label(
             printable_frame,
             text="—",
             font=("Arial", 9),
             justify=tk.LEFT,
         )
-        self._printable_label.pack(anchor=tk.W)
+        printable_label.pack(anchor=tk.W)
+        self._printable_label = printable_label
 
         # Recalculate button
-        self._recalc_btn = tk.Button(
+        recalc_btn = tk.Button(
             frame, text="↻ Recalculate", command=self._update_printable_display
         )
-        self._recalc_btn.grid(row=8, column=0, columnspan=2, pady=PADDING_SMALL)
+        recalc_btn.grid(row=8, column=0, columnspan=2, pady=PADDING_SMALL)
+        self._recalc_btn = recalc_btn
 
         # Initial state: disabled
         self._set_details_enabled(False)
@@ -739,8 +741,7 @@ class PaperProfileDialog(BaseDialog):
 
     def _update_printable_display(self) -> None:
         """Обновляет отображение печатной области."""
-        if self._selected_profile is None:
-            self._printable_label.config(text="—")
+        if self._selected_profile is None or self._printable_label is None:
             return
 
         # Get current values
@@ -917,13 +918,13 @@ class ManageFavoritesDialog(BaseDialog):
         super().__init__(parent)
 
         self._service = service
-        self._selected: List[str] = []
+        self._selected: list[str] = []
 
         self.title("Manage Favorites")
         self.resizable(False, False)
 
         self._listbox: tk.Listbox = tk.Listbox(self)
-        self._profile_ids: List[str] = []
+        self._profile_ids: list[str] = []
 
         self._create_ui()
 
@@ -987,7 +988,7 @@ class ManageFavoritesDialog(BaseDialog):
     def _on_save(self) -> None:
         """Сохраняет изменения."""
         # tkinter Listbox.curselection returns tuple[int, ...]
-        selected_indices: Tuple[int, ...] = self._listbox.curselection()  # type: ignore[no-untyped-call]
+        selected_indices: tuple[int, ...] = self._listbox.curselection()  # type: ignore[no-untyped-call]
         selected_ids = [self._profile_ids[i] for i in selected_indices]
 
         if len(selected_ids) > MAX_FAVORITES:
@@ -1005,7 +1006,7 @@ class ManageFavoritesDialog(BaseDialog):
 # MODULE EXPORTS
 # =============================================================================
 
-__all__ = [
+__all__: list[str] = [
     "PaperProfileDialog",
     "ManageFavoritesDialog",
     "DIALOG_WIDTH",

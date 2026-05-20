@@ -52,7 +52,7 @@ class ToastColor(Enum):
     PROGRESS_FG = "#ffffff"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ToastConfig:
     """Конфигурация внешнего вида toast окна."""
 
@@ -73,26 +73,26 @@ class ToastWindow:
         ToastLevel.INFO: ToastConfig(
             bg_color=ToastColor.INFO_BG.value,
             fg_color=ToastColor.INFO_FG.value,
-            icon_text="ⓘ",
-            auto_close_ms=30000,
+            icon_text="ℹ",
+            auto_close_ms=AUTO_CLOSE_MS,
         ),
         ToastLevel.SUCCESS: ToastConfig(
             bg_color=ToastColor.SUCCESS_BG.value,
             fg_color=ToastColor.SUCCESS_FG.value,
             icon_text="✓",
-            auto_close_ms=30000,
+            auto_close_ms=AUTO_CLOSE_MS,
         ),
         ToastLevel.WARNING: ToastConfig(
             bg_color=ToastColor.WARNING_BG.value,
             fg_color=ToastColor.WARNING_FG.value,
             icon_text="⚠",
-            auto_close_ms=30000,
+            auto_close_ms=AUTO_CLOSE_MS,
         ),
         ToastLevel.ERROR: ToastConfig(
             bg_color=ToastColor.ERROR_BG.value,
             fg_color=ToastColor.ERROR_FG.value,
             icon_text="✕",
-            auto_close_ms=30000,
+            auto_close_ms=AUTO_CLOSE_MS,
         ),
         ToastLevel.PROGRESS: ToastConfig(
             bg_color=ToastColor.PROGRESS_BG.value,
@@ -145,9 +145,13 @@ class ToastWindow:
         # Создаём UI
         self._create_ui(config, message)
 
-        # Отменяем after при уничтожении окна, чтобы избежать
-        # TclError "invalid command name" на уже удалённом виджете
-        self._window.bind("<Destroy>", lambda _e: self._on_destroyed(), add=True)
+        # Привязываем обработчик уничтожения к Toplevel.
+        # Проверяем widget события чтобы игнорировать Destroy от дочерних виджетов.
+        self._window.bind(
+            "<Destroy>",
+            lambda e: self._on_destroyed() if e.widget is self._window else None,
+            add=True,
+        )
 
         # Запускаем таймер авто-закрытия
         if auto_close:

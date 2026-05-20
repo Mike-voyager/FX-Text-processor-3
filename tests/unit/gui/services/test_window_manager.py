@@ -299,14 +299,14 @@ class TestWindowUnregistration:
         self,
         window_manager: WindowManager,
     ) -> None:
-        """unregister_window вызывает ValueError для несуществующего окна.
+        """unregister_window вызывает KeyError для несуществующего окна.
 
         Проверяет, что попытка отменить регистрацию несуществующего
         окна приводит к возникновению исключения.
         """
         fake_id = str(uuid.uuid4())
 
-        with pytest.raises(ValueError, match="Window not found"):
+        with pytest.raises(KeyError, match="Window not found"):
             window_manager.unregister_window(fake_id)
 
 
@@ -640,8 +640,8 @@ class TestDocumentTransfer:
 
         assert info_1 is not None
         assert info_2 is not None
-        assert info_1.documents == ["doc-1", "doc-3"]
-        assert info_2.documents == ["doc-2"]
+        assert info_1.documents == ("doc-1", "doc-3")
+        assert info_2.documents == ("doc-2",)
 
 
 # =============================================================================
@@ -773,7 +773,7 @@ class TestEdgeCases:
         assert info.window is sample_window
         assert info.is_modal is True
         assert info.z_order >= 0
-        assert isinstance(info.documents, list)
+        assert isinstance(info.documents, tuple)
 
     def test_clear_all_windows(
         self,

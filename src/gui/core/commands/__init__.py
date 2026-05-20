@@ -55,6 +55,7 @@ from src.gui.core.commands.text_commands import (
     DeleteTextCommand,
     InsertTextCommand,
     SetCPICommand,
+    SetTextCommand,
 )
 
 # Module exports
@@ -68,6 +69,7 @@ __all__: list[str] = [
     "DeleteTextCommand",
     "ApplyFormatCommand",
     "SetCPICommand",
+    "SetTextCommand",
     # Barcode commands
     "InsertBarcodeCommand",
     "InsertQRCommand",

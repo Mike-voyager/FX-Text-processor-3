@@ -86,7 +86,7 @@ class ThemedButton(BaseWidget):
             Tuple[Callable[[tk.Event], None], Callable[[tk.Event], None]]
         ] = None
 
-        # Colorа для разных состояний
+        # Цвета для разных состояний
         self._normal_bg: str = "#2d2d2d"
         self._normal_fg: str = "#00ff00"
         self._hover_bg: str = "#3d3d3d"
@@ -241,3 +241,6 @@ class ThemedButton(BaseWidget):
             self._tk_widget.unbind("<Enter>")
             self._tk_widget.unbind("<Leave>")
         self._hover_handlers = None
+
+
+__all__: list[str] = ["ThemedButton"]

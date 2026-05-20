@@ -9,13 +9,14 @@ Date: April 2026
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol, runtime_checkable
 from uuid import UUID
 
 if TYPE_CHECKING:
     from src.controller.workflow_controller import FormStatus, WorkflowRole
 
 
+@runtime_checkable
 class WorkflowUIProtocol(Protocol):
     """Protocol для workflow UI компонентов.
 
@@ -128,6 +129,7 @@ class WorkflowUIProtocol(Protocol):
         ...
 
 
+@runtime_checkable
 class WorkflowStateListener(Protocol):
     """Protocol для слушателей изменений состояния workflow.
 
@@ -184,6 +186,7 @@ class WorkflowStateListener(Protocol):
         ...
 
 
+@runtime_checkable
 class WorkflowTransitionResult(Protocol):
     """Protocol для результата перехода workflow.
 

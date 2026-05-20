@@ -131,9 +131,19 @@ class TestFormWorkflowBar:
         workflow_bar.set_status(FormStatus.FILLED)
         allowed = workflow_bar.get_allowed_transitions()
 
-        # REJECTED может быть допустим, но должен быть в отдельном списке
-        # Метод возвращает только основные переходы
+        # REJECTED не должен быть в основных переходах
+        assert FormStatus.REJECTED not in allowed
         assert FormStatus.VALIDATED in allowed
+
+    def test_rejected_in_internal_transitions(self, workflow_bar: FormWorkflowBar) -> None:
+        """Тест что REJECTED доступен во внутренних переходах, но отфильтрован из публичных."""
+        workflow_bar.set_status(FormStatus.FILLED)
+
+        internal = workflow_bar._get_allowed_transitions_internal()
+        assert FormStatus.REJECTED in internal
+
+        public = workflow_bar.get_allowed_transitions()
+        assert FormStatus.REJECTED not in public
 
     def test_allowed_transitions_by_status(self) -> None:
         """Тест разрешённых переходов для каждого статуса."""

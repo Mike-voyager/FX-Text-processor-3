@@ -16,6 +16,7 @@ Version: 1.0
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -319,10 +320,10 @@ class SoftwareQRRenderer(QRCanvasRenderer):
             return self._store_item(item_id)
 
         except ImportError as e:
-            logger.warning(f"qrcode library not available: {e}")
+            logger.warning("qrcode library not available: %s", e)
             return self._render_placeholder(data, x, y, size, error="Library not available")
         except Exception as e:
-            logger.error(f"QR render error: {e}")
+            logger.error("QR render error: %s", e)
             return self._render_placeholder(data, x, y, size, error=str(e)[:50])
 
     def _generate_qr_image(
@@ -386,7 +387,7 @@ class SoftwareQRRenderer(QRCanvasRenderer):
             return img
 
         except Exception as e:
-            logger.error(f"QR generation error: {e}")
+            logger.error("QR generation error: %s", e)
             return None
 
     def _render_placeholder(
@@ -441,9 +442,9 @@ class SoftwareQRRenderer(QRCanvasRenderer):
             icon_items.append(pattern)
 
         # Label
-        label_text = "🔳 QR Code"
+        label_text = "[QR] QR Code"
         if error:
-            label_text += f"\n⚠️ {error[:25]}"
+            label_text += f"\n[!] {error[:25]}"
         else:
             preview = data[:12] + ("..." if len(data) > 12 else "")
             label_text += f"\n{preview}"
@@ -543,8 +544,6 @@ class PlaceholderQRRenderer(QRCanvasRenderer):
                         pattern_items.append(cell)
 
         # Deterministic data pattern using hash (prevents weak-random lint)
-        import hashlib
-
         digest = hashlib.sha256(data.encode()).digest()
         for i in range(50):
             idx = (i * 4) % len(digest)
@@ -570,7 +569,7 @@ class PlaceholderQRRenderer(QRCanvasRenderer):
         label_id = self._canvas.create_text(
             x + size // 2,
             y + size - 25,
-            text="🔳 QR Code",
+            text="[QR] QR Code",
             fill=PLACEHOLDER_FG,
             font=("Helvetica", 10, "bold"),
             anchor=tk.CENTER,

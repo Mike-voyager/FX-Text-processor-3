@@ -663,7 +663,7 @@ class SideBar(BaseWidget):
             data_type=DATA_TYPE_DOCUMENT,
             data={"item_id": item_id, "file_path": file_path},
             preview_text=display_name,
-            allowed_operations=[DropOperation.MOVE, DropOperation.COPY],
+            allowed_operations=(DropOperation.MOVE, DropOperation.COPY),
         )
 
         self._drag_drop_service.start_drag(
@@ -1139,9 +1139,12 @@ class SideBar(BaseWidget):
 
     def _filter_sections(self) -> None:
         """Фильтрует секции по запросу."""
+        # Build lookup dict for safe access
+        section_display: dict[str, str] = {s[0]: s[1] for s in SECTIONS}
+
         any_visible = False
         for section_id, btn in self._section_buttons.items():
-            display_text = SECTIONS[[s[0] for s in SECTIONS].index(section_id)][1]
+            display_text = section_display.get(section_id, section_id)
             if self._filter_query in display_text.lower():
                 btn.pack(fill="x", pady=(0, 1))
                 any_visible = True
@@ -1293,16 +1296,6 @@ class SideBar(BaseWidget):
         """Обрабатывает клик по кнопке сворачивания."""
         self.set_collapsed(not self._is_collapsed)
 
-        # Broadcast changes to other windows
-        if self._sync_service:
-            self._sync_service.broadcast(
-                self.widget_id,
-                DATA_SIDEBAR_STATE,
-                {"collapsed": self._is_collapsed, "selected": self._selected_item},
-            )
-
-    def _on_collapse_changed(self) -> None:
-        """Обрабатывает изменение состояния сворачивания."""
         # Broadcast changes to other windows
         if self._sync_service:
             self._sync_service.broadcast(

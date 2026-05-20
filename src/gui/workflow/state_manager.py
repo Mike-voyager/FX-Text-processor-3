@@ -54,6 +54,24 @@ _SIMPLE_MODE_MFA_TRANSITIONS: Final[set[tuple[str, str]]] = {
     ("draft", "signed"),
 }
 
+# Действия Full Mode по состояниям (модульная константа)
+_FULL_MODE_ACTIONS: Final[dict[str, list[str]]] = {
+    "draft": ["fill_fields", "save_draft", "submit_for_validation", "switch_role"],
+    "filled": ["validate", "reject", "view_comments"],
+    "validated": ["approve", "reject", "view_comments"],
+    "approved": ["sign", "reject", "view_comments"],
+    "signed": ["print", "archive"],
+    "printed": ["print", "archive"],
+    "archived": [],
+    "rejected": [],
+}
+
+# Все состояния Full Mode (строковые значения)
+_FULL_MODE_STATES: Final[list[str]] = [
+    "draft", "filled", "validated", "approved",
+    "signed", "printed", "archived", "rejected",
+]
+
 
 @dataclass(frozen=True)
 class TransitionRequest:
@@ -661,8 +679,7 @@ class WorkflowStateManager:
         """
         if self._simple_mode:
             return list(_SIMPLE_MODE_STATES)
-        # Full Mode — все значения FormStatus
-        return [s.value for s in FormStatus]
+        return list(_FULL_MODE_STATES)
 
     def get_available_actions(self, state: str) -> list[str]:
         """Возвращает доступные действия для состояния в текущем режиме.
@@ -678,17 +695,6 @@ class WorkflowStateManager:
         """
         if self._simple_mode:
             return list(_SIMPLE_MODE_ACTIONS)
-        # Full Mode — стандартные действия workflow
-        _FULL_MODE_ACTIONS: dict[str, list[str]] = {
-            "draft": ["fill_fields", "save_draft", "submit_for_validation", "switch_role"],
-            "filled": ["validate", "reject", "view_comments"],
-            "validated": ["approve", "reject", "view_comments"],
-            "approved": ["sign", "reject", "view_comments"],
-            "signed": ["print", "archive"],
-            "printed": ["print", "archive"],
-            "archived": [],
-            "rejected": [],
-        }
         return _FULL_MODE_ACTIONS.get(state, []).copy()
 
     def get_allowed_transitions(self, state: str) -> list[str]:

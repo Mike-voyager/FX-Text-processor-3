@@ -103,14 +103,15 @@ class TransitionDialog(BaseDialog):
 
         self._result: Optional[dict[str, Any]] = None
 
+        # Всегда инициализируем переменные подтверждения (используются в _on_confirm_click)
+        self._confirm_var: tk.StringVar = tk.StringVar(master=self)
+        self._confirm_entry: Optional[ttk.Entry] = None
+
         self._setup_window()
         self._create_ui()
 
     def _setup_window(self) -> None:
         """Настраивает параметры окна."""
-        (self._from_state.value if hasattr(self._from_state, "value") else str(self._from_state))
-        (self._to_state.value if hasattr(self._to_state, "value") else str(self._to_state))
-
         title = "Confirm Transition"
         if self._is_archived:
             title = "⚠️ Archive Document"
@@ -286,7 +287,6 @@ class TransitionDialog(BaseDialog):
             font=("Helvetica", 10, "bold"),
         ).pack(anchor="w")
 
-        self._confirm_var = tk.StringVar(master=self)
         self._confirm_entry = ttk.Entry(
             confirm_frame,
             textvariable=self._confirm_var,
@@ -394,7 +394,7 @@ class TransitionDialog(BaseDialog):
                 f'Incorrect confirmation text. Enter: "{self.ARCHIVED_CONFIRMATION_TEXT}"',
                 parent=self,
             )
-            if hasattr(self, "_confirm_entry"):
+            if self._confirm_entry is not None:
                 self._confirm_entry.focus()
             return
 

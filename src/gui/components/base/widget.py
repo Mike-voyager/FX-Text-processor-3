@@ -1,7 +1,7 @@
 """Базовые классы виджетов GUI для FX Text Processor 3.
 
 Предоставляет:
-- BaseWidget: "глупый" виджет с явным жизненным циклом mount/unmount.
+- BaseWidget: «глупый» виджет с явным жизненным циклом mount/unmount.
 - SmartBaseWidget: виджет с локальным состоянием редактирования.
 
 Example:
@@ -28,7 +28,7 @@ __author__ = "FX Text Processor Team"
 __date__ = "May 2026"
 __version__ = "1.0"
 
-__all__ = [
+__all__: list[str] = [
     "BaseWidget",
     "SmartBaseWidget",
 ]

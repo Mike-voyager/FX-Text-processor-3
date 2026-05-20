@@ -22,10 +22,11 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 try:
-    import PIL.ImageTk as ImageTk
+    from PIL import Image  # type: ignore[import-untyped]
+    import PIL.ImageTk as ImageTk  # type: ignore[import-untyped]
 except ImportError:
+    Image = None  # type: ignore[assignment,misc]
     ImageTk = None
-from PIL import Image
 
 from src.documents.types.type_schema import FieldDefinition
 from src.gui.modes.structured_form.widgets.base_field_widget import BaseFieldWidget
@@ -254,10 +255,17 @@ class SignatureWidget(BaseFieldWidget):
     def _canvas_to_bytes(self) -> bytes:
         """Конвертирует содержимое Canvas в PNG bytes.
 
+        Использует PostScript-экспорт Canvas и конвертацию через PIL.
+        Требует установленный Ghostscript для PostScript → PNG конвертации.
+        При отсутствии Ghostscript или ошибке рендеринга возвращает пустые данные.
+
         Returns:
-            Данные изображения в формате PNG.
+            Данные изображения в формате PNG или пустые bytes при ошибке.
         """
         if self._canvas is None:
+            return b""
+
+        if Image is None:
             return b""
 
         try:
@@ -266,8 +274,9 @@ class SignatureWidget(BaseFieldWidget):
             buf = io.BytesIO()
             img.save(buf, format="PNG")
             return buf.getvalue()
-        except (OSError, ValueError, AttributeError, RuntimeError):
-            # При ошибке рендеринга возвращаем пустые данные
+        except (OSError, ValueError, AttributeError, RuntimeError, tk.TclError):
+            # PostScript → PNG требует Ghostscript; при его отсутствии
+            # или ошибке рендеринга возвращаем пустые данные
             return b""
 
     def _show_image(self, data: bytes) -> None:
@@ -277,6 +286,9 @@ class SignatureWidget(BaseFieldWidget):
             data: Данные изображения (PNG/JPG/etc).
         """
         if self._canvas is None or not data:
+            return
+
+        if Image is None or ImageTk is None:
             return
 
         try:

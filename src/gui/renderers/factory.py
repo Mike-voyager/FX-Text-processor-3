@@ -16,6 +16,7 @@ Date: April 2026
 
 from __future__ import annotations
 
+import inspect
 import logging
 import tkinter as tk
 from typing import Any, Optional
@@ -159,8 +160,6 @@ class RendererFactory:
         constructor_args: dict[str, Any] = {}
 
         # Add optional dependencies if constructor accepts them
-        import inspect
-
         sig = inspect.signature(renderer_class.__init__)
         params = sig.parameters
 

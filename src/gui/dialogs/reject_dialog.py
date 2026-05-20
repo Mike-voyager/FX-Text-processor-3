@@ -140,9 +140,10 @@ class RejectDialog(BaseDialog):
         # Create UI
         self._create_ui()
 
-        # Center window
-
-        # Protocol
+        # Привязка обработчиков изменения текста причины
+        if self._reason_text is not None:
+            self._reason_text.bind("<KeyRelease>", self._on_reason_change)
+            self._reason_text.bind("<KeyPress>", self._on_reason_keypress)
 
     def _center_window(self) -> None:
         """Центрирует окно относительно родительского."""
@@ -435,7 +436,7 @@ class RejectDialog(BaseDialog):
         else:
             self._confirm_btn.config(bg=COLOR_INFO, text="Confirm")
 
-    def _on_reason_change(self, event: Any = None) -> None:
+    def _on_reason_change(self, event: Optional[tk.Event] = None) -> None:
         """Обрабатывает изменение текста причины.
 
         Args:
@@ -454,7 +455,7 @@ class RejectDialog(BaseDialog):
             fg=COLOR_DANGER if length > MAX_REASON_LENGTH else "#7f8c8d",
         )
 
-    def _on_reason_keypress(self, event: Any) -> Optional[str]:
+    def _on_reason_keypress(self, event: tk.Event) -> Optional[str]:
         """Обрабатывает нажатие клавиши в поле причины.
 
         Args:

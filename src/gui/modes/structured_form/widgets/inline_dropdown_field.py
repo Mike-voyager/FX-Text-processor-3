@@ -160,9 +160,13 @@ class InlineDropdownField(BaseField):
             self._option_menu.focus_set()
 
     def wipe_sensitive_data(self) -> None:
-        """Очищает sensitive данные поля."""
-        self._var.set(self._options[0] if self._options else "")
-        self._value = ""
+        """Очищает sensitive данные поля.
+
+        Security:
+            Сбрасывает выбранное значение и очищает состояние виджета.
+        """
+        self._var.set("")
+        self._value = None
         self.set_error(None)
 
 

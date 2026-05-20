@@ -121,3 +121,6 @@ class ThemedLabel(BaseWidget):
             pady=2,
         )
         return label
+
+
+__all__: list[str] = ["ThemedLabel"]

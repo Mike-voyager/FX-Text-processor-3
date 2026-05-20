@@ -433,6 +433,32 @@ class ModeManager:
     # Utility
     # --------------------------------------------------------------------------
 
+    def force_mode(self, mode: str) -> None:
+        """Принудительно переключает режим без MFA проверки.
+
+        Используется после успешной MFA верификации через UI
+        (MFAGate / ModeToggle), когда повторная проверка не нужна.
+
+        Args:
+            mode: Целевой режим (MODE_NORMAL или MODE_SPECIAL).
+
+        Security:
+            Вызывающий код ОБЯЗАН убедиться, что MFA пройдена
+            перед вызовом этого метода.
+        """
+        if mode not in (self.MODE_NORMAL, self.MODE_SPECIAL):
+            LOG.warning("Invalid mode for force_mode: %s", mode)
+            return
+
+        with self._lock:
+            old_mode = self._current_mode
+            if old_mode == mode:
+                return
+            self._current_mode = mode
+            LOG.info("Mode force-changed: %s -> %s", old_mode, mode)
+
+        self._notify_mode_change(old_mode, mode)
+
     def reset(self) -> None:
         """Сброс состояния (для тестирования).
 

@@ -30,6 +30,7 @@ Date: April 2026
 from __future__ import annotations
 
 import logging
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox
@@ -195,9 +196,6 @@ class MainWindow:
         self._document_view: Optional[DocumentView] = None
         self._statusbar: Optional[StatusBar] = None
 
-        # Multi-window support: DocumentView for new windows (Toplevel instances)
-        self._new_window_doc_views: dict[str, Any] = {}
-
         # Multi-window support: stores DocumentView for new Toplevel windows
         # Key: window_id from WindowManager, Value: DocumentView instance
         self._new_window_document_views: dict[str, Any] = {}
@@ -236,6 +234,21 @@ class MainWindow:
         self._workflow_simple_mode: bool = False
         self._workflow_simple_var: Optional[tk.BooleanVar] = None
 
+        # Mode integration (renderer caching)
+        self._mode_integration: Optional[Any] = None
+
+        # Workflow undo/redo menu items
+        self._undo_redo_menu_items: Optional[Any] = None
+
+        # Workflow manager (action visibility engine)
+        self._workflow_manager: Optional[Any] = None
+
+        # Workflow UI factory (dialog creation with MFA)
+        self._workflow_ui_factory: Optional[Any] = None
+
+        # Mode toggle widget (Normal/Special visual switch)
+        self._mode_toggle: Optional[Any] = None
+
         self._main_window_id: Optional[str] = None
 
         # Session Manager for authentication
@@ -252,11 +265,15 @@ class MainWindow:
         # KeyBindingsService
         self._key_bindings: Optional[KeyBindingsService] = None
 
-    def initialize(self) -> None:
+    def initialize(self, root: Optional[tk.Tk] = None) -> None:
         """Инициализирует UI компоненты окна.
 
         Создаёт root window, menu bar, основной layout
         и все дочерние компоненты.
+
+        Args:
+            root: Существующее корневое окно Tkinter.
+                Если None, создаётся новое окно.
 
         Phase 3:
             - Инициализирует ModeManager
@@ -267,13 +284,16 @@ class MainWindow:
 
         Example:
             >>> window = MainWindow(controller=ctrl)
-            >>> window.initialize()
+            >>> window.initialize(root=existing_root)
         """
         if self._is_initialized:
             raise RuntimeError("MainWindow is already initialized")
 
-        # Create root window
-        self._root = tk.Tk()
+        # Create or reuse root window
+        if root is not None:
+            self._root = root
+        else:
+            self._root = tk.Tk()
         self._root.title(APP_NAME)
         self._root.geometry(f"{DEFAULT_WINDOW_WIDTH}x{DEFAULT_WINDOW_HEIGHT}")
         self._root.minsize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
@@ -291,6 +311,14 @@ class MainWindow:
         # Create ToastService if not injected
         if self._toast_service is None:
             self._toast_service = ToastService(self._root)
+
+        # Create LifecycleManager for component lifecycle tracking
+        try:
+            from src.gui.core.lifecycle import LifecycleManager
+
+            self._lifecycle_manager: Optional[Any] = LifecycleManager()
+        except Exception:
+            self._lifecycle_manager = None
 
         # Configure grid
         self._root.rowconfigure(2, weight=1)  # Main content expands (row 2 after toolbar)
@@ -325,8 +353,6 @@ class MainWindow:
         self._check_session_and_auth()
 
         # Initialize auto-lock timer
-        import time
-
         self._last_activity_time = time.time()
         self._bind_activity_events()
         self._schedule_auto_lock_check()
@@ -384,6 +410,7 @@ class MainWindow:
         # Cleanup NotificationService
         if self._notification_service is not None:
             self._notification_service.dismiss_all()
+            self._notification_service.close_all_toasts()
             self._notification_service = None
 
         # Destroy session lock screen if present
@@ -421,11 +448,6 @@ class MainWindow:
         if self._sync_service is not None:
             self._sync_service.clear_handlers()
             self._sync_service = None
-
-        # Phase 7: Cleanup NotificationService
-        if self._notification_service is not None:
-            self._notification_service.close_all_toasts()
-            self._notification_service = None
 
         # Destroy root window
         if self._root is not None:
@@ -653,6 +675,11 @@ class MainWindow:
                 self.mode = DocumentMode.FREE_FORM
 
             @property
+            def metadata(self) -> Any:
+                """Возвращает метаданные документа."""
+                return getattr(self._doc, "metadata", None)
+
+            @property
             def sections(self) -> list[Any]:
                 """Возвращает секции документа."""
                 return getattr(self._doc, "sections", [])
@@ -702,6 +729,7 @@ class MainWindow:
 
         wrapped = DocumentWrapper(document)
         self._document_view.set_document(wrapped)
+        self.add_document(wrapped)
 
     def lock_session(self, trigger: str = "manual") -> None:
         """Блокирует сессию (screen lock).
@@ -965,6 +993,17 @@ class MainWindow:
             # Update UI
             self._update_mode_ui("normal")
 
+            # Switch renderer via ModeIntegration
+            if self._mode_integration is not None and self._root is not None:
+                try:
+                    from src.documents.types.document_type import DocumentMode
+
+                    self._mode_integration.switch_mode(
+                        DocumentMode.FREE_FORM, self._root, self._controller
+                    )
+                except Exception as exc:
+                    logger.debug("ModeIntegration switch failed: %s", exc)
+
             if self._toast_service is not None:
                 self._toast_service.show(
                     "Returned to Normal Mode",
@@ -1042,6 +1081,17 @@ class MainWindow:
 
         # Step 3 & 4: Update UI
         self._update_mode_ui("special")
+
+        # Switch renderer via ModeIntegration
+        if self._mode_integration is not None and self._root is not None:
+            try:
+                from src.documents.types.document_type import DocumentMode
+
+                self._mode_integration.switch_mode(
+                    DocumentMode.STRUCTURED_FORM, self._root, self._controller
+                )
+            except Exception as exc:
+                logger.debug("ModeIntegration switch failed: %s", exc)
 
         # Step 5: Show success toast
         if self._toast_service is not None:
@@ -1179,6 +1229,9 @@ class MainWindow:
         file_menu.add_separator()
         file_menu.add_command(label="Print...", command=self._on_file_print, accelerator="Ctrl+P")
         file_menu.add_separator()
+        file_menu.add_command(label="Import Template...", command=self._on_file_import_template)
+        file_menu.add_command(label="Export Template...", command=self._on_file_export_template)
+        file_menu.add_separator()
         # Phase 3: Document → Convert to Special/Normal Mode
         file_menu.add_command(
             label="Convert to Special Mode...",
@@ -1202,6 +1255,9 @@ class MainWindow:
         edit_menu.add_command(label="Paste", command=self._on_edit_paste, accelerator="Ctrl+V")
         edit_menu.add_separator()
         edit_menu.add_command(label="Find...", command=self._on_edit_find, accelerator="Ctrl+F")
+        edit_menu.add_command(
+            label="Find and Replace...", command=self._on_edit_find_replace, accelerator="Ctrl+H"
+        )
         edit_menu.add_separator()
         edit_menu.add_command(label="Go to...", command=self._on_goto, accelerator="Ctrl+G")
         edit_menu.add_command(label="Bookmarks", command=self._on_bookmarks, accelerator="Ctrl+B")
@@ -1215,6 +1271,10 @@ class MainWindow:
             label="Page Setup...",
             command=self._on_page_setup,
             accelerator="Ctrl+Shift+P",
+        )
+        format_menu.add_command(
+            label="Paper Profiles...",
+            command=self._on_format_paper_profiles,
         )
         self._menubar.add_cascade(label="Format", menu=format_menu)
 
@@ -1238,6 +1298,14 @@ class MainWindow:
         view_menu = tk.Menu(self._menubar, tearoff=0)
         view_menu.add_command(label="Toggle Sidebar", command=self._on_view_toggle_sidebar)
         view_menu.add_command(label="Toggle StatusBar", command=self._on_view_toggle_statusbar)
+        view_menu.add_command(
+            label="Document Tree...",
+            command=self._on_view_document_tree,
+        )
+        view_menu.add_command(
+            label="Toggle Annotations...",
+            command=self._on_view_toggle_annotation_panel,
+        )
         view_menu.add_separator()
         # SideBar Mode submenu
         self._sidebar_mode_var = tk.StringVar(value="sections")
@@ -1298,6 +1366,9 @@ class MainWindow:
             variable=self._workflow_simple_var,
             command=self._on_view_workflow_simple_mode,
         )
+        workflow_menu.add_separator()
+        # Workflow undo/redo items (dynamic labels)
+        self._setup_workflow_undo_redo(workflow_menu)
         view_menu.add_cascade(label="Approval Workflow", menu=workflow_menu)
         view_menu.add_separator()
         self._menubar.add_cascade(label="View", menu=view_menu)
@@ -1329,8 +1400,17 @@ class MainWindow:
             command=self._on_security_auto_lock_settings,
         )
         security_menu.add_separator()
+        security_menu.add_command(label="FIDO2 Setup...", command=self._on_security_fido2_setup)
+        security_menu.add_command(label="TOTP Setup...", command=self._on_security_totp_setup)
+        security_menu.add_command(
+            label="MFA Verification...", command=self._on_security_mfa_verification
+        )
+        security_menu.add_separator()
         security_menu.add_command(
             label="Integrity Check...", command=self._on_security_integrity_check
+        )
+        security_menu.add_command(
+            label="Trust Chain Verification...", command=self._on_security_trust_chain
         )
         self._menubar.add_cascade(label="Security", menu=security_menu)
 
@@ -1357,6 +1437,10 @@ class MainWindow:
         tools_menu.add_command(
             label="Health Check...",
             command=self._on_tools_health_check,
+        )
+        tools_menu.add_command(
+            label="Floppy Optimizer...",
+            command=self._on_tools_floppy_optimizer,
         )
         self._menubar.add_cascade(label="Tools", menu=tools_menu)
 
@@ -1503,7 +1587,7 @@ class MainWindow:
         )
 
         # Store in registry with window_id as key
-        self._new_window_doc_views[window_id] = doc_view
+        self._new_window_document_views[window_id] = doc_view
 
         doc_view.mount(content_frame)
         doc_view.widget.pack(fill=tk.BOTH, expand=True)
@@ -1537,7 +1621,7 @@ class MainWindow:
 
         # Wipe sensitive data from window's DocumentView before destruction
         # Get from registry by window_id for type safety
-        doc_view = self._new_window_doc_views.get(window_id)
+        doc_view = self._new_window_document_views.get(window_id)
         if doc_view is not None:
             try:
                 doc_view.wipe_sensitive_data()
@@ -1629,6 +1713,45 @@ class MainWindow:
 
         # Глобальный обработчик для dispatch
         self._root.bind_all("<Key>", self._on_key_event)
+
+    def _setup_workflow_undo_redo(self, menu: tk.Menu) -> None:
+        """Добавляет пункты undo/redo workflow в меню.
+
+        Args:
+            menu: Меню Workflow для добавления пунктов.
+        """
+        try:
+            from src.gui.workflow.undo_redo_menu import UndoRedoMenuItems
+
+            self._undo_redo_menu_items = UndoRedoMenuItems(
+                undo_callback=lambda: (
+                    self._controller.dispatch("workflow_undo") if self._controller else None
+                ),
+                redo_callback=lambda: (
+                    self._controller.dispatch("workflow_redo") if self._controller else None
+                ),
+                get_undo_text=lambda: self._get_workflow_undo_text(),
+                get_redo_text=lambda: self._get_workflow_redo_text(),
+            )
+            self._undo_redo_menu_items.add_to_menu(menu)
+        except Exception as exc:
+            logger.debug("Workflow undo/redo menu items skipped: %s", exc)
+
+    def _get_workflow_undo_text(self) -> Optional[str]:
+        """Возвращает описание последнего действия для undo."""
+        if self._workflow_state_manager is not None and hasattr(
+            self._workflow_state_manager, "get_last_undo_description"
+        ):
+            return self._workflow_state_manager.get_last_undo_description()
+        return None
+
+    def _get_workflow_redo_text(self) -> Optional[str]:
+        """Возвращает описание последнего действия для redo."""
+        if self._workflow_state_manager is not None and hasattr(
+            self._workflow_state_manager, "get_last_redo_description"
+        ):
+            return self._workflow_state_manager.get_last_redo_description()
+        return None
 
     def _on_key_event(self, event: tk.Event) -> None:
         """Прокси-обработчик tk.Key для KeyBindingsService.dispatch()."""
@@ -1842,8 +1965,6 @@ class MainWindow:
         Args:
             _event: Событие Tkinter (не используется).
         """
-        import time
-
         self._last_activity_time = time.time()
 
     def _bind_activity_events(self) -> None:
@@ -2102,6 +2223,121 @@ class MainWindow:
             else:
                 self._statusbar.show()
 
+    def _on_view_document_tree(self) -> None:
+        """Callback: View -> Document Tree.
+
+        Открывает панель дерева документов для навигации по индексам.
+        """
+        if self._root is None:
+            return
+
+        try:
+            from src.gui.form_designer.tree_panel import TreePanel
+
+            def on_select(item_id: str) -> None:
+                if self._controller is not None:
+                    self._controller.dispatch("tree_item_selected", item_id=item_id)
+
+            def on_double_click(item_id: str) -> None:
+                if self._controller is not None:
+                    self._controller.dispatch("tree_item_activated", item_id=item_id)
+
+            TreePanel(
+                parent=self._root,
+                on_select=on_select,
+                on_double_click=on_double_click,
+            )
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Дерево документов открыто",
+                    ToastLevel.INFO,
+                )
+        except Exception as e:
+            logger.error("Ошибка открытия дерева документов: %s", e)
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Ошибка: {e}",
+                    ToastLevel.ERROR,
+                )
+
+    def _on_view_toggle_annotation_panel(self) -> None:
+        """Callback: View -> Toggle Annotations.
+
+        Открывает панель аннотаций workflow рядом с документом.
+        """
+        if self._root is None:
+            return
+
+        try:
+            from src.gui.workflow.workflow_annotation_panel import (
+                WorkflowAnnotationPanel,
+            )
+
+            current_user = "operator"
+            current_role = "operator"
+            if self._workflow_manager is not None and hasattr(
+                self._workflow_manager, "current_role"
+            ):
+                try:
+                    current_role = self._workflow_manager.current_role.value
+                except (AttributeError, TypeError):
+                    pass
+
+            def on_add(
+                text: str, annot_type: Any, parent_id: Optional[str] = None
+            ) -> Optional[str]:
+                if self._controller is not None:
+                    self._controller.dispatch(
+                        "annotation_add",
+                        text=text,
+                        annot_type=str(annot_type),
+                        parent_id=parent_id,
+                    )
+                return None
+
+            def on_resolve(annotation_id: str) -> bool:
+                if self._controller is not None:
+                    self._controller.dispatch(
+                        "annotation_resolve",
+                        annotation_id=annotation_id,
+                    )
+                return True
+
+            def on_reply(parent_id: str, text: str) -> Optional[str]:
+                if self._controller is not None:
+                    self._controller.dispatch(
+                        "annotation_reply",
+                        parent_id=parent_id,
+                        text=text,
+                    )
+                return None
+
+            panel = WorkflowAnnotationPanel(
+                parent=self._root,
+                annotations=[],
+                current_user=current_user,
+                current_role=current_role,
+                on_add=on_add,
+                on_resolve=on_resolve,
+                on_reply=on_reply,
+                controller=self._controller,
+            )
+            panel.mount(self._root)
+
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Панель аннотаций открыта",
+                    ToastLevel.INFO,
+                )
+
+        except Exception as e:
+            logger.error("Ошибка открытия панели аннотаций: %s", e)
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Ошибка: {e}",
+                    ToastLevel.ERROR,
+                )
+
     def _on_view_sidebar_mode_changed(self) -> None:
         """Callback: View -> SideBar Mode -> Sections / Tree."""
         if self._sidebar is None or self._sidebar_mode_var is None:
@@ -2150,6 +2386,46 @@ class MainWindow:
             mfa_manager: SecondFactorManager или совместимый объект.
         """
         self._mfa_manager = mfa_manager
+
+    def set_session_manager(self, session_manager: Any) -> None:
+        """Устанавливает менеджер сессий для аутентификации.
+
+        Args:
+            session_manager: SessionManager или совместимый объект.
+        """
+        self._session_manager = session_manager
+
+    def set_mode_integration(self, mode_integration: Any) -> None:
+        """Устанавливает интеграцию режимов (ModeIntegration).
+
+        Args:
+            mode_integration: Экземпляр ModeIntegration или совместимый объект.
+        """
+        self._mode_integration = mode_integration
+
+    def set_workflow_manager(self, workflow_manager: Any) -> None:
+        """Устанавливает менеджер workflow для видимости действий.
+
+        Args:
+            workflow_manager: Экземпляр WorkflowManager или совместимый объект.
+        """
+        self._workflow_manager = workflow_manager
+
+    def set_workflow_ui_factory(self, factory: Any) -> None:
+        """Устанавливает фабрику workflow UI для создания диалогов с MFA.
+
+        Args:
+            factory: Экземпляр WorkflowUIFactory или совместимый объект.
+        """
+        self._workflow_ui_factory = factory
+
+    def set_mode_toggle(self, mode_toggle: Any) -> None:
+        """Устанавливает виджет ModeToggle для визуального переключения режимов.
+
+        Args:
+            mode_toggle: Экземпляр ModeToggle или совместимый объект.
+        """
+        self._mode_toggle = mode_toggle
 
     def _on_view_workflow_simple_mode(self) -> None:
         """Callback: View -> Approval Workflow -> Simple Mode.
@@ -2358,6 +2634,356 @@ class MainWindow:
             parent=self._root,
             app_checker=app_checker,
             config_checker=config_checker,
+        )
+        dialog.show()
+
+    def _on_security_trust_chain(self) -> None:
+        """Верификация цепочки доверия шаблона."""
+        if self._root is None:
+            return
+
+        try:
+            from src.gui.dialogs.trust_chain_dialog import TrustChainDialog
+            from src.services.template_manager import TemplateManager
+            from src.services.trust_chain_service import TrustChainService
+
+            template_manager = TemplateManager()
+
+            # Выбираем первый доступный шаблон для верификации
+            templates = template_manager.list_templates()
+            if not templates:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "Нет шаблонов для верификации",
+                        ToastLevel.WARNING,
+                    )
+                return
+
+            import secrets
+            from pathlib import Path
+
+            keystore_path = Path.home() / ".fxtextprocessor" / "keystore"
+            keystore_path.mkdir(parents=True, exist_ok=True)
+            audit_key = secrets.token_bytes(32)
+            trust_service = TrustChainService(
+                keystore_path=keystore_path,
+                audit_secret_key=audit_key,
+            )
+
+            template = templates[0]
+
+            def on_whitelist(key_id: str) -> None:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        f"Ключ {key_id} добавлен в белый список",
+                        ToastLevel.SUCCESS,
+                    )
+
+            def on_reject(key_id: str) -> None:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        f"Ключ {key_id} отклонён",
+                        ToastLevel.INFO,
+                    )
+
+            dialog = TrustChainDialog(
+                parent=self._root,
+                template=template,
+                trust_service=trust_service,
+                verification_mode=True,
+                on_whitelist=on_whitelist,
+                on_reject=on_reject,
+            )
+            dialog.show()
+
+        except Exception as e:
+            logger.error("Ошибка открытия диалога Trust Chain: %s", e)
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Ошибка: {e}",
+                    ToastLevel.ERROR,
+                )
+
+    def _on_security_fido2_setup(self) -> None:
+        """Настройка FIDO2-устройства.
+
+        Открывает диалог регистрации FIDO2 security key.
+        """
+        if self._root is None:
+            return
+
+        from src.gui.dialogs.fido2_setup_dialog import FIDO2SetupDialog
+
+        def on_fido2_complete(result: dict[str, Any]) -> None:
+            if result.get("success"):
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "FIDO2-устройство настроено",
+                        ToastLevel.SUCCESS,
+                    )
+            else:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "Настройка FIDO2 отменена",
+                        ToastLevel.WARNING,
+                    )
+
+        dialog = FIDO2SetupDialog(
+            parent=self._root,
+            on_complete=on_fido2_complete,
+        )
+        dialog.show()
+
+    def _on_security_totp_setup(self) -> None:
+        """Настройка TOTP-аутентификатора.
+
+        Открывает диалог настройки TOTP (QR-код + верификация).
+        """
+        if self._root is None:
+            return
+
+        from src.gui.dialogs.totp_setup_dialog import TOTPSetupDialog
+
+        def on_totp_complete(result: dict[str, Any]) -> None:
+            if result.get("verified"):
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "TOTP-аутентификатор настроен",
+                        ToastLevel.SUCCESS,
+                    )
+            else:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "Настройка TOTP отменена",
+                        ToastLevel.WARNING,
+                    )
+
+        dialog = TOTPSetupDialog(
+            parent=self._root,
+            on_complete=on_totp_complete,
+        )
+        dialog.show()
+
+    def _on_security_mfa_verification(self) -> None:
+        """Ручная верификация MFA.
+
+        Открывает диалог для повторной верификации MFA
+        (например, для доступа к критическим операциям).
+        """
+        if self._root is None:
+            return
+
+        user_id = self._get_current_user_id()
+        if user_id is None:
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Требуется вход в систему",
+                    ToastLevel.WARNING,
+                )
+            return
+
+        from src.gui.dialogs.mfa_verification_dialog import MFAVerificationDialog
+
+        def on_verify(result: dict[str, Any]) -> None:
+            if result.get("verified"):
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "MFA верификация пройдена",
+                        ToastLevel.SUCCESS,
+                    )
+
+        dialog = MFAVerificationDialog(
+            parent=self._root,
+            user_id=user_id,
+            on_verify=on_verify,
+        )
+        dialog.show()
+
+    def _on_edit_find_replace(self) -> None:
+        """Открывает диалог поиска и замены."""
+        if self._root is None:
+            return
+
+        # Получаем текстовый виджет из активного документа
+        text_widget = None
+        if (
+            hasattr(self, "_document_view")
+            and self._document_view is not None
+            and hasattr(self._document_view, "get_text_widget")
+        ):
+            text_widget = self._document_view.get_text_widget()
+
+        if text_widget is None:
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Нет активного документа",
+                    ToastLevel.WARNING,
+                )
+            return
+
+        from src.gui.dialogs.find_replace_dialog import FindReplaceDialog
+
+        dialog = FindReplaceDialog(
+            parent=self._root,
+            text_widget=text_widget,
+        )
+        dialog.show()
+
+    def _on_file_import_template(self) -> None:
+        """Открывает диалог импорта шаблона."""
+        if self._root is None:
+            return
+
+        try:
+            from src.gui.dialogs.template_import_dialog import TemplateImportDialog
+            from src.security.crypto.utilities.floppy_optimizer import FloppyOptimizer
+            from src.services.template_manager import TemplateManager
+            from src.services.trust_chain_service import TrustChainService
+
+            template_manager = TemplateManager()
+            floppy_optimizer = FloppyOptimizer()
+
+            # TrustChainService требует keystore_path и audit_secret_key
+            from pathlib import Path
+
+            keystore_path = Path.home() / ".fxtextprocessor" / "keystore"
+            keystore_path.mkdir(parents=True, exist_ok=True)
+            import secrets
+
+            audit_key = secrets.token_bytes(32)
+            trust_chain_service = TrustChainService(
+                keystore_path=keystore_path,
+                audit_secret_key=audit_key,
+            )
+
+            def on_import(result: object) -> None:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "Шаблон импортирован",
+                        ToastLevel.SUCCESS,
+                    )
+
+            def on_new_document(template_id: str) -> None:
+                if self._controller is not None:
+                    self._controller.dispatch("new_document_from_template", template_id=template_id)
+
+            def on_print_blank(template_id: str) -> None:
+                if self._controller is not None:
+                    self._controller.dispatch("print_blank", template_id=template_id)
+
+            dialog = TemplateImportDialog(
+                parent=self._root,
+                template_manager=template_manager,
+                trust_chain_service=trust_chain_service,
+                floppy_optimizer=floppy_optimizer,
+                on_import=on_import,
+                on_new_document=on_new_document,
+                on_print_blank=on_print_blank,
+            )
+            dialog.show()
+
+        except Exception as e:
+            logger.error("Ошибка открытия диалога импорта шаблона: %s", e)
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Ошибка: {e}",
+                    ToastLevel.ERROR,
+                )
+
+    def _on_file_export_template(self) -> None:
+        """Открывает диалог экспорта шаблона."""
+        if self._root is None:
+            return
+
+        try:
+            from src.gui.dialogs.template_export_dialog import TemplateExportDialog
+            from src.services.template_manager import TemplateManager
+
+            template_manager = TemplateManager()
+
+            # Получаем данные текущего документа
+            form_data: dict[str, Any] = {}
+            if self._document_view is not None and hasattr(self._document_view, "get_form_data"):
+                form_data = self._document_view.get_form_data()
+
+            current_user = "operator"
+            if self._current_session_id is not None and self._session_manager is not None:
+                try:
+                    from src.security.auth.debug_utils import get_debug_user_id
+
+                    current_user = get_debug_user_id()
+                except ImportError:
+                    pass
+
+            def on_export_success(result: object) -> None:
+                if self._toast_service is not None:
+                    self._toast_service.show(
+                        "Шаблон экспортирован",
+                        ToastLevel.SUCCESS,
+                    )
+
+            dialog = TemplateExportDialog(
+                parent=self._root,
+                form_data=form_data,
+                template_manager=template_manager,
+                current_user=current_user,
+            )
+            dialog.show()
+
+        except Exception as e:
+            logger.error("Ошибка открытия диалога экспорта шаблона: %s", e)
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Ошибка: {e}",
+                    ToastLevel.ERROR,
+                )
+
+    def _on_format_paper_profiles(self) -> None:
+        """Открывает диалог выбора профиля бумаги."""
+        if self._root is None:
+            return
+
+        from src.gui.dialogs.paper_profile_dialog import PaperProfileDialog
+
+        def on_select(profile: object) -> None:
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    f"Профиль применён: {getattr(profile, 'name', str(profile))}",
+                    ToastLevel.SUCCESS,
+                )
+
+        dialog = PaperProfileDialog(
+            parent=self._root,
+            on_select=on_select,
+        )
+        dialog.show()
+
+    def _on_tools_floppy_optimizer(self) -> None:
+        """Открывает диалог оптимизации для дискеты."""
+        if self._root is None:
+            return
+
+        from src.gui.dialogs.floppy_optimizer_dialog import FloppyOptimizerDialog
+
+        # Получаем данные текущего документа для оптимизации
+        template_data = b""
+        if self._document_view is not None and hasattr(self._document_view, "get_template_data"):
+            try:
+                template_data = self._document_view.get_template_data()
+            except (AttributeError, TypeError):
+                pass
+
+        if not template_data:
+            if self._toast_service is not None:
+                self._toast_service.show(
+                    "Нет данных документа для оптимизации",
+                    ToastLevel.WARNING,
+                )
+            return
+
+        dialog = FloppyOptimizerDialog(
+            parent=self._root,
+            template_data=template_data,
         )
         dialog.show()
 
@@ -2657,7 +3283,7 @@ class MainWindow:
     def _on_view_barcode_render_mode_changed(self) -> None:
         """Обработчик изменения режима рендеринга штрих-кодов (View → Barcode Render Mode)."""
         mode = self._barcode_render_var.get() if self._barcode_render_var else "placeholder"
-        logger.info(f"Barcode render mode changed to: {mode}")
+        logger.info("Barcode render mode changed to: %s", mode)
         if self._toast_service is not None:
             self._toast_service.show(
                 f"Режим рендеринга штрих-кодов: {'Реальный' if mode == 'real' else 'Placeholder'}",
@@ -2770,8 +3396,8 @@ class MainWindow:
             return
 
         try:
-            assert renderer._tk_text is not None
-            assert renderer._command_stack is not None
+            if renderer._tk_text is None or renderer._command_stack is None:
+                raise RuntimeError("Renderer text widget or command stack not available")
 
             position = f"{line}.{col - 1}"
             cmd = InsertTextCommand(renderer._tk_text, result.char, position)

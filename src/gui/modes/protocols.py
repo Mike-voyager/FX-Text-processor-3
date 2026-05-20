@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Protocol, Tuple, runtime_checkable
+from typing import Any, Callable, Optional, Protocol, runtime_checkable
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.renderers.protocols import DocumentRendererProtocol
@@ -59,8 +59,8 @@ class ModeContext:
     mode: DocumentMode
     document: Optional[Any] = None
     is_dirty: bool = False
-    viewport: Tuple[int, int, int, int] = (0, 0, 80, 66)
-    metadata: Tuple[Tuple[str, Any], ...] = field(default_factory=tuple)
+    viewport: tuple[int, int, int, int] = (0, 0, 80, 66)
+    metadata: tuple[tuple[str, Any], ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         """Валидация параметров viewport после инициализации."""

@@ -174,7 +174,10 @@ class FormWorkflowBar(BaseWidget):
         return frame
 
     def _create_transition_buttons(self) -> tk.Widget:
-        """Создаёт кнопки переходов.
+        """Создаёт кнопки для разрешённых переходов.
+
+        Кнопка Reject добавляется отдельно, если переход в REJECTED
+        допустим из текущего статуса.
 
         Returns:
             Фрейм с кнопками для разрешённых переходов.
@@ -255,10 +258,16 @@ class FormWorkflowBar(BaseWidget):
     def _on_transition_button_click(self, new_status: FormStatus) -> None:
         """Обработчик нажатия кнопки перехода.
 
+        Делегирует запрос перехода в request_transition.
+
         Args:
             new_status: Целевой статус.
         """
         self.request_transition(new_status)
+
+    def _setup_bindings(self) -> None:
+        """Настраивает event bindings для виджета."""
+        pass
 
     def set_status(self, status: FormStatus) -> None:
         """Устанавливает текущий статус.
@@ -282,12 +291,14 @@ class FormWorkflowBar(BaseWidget):
         return self._current_status
 
     def get_allowed_transitions(self) -> list[FormStatus]:
-        """Возвращает разрешённые переходы.
+        """Возвращает разрешённые переходы (без REJECTED).
+
+        REJECTED обрабатывается отдельно в UI через специальную кнопку.
 
         Rules:
             - DRAFT → [FILLED]
-            - FILLED → [VALIDATED, REJECTED]
-            - VALIDATED → [SIGNED, REJECTED]
+            - FILLED → [VALIDATED]
+            - VALIDATED → [SIGNED]
             - SIGNED → [PRINTED]
             - PRINTED → [ARCHIVED]
             - REJECTED → [DRAFT]
@@ -295,10 +306,18 @@ class FormWorkflowBar(BaseWidget):
         Returns:
             Список допустимых целевых статусов (без REJECTED).
         """
-        return self._get_allowed_transitions_internal()
+        return [
+            s
+            for s in self._get_allowed_transitions_internal()
+            if s != FormStatus.REJECTED
+        ]
 
     def _get_allowed_transitions_internal(self) -> list[FormStatus]:
-        """Внутренний метод для получения разрешённых переходов."""
+        """Внутренний метод для получения всех разрешённых переходов.
+
+        Включает REJECTED для статусов FILLED и VALIDATED.
+        Используется для создания отдельной кнопки Reject в UI.
+        """
         transitions: dict[FormStatus, list[FormStatus]] = {
             FormStatus.DRAFT: [FormStatus.FILLED],
             FormStatus.FILLED: [FormStatus.VALIDATED, FormStatus.REJECTED],
@@ -369,13 +388,16 @@ class FormWorkflowBar(BaseWidget):
         return (self._current_status, new_status) in mfa_transitions
 
     def _show_mfa_dialog(self, target_status: FormStatus) -> bool:
-        """Показывает улучшенный MFA диалог с выбором метода.
+        """Показывает диалог MFA с выбором метода аутентификации.
+
+        Поддерживает три метода: FIDO2, TOTP, резервный код.
+        При успешной аутентификации выполняет переход статуса.
 
         Args:
-            target_status: Целевой статус.
+            target_status: Целевой статус перехода.
 
         Returns:
-            True если MFA пройден и переход выполнен.
+            True если MFA пройден и переход выполнен, False иначе.
         """
         dialog = tk.Toplevel(self._parent)
         dialog.title("🔒 Подтверждение MFA")
@@ -528,7 +550,11 @@ class FormWorkflowBar(BaseWidget):
         return result["success"]
 
     def _update_display(self) -> None:
-        """Обновляет отображение статуса и кнопок."""
+        """Обновляет отображение цепочки статусов и кнопок переходов.
+
+        Пересоздаёт кнопки переходов на основе текущего статуса.
+        Подсвечивает текущий статус в цепочке.
+        """
         # Update status labels
         for status, label in self._status_labels.items():
             color = self.STATUS_COLORS[status]
@@ -602,6 +628,11 @@ class FormWorkflowBar(BaseWidget):
         """
         self._on_transition = None
         self._mode_manager = None
+
+    def focus(self) -> None:
+        """Устанавливает фокус на первую кнопку перехода."""
+        if self._transition_buttons:
+            self._transition_buttons[0].focus_set()
 
     def _cleanup(self) -> None:
         """Очищает ресурсы перед демонтированием."""

@@ -14,6 +14,7 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.gui.renderers.factory import register_default_renderers
 from src.gui.services.toast_service import ToastService
 from src.gui.views.main_window import (
     APP_NAME,
@@ -30,6 +31,7 @@ from src.gui.views.main_window import (
 @pytest.fixture(autouse=True)
 def no_grab_and_auth() -> Generator[None, None, None]:
     """Отключает grab_set и auth window для избежания deadlock в тестах."""
+    register_default_renderers()
     original_grab = tk.Widget.grab_set
     tk.Widget.grab_set = lambda self: None  # type: ignore[method-assign]
     with patch.object(MainWindow, "_check_session_and_auth", lambda self: None):

@@ -95,7 +95,7 @@ from src.gui.modes.structured_form.widgets.table_widget import (
 from src.gui.modes.structured_form.widgets.text_input_widget import TextInputWidget
 
 if TYPE_CHECKING:
-    from typing import Type
+    pass
 
 T = TypeVar("T", bound=BaseFieldWidget)
 
@@ -366,13 +366,13 @@ def is_field_type_supported(field_type: FieldType) -> bool:
         field_type: Тип поля для проверки.
 
     Returns:
-        True если для данного типа есть виджет.
+        True если для данного типа есть виджет (BaseFieldWidget или BaseField).
 
     Example:
         >>> is_field_type_supported(FieldType.TEXT_INPUT)
         True
         >>> is_field_type_supported(FieldType.QR)
-        False  # Phase 5
+        True  # QR поддерживается (с fallback placeholder)
     """
     return field_type in FIELD_WIDGETS
 

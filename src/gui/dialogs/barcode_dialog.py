@@ -29,7 +29,6 @@ from enum import Enum, auto
 from tkinter import messagebox, ttk
 from typing import Any, Final, Optional, cast
 
-from src.gui.dialogs.barcode_conflict_dialog import BarcodeTypeConflictWarning
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.renderers.barcode_canvas_renderer import SoftwareBarcodeRenderer
 from src.gui.themes import ThemeRegistry, get_theme_manager
@@ -567,7 +566,7 @@ class BarcodeTypeSelector(BaseDialog):
             )
 
     def _on_ok(self) -> None:
-        """Обработчик кнопки OK."""
+        """Обработчик кнопки OK — подтверждает выбор штрих-кода."""
         data = self._data_var.get().strip()
         if not data:
             messagebox.showwarning(
@@ -582,15 +581,16 @@ class BarcodeTypeSelector(BaseDialog):
 
         # Conflict dialog for hardware mode + unsupported type (e.g. CODE128, PDF417)
         if final_mode == BarcodeMode.HARDWARE and final_type not in HARDWARE_TYPES:
-            conflict = BarcodeTypeConflictWarning(
+            conflict = BarcodeConflictDialog(
                 parent=cast(Any, self),
                 barcode_type=final_type,
-                hardware_mode="FX-890 ESC/P",
+                reason=f"{final_type} не поддерживается в Hardware mode",
+                suggested_type=BarcodeType.CODE39.value,
             )
-            choice = conflict.show()
-            if choice == "cancel":
+            success, choice = conflict.show()
+            if not success or choice == "cancel":
                 self._result = None
-                self.destroy()
+                self.close(None)
                 return
             elif choice == "switch":
                 final_type = BarcodeType.CODE39.value
@@ -604,20 +604,20 @@ class BarcodeTypeSelector(BaseDialog):
             mode=final_mode,
             data=data,
         )
-        self.destroy()
+        self.close(self._result)
 
     def _on_cancel(self) -> None:
-        """Обработчик кнопки Отмена."""
+        """Обработчик кнопки Отмена — закрывает диалог без результата."""
         self._result = None
-        self.destroy()
+        self.close(None)
 
     def show(self) -> Optional[BarcodeSelectionResult]:
-        """Показывает диалог и возвращает результат.
+        """Показывает диалог модально и возвращает результат.
 
         Returns:
             BarcodeSelectionResult с выбранными параметрами или None.
         """
-        self.wait_window()
+        super().show()
         return self._result
 
 
@@ -902,27 +902,27 @@ class BarcodeConflictDialog(BaseDialog):
         ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
 
     def _on_continue(self) -> None:
-        """Обработчик кнопки Продолжить."""
+        """Обработчик кнопки Продолжить — подтверждает выбор пользователя."""
         choice = self._choice_var.get()
         if choice == "cancel":
             self._result = False
         else:
             self._result = True
             self._choice = choice
-        self.destroy()
+        self.close(self._result)
 
     def _on_cancel(self) -> None:
-        """Обработчик кнопки Отмена."""
+        """Обработчик кнопки Отмена — отменяет операцию."""
         self._result = False
-        self.destroy()
+        self.close(False)
 
     def show(self) -> tuple[bool, Optional[str]]:
-        """Показывает диалог и возвращает результат.
+        """Показывает диалог модально и возвращает результат.
 
         Returns:
             Кортеж (success, choice) где:
             - success: True если пользователь выбрал продолжить
             - choice: "software", "switch" или None
         """
-        self.wait_window()
+        super().show()
         return self._result, self._choice

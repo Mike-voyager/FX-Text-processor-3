@@ -75,7 +75,7 @@ ERROR_OUTLINE_WIDTH: Final[int] = 2
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class FieldPosition:
     """Позиция поля на Canvas.
 
@@ -642,8 +642,12 @@ class FormCanvas:
         if not is_valid:
             return False
 
-        field_widget.position.col = new_x
-        field_widget.position.row = new_y
+        field_widget.position = FieldPosition(
+            col=new_x,
+            row=new_y,
+            width=field_widget.position.width,
+            height=field_widget.position.height,
+        )
         self._redraw_fields()
         return True
 

@@ -14,6 +14,7 @@ Date: April 2026
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Optional, Protocol
 
 from src.documents.types.type_schema import FieldDefinition
@@ -488,8 +489,6 @@ class PropertyChangeCommand(Command):
             raise RuntimeError(f"Field {self._field_id} not found")
 
         # Handle specific properties
-        from dataclasses import replace
-
         if self._property_name == "label":
             field.field_def = replace(field.field_def, label=str(value))
         elif self._property_name == "required":

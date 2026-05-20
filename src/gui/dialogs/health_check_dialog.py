@@ -28,7 +28,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from src.gui.dialogs.base_dialog import BaseDialog
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 from src.security.monitoring.models import HealthCheckReport, HealthCheckStatus
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _safe_grab_set(widget: tk.Misc) -> None:
@@ -60,19 +60,19 @@ def _safe_grab_set(widget: tk.Misc) -> None:
 # Colorа для различных статусов
 COLOR_CRITICAL: str = "#e74c3c"  # 🔴 Красный
 COLOR_WARNING: str = "#f39c12"  # 🟡 Жёлтый
-COLOR_PASS: str = "#27ae60"  # 🟢 Зелёный #noqa s105
+COLOR_PASS: str = "#27ae60"  # 🟢 Зелёный
 COLOR_NEUTRAL: str = "#7f8c8d"  # ⚪ Серый
 COLOR_RUNNING: str = "#3498db"  # 🔵 Синий
 
 # Иконки для статусов
 ICON_RUNNING: str = "🔄"
-ICON_PASS: str = "✓"  # noqa s105
+ICON_PASS: str = "✓"
 ICON_WARNING: str = "!"
 ICON_CRITICAL: str = "✗"
 ICON_PENDING: str = "○"
 
 # Статусы в порядке отображения
-CHECK_ORDER: List[str] = [
+CHECK_ORDER: list[str] = [
     "entropy",
     "keystore",
     "hardware",
@@ -82,7 +82,7 @@ CHECK_ORDER: List[str] = [
 ]
 
 # Отображаемые названия проверок
-CHECK_DISPLAY_NAMES: Dict[str, str] = {
+CHECK_DISPLAY_NAMES: dict[str, str] = {
     "entropy": "Entropy Check",
     "keystore": "Keystore Check",
     "hardware": "Hardware Devices",
@@ -138,7 +138,7 @@ class HealthCheckDialog(BaseDialog):
         self._thread: Optional[threading.Thread] = None
 
         # Хранение виджетов для каждой проверки
-        self._check_widgets: Dict[str, Dict[str, tk.Widget]] = {}
+        self._check_widgets: dict[str, dict[str, tk.Widget]] = {}
 
         # Callback при завершении асинхронной операции
         self._on_complete_callback: Optional[Callable[[HealthCheckReport], None]] = None
@@ -577,7 +577,7 @@ class HealthCheckDialog(BaseDialog):
 
         self.after(0, _do_update)
 
-    def _get_status_summary(self, report: HealthCheckReport) -> Tuple[str, str]:
+    def _get_status_summary(self, report: HealthCheckReport) -> tuple[str, str]:
         """Формирует сводку статуса отчёта.
 
         Args:

@@ -264,7 +264,7 @@ class StructuredFormModeRenderer(BaseWidget):
                 document_index=self._current_document.document_index,
             )
 
-        logger.debug(f"Workflow transition: {old_status.value} -> {new_status.value}")
+        logger.debug("Workflow transition: %s -> %s", old_status.value, new_status.value)
 
     # ==========================================================================
     # PUBLIC API

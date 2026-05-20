@@ -308,13 +308,11 @@ class BackupCodesDialog(BaseDialog):
         self._code_labels = []
         rows = TOTAL_CODES // CODES_PER_ROW
 
-        for row in range(rows):
+        for _row in range(rows):
             row_frame = tk.Frame(inner_frame, bg=bg_color)
             row_frame.pack(fill=tk.X, pady=3)
 
-            for col in range(CODES_PER_ROW):
-                row * CODES_PER_ROW + col
-
+            for _col in range(CODES_PER_ROW):
                 code_label = tk.Label(
                     row_frame,
                     text="****-****",
@@ -774,7 +772,7 @@ class BackupCodesDialog(BaseDialog):
 
     def _on_close(self) -> None:
         """Обработчик закрытия диалога."""
-        self.destroy()
+        self.close(self._codes_generated)
 
     def show(self) -> Optional[bool]:
         """Показывает диалог модально.
@@ -783,7 +781,7 @@ class BackupCodesDialog(BaseDialog):
             True если новые коды были сгенерированы,
             False или None в противном случае.
         """
-        self.wait_window()
+        super().show()
         return self._codes_generated
 
     @property

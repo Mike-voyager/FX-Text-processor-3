@@ -338,7 +338,7 @@ class AuthOverlay(BaseWidget):
                 user_id=username,
                 password=password,
                 factor_type="fido2",
-                factor_credential={},
+                factor_credential=None,
             )
 
             if result.success:

@@ -74,10 +74,11 @@ class BaseDialog(tk.Toplevel):
             self.after_idle(self._center_window)
 
     def _center_window(self) -> None:
-        """Центрирует окно относительно родительского.
+        """Центрирует окно относительно родительского виджета.
 
         Использует winfo_rootx / winfo_rooty для корректного позиционирования
-        при multi-monitor конфигурациях.
+        при multi-monitor конфигурациях. Поддерживает fallback на случай,
+        если родительский виджет не имеет winfo-методов.
         """
         self.update_idletasks()
 
@@ -96,15 +97,26 @@ class BaseDialog(tk.Toplevel):
         self.geometry(f"+{x}+{y}")
 
     def _on_escape(self, event: Optional[Any] = None) -> None:
-        """Обработчик нажатия Escape (если modal=True)."""
+        """Обработчик нажатия Escape — закрывает модальный диалог.
+
+        Args:
+            event: Событие Tkinter (не используется).
+        """
         self._on_close()
 
     def _on_close(self) -> None:
-        """Обработчик закрытия окна (WM_DELETE_WINDOW, Escape)."""
+        """Обработчик закрытия окна (WM_DELETE_WINDOW, Escape).
+
+        Делегирует вызов close() без результата (None).
+        """
         self.close()
 
     def _cancel_afters(self) -> None:
-        """Отменяет все зарегистрированные after() таймеры."""
+        """Отменяет все зарегистрированные after() таймеры.
+
+        Перебирает self._after_ids и вызывает after_cancel() для каждого.
+        Игнорирует TclError если таймер уже сработал или отменён.
+        """
         for after_id in self._after_ids:
             try:
                 self.after_cancel(after_id)
@@ -113,7 +125,11 @@ class BaseDialog(tk.Toplevel):
         self._after_ids.clear()
 
     def destroy(self) -> None:
-        """Уничтожает окно с cleanup (отмена таймеров + callback)."""
+        """Уничтожает окно с очисткой ресурсов.
+
+        Отменяет все after() таймеры, вызывает on_close callback
+        и делегирует уничтожение tk.Toplevel.destroy().
+        """
         self._cancel_afters()
         if self._on_close_callback is not None:
             self._on_close_callback()
@@ -142,6 +158,10 @@ class BaseDialog(tk.Toplevel):
     def show(self) -> Any:
         """Показывает диалог модально и возвращает результат.
 
+        Выполняет: deiconify -> wait_visibility -> grab_set -> wait_window.
+        Подклассы могут переопределить для типизации результата,
+        но должны вызывать super().show() для корректного модального поведения.
+
         Returns:
             Результат диалога (из get_result()).
         """
@@ -153,3 +173,6 @@ class BaseDialog(tk.Toplevel):
             pass
         self.wait_window()
         return self.get_result()
+
+
+__all__: list[str] = ["BaseDialog"]

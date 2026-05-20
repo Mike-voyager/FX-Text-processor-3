@@ -142,11 +142,17 @@ class WindowSyncIndicator(BaseWidget):
         """Создаёт Tkinter Label для отображения иконки."""
         color = SYNC_STATUS_COLORS.get(self._status, SYNC_STATUS_COLORS[SyncStatus.OFFLINE])
         icon = SYNC_STATUS_ICONS.get(self._status, SYNC_STATUS_ICONS[SyncStatus.OFFLINE])
+        bg_color = ""
+        if hasattr(parent, "cget"):
+            try:
+                bg_color = parent.cget("bg")
+            except tk.TclError:
+                bg_color = ""
         self._tk_label = tk.Label(
             parent,
             text=icon,
             fg=color,
-            bg=getattr(parent, "cget", lambda _: "")("bg") if hasattr(parent, "cget") else "",
+            bg=bg_color,
             font=("Segoe UI Emoji", 9),
             padx=2,
         )

@@ -618,7 +618,7 @@ class CryptoProfileDialog(BaseDialog):
             self._show_profile_details(self._selected_profile)
             self._update_warning()
         except ValueError:
-            logger.error(f"Unknown profile value: {selected_value}")
+            logger.error("Unknown profile value: %s", selected_value)
 
     def _show_profile_details(self, profile: CryptoProfile) -> None:
         """Обновляет панель деталей для выбранного профиля.
@@ -726,7 +726,7 @@ class CryptoProfileDialog(BaseDialog):
                     return
                 mfa_verified = True
             except Exception as e:
-                logger.error(f"MFA challenge failed: {e}")
+                logger.error("MFA challenge failed: %s", e)
                 messagebox.showerror(
                     "MFA Error",
                     f"MFA verification error: {e}",
@@ -785,7 +785,7 @@ class CryptoProfileDialog(BaseDialog):
             theme_manager = get_theme_manager()
             theme_manager.apply_to_widget(cast(tk.Widget, self))
         except Exception as e:
-            logger.warning(f"Failed to apply theme: {e}")
+            logger.warning("Failed to apply theme: %s", e)
 
     def show(self) -> Optional[ProfileSelectionResult]:
         """Отображает модальный диалог и возвращает результат.
@@ -798,7 +798,7 @@ class CryptoProfileDialog(BaseDialog):
             >>> if result:
             ...     print(f"Changed to {result.profile.label()}")
         """
-        self.wait_window()
+        super().show()
         return self._result
 
 
@@ -837,7 +837,7 @@ def show_crypto_profile_dialog(
 
 
 # Module exports
-__all__ = [
+__all__: list[str] = [
     "ProfileSelectionResult",
     "CryptoProfileDialog",
     "show_crypto_profile_dialog",

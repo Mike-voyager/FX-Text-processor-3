@@ -495,9 +495,14 @@ class MainLayout(BaseWidget):
             self._controller.dispatch(event_type, event=event)
 
     def _on_container_configure(self, event: tk.Event) -> None:
-        """Обработчик изменения размера контейнера."""
-        # Обновляем размеры при resize
-        pass
+        """Обработчик изменения размера контейнера.
+
+        Note:
+            PanedLayout самостоятельно обрабатывает <Configure>
+            и обновляет позицию sash. Данный метод — точка расширения
+            для будущих обработчиков (например, перерасчёт статуса).
+        """
+        # PanedLayout обрабатывает resize самостоятельно через _on_configure
 
 
 # =============================================================================
