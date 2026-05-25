@@ -260,6 +260,7 @@ class SideBar(BaseWidget):
         self._tk_sync_enabled_indicator: Optional[tk.Label] = None
         self._tk_no_matches_label: Optional[tk.Label] = None
         self._tk_tooltip_window: Optional[tk.Toplevel] = None
+        self._tk_drag_popup: Optional[tk.Toplevel] = None
 
     @property
     def widget(self) -> tk.Widget:
@@ -826,8 +827,9 @@ class SideBar(BaseWidget):
         """Обрабатывает отпускание кнопки мыши.
 
         Если drag был активен — определяет целевое окно и показывает popup
-        с выбором операции (Move / Copy / Cancel). Обычный click/select
-        при коротком нажатии не ломается.
+        с выбором операции (Move / Copy / Cancel). DragDropService сессия
+        завершается только после выбора пользователя, а не отменяется
+        преждевременно. Обычный click/select при коротком нажатии не ломается.
 
         Args:
             event: Событие отпускания мыши.
@@ -838,22 +840,24 @@ class SideBar(BaseWidget):
             return
 
         self._drag_active = False
-        self._destroy_floating_label()
-
-        # Cancel active DragDropService drag
-        if self._drag_drop_service is not None and self._drag_drop_service.is_dragging():
-            self._drag_drop_service.cancel_drag()
-
-        # Identify target window at release coordinates
-        target_window_id: Optional[str] = None
-        if self._window_manager is not None and event is not None:
-            target_window_id = self._find_target_window_at(event.x_root, event.y_root)
-
+        # Сохраняем item_id до сброса состояния
         item_id = self._drag_item_id
-        self._reset_drag_state()
 
-        if item_id and target_window_id:
-            self._show_drag_popup(item_id, target_window_id)
+        try:
+            # Identify target window at release coordinates
+            target_window_id: Optional[str] = None
+            if self._window_manager is not None and event is not None:
+                target_window_id = self._find_target_window_at(event.x_root, event.y_root)
+
+            if item_id and target_window_id:
+                self._show_drag_popup(item_id, target_window_id)
+            else:
+                # Нет валидной цели — отменяем сессию DragDropService
+                if self._drag_drop_service is not None and self._drag_drop_service.is_dragging():
+                    self._drag_drop_service.cancel_drag()
+        finally:
+            self._reset_drag_state()
+            self._destroy_floating_label()
 
     def _show_floating_label(self, x: int, y: int) -> None:
         """Создаёт floating label с превью перетаскиваемого документа.
@@ -952,6 +956,10 @@ class SideBar(BaseWidget):
     def _show_drag_popup(self, item_id: str, target_window_id: str) -> None:
         """Показывает popup с выбором операции при drop на другое окно.
 
+        DragDropService сессия завершается только после выбора пользователя:
+        - Move/Copy: завершает сессию после инициирования операции.
+        - Cancel: отменяет сессию явно.
+
         Args:
             item_id: ID перетаскиваемого элемента.
             target_window_id: ID целевого окна.
@@ -959,13 +967,21 @@ class SideBar(BaseWidget):
         if self._tk_frame is None:
             return
 
-        popup = tk.Toplevel(self._tk_frame)
-        popup.title("Перемещение документа")
-        popup.geometry("240x100")
-        popup.resizable(False, False)
-        popup.transient(self._tk_frame)  # type: ignore[call-overload]
+        # Уничтожаем предыдущий popup если существует
+        if self._tk_drag_popup is not None:
+            try:
+                self._tk_drag_popup.destroy()
+            except tk.TclError:
+                pass
+            self._tk_drag_popup = None
+
+        self._tk_drag_popup = tk.Toplevel(self._tk_frame)
+        self._tk_drag_popup.title("Перемещение документа")
+        self._tk_drag_popup.geometry("240x100")
+        self._tk_drag_popup.resizable(False, False)
+        self._tk_drag_popup.transient(self._tk_frame)  # type: ignore[call-overload]
         try:
-            popup.grab_set()
+            self._tk_drag_popup.grab_set()
         except tk.TclError:
             pass
 
@@ -973,29 +989,53 @@ class SideBar(BaseWidget):
         self._tk_frame.update_idletasks()
         px = self._tk_frame.winfo_rootx() + (self._tk_frame.winfo_width() // 2) - 120
         py = self._tk_frame.winfo_rooty() + (self._tk_frame.winfo_height() // 2) - 50
-        popup.geometry(f"+{px}+{py}")
+        self._tk_drag_popup.geometry(f"+{px}+{py}")
 
         display_name, _ = self._tree_data.get(item_id, (item_id, None))
         msg = tk.Label(
-            popup,
+            self._tk_drag_popup,
             text=f'"{display_name}" to window {target_window_id[:8]}...',
             font=("Helvetica", 10),
         )
         msg.pack(pady=(8, 4))
 
-        btn_frame = tk.Frame(popup)
+        btn_frame = tk.Frame(self._tk_drag_popup)
         btn_frame.pack(pady=4)
 
         def _move() -> None:
-            popup.destroy()
+            if self._tk_drag_popup is not None:
+                try:
+                    self._tk_drag_popup.destroy()
+                except tk.TclError:
+                    pass
+                self._tk_drag_popup = None
             self._perform_move_or_copy("move", item_id, target_window_id)
+            # Завершаем сессию drag после инициирования операции
+            if self._drag_drop_service is not None and self._drag_drop_service.is_dragging():
+                self._drag_drop_service.cancel_drag()
 
         def _copy() -> None:
-            popup.destroy()
+            if self._tk_drag_popup is not None:
+                try:
+                    self._tk_drag_popup.destroy()
+                except tk.TclError:
+                    pass
+                self._tk_drag_popup = None
             self._perform_move_or_copy("copy", item_id, target_window_id)
+            # Завершаем сессию drag после инициирования операции
+            if self._drag_drop_service is not None and self._drag_drop_service.is_dragging():
+                self._drag_drop_service.cancel_drag()
 
         def _cancel() -> None:
-            popup.destroy()
+            if self._tk_drag_popup is not None:
+                try:
+                    self._tk_drag_popup.destroy()
+                except tk.TclError:
+                    pass
+                self._tk_drag_popup = None
+            # Явная отмена сессии drag
+            if self._drag_drop_service is not None and self._drag_drop_service.is_dragging():
+                self._drag_drop_service.cancel_drag()
 
         tk.Button(btn_frame, text="➕ Move here", command=_move).pack(side=tk.LEFT, padx=4)
         tk.Button(btn_frame, text="➕ Copy here", command=_copy).pack(side=tk.LEFT, padx=4)
@@ -1057,6 +1097,25 @@ class SideBar(BaseWidget):
         if self._drag_handle is not None:
             self._drag_handle.unmount()
             self._drag_handle = None
+        # Уничтожаем Toplevel окна, чтобы не осталось висячих
+        if self._tk_tooltip_window is not None:
+            try:
+                self._tk_tooltip_window.destroy()
+            except tk.TclError:
+                pass
+            self._tk_tooltip_window = None
+        if self._drag_floating_label is not None:
+            try:
+                self._drag_floating_label.destroy()
+            except tk.TclError:
+                pass
+            self._drag_floating_label = None
+        if self._tk_drag_popup is not None:
+            try:
+                self._tk_drag_popup.destroy()
+            except tk.TclError:
+                pass
+            self._tk_drag_popup = None
         self._section_buttons.clear()
         self._tree_data.clear()
         self._tk_sections_frame = None
@@ -1095,6 +1154,12 @@ class SideBar(BaseWidget):
             # Hide header elements except collapse button
             if self._tk_search_entry is not None:
                 self._tk_search_entry.pack_forget()
+            if self._tk_sync_enabled_indicator is not None:
+                self._tk_sync_enabled_indicator.pack_forget()
+            if self._tk_sync_indicator is not None:
+                self._tk_sync_indicator.pack_forget()
+            if self._tk_sync_label is not None:
+                self._tk_sync_label.pack_forget()
             # Update collapse button icon
             if self._tk_collapse_btn is not None:
                 self._tk_collapse_btn.config(text=">")
@@ -1109,6 +1174,14 @@ class SideBar(BaseWidget):
                     padx=PADDING_SMALL,
                     pady=PADDING_SMALL,
                 )
+            # Восстанавливаем sync indicator, если special mode включён
+            if self._is_special_mode:
+                if self._sync_enabled and self._tk_sync_enabled_indicator is not None:
+                    self._tk_sync_enabled_indicator.pack(side="right", padx=PADDING_SMALL)
+                if self._tk_sync_indicator is not None:
+                    self._tk_sync_indicator.pack(side="left", padx=(0, 2))
+                if self._tk_sync_label is not None:
+                    self._tk_sync_label.pack(side="left")
             # Update collapse button icon
             if self._tk_collapse_btn is not None:
                 self._tk_collapse_btn.config(text="[=]")
@@ -1172,22 +1245,38 @@ class SideBar(BaseWidget):
                     visible_items.add(parent)
                     parent = self._tk_tree.parent(parent)
 
+        # Собираем ID успешно восстановленных элементов, чтобы удалить
+        # их из _detached_parents после завершения рекурсии (не во время).
+        restored_ids: set[str] = set()
         any_visible = False
         for item_id in self._tk_tree.get_children():
-            if self._filter_tree_recursive(item_id, visible_items):
+            if self._filter_tree_recursive(item_id, visible_items, restored_ids):
                 any_visible = True
+
+        # Удаляем успешно восстановленные записи из _detached_parents
+        for restored_id in restored_ids:
+            self._detached_parents.pop(restored_id, None)
 
         if not any_visible:
             self._show_no_matches()
         else:
             self._hide_no_matches()
 
-    def _filter_tree_recursive(self, item_id: str, visible_items: set[str]) -> bool:
+    def _filter_tree_recursive(
+        self, item_id: str, visible_items: set[str], restored_ids: set[str]
+    ) -> bool:
         """Рекурсивно фильтрует дерево.
+
+        Не модифицирует _detached_parents во время рекурсии (pop).
+        Вместо этого собирает ID восстановленных элементов в restored_ids,
+        которые удаляются из _detached_parents после завершения обхода.
 
         Args:
             item_id: Текущий элемент.
             visible_items: Множество видимых элементов.
+            restored_ids: Множество ID успешно восстановленных элементов
+                (заполняется во время рекурсии, удаляется из _detached_parents
+                после её завершения).
 
         Returns:
             True если элемент или его потомки видимы.
@@ -1198,7 +1287,7 @@ class SideBar(BaseWidget):
         # Check children first
         has_visible_children = False
         for child_id in self._tk_tree.get_children(item_id):
-            if self._filter_tree_recursive(child_id, visible_items):
+            if self._filter_tree_recursive(child_id, visible_items, restored_ids):
                 has_visible_children = True
 
         is_visible = item_id in visible_items or has_visible_children
@@ -1206,9 +1295,10 @@ class SideBar(BaseWidget):
         if is_visible:
             self._tk_tree.item(item_id, open=True)
             if item_id in self._detached_parents:
-                parent_id = self._detached_parents.pop(item_id)
+                parent_id = self._detached_parents[item_id]
                 try:
                     self._tk_tree.move(item_id, parent_id, "end")
+                    restored_ids.add(item_id)
                 except tk.TclError:
                     pass
         else:
@@ -1268,7 +1358,12 @@ class SideBar(BaseWidget):
         if self._tk_sync_enabled_indicator is None or self._tk_frame is None:
             return
         if self._tk_tooltip_window is not None:
-            return
+            try:
+                if self._tk_tooltip_window.winfo_exists():
+                    return
+            except tk.TclError:
+                pass
+            self._tk_tooltip_window = None
 
         x = self._tk_sync_enabled_indicator.winfo_rootx()
         y = self._tk_sync_enabled_indicator.winfo_rooty() - 20
@@ -1289,7 +1384,10 @@ class SideBar(BaseWidget):
     def _on_sync_tooltip_hide(self, event: Optional[tk.Event] = None) -> None:
         """Скрывает tooltip для индикатора синхронизации."""
         if self._tk_tooltip_window is not None:
-            self._tk_tooltip_window.destroy()
+            try:
+                self._tk_tooltip_window.destroy()
+            except tk.TclError:
+                pass
             self._tk_tooltip_window = None
 
     def _on_collapse_click(self) -> None:

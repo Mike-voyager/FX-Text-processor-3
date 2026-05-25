@@ -491,5 +491,289 @@ class TestBarcodeProxyMethods:
         assert pos == (1, 1)
 
 
+# =============================================================================
+# REGRESSION: Bug fixes (7 bugs)
+# =============================================================================
+
+
+class TestBug1WorkflowActionMappingInController:
+    """Тесты для бага #1: бизнес-логика маппинга action->FormStatus в Controller.
+
+    Root cause: _update_statusbar_for_action() содержал маппинг action_to_status
+    и action_to_role в View — это бизнес-логика, нарушающая MVC.
+    Fix: маппинг делегирован через WorkflowActionResolverProtocol.
+    """
+
+    def test_workflow_action_resolver_used_when_injected(self) -> None:
+        """WorkflowActionResolverProtocol вызывается для резолва действий."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+        from src.gui.views.document_view import WorkflowActionResolverProtocol
+        from src.gui.workflow.role_badge import WorkflowRole
+
+        resolver = MagicMock(spec=WorkflowActionResolverProtocol)
+        resolver.resolve.return_value = (FormStatus.SIGNED, WorkflowRole.SIGNATORY)
+
+        statusbar = MagicMock()
+
+        view = DocumentView(
+            widget_id="test_resolver",
+            statusbar=statusbar,
+            workflow_action_resolver=resolver,
+        )
+
+        view._update_statusbar_for_action("sign")
+
+        resolver.resolve.assert_called_once_with("sign")
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.SIGNED)
+        statusbar.set_role_badge.assert_called_once_with(WorkflowRole.SIGNATORY)
+        # SIGNED входит в TIMELINE_STATUSES, timeline тоже обновляется
+        statusbar.set_workflow_timeline.assert_called_once_with(FormStatus.SIGNED)
+
+    def test_workflow_action_resolver_not_set_uses_fallback(self) -> None:
+        """Fallback маппинг работает без инъектированного resolver."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+
+        view = DocumentView(
+            widget_id="test_fallback",
+            statusbar=statusbar,
+        )
+
+        view._update_statusbar_for_action("sign")
+
+        # Fallback маппинг: "sign" -> FormStatus.SIGNED
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.SIGNED)
+        statusbar.set_workflow_timeline.assert_called_once_with(FormStatus.SIGNED)
+
+    def test_reject_action_does_not_update_timeline(self) -> None:
+        """REJECTED не обновляет timeline (терминальный статус)."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+
+        view = DocumentView(
+            widget_id="test_reject_timeline",
+            statusbar=statusbar,
+        )
+
+        view._update_statusbar_for_action("reject")
+
+        # Workflow status обновляется
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.REJECTED)
+        # Timeline НЕ обновляется для REJECTED (нет в TIMELINE_STATUSES)
+        statusbar.set_workflow_timeline.assert_not_called()
+
+    def test_archive_action_does_not_update_timeline(self) -> None:
+        """ARCHIVED не обновляет timeline (терминальный статус)."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+
+        view = DocumentView(
+            widget_id="test_archive_timeline",
+            statusbar=statusbar,
+        )
+
+        view._update_statusbar_for_action("archive")
+
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.ARCHIVED)
+        statusbar.set_workflow_timeline.assert_not_called()
+
+
+class TestBug2ProtocolTypesInsteadOfAny:
+    """Тесты для бага #2: замена Any на Protocol типы.
+
+    Root cause: controller, statusbar, workflow_state_manager были Optional[Any].
+    Fix: заменены на ControllerProtocol, StatusBarProtocol,
+    WorkflowStateManagerProtocol.
+    """
+
+    def test_controller_accepts_protocol(self) -> None:
+        """Controller параметр принимает ControllerProtocol."""
+        from unittest.mock import MagicMock
+
+        from src.gui.core.protocols import ControllerProtocol
+
+        mock_ctrl = MagicMock(spec=ControllerProtocol)
+        view = DocumentView(widget_id="test_ctrl_protocol", controller=mock_ctrl)
+        assert view._controller is mock_ctrl
+
+    def test_statusbar_accepts_protocol(self) -> None:
+        """Statusbar параметр принимает StatusBarProtocol."""
+        from unittest.mock import MagicMock
+
+        from src.gui.views.document_view import StatusBarProtocol
+
+        mock_sb = MagicMock(spec=StatusBarProtocol)
+        view = DocumentView(widget_id="test_sb_protocol", statusbar=mock_sb)
+        assert view._statusbar is mock_sb
+
+    def test_workflow_state_manager_accepts_protocol(self) -> None:
+        """set_workflow_state_manager принимает WorkflowStateManagerProtocol."""
+        from unittest.mock import MagicMock
+
+        from src.gui.views.document_view import WorkflowStateManagerProtocol
+
+        mock_mgr = MagicMock(spec=WorkflowStateManagerProtocol)
+        view = DocumentView(widget_id="test_wsm_protocol")
+        view.set_workflow_state_manager(mock_mgr)
+        assert view._workflow_state_manager is mock_mgr
+
+    def test_new_protocols_in_all_exports(self) -> None:
+        """Новые Protocol классы экспортируются в __all__."""
+        from src.gui.views import document_view
+
+        assert "StatusBarProtocol" in document_view.__all__
+        assert "WorkflowStateManagerProtocol" in document_view.__all__
+        assert "WorkflowActionResolverProtocol" in document_view.__all__
+
+
+class TestBug4StableDocumentId:
+    """Тесты для бага #4: нестабильный fallback id().
+
+    Root cause: getattr(document, "id", str(id(document))) — id() объекта
+    нестабилен после pickle/unpickle, вызывал дублирование вкладок.
+    Fix: document.id гарантируется DocumentProtocol, fallback удалён.
+    """
+
+    def test_document_id_from_protocol(self, document_view: DocumentView) -> None:
+        """Document.id берётся из DocumentProtocol без fallback на id()."""
+        doc = MockDocument("stable-uuid-1234")
+        document_view.set_document(doc)
+        assert document_view.current_document_id == "stable-uuid-1234"
+
+    def test_document_id_no_unstable_fallback(self) -> None:
+        """set_document() не использует id() объекта как fallback."""
+        # Если бы fallback на id() существовал, два документа с одинаковым id()
+        # адресом могли бы конфликтовать. Проверяем, что document.id всегда
+        # берётся из свойства id.
+        doc = MockDocument("explicit-id-999")
+        view = DocumentView(widget_id="test_id_fallback")
+        view.mount(tk.Tk())
+        try:
+            view.set_document(doc)
+            # id() объекта может быть любым, но document_id должен быть "explicit-id-999"
+            assert view.current_document_id == "explicit-id-999"
+        finally:
+            # Cleanup the Tk instance we created
+            pass  # Tk will be garbage collected
+
+
+class TestBug6ClipboardServiceDI:
+    """Тесты для бага #6: ClipboardService создаётся в View вместо DI.
+
+    Root cause: View создавал ClipboardService(PyperclipBackend()) напрямую.
+    Fix: ClipboardService инъектируется через параметр конструктора.
+    """
+
+    def test_clipboard_service_injected(self) -> None:
+        """ClipboardService может быть инъектирован через DI."""
+        from unittest.mock import MagicMock
+
+        from src.services.clipboard_service import ClipboardService
+
+        mock_cs = MagicMock(spec=ClipboardService)
+        view = DocumentView(
+            widget_id="test_clipboard_di",
+            clipboard_service=mock_cs,
+        )
+        assert view._clipboard_service is mock_cs
+
+    def test_clipboard_service_default_when_not_injected(self) -> None:
+        """ClipboardService создаётся по умолчанию если не инъектирован."""
+        from src.services.clipboard_service import ClipboardService
+
+        view = DocumentView(widget_id="test_clipboard_default")
+        assert isinstance(view._clipboard_service, ClipboardService)
+
+
+class TestBug7TimelineTerminalStatuses:
+    """Тесты для бага #7: REJECTED/ARCHIVED вызывают current_idx=-1 в timeline.
+
+    Root cause: TIMELINE_STATUSES в StatusBar не содержит "rejected"/"archived",
+    поэтому _build_timeline_text() находил current_idx=-1, показывая все статусы
+    как будущие (кружочки вместо текущей позиции).
+    Fix: _update_statusbar_for_action не вызывает set_workflow_timeline()
+    для терминальных статусов, только set_workflow_status().
+    """
+
+    def test_approved_updates_timeline(self) -> None:
+        """APPROVED — в TIMELINE_STATUSES, timeline обновляется."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+        view = DocumentView(widget_id="test_tl_approved", statusbar=statusbar)
+
+        view._update_statusbar_for_action("approve")
+
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.APPROVED)
+        statusbar.set_workflow_timeline.assert_called_once_with(FormStatus.APPROVED)
+
+    def test_signed_updates_timeline(self) -> None:
+        """SIGNED — в TIMELINE_STATUSES, timeline обновляется."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+        view = DocumentView(widget_id="test_tl_signed", statusbar=statusbar)
+
+        view._update_statusbar_for_action("sign")
+
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.SIGNED)
+        statusbar.set_workflow_timeline.assert_called_once_with(FormStatus.SIGNED)
+
+    def test_rejected_does_not_update_timeline(self) -> None:
+        """REJECTED — не в TIMELINE_STATUSES, timeline не обновляется."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+        view = DocumentView(widget_id="test_tl_rejected", statusbar=statusbar)
+
+        view._update_statusbar_for_action("reject")
+
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.REJECTED)
+        statusbar.set_workflow_timeline.assert_not_called()
+
+    def test_archived_does_not_update_timeline(self) -> None:
+        """ARCHIVED — не в TIMELINE_STATUSES, timeline не обновляется."""
+        from unittest.mock import MagicMock
+
+        from src.documents.constructor.form_status import FormStatus
+
+        statusbar = MagicMock()
+        view = DocumentView(widget_id="test_tl_archived", statusbar=statusbar)
+
+        view._update_statusbar_for_action("archive")
+
+        statusbar.set_workflow_status.assert_called_once_with(FormStatus.ARCHIVED)
+        statusbar.set_workflow_timeline.assert_not_called()
+
+    def test_timeline_visible_statuses_constant(self) -> None:
+        """_TIMELINE_VISIBLE_STATUSES содержит только timeline-статусы."""
+        from src.gui.views.document_view import _TIMELINE_VISIBLE_STATUSES
+
+        assert "draft" in _TIMELINE_VISIBLE_STATUSES
+        assert "filled" in _TIMELINE_VISIBLE_STATUSES
+        assert "validated" in _TIMELINE_VISIBLE_STATUSES
+        assert "approved" in _TIMELINE_VISIBLE_STATUSES
+        assert "signed" in _TIMELINE_VISIBLE_STATUSES
+        assert "rejected" not in _TIMELINE_VISIBLE_STATUSES
+        assert "archived" not in _TIMELINE_VISIBLE_STATUSES
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--cov=src.gui.views.document_view"])

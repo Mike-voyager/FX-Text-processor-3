@@ -1280,6 +1280,393 @@ class PreviewPanelProtocol(Protocol):
 
 
 # ==============================================================================
+# DOCUMENT VIEW PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class DocumentViewProtocol(Protocol):
+    """Протокол для адаптации модели Document к View слою.
+
+    Разрывает прямую зависимость View от Model, предоставляя
+    интерфейс для доступа к данным документа без знания
+    внутренней структуры Document.
+
+    Совместим с DocumentProtocol из document_view.py: свойство `id`
+    удовлетворяет оба протокола.
+
+    Attributes:
+        id: Уникальный идентификатор документа (строка).
+        title: Заголовок документа для отображения.
+        mode: Режим документа (DocumentMode).
+        is_encrypted: Флаг зашифрованности документа.
+        is_readonly: Флаг только для чтения.
+        is_modified: Флаг наличия несохранённых изменений.
+
+    Example:
+        >>> view_data = DocumentViewAdapter(document)
+        >>> isinstance(view_data, DocumentViewProtocol)
+        True
+        >>> view_data.title
+        'Отчёт'
+    """
+
+    @property
+    def id(self) -> str:
+        """Уникальный идентификатор документа."""
+        ...
+
+    @property
+    def title(self) -> str:
+        """Заголовок документа для отображения во вкладке."""
+        ...
+
+    @property
+    def mode(self) -> Any:
+        """Режим документа (DocumentMode)."""
+        ...
+
+    @property
+    def is_encrypted(self) -> bool:
+        """Флаг зашифрованности документа."""
+        ...
+
+    @property
+    def is_readonly(self) -> bool:
+        """Флаг только для чтения."""
+        ...
+
+    @property
+    def is_modified(self) -> bool:
+        """Флаг наличия несохранённых изменений."""
+        ...
+
+    def get_content(self) -> str:
+        """Возвращает текстовое содержимое документа.
+
+        Returns:
+            Текст из всех параграфов секций.
+        """
+        ...
+
+    def get_cpi(self) -> int:
+        """Возвращает CPI (characters per inch) документа.
+
+        Returns:
+            Количество символов на дюйм, по умолчанию 10.
+        """
+        ...
+
+    def get_metadata(self) -> Any:
+        """Возвращает метаданные документа (опционально).
+
+        Returns:
+            Объект метаданных или None.
+        """
+        ...
+
+    def get_sections(self) -> list[Any]:
+        """Возвращает список секций документа.
+
+        Returns:
+            Список секций (может быть пустым).
+        """
+        ...
+
+    # Псевдоним doc_id для удобства (возвращает self.id)
+    @property
+    def doc_id(self) -> str:
+        """Псевдоним id для использования в MainWindow.
+
+        Возвращает тот же уникальный идентификатор документа,
+        что и свойство id (для совместимости с DocumentProtocol).
+        """
+        ...
+
+
+# ==============================================================================
+# PASSWORD SERVICE PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class PasswordServiceProtocol(Protocol):
+    """Протокол для сервиса паролей.
+
+    Используется View для session lock без прямой зависимости
+    от конкретной реализации PasswordService.
+
+    Example:
+        >>> isinstance(password_svc, PasswordServiceProtocol)
+        True
+    """
+
+    def verify(self, user_id: str, password: str) -> bool:
+        """Верифицирует пароль пользователя.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            password: Пароль для проверки.
+
+        Returns:
+            True если пароль верный.
+        """
+        ...
+
+
+# ==============================================================================
+# MFA MANAGER PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class MFAManagerProtocol(Protocol):
+    """Протокол для менеджера MFA (SecondFactorManager).
+
+    Используется View для session lock без прямой зависимости
+    от конкретной реализации.
+
+    Example:
+        >>> isinstance(mfa_mgr, MFAManagerProtocol)
+        True
+    """
+
+    def verify_totp(self, user_id: str, token: str) -> bool:
+        """Верифицирует TOTP токен.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            token: TOTP код.
+
+        Returns:
+            True если токен валиден.
+        """
+        ...
+
+    def verify_backup_code(self, user_id: str, code: str) -> bool:
+        """Верифицирует резервный код.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            code: Резервный код.
+
+        Returns:
+            True если код валиден.
+        """
+        ...
+
+
+# ==============================================================================
+# MODE INTEGRATION PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class ModeIntegrationProtocol(Protocol):
+    """Протокол для ModeIntegration (переключение рендереров).
+
+    Используется View для смены режима Normal/Special
+    без прямой зависимости от конкретной реализации.
+    """
+
+    def switch_mode(self, mode: Any, root: Any, controller: Any) -> None:
+        """Переключает режим рендеринга.
+
+        Args:
+            mode: Целевой режим (DocumentMode).
+            root: Корневое окно Tkinter.
+            controller: Контроллер приложения.
+        """
+        ...
+
+
+# ==============================================================================
+# WORKFLOW STATE MANAGER PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class WorkflowStateManagerProtocol(Protocol):
+    """Протокол для WorkflowStateManager.
+
+    Обеспечивает интерфейс для управления состоянием workflow
+    без прямой зависимости от конкретной реализации.
+    """
+
+    def set_simple_mode(self, simple: bool) -> None:
+        """Переключает режим workflow (упрощённый/полный).
+
+        Args:
+            simple: True для упрощённого режима.
+        """
+        ...
+
+    def get_last_undo_description(self) -> Optional[str]:
+        """Возвращает описание последнего действия для undo.
+
+        Returns:
+            Описание действия или None.
+        """
+        ...
+
+    def get_last_redo_description(self) -> Optional[str]:
+        """Возвращает описание последнего действия для redo.
+
+        Returns:
+            Описание действия или None.
+        """
+        ...
+
+
+# ==============================================================================
+# HEALTH CHECK DIALOG PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class HealthCheckDialogProtocol(Protocol):
+    """Протокол для HealthCheckDialog.
+
+    Используется View для отображения диалога проверки здоровья
+    без прямой зависимости от конкретной реализации.
+    """
+
+    def show(self) -> None:
+        """Показывает диалог."""
+        ...
+
+    def destroy(self) -> None:
+        """Уничтожает диалог."""
+        ...
+
+
+# ==============================================================================
+# UNDO REDO MENU ITEMS PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class UndoRedoMenuItemsProtocol(Protocol):
+    """Протокол для UndoRedoMenuItems.
+
+    Используется View для добавления динамических пунктов undo/redo
+    в меню workflow.
+    """
+
+    def add_to_menu(self, menu: tk.Menu) -> None:
+        """Добавляет пункты undo/redo в меню.
+
+        Args:
+            menu: Tkinter Menu для добавления пунктов.
+        """
+        ...
+
+
+# ==============================================================================
+# MODE TOGGLE PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class ModeToggleProtocol(Protocol):
+    """Протокол для виджета ModeToggle.
+
+    Используется View для визуального переключения режимов
+    без прямой зависимости от конкретной реализации.
+    """
+
+    def pack(self, **kwargs: Any) -> None:
+        """Упаковывает виджет в контейнер."""
+        ...
+
+
+# ==============================================================================
+# WORKFLOW MANAGER PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class WorkflowManagerProtocol(Protocol):
+    """Протокол для WorkflowManager.
+
+    Используется View для управления видимостью действий workflow
+    и получения текущей роли.
+    """
+
+    @property
+    def current_role(self) -> Any:
+        """Текущая роль в workflow."""
+        ...
+
+
+# ==============================================================================
+# WORKFLOW UI FACTORY PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class WorkflowUIFactoryProtocol(Protocol):
+    """Протокол для WorkflowUIFactory.
+
+    Используется View для создания диалогов workflow с MFA.
+    """
+
+    def create_dialog(self, parent: Any, dialog_type: str, **kwargs: Any) -> Any:
+        """Создаёт диалог workflow с MFA защитой.
+
+        Args:
+            parent: Родительское окно.
+            dialog_type: Тип диалога.
+            **kwargs: Параметры диалога.
+
+        Returns:
+            Созданный диалог.
+        """
+        ...
+
+
+# ==============================================================================
+# SESSION MANAGER PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class SessionManagerProtocol(Protocol):
+    """Протокол для SessionManager.
+
+    Используется View для управления сессиями аутентификации.
+    """
+
+    def issue(self, user_id: str) -> Any:
+        """Выпускает токен сессии.
+
+        Args:
+            user_id: Идентификатор пользователя.
+
+        Returns:
+            TokenBundle с session_id.
+        """
+        ...
+
+
+# ==============================================================================
+# MAIN TOOLBAR PROTOCOL
+# ==============================================================================
+
+
+@runtime_checkable
+class MainToolbarProtocol(Protocol):
+    """Протокол для MainToolbar.
+
+    Используется View для работы с тулбаром без прямой зависимости.
+    """
+
+    def mount(self, parent: Any) -> Any:
+        """Монтирует тулбар в родительский контейнер."""
+        ...
+
+
+# ==============================================================================
 # MODULE METADATA
 # ==============================================================================
 
@@ -1297,4 +1684,16 @@ __all__: list[str] = [
     "DragDropServiceProtocol",
     "PreviewPanelProtocol",
     "FormFieldProtocol",
+    "DocumentViewProtocol",
+    "PasswordServiceProtocol",
+    "MFAManagerProtocol",
+    "ModeIntegrationProtocol",
+    "WorkflowStateManagerProtocol",
+    "HealthCheckDialogProtocol",
+    "UndoRedoMenuItemsProtocol",
+    "ModeToggleProtocol",
+    "WorkflowManagerProtocol",
+    "WorkflowUIFactoryProtocol",
+    "SessionManagerProtocol",
+    "MainToolbarProtocol",
 ]

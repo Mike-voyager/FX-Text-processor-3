@@ -24,15 +24,89 @@ Date: April 2026
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
-from typing import Any, Callable, Final, Optional
+from typing import Any, Callable, Final, Optional, Protocol, runtime_checkable
 
 from src.gui.components.base.widget import BaseWidget
 from src.gui.components.mfa_form import MFAForm
 from src.gui.core.protocols import ControllerProtocol
 
-# Type alias for AuthService to avoid circular imports
-AuthService = Any
+logger: logging.Logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# AuthResult — результат аутентификации (Protocol для GUI-слоя)
+# ---------------------------------------------------------------------------
+
+
+class AuthResult(Protocol):
+    """Протокол результата аутентификации.
+
+    Определяет минимальный контракт результата, используемый
+    AuthOverlay: атрибуты ``success`` и ``failure_reason``.
+
+    Note:
+        Реальный :class:`src.security.auth.auth_service.AuthResult`
+        (frozen dataclass) удовлетворяет этому протоколу структурно.
+    """
+
+    success: bool
+    failure_reason: Optional[str]
+
+
+# ---------------------------------------------------------------------------
+# AuthServiceProtocol — контракт сервиса аутентификации для GUI-слоя
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class AuthServiceProtocol(Protocol):
+    """Протокол сервиса аутентификации для использования в GUI-слое.
+
+    Определяет минимальный контракт, необходимый AuthOverlay для
+    взаимодействия с сервисом аутентификации без прямой зависимости
+    от конкретной реализации (AuthService dataclass).
+
+    Структурная типизация (Protocol) позволяет подставлять любой
+    объект, реализующий метод ``authenticate`` с совместимой
+    сигнатурой, включая моки в тестах.
+
+    Example:
+        >>> class FakeAuthService:
+        ...     def authenticate(self, user_id: str, *, password: str,
+        ...                        factor_type: Optional[str] = None,
+        ...                        factor_credential: Any = None) -> AuthResult:
+        ...         return AuthResult(success=True, user_id=user_id)
+        >>> isinstance(FakeAuthService(), AuthServiceProtocol)
+        True
+    """
+
+    def authenticate(
+        self,
+        user_id: str,
+        *,
+        password: str,
+        factor_type: Optional[str] = ...,
+        factor_credential: Any = ...,
+    ) -> AuthResult:
+        """Выполняет аутентификацию пользователя с MFA.
+
+        Args:
+            user_id: Идентификатор пользователя.
+            password: Пароль в открытом виде.
+            factor_type: Тип второго фактора (``"totp"``, ``"fido2"``,
+                ``"backupcode"``).
+            factor_credential: Учётные данные второго фактора.
+
+        Returns:
+            :class:`AuthResult` с результатом аутентификации.
+        """
+        ...
+
+
+# Type alias для читаемости: реальный тип — AuthServiceProtocol
+AuthService = AuthServiceProtocol
 
 
 class AuthOverlay(BaseWidget):
@@ -310,10 +384,8 @@ class AuthOverlay(BaseWidget):
                 return False
 
         except (OSError, ValueError, RuntimeError) as e:
-            # Log authentication error without exposing sensitive info
-            import logging
-
-            logging.error("Authentication failed: %s", e)
+            # Логирование ошибки аутентификации без раскрытия sensitive данных
+            logger.error("Authentication failed: %s", e)
             self.set_status("Authentication failed", "error")
             return False
 
@@ -353,9 +425,7 @@ class AuthOverlay(BaseWidget):
                 return False
 
         except (OSError, ValueError, RuntimeError) as e:
-            import logging
-
-            logging.error("FIDO2 authentication failed: %s", e)
+            logger.error("FIDO2 authentication failed: %s", e)
             self.set_status("FIDO2 authentication failed", "error")
             return False
 
@@ -380,7 +450,7 @@ class AuthOverlay(BaseWidget):
         Returns:
             User-friendly сообщение об ошибке.
         """
-        error_map: dict[Optional[str], str] = {
+        error_map: dict[str, str] = {
             "invalid_password": "Invalid username or password",  # nosec: B105
             "password_error": "Authentication error",  # nosec: B105
             "mfa_missing": "Second factor required",
@@ -399,4 +469,6 @@ class AuthOverlay(BaseWidget):
 
 __all__: list[str] = [
     "AuthOverlay",
+    "AuthServiceProtocol",
+    "AuthResult",
 ]

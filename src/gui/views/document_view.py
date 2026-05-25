@@ -48,6 +48,7 @@ from src.gui.components.paper_visualization import CodepageStatusWidget
 from src.gui.components.ruler import Ruler
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
+from src.gui.core.protocols import ControllerProtocol, DocumentControllerProtocol
 from src.gui.form_designer.designer_tab import DesignerTab
 from src.gui.layout.layout_constants import PADDING_LARGE, PADDING_NORMAL
 from src.gui.renderers.factory import RendererFactory
@@ -59,7 +60,7 @@ from src.gui.renderers.structured_form_renderer import (
 )
 from src.gui.themes import ThemeRegistry
 from src.gui.workflow.role_badge import WorkflowRole
-from src.services.clipboard_service import ClipboardService, PyperclipBackend
+from src.services.clipboard_service import ClipboardService
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,95 @@ MAX_DOCUMENT_ID_LENGTH: Final[int] = 100
 PLACEHOLDER_BG: Final[str] = "#f5f5f5"
 PLACEHOLDER_FG: Final[str] = "#888888"
 PLACEHOLDER_ICON_SIZE: Final[int] = 48
+
+# Статусы, которые отображаются в workflow timeline StatusBar.
+# REJECTED и ARCHIVED — терминальные, не показываются в timeline,
+# но обновляют workflow indicator через set_workflow_status().
+_TIMELINE_VISIBLE_STATUSES: Final[frozenset[str]] = frozenset(
+    {
+        "draft",
+        "filled",
+        "validated",
+        "approved",
+        "signed",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
+# Protocols для DI (заменяют Any в конструкторе DocumentView)
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class StatusBarProtocol(Protocol):
+    """Протокол для StatusBar, используемый DocumentView.
+
+    Определяет только методы, которые DocumentView вызывает на StatusBar.
+    """
+
+    def set_workflow_status(self, status: FormStatus) -> None:
+        """Устанавливает индикатор workflow статуса."""
+        ...
+
+    def set_workflow_timeline(self, status: FormStatus) -> None:
+        """Устанавливает workflow timeline индикатор."""
+        ...
+
+    def set_role_badge(self, role: WorkflowRole) -> None:
+        """Устанавливает role badge индикатор."""
+        ...
+
+    def set_document_mode(self, mode: DocumentMode) -> None:
+        """Устанавливает режим документа для управления видимостью виджетов."""
+        ...
+
+
+@runtime_checkable
+class WorkflowStateManagerProtocol(Protocol):
+    """Протокол для WorkflowStateManager, используемый DocumentView.
+
+    Определяет только методы, которые DocumentView вызывает на менеджер.
+    """
+
+    def request_transition_by_action(self, doc_id: UUID, action: str) -> Any:
+        """Запрашивает переход по действию workflow.
+
+        Args:
+            doc_id: ID документа.
+            action: Имя действия workflow.
+
+        Returns:
+            Результат перехода (TransitionResult или None).
+        """
+        ...
+
+
+@runtime_checkable
+class WorkflowActionResolverProtocol(Protocol):
+    """Протокол для резолвера действий workflow.
+
+    Бизнес-логика маппинга действий в статусы формы.
+    Принадлежит слою Controller/Service, НЕ View.
+
+    Example реализации в Controller:
+        class WorkflowActionResolver:
+            def resolve(self, action: str) -> tuple[Optional[FormStatus], Optional[WorkflowRole]]:
+                action_to_status = {"save_draft": FormStatus.DRAFT, ...}
+                action_to_role = {"switch_to_operator": WorkflowRole.OPERATOR, ...}
+                return (action_to_status.get(action), action_to_role.get(action))
+    """
+
+    def resolve(self, action: str) -> tuple[Optional[FormStatus], Optional[WorkflowRole]]:
+        """Разрешает действие workflow в FormStatus и WorkflowRole.
+
+        Args:
+            action: Имя действия workflow.
+
+        Returns:
+            Кортеж (FormStatus или None, WorkflowRole или None).
+        """
+        ...
 
 
 # Document model protocol
@@ -166,9 +256,11 @@ class DocumentView(BaseWidget):
     def __init__(
         self,
         widget_id: str = "document_view",
-        controller: Optional[Any] = None,
+        controller: Optional[ControllerProtocol] = None,
         on_paper_setup: Optional[Callable[[], None]] = None,
-        statusbar: Optional[Any] = None,
+        statusbar: Optional[StatusBarProtocol] = None,
+        clipboard_service: Optional[ClipboardService] = None,
+        workflow_action_resolver: Optional[WorkflowActionResolverProtocol] = None,
     ) -> None:
         """Инициализация DocumentView.
 
@@ -177,6 +269,8 @@ class DocumentView(BaseWidget):
             controller: Опциональная ссылка на контроллер для callbacks.
             on_paper_setup: Callback для открытия диалога настройки бумаги.
             statusbar: Опциональная ссылка на StatusBar для workflow обновлений.
+            clipboard_service: Сервис буфера обмена (DI, создаётся в Controller).
+            workflow_action_resolver: Резолвер действий workflow (бизнес-логика в Controller).
 
         Example:
             >>> doc_view = DocumentView(controller=my_controller)
@@ -187,7 +281,17 @@ class DocumentView(BaseWidget):
         self._on_paper_setup: Optional[Callable[[], None]] = on_paper_setup
 
         # StatusBar reference for workflow timeline updates
-        self._statusbar: Optional[Any] = statusbar
+        self._statusbar: Optional[StatusBarProtocol] = statusbar
+
+        # Clipboard service (injected via DI, not created in View)
+        self._clipboard_service: ClipboardService = (
+            clipboard_service if clipboard_service is not None else ClipboardService()
+        )
+
+        # Workflow action resolver (business logic in Controller layer)
+        self._workflow_action_resolver: Optional[WorkflowActionResolverProtocol] = (
+            workflow_action_resolver
+        )
 
         # Document state
         self._current_document: Optional[DocumentProtocol] = None
@@ -197,12 +301,6 @@ class DocumentView(BaseWidget):
 
         # CommandStack для undo/redo
         self._command_stack: CommandStack = CommandStack()
-
-        # Phase 2: Clipboard service
-        self._clipboard_service: ClipboardService = ClipboardService(
-            backend=PyperclipBackend(),
-            history_size=20,
-        )
 
         # Phase 2: Component references (initialized in _create_tk_widget)
         self._paper_toolbar: Optional[PaperToolbar] = None
@@ -221,7 +319,7 @@ class DocumentView(BaseWidget):
         self._renderer_factory: RendererFactory = RendererFactory()
 
         # Phase 4: Workflow state manager for toolbar integration
-        self._workflow_state_manager: Optional[Any] = None
+        self._workflow_state_manager: Optional[WorkflowStateManagerProtocol] = None
 
         # Mode state for protocol compliance
         self._mode: Optional[DocumentMode] = None
@@ -400,7 +498,8 @@ class DocumentView(BaseWidget):
                 self._tk_content_frame.lift()  # Bring to front
             except tk.TclError:
                 pass
-            self._tk_content_frame.update_idletasks()
+            # NOTE: update_idletasks() намеренно убран — может вызвать
+            # каскадную обработку событий и блокировку GUI при сложных layout.
 
     def set_document(self, document: DocumentProtocol) -> None:
         """Устанавливает текущий документ.
@@ -431,7 +530,8 @@ class DocumentView(BaseWidget):
             )
 
         # Security: sanitize document_id
-        doc_id = getattr(document, "id", str(id(document)))
+        # DocumentProtocol.id гарантирует наличие свойства id (проверка выше).
+        doc_id = document.id
         sanitized_id = self._sanitize_document_id(doc_id)
 
         # Wipe previous document if switching to a different one
@@ -455,9 +555,8 @@ class DocumentView(BaseWidget):
         # Hide placeholder, show content FIRST
         self.hide_placeholder()
 
-        # Force content frame update
-        if self._tk_content_frame is not None:
-            self._tk_content_frame.update_idletasks()
+        # NOTE: update_idletasks() намеренно убран — может вызвать
+        # каскадную обработку событий и блокировку GUI при сложных layout.
 
         # Switch to appropriate mode (after content is visible)
         self.switch_mode(mode)
@@ -553,24 +652,25 @@ class DocumentView(BaseWidget):
                 toolbar_widget.pack(fill=tk.BOTH, expand=True)
             elif self._current_mode == DocumentMode.STRUCTURED_FORM:
                 # STRUCTURED_FORM: создаём WorkflowToolbar через renderer
-                if hasattr(self._current_renderer, "create_toolbar"):
-                    toolbar_widget = self._current_renderer.create_toolbar(
-                        self._tk_toolbar_frame,
-                    )
-                    if toolbar_widget is not None:
-                        toolbar_widget.pack(fill=tk.BOTH, expand=True)
+                # DocumentRendererProtocol гарантирует create_toolbar()
+                toolbar_widget = self._current_renderer.create_toolbar(
+                    self._tk_toolbar_frame,
+                )
+                if toolbar_widget is not None:
+                    toolbar_widget.pack(fill=tk.BOTH, expand=True)
 
         # Renderer frame: factory уже смонтировала renderer,
         # поэтому вызываем renderer.show() для отображения вместо manual pack.
         if self._tk_renderer_frame is not None:
-            if hasattr(self._current_renderer, "create_editor"):
-                self._current_renderer.create_editor(
-                    self._tk_renderer_frame,
-                )
-            if hasattr(self._current_renderer, "show"):
-                self._current_renderer.show()
+            # DocumentRendererProtocol гарантирует create_editor() и show()
+            self._current_renderer.create_editor(
+                self._tk_renderer_frame,
+            )
+            self._current_renderer.show()
 
-        # Setup renderer callbacks
+        # Setup renderer callbacks (опциональные методы рендерера)
+        # Эти callback-методы не входят в DocumentRendererProtocol,
+        # проверка hasattr оправдана — рендерер может их не поддерживать.
         if hasattr(self._current_renderer, "set_on_text_change_callback"):
             self._current_renderer.set_on_text_change_callback(
                 self._on_text_changed,
@@ -629,10 +729,14 @@ class DocumentView(BaseWidget):
         )
 
         # Set document if available
+        # set_document — опциональный метод рендерера, не входит
+        # в DocumentRendererProtocol. hasattr оправдан.
         if self._current_document is not None and hasattr(renderer, "set_document"):
             renderer.set_document(self._current_document)
 
         # Wire WorkflowToolbar callbacks to WorkflowStateManager if available
+        # _workflow_toolbar — внутренний атрибут StructuredFormRenderer,
+        # не входит в DocumentRendererProtocol. hasattr оправдан.
         if (
             mode == DocumentMode.STRUCTURED_FORM
             and self._workflow_state_manager is not None
@@ -655,16 +759,15 @@ class DocumentView(BaseWidget):
             # Still update StatusBar for role/status changes that don't require state manager
             self._update_statusbar_for_action(action)
             return
-        # Dispatch to workflow state manager if it supports direct action mapping,
-        # otherwise fall back to controller dispatch.
+        # Dispatch to workflow state manager (WorkflowStateManagerProtocol
+        # гарантирует request_transition_by_action).
         try:
-            if hasattr(self._workflow_state_manager, "request_transition_by_action"):
-                doc_id = self._current_document_id
-                if doc_id:
-                    self._workflow_state_manager.request_transition_by_action(
-                        UUID(doc_id) if isinstance(doc_id, str) else doc_id,
-                        action,
-                    )
+            doc_id = self._current_document_id
+            if doc_id:
+                self._workflow_state_manager.request_transition_by_action(
+                    UUID(doc_id) if isinstance(doc_id, str) else doc_id,
+                    action,
+                )
             elif self._controller is not None:
                 self._controller.dispatch("workflow_action", workflow_action=action)
             # Update StatusBar timeline and role after workflow action
@@ -675,13 +778,51 @@ class DocumentView(BaseWidget):
     def _update_statusbar_for_action(self, action: str) -> None:
         """Обновляет StatusBar timeline и role badge на основе workflow действия.
 
+        Делегирует маппинг action -> FormStatus/WorkflowRole через
+        WorkflowActionResolverProtocol (бизнес-логика в Controller).
+
         Args:
             action: Имя действия workflow.
         """
         if self._statusbar is None:
             return
 
-        # Map action names to FormStatus
+        status: Optional[FormStatus] = None
+        role: Optional[WorkflowRole] = None
+
+        if self._workflow_action_resolver is not None:
+            status, role = self._workflow_action_resolver.resolve(action)
+        else:
+            # Fallback: если resolver не инъектирован, используем
+            # минимальный маппинг для обратной совместимости.
+            # TODO: убрать fallback после миграции всех вызовов на DI.
+            status, role = self._resolve_action_fallback(action)
+
+        if status is not None:
+            self._statusbar.set_workflow_status(status)
+            # Timeline обновляем только для статусов, которые в нём отображаются.
+            # REJECTED/ARCHIVED — терминальные, не показываются в timeline strip.
+            if status.value in _TIMELINE_VISIBLE_STATUSES:
+                self._statusbar.set_workflow_timeline(status)
+
+        if role is not None:
+            self._statusbar.set_role_badge(role)
+
+    @staticmethod
+    def _resolve_action_fallback(
+        action: str,
+    ) -> tuple[Optional[FormStatus], Optional[WorkflowRole]]:
+        """Резолв действия workflow (fallback, будет удалён после миграции на DI).
+
+        Бизнес-логика маппинга в этом методе — временное решение.
+        Правильное место: Controller через WorkflowActionResolverProtocol.
+
+        Args:
+            action: Имя действия workflow.
+
+        Returns:
+            Кортеж (FormStatus или None, WorkflowRole или None).
+        """
         action_to_status: dict[str, FormStatus] = {
             "save_draft": FormStatus.DRAFT,
             "fill_fields": FormStatus.DRAFT,
@@ -693,22 +834,13 @@ class DocumentView(BaseWidget):
             "archive": FormStatus.ARCHIVED,
             "reject": FormStatus.REJECTED,
         }
-
-        if action in action_to_status:
-            status = action_to_status[action]
-            self._statusbar.set_workflow_status(status)
-            self._statusbar.set_workflow_timeline(status)
-
-        # Map role switch actions to WorkflowRole
         action_to_role: dict[str, WorkflowRole] = {
             "switch_to_operator": WorkflowRole.OPERATOR,
             "switch_to_editor": WorkflowRole.EDITOR,
             "switch_to_supervisor": WorkflowRole.SUPERVISOR,
             "switch_to_signatory": WorkflowRole.SIGNATORY,
         }
-
-        if action in action_to_role:
-            self._statusbar.set_role_badge(action_to_role[action])
+        return (action_to_status.get(action), action_to_role.get(action))
 
     def _sync_statusbar_workflow(self) -> None:
         """Синхронизирует StatusBar workflow indicators с текущим состоянием."""
@@ -722,6 +854,9 @@ class DocumentView(BaseWidget):
             self._sync_statusbar_workflow_from_document(self._current_document)
         elif self._workflow_state_manager is not None and self._current_document_id:
             try:
+                # workflow_controller — внутренний атрибут WorkflowStateManager,
+                # не входит в WorkflowStateManagerProtocol.
+                # hasattr оправдан: доступ к реализации, а не к контракту.
                 if hasattr(self._workflow_state_manager, "workflow_controller"):
                     wc = self._workflow_state_manager.workflow_controller
                     doc_uuid = (
@@ -729,10 +864,21 @@ class DocumentView(BaseWidget):
                         if isinstance(self._current_document_id, str)
                         else self._current_document_id
                     )
+                    # get_current_state, current_role — методы WorkflowController,
+                    # не входят в ControllerProtocol. hasattr оправдан.
                     if hasattr(wc, "get_current_state"):
                         status = wc.get_current_state(doc_uuid)
                         self._statusbar.set_workflow_status(status)
-                        self._statusbar.set_workflow_timeline(status)
+                        # Timeline обновляем только для статусов в TIMELINE_STATUSES
+                        status_in_timeline = (
+                            isinstance(status, FormStatus)
+                            and status.value in _TIMELINE_VISIBLE_STATUSES
+                        ) or (isinstance(status, str) and status in _TIMELINE_VISIBLE_STATUSES)
+                        if status_in_timeline:
+                            timeline_status = (
+                                status if isinstance(status, FormStatus) else FormStatus(status)
+                            )
+                            self._statusbar.set_workflow_timeline(timeline_status)
                     if hasattr(wc, "current_role"):
                         role = wc.current_role
                         self._statusbar.set_role_badge(role)
@@ -759,7 +905,10 @@ class DocumentView(BaseWidget):
                 else:
                     return
                 self._statusbar.set_workflow_status(status)
-                self._statusbar.set_workflow_timeline(status)
+                # Timeline обновляем только для статусов, которые в нём отображаются.
+                # REJECTED/ARCHIVED — терминальные, не показываются в timeline strip.
+                if status.value in _TIMELINE_VISIBLE_STATUSES:
+                    self._statusbar.set_workflow_timeline(status)
             except (ValueError, TypeError):
                 logger.debug("Document status not a valid FormStatus: %s", status_attr)
 
@@ -774,7 +923,7 @@ class DocumentView(BaseWidget):
             except (ValueError, TypeError):
                 logger.debug("Document role not a valid WorkflowRole: %s", role_attr)
 
-    def set_workflow_state_manager(self, manager: Any) -> None:
+    def set_workflow_state_manager(self, manager: WorkflowStateManagerProtocol) -> None:
         """Устанавливает WorkflowStateManager для интеграции с WorkflowToolbar.
 
         Args:
@@ -1004,9 +1153,13 @@ class DocumentView(BaseWidget):
 
         # Show DesignerTab
         if self._designer_tab is None and self._tk_content_frame is not None:
+            # DesignerTab ожидает StructuredFormDocument, но _current_document
+            # может быть любым DocumentProtocol. Приводим тип — ответственность
+            # вызывающего кода убедиться, что режим корректный.
+            current_doc = self._get_current_document()
             self._designer_tab = DesignerTab(
                 parent=self._tk_content_frame,
-                document=self._get_current_document(),
+                document=cast(Optional[StructuredFormDocument], current_doc),
                 controller=self._controller,
             )
             self._designer_tab.mount(self._tk_content_frame)
@@ -1061,7 +1214,12 @@ class DocumentView(BaseWidget):
             # Get current document and show in preview
             document = self._get_current_document()
             if document:
-                self._preview_widget.show_document(document)
+                # ESCPPreviewWidget.show_document ожидает model.Document,
+                # но _current_document хранится как DocumentProtocol.
+                # Приводим тип — ответственность вызывающего кода.
+                from src.model.document import Document as ModelDocument
+
+                self._preview_widget.show_document(cast(ModelDocument, document))
             else:
                 self._preview_widget.clear()
 
@@ -1100,7 +1258,7 @@ class DocumentView(BaseWidget):
             else:
                 btn.config(relief=tk.RAISED, bg=_theme_color("bg"), fg=_theme_color("fg"))
 
-    def _get_current_document(self) -> Optional[Any]:
+    def _get_current_document(self) -> Optional[DocumentProtocol]:
         """Возвращает текущий документ.
 
         Returns:
@@ -1124,6 +1282,8 @@ class DocumentView(BaseWidget):
             DocumentMode.STRUCTURED_FORM
         ):
             # Safely get mode_manager from controller
+            # mode_manager — атрибут конкретной реализации контроллера,
+            # не входит в ControllerProtocol. hasattr оправдан.
             mode_manager = None
             if self._controller is not None and hasattr(self._controller, "mode_manager"):
                 mode_manager = self._controller.mode_manager
@@ -1285,6 +1445,9 @@ class DocumentView(BaseWidget):
         Example:
             >>> doc_view.execute_command(InsertTextCommand(widget, "Hello", "1.0"))
         """
+        # execute_command не входит ни в ControllerProtocol, ни в
+        # DocumentControllerProtocol. hasattr оправдан: метод доступен
+        # только в конкретных реализациях контроллера.
         if self._controller is not None and hasattr(self._controller, "execute_command"):
             self._controller.execute_command(cmd)
         else:
@@ -1299,7 +1462,7 @@ class DocumentView(BaseWidget):
         Example:
             >>> doc_view.undo()
         """
-        if self._controller is not None and hasattr(self._controller, "on_undo"):
+        if isinstance(self._controller, DocumentControllerProtocol):
             self._controller.on_undo()
         elif self._command_stack.can_undo():
             self._command_stack.undo()
@@ -1313,7 +1476,7 @@ class DocumentView(BaseWidget):
         Example:
             >>> doc_view.redo()
         """
-        if self._controller is not None and hasattr(self._controller, "on_redo"):
+        if isinstance(self._controller, DocumentControllerProtocol):
             self._controller.on_redo()
         elif self._command_stack.can_redo():
             self._command_stack.redo()
@@ -2201,6 +2364,9 @@ class DocumentView(BaseWidget):
 __all__: list[str] = [
     "DocumentView",
     "DocumentProtocol",
+    "StatusBarProtocol",
+    "WorkflowStateManagerProtocol",
+    "WorkflowActionResolverProtocol",
     "PLACEHOLDER_ICON",
     "DEFAULT_PLACEHOLDER_MESSAGE",
     "MAX_DOCUMENT_ID_LENGTH",

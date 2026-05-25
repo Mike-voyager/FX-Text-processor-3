@@ -29,11 +29,12 @@ from __future__ import annotations
 import logging
 import re
 import tkinter as tk
-from dataclasses import dataclass, field
-from typing import Any, Callable, Final, Optional, Pattern
+from dataclasses import dataclass, field, replace
+from typing import Callable, Final, Optional, Pattern
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.components.base.widget import BaseWidget
+from src.gui.core.protocols import ControllerProtocol, SyncServiceProtocol
 from src.gui.components.sync.window_sync_indicator import (
     SYNC_STATUS_COLORS,
     SyncStatus,
@@ -93,7 +94,7 @@ READONLY_COLOR: Final[str] = "#808080"
 DOCUMENT_ID_PATTERN: Final[Pattern[str]] = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
-@dataclass
+@dataclass(frozen=True)
 class TabInfo:
     """Информация о вкладке.
 
@@ -150,11 +151,11 @@ class CardFileTabBar(BaseWidget):
     def __init__(
         self,
         widget_id: str = "cardfile_tabbar",
-        controller: Optional[Any] = None,
+        controller: Optional[ControllerProtocol] = None,
         on_new_tab: Optional[Callable[[], None]] = None,
         on_tab_close: Optional[Callable[[str], bool]] = None,
         on_tab_activate: Optional[Callable[[str], None]] = None,
-        sync_service: Optional[Any] = None,
+        sync_service: Optional[SyncServiceProtocol] = None,
     ) -> None:
         """Инициализация CardFileTabBar.
 
@@ -164,7 +165,7 @@ class CardFileTabBar(BaseWidget):
             on_new_tab: Callback для создания новой вкладки.
             on_tab_close: Callback для закрытия вкладки (должен вернуть True/False).
             on_tab_activate: Callback для активации вкладки.
-            sync_service: Опциональный SyncService для индикаторов синхронизации.
+            sync_service: Опциональный SyncServiceProtocol для индикаторов синхронизации.
 
         Example:
             >>> tab_bar = CardFileTabBar(
@@ -181,7 +182,7 @@ class CardFileTabBar(BaseWidget):
         self._on_tab_activate: Optional[Callable[[str], None]] = on_tab_activate
 
         # Sync service
-        self._sync_service: Optional[Any] = sync_service
+        self._sync_service: Optional[SyncServiceProtocol] = sync_service
 
         # Tab storage
         self._tabs: dict[str, TabInfo] = {}
@@ -409,7 +410,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.modified = modified
+        tab_info = replace(tab_info, modified=modified)
+        self._tabs[document_id] = tab_info
 
         # Update tab appearance
         self._update_tab_appearance(tab_info, active=(document_id == self._active_tab_id))
@@ -431,7 +433,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.encrypted = encrypted
+        tab_info = replace(tab_info, encrypted=encrypted)
+        self._tabs[document_id] = tab_info
         self._update_tab_appearance(tab_info, active=(document_id == self._active_tab_id))
 
     def set_tab_readonly(self, document_id: str, readonly: bool) -> None:
@@ -451,7 +454,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.readonly = readonly
+        tab_info = replace(tab_info, readonly=readonly)
+        self._tabs[document_id] = tab_info
         self._update_tab_appearance(tab_info, active=(document_id == self._active_tab_id))
 
     def set_tab_mode(self, document_id: str, mode: DocumentMode) -> None:
@@ -471,7 +475,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.mode = mode
+        tab_info = replace(tab_info, mode=mode)
+        self._tabs[document_id] = tab_info
         self._update_tab_appearance(tab_info, active=(document_id == self._active_tab_id))
 
     def set_tab_special(self, document_id: str, is_special: bool) -> None:
@@ -491,7 +496,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.is_special = is_special
+        tab_info = replace(tab_info, is_special=is_special)
+        self._tabs[document_id] = tab_info
         self._update_tab_appearance(tab_info, active=(document_id == self._active_tab_id))
 
     def set_tab_sync_status(self, document_id: str, status: str) -> None:
@@ -513,7 +519,8 @@ class CardFileTabBar(BaseWidget):
             return
 
         tab_info = self._tabs[document_id]
-        tab_info.sync_status = status
+        tab_info = replace(tab_info, sync_status=status)
+        self._tabs[document_id] = tab_info
         if tab_info.sync_indicator is not None:
             tab_info.sync_indicator.set_status(status)
         else:
@@ -680,7 +687,8 @@ class CardFileTabBar(BaseWidget):
         tab_frame.pack_propagate(False)
 
         # Store widget reference
-        tab_info.widget = tab_frame
+        tab_info = replace(tab_info, widget=tab_frame)
+        self._tabs[tab_info.document_id] = tab_info
 
         # Modified indicator
         mod_label = tk.Label(
@@ -745,7 +753,8 @@ class CardFileTabBar(BaseWidget):
             status=tab_info.sync_status,
         )
         sync_indicator.mount(before_widget=close_btn)
-        tab_info.sync_indicator = sync_indicator
+        tab_info = replace(tab_info, sync_indicator=sync_indicator)
+        self._tabs[tab_info.document_id] = tab_info
 
         # Store references for dynamic updates
         indicators: dict[str, tk.Label] = {
@@ -829,6 +838,8 @@ class CardFileTabBar(BaseWidget):
             "readonly": READONLY_COLOR,
         }
 
+        title_label: Optional[tk.Label] = getattr(tab_frame, "_title_label", None)
+
         for key, label in indicators.items():
             if key == "modified":
                 # Modified indicator отображается в тексте заголовка
@@ -836,7 +847,10 @@ class CardFileTabBar(BaseWidget):
                 continue
             if flag_map.get(key):
                 label.config(bg=bg, fg=color_map[key])
-                label.pack(side="left", fill="y", before=tab_frame._title_label)  # type: ignore[attr-defined]
+                if title_label is not None:
+                    label.pack(side="left", fill="y", before=title_label)
+                else:
+                    label.pack(side="left", fill="y")
             else:
                 label.pack_forget()
 
@@ -930,7 +944,10 @@ class CardFileTabBar(BaseWidget):
             # Tab is to the right of visible area
             self._scroll_x = min(self._max_scroll, x + width - canvas_width + 10)
 
-        self._tk_canvas.xview_moveto(self._scroll_x / max(1, self._tk_canvas.bbox("all")[2]))
+        bbox = self._tk_canvas.bbox("all")
+        if bbox is None:
+            return
+        self._tk_canvas.xview_moveto(self._scroll_x / max(1, bbox[2]))
 
     def _on_tab_click(self, document_id: str) -> None:
         """Обрабатывает клик по вкладке.
@@ -946,12 +963,16 @@ class CardFileTabBar(BaseWidget):
         Args:
             document_id: Идентификатор вкладки.
         """
-        self.close_tab(document_id)
+        result = self.close_tab(document_id)
+        if not result:
+            logger.debug("Close tab '%s' rejected by callback or tab not found", document_id)
 
     def _on_new_tab_click(self) -> None:
         """Обрабатывает клик по кнопке создания новой вкладки."""
         if self._on_new_tab is not None:
             self._on_new_tab()
+        else:
+            logger.debug("New tab callback not configured; button '+' click ignored")
 
     def _on_tab_right_click(self, document_id: str, event: tk.Event) -> None:
         """Обрабатывает правый клик по вкладке.

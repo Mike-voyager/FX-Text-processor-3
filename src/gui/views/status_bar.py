@@ -256,14 +256,21 @@ class ToastPanel:
         widget_height = widget.winfo_height()
 
         x = widget_x - TOAST_PANEL_WIDTH + widget.winfo_width()
-        y = widget_y - 150
+
+        # Используем reqheight для определения реальной высоты панели,
+        # т.к. winfo_height() может быть 1 до первого отображения
+        panel_height = self._window.winfo_reqheight()
+        if panel_height < 50:
+            panel_height = 150  # fallback до первого рендера
+
+        y = widget_y - panel_height
 
         if x < 0:
             x = 0
         if y < 0:
             y = widget_y + widget_height + 5
 
-        self._window.geometry(f"{TOAST_PANEL_WIDTH}x150+{x}+{y}")
+        self._window.geometry(f"{TOAST_PANEL_WIDTH}x{panel_height}+{x}+{y}")
 
     def _create_ui(self) -> None:
         """Создаёт UI компоненты панели."""
@@ -539,6 +546,7 @@ class StatusBar(BaseWidget):
         self._tk_page_label: Optional[tk.Label] = None
         self._tk_zoom_label: Optional[tk.Label] = None
         self._tk_notification_label: Optional[tk.Label] = None
+        self._tk_debug_label: Optional[tk.Label] = None
         self._workflow_indicator: Optional[WorkflowIndicator] = None
         self._separator_labels: list[tk.Label] = []
 
@@ -567,6 +575,9 @@ class StatusBar(BaseWidget):
         self._notification_service: Optional["NotificationService"] = None
         self._hide_after_id: Optional[str] = None
         self._toast_panel_visible: bool = False
+
+        # Debounce для _on_configure (предотвращает N² pack/unpack при resize)
+        self._layout_after_id: Optional[str] = None
 
     @property
     def widget(self) -> tk.Widget:
@@ -973,6 +984,7 @@ class StatusBar(BaseWidget):
 
         # Индикатор DEBUG MODE
         import os
+
         if os.getenv("FX_DEBUG_MODE", "0") == "1":
             self._tk_debug_label = tk.Label(
                 self._tk_inner_frame,
@@ -1062,6 +1074,22 @@ class StatusBar(BaseWidget):
 
     def _cleanup(self) -> None:
         """Выполняет очистку ресурсов перед демонтированием."""
+        # Сначала отменяем pending after(), пока _tk_frame ещё доступен
+        if self._hide_after_id is not None and self._tk_frame is not None:
+            try:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            except tk.TclError:
+                pass
+            self._hide_after_id = None
+
+        # Отменяем debounce-таймер, если активен
+        if self._layout_after_id is not None and self._tk_frame is not None:
+            try:
+                self._tk_frame.after_cancel(self._layout_after_id)
+            except tk.TclError:
+                pass
+            self._layout_after_id = None
+
         self._tk_cursor_label = None
         self._tk_cpi_label = None
         self._tk_codepage_label = None
@@ -1099,10 +1127,6 @@ class StatusBar(BaseWidget):
             self._toast_panel.hide()
             self._toast_panel = None
 
-        if self._hide_after_id is not None and self._tk_frame is not None:
-            self._tk_frame.after_cancel(self._hide_after_id)
-            self._hide_after_id = None
-
         if self._notification_service is not None:
             self._notification_service.unregister_badge_callback(
                 self._on_notification_count_changed
@@ -1113,8 +1137,14 @@ class StatusBar(BaseWidget):
     # Layout
     # ------------------------------------------------------------------
 
+    # Debounce-задержка для _on_configure (мс)
+    _CONFIGURE_DEBOUNCE_MS: Final[int] = 100
+
     def _on_configure(self, event: Optional[tk.Event] = None) -> None:
-        """Обрабатывает событие изменения размера.
+        """Обрабатывает событие изменения размера с debounce.
+
+        Debounce предотвращает N² pack/unpack при непрерывных
+        событиях Configure во время перетаскивания границы окна.
 
         Args:
             event: Событие конфигурации.
@@ -1127,7 +1157,27 @@ class StatusBar(BaseWidget):
 
         if is_double_row != self._is_double_row:
             self._is_double_row = is_double_row
-            self._apply_layout()
+            # Отменяем предыдущий отложенный вызов, если есть
+            if self._layout_after_id is not None:
+                try:
+                    self._tk_frame.after_cancel(self._layout_after_id)
+                except tk.TclError:
+                    pass
+                self._layout_after_id = None
+            # Планируем _apply_layout с короткой задержкой (debounce)
+            self._layout_after_id = self._tk_frame.after(
+                self._CONFIGURE_DEBOUNCE_MS,
+                self._apply_layout_debounced,
+            )
+
+    def _apply_layout_debounced(self) -> None:
+        """Вызывает _apply_layout после debounce-задержки.
+
+        Сбрасывает _layout_after_id, чтобы последующие вызовы
+        _on_configure могли планировать новый debounce.
+        """
+        self._layout_after_id = None
+        self._apply_layout()
 
     def _apply_layout(self) -> None:
         """Применяет текущий layout (single или double row)."""
@@ -1467,11 +1517,19 @@ class StatusBar(BaseWidget):
             fg=_theme_color("fg"),
         )
 
+    # Статусы, находящиеся за пределами основного timeline
+    _OFF_TIMELINE_STATUSES: Final[frozenset[str]] = frozenset({"printed", "archived", "rejected"})
+
     def _build_timeline_text(self, current_status: str) -> str:
         """Формирует текст workflow timeline strip.
 
         Формат: [DRAFT ✓] ──▶ [FILLED ●] ──▶ [VALIDATED ○] ...
         Пройденные статусы отмечены ✓, текущий ●, будущие ○.
+
+        Статусы вне основного timeline (rejected, archived, printed)
+        отображаются с особым маркером после основного timeline.
+        Для rejected все пройденные шаги отмечены ✓,rejected — ✗.
+        Для archived/printed все шаги timeline отмечены ✓.
 
         В Simple Mode отображает только [DRAFT] ──▶ [SIGNED].
 
@@ -1492,15 +1550,28 @@ class StatusBar(BaseWidget):
         except ValueError:
             current_idx = -1
 
+        # Статус вне основного timeline (rejected, archived, printed)
+        is_off_timeline = current_idx == -1 and current in self._OFF_TIMELINE_STATUSES
+
         parts: list[str] = []
-        for i, st in enumerate(statuses):
-            if i < current_idx:
-                marker = TIMELINE_DONE_MARKER
-            elif i == current_idx:
-                marker = TIMELINE_CURRENT_MARKER
-            else:
-                marker = TIMELINE_FUTURE_MARKER
-            parts.append(f"[{st.upper()} {marker}]")
+        if is_off_timeline:
+            # Для rejected: все timeline-статусы до rejection помечены как пройденные
+            # Поскольку rejection может произойти на любом этапе, помечаем все как ✓
+            # (точный этап rejection неизвестен без дополнительного контекста)
+            for st in statuses:
+                parts.append(f"[{st.upper()} {TIMELINE_DONE_MARKER}]")
+            # Добавляем статус вне timeline
+            off_marker = "✗" if current == "rejected" else TIMELINE_CURRENT_MARKER
+            parts.append(f"[{current.upper()} {off_marker}]")
+        else:
+            for i, st in enumerate(statuses):
+                if i < current_idx:
+                    marker = TIMELINE_DONE_MARKER
+                elif i == current_idx:
+                    marker = TIMELINE_CURRENT_MARKER
+                else:
+                    marker = TIMELINE_FUTURE_MARKER
+                parts.append(f"[{st.upper()} {marker}]")
 
         return f" {TIMELINE_ARROW} ".join(parts)
 
@@ -1594,7 +1665,10 @@ class StatusBar(BaseWidget):
         if self._tk_frame is None:
             return
         if self._hide_after_id is not None:
-            self._tk_frame.after_cancel(self._hide_after_id)
+            try:
+                self._tk_frame.after_cancel(self._hide_after_id)
+            except tk.TclError:
+                pass
         self._hide_after_id = self._tk_frame.after(
             TOAST_PANEL_AUTO_HIDE_MS,
             self._do_hide_toast_panel,

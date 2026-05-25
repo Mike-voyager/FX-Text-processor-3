@@ -33,7 +33,8 @@ from enum import Enum
 from typing import Any, Final, Optional
 
 from src.gui.components.base.widget import BaseWidget
-from src.gui.services.sync_service import SyncMessage, SyncService
+from src.gui.core.protocols import SyncServiceProtocol
+from src.gui.services.sync_service import SyncMessage
 
 # =============================================================================
 # CONSTANTS
@@ -342,7 +343,7 @@ class TabSyncIndicator:
         self,
         tab_frame: tk.Frame,
         document_id: str,
-        sync_service: Optional[SyncService] = None,
+        sync_service: Optional[SyncServiceProtocol] = None,
         status: str = SyncStatus.OFFLINE,
     ) -> None:
         """Инициализация TabSyncIndicator.
@@ -350,12 +351,12 @@ class TabSyncIndicator:
         Args:
             tab_frame: Frame вкладки из CardFileTabBar.
             document_id: Идентификатор документа.
-            sync_service: Опциональный SyncService для подписки.
+            sync_service: Опциональный SyncServiceProtocol для подписки.
             status: Начальный статус.
         """
         self._document_id: str = document_id
         self._tab_frame: tk.Frame = tab_frame
-        self._sync_service: Optional[SyncService] = sync_service
+        self._sync_service: Optional[SyncServiceProtocol] = sync_service
         self._handler_id: Optional[str] = None
         self._indicator: WindowSyncIndicator = WindowSyncIndicator(
             widget_id=f"tab_sync_indicator_{document_id}",

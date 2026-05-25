@@ -266,7 +266,7 @@ class TestAuthOverlayFIDO2:
                 user_id="test_user",
                 password="test_pass",
                 factor_type="fido2",
-                factor_credential={},
+                factor_credential=None,
             )
             assert success_called[0] is True
             # hide() вызывает place_forget на _overlay_frame
@@ -538,7 +538,7 @@ class TestAuthOverlayAuthentication:
                 user_id="test_user",
                 password="test_pass",
                 factor_type="fido2",
-                factor_credential={},
+                factor_credential=None,
             )
             assert success_called[0] is True
 

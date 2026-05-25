@@ -10,6 +10,7 @@
 Coverage target: ≥90%
 """
 
+import logging
 import tkinter as tk
 from typing import Generator
 from unittest.mock import MagicMock
@@ -409,6 +410,196 @@ class TestModuleExports:
         assert hasattr(card_file_tab_bar, "__version__")
         assert hasattr(card_file_tab_bar, "__author__")
         assert hasattr(card_file_tab_bar, "__date__")
+
+
+# =============================================================================
+# REGRESSION TESTS (Bug Fixes)
+# =============================================================================
+
+
+@pytest.mark.gui
+class TestBugScrollToTabBboxNone:
+    """Тесты для бага #1: _scroll_to_tab — TypeError при bbox("all") == None.
+
+    Root cause: canvas.bbox("all") может вернуть None если на canvas нет
+    элементов. Тогда [2] вызывает TypeError. Проверка max(1, ...) не
+    защищает от None.
+    """
+
+    def test_scroll_to_tab_with_empty_canvas(self, tab_bar: CardFileTabBar) -> None:
+        """_scroll_to_tab не падает при пустом canvas (bbox возвращает None)."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        # Уничтожаем scroll_frame чтобы bbox("all") вернул None
+        if tab_bar._tk_scroll_frame is not None:
+            for child in tab_bar._tk_scroll_frame.winfo_children():
+                child.destroy()
+        # Вызов не должен вызывать TypeError
+        tab_bar._scroll_to_tab("doc_1")
+
+    def test_scroll_to_tab_nonexistent_tab(self, tab_bar: CardFileTabBar) -> None:
+        """_scroll_to_tab для несуществующей вкладки не падает."""
+        tab_bar._scroll_to_tab("nonexistent")
+
+    def test_scroll_to_tab_with_none_widget(self, tk_root: tk.Tk) -> None:
+        """_scroll_to_tab для вкладки без виджета не падает."""
+        bar = CardFileTabBar(widget_id="test_no_widget")
+        bar.mount(tk_root)
+        bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        # Вручную сбрасываем widget, имитируя unmouted вкладку
+        tab_info = bar._tabs["doc_1"]
+        from dataclasses import replace
+
+        bar._tabs["doc_1"] = replace(tab_info, widget=None)
+        bar._scroll_to_tab("doc_1")  # Не должно падать
+
+
+@pytest.mark.gui
+class TestBugApplyIndicatorsGetattr:
+    """Тесты для бага #2: _apply_indicators — AttributeError при отсутствующем
+    _title_label.
+
+    Root cause: прямой доступ tab_frame._title_label вместо getattr с
+    дефолтом. Если _title_label не установлен, вызывается AttributeError.
+    """
+
+    def test_apply_indicators_without_title_label(self, tab_bar: CardFileTabBar) -> None:
+        """_apply_indicators не падает если _title_label не установлен."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_info = tab_bar._tabs["doc_1"]
+        if tab_info.widget is not None:
+            # Удаляем _title_label для теста
+            if hasattr(tab_info.widget, "_title_label"):
+                delattr(tab_info.widget, "_title_label")
+            # Вызов не должен вызывать AttributeError
+            tab_bar._apply_indicators(tab_info.widget, tab_info, bg="#333333")
+
+    def test_apply_indicators_with_title_label(self, tab_bar: CardFileTabBar) -> None:
+        """_apply_indicators работает корректно когда _title_label установлен."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_encrypted("doc_1", True)
+        # Не должно вызывать ошибок
+        assert tab_bar._tabs["doc_1"].encrypted is True
+
+
+@pytest.mark.gui
+class TestBugTabInfoFrozen:
+    """Тесты для бага #4: TabInfo без frozen=True.
+
+    Root cause: по стандарту проекта должны использоваться frozen=True
+    dataclasses. Мутации TabInfo преобразованы в dataclasses.replace().
+    """
+
+    def test_tab_info_is_frozen(self) -> None:
+        """TabInfo dataclass заморожен (frozen=True)."""
+        import dataclasses
+
+        assert dataclasses.is_dataclass(TabInfo)
+        # Проверяем что frozen=True через попытку мутации
+        info = TabInfo(document_id="test", title="Test", mode=DocumentMode.FREE_FORM)
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            info.modified = True  # type: ignore[misc]
+
+    def test_tab_info_replace_works(self) -> None:
+        """replace() корректно создаёт новый TabInfo с изменённым полем."""
+        from dataclasses import replace
+
+        info = TabInfo(document_id="test", title="Test", mode=DocumentMode.FREE_FORM)
+        new_info = replace(info, modified=True)
+        assert new_info.modified is True
+        assert info.modified is False  # Оригинал не изменён
+
+    def test_set_tab_modified_with_frozen(self, tab_bar: CardFileTabBar) -> None:
+        """set_tab_modified работает с замороженным TabInfo через replace()."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_modified("doc_1", True)
+        assert tab_bar._tabs["doc_1"].modified is True
+        tab_bar.set_tab_modified("doc_1", False)
+        assert tab_bar._tabs["doc_1"].modified is False
+
+    def test_set_tab_encrypted_with_frozen(self, tab_bar: CardFileTabBar) -> None:
+        """set_tab_encrypted работает с замороженным TabInfo через replace()."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_encrypted("doc_1", True)
+        assert tab_bar._tabs["doc_1"].encrypted is True
+
+    def test_set_tab_readonly_with_frozen(self, tab_bar: CardFileTabBar) -> None:
+        """set_tab_readonly работает с замороженным TabInfo через replace()."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_readonly("doc_1", True)
+        assert tab_bar._tabs["doc_1"].readonly is True
+
+    def test_set_tab_special_with_frozen(self, tab_bar: CardFileTabBar) -> None:
+        """set_tab_special работает с замороженным TabInfo через replace()."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_special("doc_1", True)
+        assert tab_bar._tabs["doc_1"].is_special is True
+
+    def test_set_tab_mode_with_frozen(self, tab_bar: CardFileTabBar) -> None:
+        """set_tab_mode работает с замороженным TabInfo через replace()."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+        tab_bar.set_tab_mode("doc_1", DocumentMode.STRUCTURED_FORM)
+        assert tab_bar._tabs["doc_1"].mode == DocumentMode.STRUCTURED_FORM
+
+
+@pytest.mark.gui
+class TestBugCloseClickFeedback:
+    """Тесты для бага #5: _on_close_click игнорирует возвращаемое значение.
+
+    Root cause: close_tab() возвращает bool, но _on_close_click не
+    проверял результат. Теперь логирует отклонённое закрытие.
+    """
+
+    def test_close_click_logs_rejected(
+        self, tab_bar: CardFileTabBar, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """_on_close_click логирует когда close_tab возвращает False."""
+        tab_bar._on_tab_close = MagicMock(return_value=False)
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+
+        with caplog.at_level(logging.DEBUG, logger="src.gui.views.card_file_tab_bar"):
+            tab_bar._on_close_click("doc_1")
+
+        assert "rejected" in caplog.text.lower()
+
+    def test_close_click_success_no_log(
+        self, tab_bar: CardFileTabBar, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """_on_close_click не логирует при успешном закрытии."""
+        tab_bar.add_tab("doc_1", "Document 1", DocumentMode.FREE_FORM)
+
+        with caplog.at_level(logging.DEBUG, logger="src.gui.views.card_file_tab_bar"):
+            tab_bar._on_close_click("doc_1")
+
+        assert "rejected" not in caplog.text.lower()
+
+
+@pytest.mark.gui
+class TestBugNewTabClickFeedback:
+    """Тесты для бага #6: _on_new_tab_click — нет обратной связи если
+    callback не установлен.
+
+    Root cause: при отсутствии callback кнопка "+" ничего не делает.
+    Теперь логирует debug-сообщение.
+    """
+
+    def test_new_tab_click_no_callback_logs(
+        self, tk_root: tk.Tk, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """_on_new_tab_click логирует когда callback не установлен."""
+        bar = CardFileTabBar(widget_id="test_no_cb")
+        bar.mount(tk_root)
+
+        with caplog.at_level(logging.DEBUG, logger="src.gui.views.card_file_tab_bar"):
+            bar._on_new_tab_click()
+
+        assert "callback not configured" in caplog.text.lower() or "ignored" in caplog.text.lower()
+
+    def test_new_tab_click_with_callback(
+        self, tab_bar: CardFileTabBar, mock_new_tab_callback: MagicMock
+    ) -> None:
+        """_on_new_tab_click вызывает callback когда он установлен."""
+        tab_bar._on_new_tab_click()
+        mock_new_tab_callback.assert_called()
 
 
 if __name__ == "__main__":

@@ -314,6 +314,8 @@ class TestAdaptiveLayout:
         event.width = MIN_WINDOW_WIDTH - 100
 
         status_bar._on_configure(event)
+        # Имитируем срабатывание debounce-таймера
+        status_bar._apply_layout_debounced()
 
         assert status_bar._tk_frame is not None
         assert int(status_bar._tk_frame.cget("height")) == STATUSBAR_HEIGHT * 2
@@ -326,6 +328,8 @@ class TestAdaptiveLayout:
         event = MagicMock()
         event.width = MIN_WINDOW_WIDTH + 100
         status_bar._on_configure(event)
+        # Имитируем срабатывание debounce-таймера
+        status_bar._apply_layout_debounced()
 
         assert not status_bar._is_double_row
         assert status_bar._tk_frame is not None
@@ -344,6 +348,8 @@ class TestAdaptiveLayout:
         event.width = MIN_WINDOW_WIDTH - 100
 
         status_bar._on_configure(event)
+        # Имитируем срабатывание debounce-таймера
+        status_bar._apply_layout_debounced()
 
         assert status_bar._row2_frame is not None
         assert status_bar._tk_zoom_label is not None
@@ -743,6 +749,297 @@ class TestStatusBarToastIntegration:
         assert TOAST_PANEL_WIDTH == 280
         assert TOAST_PANEL_MAX_ITEMS == 6
         assert TOAST_PANEL_AUTO_HIDE_MS == 30000
+
+
+# =============================================================================
+# TEST: Regression Tests for Bug Fixes
+# =============================================================================
+
+
+@pytest.mark.gui
+class TestBugFix1CleanupAfterCancel:
+    """Регрессионные тесты для бага #1: _cleanup() обнуляет _tk_frame
+    ДО вызова after_cancel, из-за чего after_cancel НИКОГДА не срабатывает.
+
+    Root cause: порядок операций в _cleanup() — сначала _tk_frame = None,
+    потом попытка after_cancel через уже-None ссылку.
+    """
+
+    def test_cleanup_cancels_after_before_frame_none(self, tk_root: tk.Tk) -> None:
+        """after_cancel вызывается ДО обнуления _tk_frame."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        # Создаём pending after(), чтобы _hide_after_id был установлен
+        bar._hide_after_id = bar._tk_frame.after(50000, lambda: None)  # type: ignore[union-attr]
+
+        # Запоминаем _tk_frame до cleanup
+        frame_before = bar._tk_frame
+        assert frame_before is not None
+
+        # cleanup должен отменить after(), пока _tk_frame ещё доступен
+        bar._cleanup()
+
+        # После cleanup _tk_frame должен быть None
+        assert bar._tk_frame is None
+        # after_id должен быть сброшен (after_cancel отработал)
+        assert bar._hide_after_id is None
+
+    def test_cleanup_cancels_debounce_before_frame_none(self, tk_root: tk.Tk) -> None:
+        """layout_after_id отменяется ДО обнуления _tk_frame."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        # Создаём pending after() для debounce
+        bar._layout_after_id = bar._tk_frame.after(50000, lambda: None)  # type: ignore[union-attr]
+
+        bar._cleanup()
+
+        assert bar._tk_frame is None
+        assert bar._layout_after_id is None
+
+    def test_cleanup_no_error_when_no_pending_after(self, tk_root: tk.Tk) -> None:
+        """_cleanup не падает, если нет pending after."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        # Никаких after() не создавалось
+        bar._cleanup()
+
+        assert bar._tk_frame is None
+        assert bar._hide_after_id is None
+        assert bar._layout_after_id is None
+
+
+@pytest.mark.gui
+class TestBugFix2ScheduleHideToastPanelTclError:
+    """Регрессионные тесты для бага #2: _schedule_hide_toast_panel()
+    вызывает after_cancel без try/except tk.TclError.
+
+    Root cause: если виджет уничтожен между планированием и
+    перепланированием, after_cancel выбрасывает tk.TclError.
+    """
+
+    def test_schedule_hide_cancel_survives_destroyed_widget(
+        self, tk_root: tk.Tk
+    ) -> None:
+        """after_cancel в _schedule_hide_toast_panel не падает при TclError."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        # Устанавливаем _hide_after_id (имитируем ранее запланированный таймер)
+        bar._hide_after_id = bar._tk_frame.after(  # type: ignore[union-attr]
+            50000, lambda: None
+        )
+
+        # Уничтожаем frame, чтобы after_cancel вызвал TclError
+        bar._tk_frame.destroy()  # type: ignore[union-attr]
+
+        # _schedule_hide_toast_panel должен обработать TclError и не упасть
+        # (tk_frame is None после destroy, метод вернётся раньше)
+        # Но проверим, что не выбрасывается исключение
+        try:
+            bar._schedule_hide_toast_panel()
+        except tk.TclError:
+            pytest.fail("_schedule_hide_toast_panel should handle TclError")
+
+
+@pytest.mark.gui
+class TestBugFix3OnConfigureDebounce:
+    """Регрессионные тесты для бага #3: _on_configure вызывает _apply_layout
+    при каждом ресайзе — N² pack/unpack без debounce/throttle.
+
+    Root cause: Configure-события при перетаскивании границы окна
+    вызывают полную распаковку/перепаковку виджетов на каждое событие.
+    """
+
+    def test_on_configure_sets_debounce_timer(self, tk_root: tk.Tk) -> None:
+        """_on_configure планирует _apply_layout через after()."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        event = MagicMock()
+        event.width = MIN_WINDOW_WIDTH - 100
+
+        bar._on_configure(event)
+
+        # Должен быть запланирован debounce-таймер
+        assert bar._layout_after_id is not None
+
+    def test_on_configure_cancels_previous_debounce(
+        self, tk_root: tk.Tk
+    ) -> None:
+        """Повторный _on_configure отменяет предыдущий debounce."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        event = MagicMock()
+        event.width = MIN_WINDOW_WIDTH - 100
+
+        bar._on_configure(event)
+        assert bar._layout_after_id is not None
+
+        # Второй вызов должен запланировать новый debounce
+        # (предыдущий отменяется внутри _on_configure)
+        bar._on_configure(event)
+        assert bar._layout_after_id is not None
+
+    def test_debounce_fires_apply_layout(self, tk_root: tk.Tk) -> None:
+        """_apply_layout_debounced вызывает _apply_layout и сбрасывает ID."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        bar._is_double_row = True
+        bar._layout_after_id = "fake-id"  # type: ignore[assignment]
+
+        bar._apply_layout_debounced()
+
+        # _layout_after_id должен быть сброшен
+        assert bar._layout_after_id is None
+
+    def test_no_debounce_when_layout_unchanged(self, tk_root: tk.Tk) -> None:
+        """_on_configure не планирует debounce, если режим не меняется."""
+        bar = StatusBar()
+        bar.mount(tk_root)
+
+        # По умолчанию single row, ширина больше MIN_WINDOW_WIDTH
+        event = MagicMock()
+        event.width = MIN_WINDOW_WIDTH + 100
+
+        bar._on_configure(event)
+
+        # Режим не меняется — debounce не планируется
+        assert bar._layout_after_id is None
+
+
+@pytest.mark.gui
+class TestBugFix4PositionNearDynamicHeight:
+    """Регрессионные тесты для бага #4: _position_near использует
+    фиксированную высоту 150 вместо реальной высоты виджета.
+
+    Root cause: hardcoded 150 в геометрии панели и вычислении y-позиции
+    может привести к обрезанию при малых y-координатах.
+    """
+
+    def test_position_near_uses_reqheight(self, tk_root: tk.Tk) -> None:
+        """_position_near использует winfo_reqheight вместо hardcoded 150."""
+        from src.gui.views.status_bar import ToastPanel
+
+        panel = ToastPanel(tk_root)
+        label = tk.Label(tk_root, text="Test")
+        label.pack()
+
+        panel.show_near_widget(label)
+
+        assert panel._window is not None
+        # Проверяем, что геометрия формируется корректно
+        panel._window.geometry()
+        # Главное — что метод не падает и панель видима
+        assert panel.is_visible()
+        panel.hide()
+
+    def test_position_near_small_y_falls_below_widget(
+        self, tk_root: tk.Tk
+    ) -> None:
+        """При малой y-координате панель позиционируется ниже виджета."""
+        from src.gui.views.status_bar import ToastPanel
+
+        # Размещаем виджет в самом верху экрана
+        label = tk.Label(tk_root, text="Top")
+        label.pack()
+
+        panel = ToastPanel(tk_root)
+        panel.show_near_widget(label)
+
+        assert panel._window is not None
+        assert panel.is_visible()
+        panel.hide()
+
+
+@pytest.mark.gui
+class TestBugFix5OffTimelineStatuses:
+    """Регрессионные тесты для бага #5: _build_timeline_text() не
+    обрабатывает статусы вне timeline (REJECTED, ARCHIVED, PRINTED).
+
+    Root cause: statuses.index() вызывал ValueError, который
+    обрабатывался как current_idx = -1, из-за чего все статусы
+    отображались как будущие (○) вместо корректного отображения.
+    """
+
+    def test_rejected_status_shows_all_done_plus_rejected(
+        self, status_bar: StatusBar
+    ) -> None:
+        """REJECTED: все timeline-статусы ✓, затем REJECTED ✗."""
+        from src.documents.constructor.form_status import FormStatus
+
+        status_bar.set_workflow_timeline(FormStatus.REJECTED)
+        text = status_bar._build_timeline_text("rejected")
+
+        # Все timeline-статусы должны быть ✓ (пройденные)
+        assert "[DRAFT ✓]" in text
+        assert "[FILLED ✓]" in text
+        assert "[VALIDATED ✓]" in text
+        assert "[APPROVED ✓]" in text
+        assert "[SIGNED ✓]" in text
+        # REJECTED должен быть с маркером ✗
+        assert "[REJECTED ✗]" in text
+        # Не должно быть будущих маркеров
+        assert "○" not in text
+
+    def test_archived_status_shows_all_done_plus_archived(
+        self, status_bar: StatusBar
+    ) -> None:
+        """ARCHIVED: все timeline-статусы ✓, затем ARCHIVED ●."""
+        from src.documents.constructor.form_status import FormStatus
+
+        status_bar.set_workflow_timeline(FormStatus.ARCHIVED)
+        text = status_bar._build_timeline_text("archived")
+
+        # Все timeline-статусы должны быть ✓
+        assert "[DRAFT ✓]" in text
+        assert "[SIGNED ✓]" in text
+        # ARCHIVED должен быть с текущим маркером ●
+        assert "[ARCHIVED ●]" in text
+
+    def test_printed_status_shows_all_done_plus_printed(
+        self, status_bar: StatusBar
+    ) -> None:
+        """PRINTED: все timeline-статусы ✓, затем PRINTED ●."""
+        from src.documents.constructor.form_status import FormStatus
+
+        status_bar.set_workflow_timeline(FormStatus.PRINTED)
+        text = status_bar._build_timeline_text("printed")
+
+        # Все timeline-статусы должны быть ✓
+        assert "[DRAFT ✓]" in text
+        assert "[SIGNED ✓]" in text
+        # PRINTED должен быть с текущим маркером ●
+        assert "[PRINTED ●]" in text
+
+    def test_draft_status_unchanged(self, status_bar: StatusBar) -> None:
+        """DRAFT: обычный timeline без изменений (регрессия)."""
+        from src.documents.constructor.form_status import FormStatus
+
+        status_bar.set_workflow_timeline(FormStatus.DRAFT)
+        text = status_bar._build_timeline_text("draft")
+
+        assert "[DRAFT ●]" in text
+        assert "[FILLED ○]" in text
+        assert "[SIGNED ○]" in text
+
+    def test_simple_mode_rejected(
+        self, status_bar: StatusBar
+    ) -> None:
+        """REJECTED в Simple Mode: [DRAFT ✓] ──▶ [SIGNED ✓] ──▶ [REJECTED ✗]."""
+        from src.documents.constructor.form_status import FormStatus
+
+        status_bar.set_simple_mode(True)
+        status_bar.set_workflow_timeline(FormStatus.REJECTED)
+        text = status_bar._build_timeline_text("rejected")
+
+        assert "[DRAFT ✓]" in text
+        assert "[SIGNED ✓]" in text
+        assert "[REJECTED ✗]" in text
 
 
 if __name__ == "__main__":

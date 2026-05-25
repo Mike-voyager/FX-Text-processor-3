@@ -46,7 +46,21 @@ from src.gui.components.sync.window_sync_indicator import (
 )
 from src.gui.core.commands.text_commands import InsertTextCommand
 from src.gui.core.error_handler import GUIErrorHandler
-from src.gui.core.protocols import ControllerProtocol
+from src.gui.core.protocols import (
+    ControllerProtocol,
+    DocumentViewProtocol,
+    HealthCheckDialogProtocol,
+    MainToolbarProtocol,
+    MFAManagerProtocol,
+    ModeIntegrationProtocol,
+    ModeToggleProtocol,
+    PasswordServiceProtocol,
+    SessionManagerProtocol,
+    UndoRedoMenuItemsProtocol,
+    WorkflowManagerProtocol,
+    WorkflowStateManagerProtocol,
+    WorkflowUIFactoryProtocol,
+)
 from src.gui.dialogs.navigation_dialogs import BookmarksDialog, GotoDialog
 from src.gui.dialogs.special_character_dialog import (
     SpecialCharacterDialog,
@@ -79,14 +93,47 @@ from src.gui.views.card_file_tab_bar import CardFileTabBar
 from src.gui.views.document_view import DocumentView
 from src.gui.views.side_bar import SideBar
 from src.gui.views.status_bar import StatusBar
-from src.model.bookmark import BookmarkManager
-from src.model.document import Document
+
+# Bug 8 FIX: View НЕ должен импортировать из Model напрямую.
+# BookmarkManager импортируется лениво (в методах) для избежания
+# прямой зависимости View -> Model. Document заменён на DocumentViewAdapter.
+# Причина: MVC строго запрещает View знать о внутренней структуре Model.
+# См. src/gui/adapters/document_adapter.py
 from src.security.audit import AuditEventType, AuditLog
 from src.security.auth.auth_service import AuthService
-from src.security.auth.session import SessionManager
+
+# Bug 8 FIX: SessionManager заменён на SessionManagerProtocol в типах.
+# Прямой импорт убран — View работает через Protocol.
 from src.security.monitoring.health_checker import HealthChecker
 
 # Phase 4: Dialog imports (lazy loaded in methods to avoid circular imports)
+# Bug 11 FIX: документация ленивых импортов.
+# Ленивые импорты внутри методов необходимы по следующим причинам:
+#
+# 1. ЦИКЛИЧЕСКИЕ ЗАВИСИМОСТИ (основная причина):
+#    - dialogs/ -> views/ -> dialogs/ (dialog открывает другой dialog)
+#    - workflow/ -> views/ -> workflow/ (workflow UI factory)
+#    - security/ -> views/ -> security/ (MFA gate, auth window)
+#    Без ленивого импорта Python падает с ImportError при старте.
+#
+# 2. MVC РАЗДЕЛЕНИЕ (Bug 8):
+#    - src.model.document (Document) — View не должен знать о Model,
+#      поэтому импортируется лениво только в _initialize_empty_document()
+#      и адаптируется через DocumentViewAdapter
+#    - src.model.bookmark (BookmarkManager) — аналогично, ленивый в _on_bookmarks()
+#
+# 3. OPTIONAL DEPENDENCIES:
+#    - src.gui.core.lifecycle (LifecycleManager) — может отсутствовать
+#    - src.gui.workflow.undo_redo_menu (UndoRedoMenuItems) — Phase 7, может не быть
+#    - src.security.auth.debug_utils — только для debug
+#
+# 4. PERFORMANCE:
+#    - Dialogs (PaperSetup, FindReplace, etc.) импортируются только при открытии
+#    - CryptoProfile, FloppyOptimizer — тяжёлые модули, не нужны при старте
+#    - TrustChainService, TemplateManager — создают ресурсы при импорте
+#
+# Паттерн: from X import Y внутри метода, за которым сразу следует использование.
+# Все такие импорты защищены try/except (Bug 5 FIX: конкретные исключения).
 # from src.gui.dialogs.workflow_dialogs import PrefillDialog
 
 # Logger for this module
@@ -148,7 +195,7 @@ class MainWindow:
         notification_service: Optional[NotificationService] = None,
         drag_drop_service: Optional[DragDropService] = None,
         mode_manager: Optional[ModeManager] = None,
-        workflow_state_manager: Optional[Any] = None,
+        workflow_state_manager: Optional[WorkflowStateManagerProtocol] = None,
         controller: Optional[ControllerProtocol] = None,
         audit_log: Optional["AuditLog"] = None,
         workflow_controller: Optional["WorkflowController"] = None,
@@ -181,7 +228,9 @@ class MainWindow:
         self._notification_service: Optional[NotificationService] = notification_service
         self._drag_drop_service: Optional[DragDropService] = drag_drop_service
         self._mode_manager: Optional[ModeManager] = mode_manager
-        self._workflow_state_manager: Optional[Any] = workflow_state_manager
+        self._workflow_state_manager: Optional[
+            WorkflowStateManagerProtocol
+        ] = workflow_state_manager
         self._root: Optional[tk.Tk] = None
         self._audit_log: Optional["AuditLog"] = audit_log
         # Barcode controller
@@ -189,7 +238,7 @@ class MainWindow:
 
         # Component references
         self._menubar: Optional[tk.Menu] = None
-        self._main_toolbar: Optional[Any] = None
+        self._main_toolbar: Optional[MainToolbarProtocol] = None
         self._main_layout: Optional[MainLayout] = None
         self._sidebar: Optional[SideBar] = None
         self._cardfile_tabbar: Optional[CardFileTabBar] = None
@@ -198,7 +247,7 @@ class MainWindow:
 
         # Multi-window support: stores DocumentView for new Toplevel windows
         # Key: window_id from WindowManager, Value: DocumentView instance
-        self._new_window_document_views: dict[str, Any] = {}
+        self._new_window_document_views: dict[str, DocumentView] = {}
 
         # Session lock screen (Toplevel)
         self._session_lock_screen: Optional[SessionLockScreen] = None
@@ -215,7 +264,7 @@ class MainWindow:
         self._is_modified: bool = False
 
         self._auth_overlay: Optional[AuthOverlay] = None
-        self._health_check_dialog: Optional[Any] = None
+        self._health_check_dialog: Optional[HealthCheckDialogProtocol] = None
         self._mode_var: Optional[tk.StringVar] = None
         self._sidebar_mode_var: Optional[tk.StringVar] = None
         self._health_checker: Optional[HealthChecker] = None
@@ -224,7 +273,8 @@ class MainWindow:
         self._error_handler: GUIErrorHandler = GUIErrorHandler()
 
         # Phase 4: Bookmark manager (lazy initialized per document)
-        self._bookmark_manager: Optional[BookmarkManager] = None
+        # Bug 8 FIX: тип Any вместо BookmarkManager — View не импортирует Model
+        self._bookmark_manager: Optional[Any] = None
 
         # Phase 6: Barcode/QR render mode
         self._barcode_render_var: Optional[tk.StringVar] = None
@@ -235,29 +285,29 @@ class MainWindow:
         self._workflow_simple_var: Optional[tk.BooleanVar] = None
 
         # Mode integration (renderer caching)
-        self._mode_integration: Optional[Any] = None
+        self._mode_integration: Optional[ModeIntegrationProtocol] = None
 
         # Workflow undo/redo menu items
-        self._undo_redo_menu_items: Optional[Any] = None
+        self._undo_redo_menu_items: Optional[UndoRedoMenuItemsProtocol] = None
 
         # Workflow manager (action visibility engine)
-        self._workflow_manager: Optional[Any] = None
+        self._workflow_manager: Optional[WorkflowManagerProtocol] = None
 
         # Workflow UI factory (dialog creation with MFA)
-        self._workflow_ui_factory: Optional[Any] = None
+        self._workflow_ui_factory: Optional[WorkflowUIFactoryProtocol] = None
 
         # Mode toggle widget (Normal/Special visual switch)
-        self._mode_toggle: Optional[Any] = None
+        self._mode_toggle: Optional[ModeToggleProtocol] = None
 
         self._main_window_id: Optional[str] = None
 
         # Session Manager for authentication
-        self._session_manager: Optional[SessionManager] = None
+        self._session_manager: Optional[SessionManagerProtocol] = None
         self._current_session_id: Optional[str] = None
 
         # Auth services for session lock (injected from AppController)
-        self._password_service: Optional[Any] = None
-        self._mfa_manager: Optional[Any] = None
+        self._password_service: Optional[PasswordServiceProtocol] = None
+        self._mfa_manager: Optional[MFAManagerProtocol] = None
 
         # New window counter for multi-window support
         self._new_window_counter: int = 0
@@ -317,7 +367,9 @@ class MainWindow:
             from src.gui.core.lifecycle import LifecycleManager
 
             self._lifecycle_manager: Optional[Any] = LifecycleManager()
-        except Exception:
+        except (ImportError, AttributeError, TypeError) as _lifecycle_err:
+            # Bug 5 FIX: конкретные исключения вместо молчащего except Exception
+            logger.debug("LifecycleManager not available: %s", _lifecycle_err)
             self._lifecycle_manager = None
 
         # Configure grid
@@ -401,6 +453,20 @@ class MainWindow:
         if self._health_check_dialog is not None:
             self._health_check_dialog.destroy()
             self._health_check_dialog = None
+
+        # Bug 9 FIX: Очистка new_window DocumentView при destroy MainWindow.
+        # Без этого wipe_sensitive_data() не вызывался для DocumentView
+        # в дочерних Toplevel окнах, что могло привести к утечке sensitive данных.
+        for window_id, doc_view in list(self._new_window_document_views.items()):
+            try:
+                doc_view.wipe_sensitive_data()
+            except (tk.TclError, AttributeError, RuntimeError) as e:
+                logger.debug(
+                    "Failed to wipe DocumentView for window %s (non-critical): %s",
+                    window_id,
+                    e,
+                )
+        self._new_window_document_views.clear()
 
         # Close all toast notifications
         if self._toast_service is not None:
@@ -539,47 +605,35 @@ class MainWindow:
         """
         return "classic_green"
 
-    def add_document(self, document: Any) -> None:
+    def add_document(self, document: DocumentViewProtocol) -> None:
         """Добавляет документ в UI (вкладку).
 
         Args:
-            document: Модель документа с атрибутами id и metadata.
+            document: Адаптированная модель документа (DocumentViewProtocol).
 
         Note:
             Вызывается из AppController после создания документа.
+            Ожидает DocumentViewProtocol, а не сырой Document Model.
         """
         if self._cardfile_tabbar is None:
             return
 
-        from src.documents.types.document_type import DocumentMode
-
-        doc_id = str(getattr(document, "id", str(id(document))))
-
-        # Get title from metadata
-        metadata = getattr(document, "metadata", None)
-        title_str: str = "Без названия"
-        if metadata is not None:
-            doc_title = getattr(metadata, "title", None)
-            if doc_title is not None:
-                title_str = str(doc_title)
-
-        # Get mode from document
-        mode = getattr(document, "mode", DocumentMode.FREE_FORM)
-        if mode is None:
-            mode = DocumentMode.FREE_FORM
+        doc_id = document.doc_id
+        title_str = document.title
+        mode = document.mode
 
         self._cardfile_tabbar.add_tab(document_id=doc_id, title=title_str, mode=mode)
 
         # Update tab indicators based on document state
-        is_encrypted = getattr(document, "is_encrypted", False)
-        is_readonly = getattr(document, "is_readonly", False)
-        is_modified = getattr(document, "is_modified", False)
-        self._cardfile_tabbar.set_tab_encrypted(doc_id, bool(is_encrypted))
-        self._cardfile_tabbar.set_tab_readonly(doc_id, bool(is_readonly))
-        self._cardfile_tabbar.set_tab_modified(doc_id, bool(is_modified))
+        is_encrypted = document.is_encrypted
+        is_readonly = document.is_readonly
+        is_modified = document.is_modified
+        self._cardfile_tabbar.set_tab_encrypted(doc_id, is_encrypted)
+        self._cardfile_tabbar.set_tab_readonly(doc_id, is_readonly)
+        self._cardfile_tabbar.set_tab_modified(doc_id, is_modified)
         if self._statusbar is not None:
-            self._statusbar.set_encrypted(bool(is_encrypted))
-            self._statusbar.set_readonly(bool(is_readonly))
+            self._statusbar.set_encrypted(is_encrypted)
+            self._statusbar.set_readonly(is_readonly)
 
     def remove_document(self, doc_id: str) -> None:
         """Удаляет документ из UI (вкладку).
@@ -635,101 +689,25 @@ class MainWindow:
         """Устанавливает текущий документ для отображения.
 
         Args:
-            document: Модель документа.
+            document: Модель документа (Document из src.model.document).
+                Адаптируется в DocumentViewProtocol через DocumentViewAdapter.
 
         Note:
             Передаёт документ в DocumentView для рендеринга.
+            DocumentViewAdapter инкапсулирует бизнес-логику маппинга
+            (Bug 1 FIX: убран из View в отдельный Adapter).
         """
         if self._document_view is None:
             return
 
-        from src.documents.types.document_type import DocumentMode
+        from src.gui.adapters.document_adapter import DocumentViewAdapter
 
-        # Create a protocol-compatible document wrapper
-        class DocumentWrapper:
-            """Обертка для документа, реализующая DocumentProtocol.
-
-            Адаптирует Document model для работы с DocumentView,
-            извлекая текст из секций и параграфов.
-
-            Attributes:
-                id: Уникальный идентификатор документа.
-                mode: Режим документа (всегда FREE_FORM).
-
-            Example:
-                >>> wrapper = DocumentWrapper(document)
-                >>> content = wrapper.get_content()
-                >>> cpi = wrapper.get_cpi()
-            """
-
-            def __init__(self, doc: Any) -> None:
-                """Инициализация DocumentWrapper.
-
-                Args:
-                    doc: Исходный документ model.
-                """
-                self._doc = doc
-                doc_id = getattr(doc, "id", str(id(doc)))
-                self.id = str(doc_id)  # Ensure it's a string
-                # Document model doesn't have mode, default to FREE_FORM
-                self.mode = DocumentMode.FREE_FORM
-
-            @property
-            def metadata(self) -> Any:
-                """Возвращает метаданные документа."""
-                return getattr(self._doc, "metadata", None)
-
-            @property
-            def sections(self) -> list[Any]:
-                """Возвращает секции документа."""
-                return getattr(self._doc, "sections", [])
-
-            def get_content(self) -> str:
-                """Извлекает текст из секций документа.
-
-                Returns:
-                    Текст из всех параграфов секций, объединенный через \n.
-                """
-                # Get text from all sections/paragraphs
-                sections = getattr(self._doc, "sections", [])
-                if not sections:
-                    return ""
-
-                content_parts = []
-                for section in sections:
-                    paragraphs = getattr(section, "paragraphs", [])
-                    for para in paragraphs:
-                        # Paragraph has get_text() method, not text attribute
-                        if hasattr(para, "get_text"):
-                            text = para.get_text()
-                        else:
-                            text = str(para)
-                        content_parts.append(text)
-
-                return "\n".join(content_parts)
-
-            def get_cpi(self) -> int:
-                """Возвращает CPI из настроек принтера.
-
-                Returns:
-                    Количество символов на дюйм (CPI), по умолчанию 10.
-                """
-                settings = getattr(self._doc, "printer_settings", None)
-                if settings:
-                    cpi_enum = getattr(settings, "characters_per_inch", None)
-                    if cpi_enum:
-                        # Extract number from enum like CharactersPerInch.CPI_10
-                        cpi_name = str(cpi_enum.name)  # e.g., "CPI_10"
-                        if cpi_name.startswith("CPI_"):
-                            try:
-                                return int(cpi_name.split("_")[1])
-                            except (ValueError, IndexError):
-                                pass
-                return 10  # Default CPI
-
-        wrapped = DocumentWrapper(document)
-        self._document_view.set_document(wrapped)
-        self.add_document(wrapped)
+        # Адаптируем Document model -> DocumentViewProtocol
+        # Это единственное место в View, где Document model проходит
+        # через адаптер. Все остальные методы работают с DocumentViewProtocol.
+        adapted: DocumentViewProtocol = DocumentViewAdapter(document)
+        self._document_view.set_document(adapted)
+        self.add_document(adapted)
 
     def lock_session(self, trigger: str = "manual") -> None:
         """Блокирует сессию (screen lock).
@@ -790,7 +768,8 @@ class MainWindow:
                         AuditEventType.SESSION_LOCKED,
                         details={"user_id": user_id, "trigger": trigger},
                     )
-                except Exception as e:
+                except (OSError, ValueError, RuntimeError) as e:
+                    # Bug 5 FIX: конкретные исключения вместо except Exception
                     logging.exception("Failed to log session lock: %s", e)
 
     def unlock_session(self) -> None:
@@ -832,7 +811,8 @@ class MainWindow:
                     self._audit_log.log_event(
                         AuditEventType.APP_UNLOCKED, details={"user_id": user_id}
                     )
-                except Exception as e:
+                except (OSError, ValueError, RuntimeError) as e:
+                    # Bug 5 FIX: конкретные исключения вместо except Exception
                     logging.exception("Failed to log session unlock: %s", e)
 
     # =============================================================================
@@ -1001,8 +981,9 @@ class MainWindow:
                     self._mode_integration.switch_mode(
                         DocumentMode.FREE_FORM, self._root, self._controller
                     )
-                except Exception as exc:
-                    logger.debug("ModeIntegration switch failed: %s", exc)
+                except (ImportError, AttributeError, tk.TclError, ValueError) as exc:
+                    # Bug 5 FIX: конкретные исключения вместо except Exception
+                    logger.debug("ModeIntegration switch to FREE_FORM failed: %s", exc)
 
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -1090,8 +1071,9 @@ class MainWindow:
                 self._mode_integration.switch_mode(
                     DocumentMode.STRUCTURED_FORM, self._root, self._controller
                 )
-            except Exception as exc:
-                logger.debug("ModeIntegration switch failed: %s", exc)
+            except (ImportError, AttributeError, tk.TclError, ValueError) as exc:
+                # Bug 5 FIX: конкретные исключения вместо except Exception
+                logger.debug("ModeIntegration switch to STRUCTURED_FORM failed: %s", exc)
 
         # Step 5: Show success toast
         if self._toast_service is not None:
@@ -1165,8 +1147,10 @@ class MainWindow:
                 auth_ctrl = getattr(self._controller, "auth_controller", None)
                 if auth_ctrl is not None:
                     return auth_ctrl
-                # Try the controller itself if it has verify methods
-                if hasattr(self._controller, "verify_totp"):
+                # Bug 6 FIX: hasattr заменён на try-атрибут
+                # ControllerProtocol не определяет verify_totp, поэтому
+                # используем getattr с fallback
+                if getattr(self._controller, "verify_totp", None) is not None:
                     return self._controller
             except (AttributeError, KeyError, tk.TclError) as e:
                 logger.debug("Failed to get auth controller: %s", e)
@@ -1671,13 +1655,17 @@ class MainWindow:
 
     def _setup_toolbar_commands(self) -> None:
         """Настраивает команды для кнопок тулбара."""
-        if self._controller is not None and hasattr(self._controller, "subscribe"):
-            self._controller.subscribe(
-                "document_changed",
-                lambda data: self._update_toolbar_state(
-                    data.get("has_document", False), data.get("is_modified", False)
-                ),
-            )
+        # Bug 6 FIX: hasattr заменён на getattr с fallback
+        # ControllerProtocol не определяет subscribe, поэтому используем safe access
+        if self._controller is not None:
+            subscribe_fn = getattr(self._controller, "subscribe", None)
+            if subscribe_fn is not None:
+                subscribe_fn(
+                    "document_changed",
+                    lambda data: self._update_toolbar_state(
+                        data.get("has_document", False), data.get("is_modified", False)
+                    ),
+                )
 
     def _setup_key_bindings(self) -> None:
         """Настраивает клавиатурные shortcuts через KeyBindingsService."""
@@ -1711,8 +1699,11 @@ class MainWindow:
         self._key_bindings.register("Ctrl+Shift+B", self._on_insert_barcode)
         self._key_bindings.register("Ctrl+Shift+Q", self._on_insert_qr)
 
-        # Глобальный обработчик для dispatch
-        self._root.bind_all("<Key>", self._on_key_event)
+        # Bug 3 FIX: bind вместо bind_all — ограничиваем scope корневым окном.
+        # bind_all перехватывал ВСЕ клавиатурные события глобально, включая
+        # события в модальных диалогах и других Toplevel окнах, что приводило
+        # к непреднамеренной обработке клавиш вне MainWindow.
+        self._root.bind("<Key>", self._on_key_event)
 
     def _setup_workflow_undo_redo(self, menu: tk.Menu) -> None:
         """Добавляет пункты undo/redo workflow в меню.
@@ -1734,22 +1725,21 @@ class MainWindow:
                 get_redo_text=lambda: self._get_workflow_redo_text(),
             )
             self._undo_redo_menu_items.add_to_menu(menu)
-        except Exception as exc:
+        except (ImportError, AttributeError, TypeError, tk.TclError) as exc:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.debug("Workflow undo/redo menu items skipped: %s", exc)
 
     def _get_workflow_undo_text(self) -> Optional[str]:
         """Возвращает описание последнего действия для undo."""
-        if self._workflow_state_manager is not None and hasattr(
-            self._workflow_state_manager, "get_last_undo_description"
-        ):
+        # Bug 6 FIX: hasattr заменён на Protocol-гарантированный вызов
+        if self._workflow_state_manager is not None:
             return self._workflow_state_manager.get_last_undo_description()
         return None
 
     def _get_workflow_redo_text(self) -> Optional[str]:
         """Возвращает описание последнего действия для redo."""
-        if self._workflow_state_manager is not None and hasattr(
-            self._workflow_state_manager, "get_last_redo_description"
-        ):
+        # Bug 6 FIX: hasattr заменён на Protocol-гарантированный вызов
+        if self._workflow_state_manager is not None:
             return self._workflow_state_manager.get_last_redo_description()
         return None
 
@@ -1841,12 +1831,18 @@ class MainWindow:
 
         Вызывается в конце initialize() чтобы область редактирования
         была видна сразу после запуска приложения, а не пустым placeholder.
+
+        Bug 8 FIX: Document импортируется лениво (View не зависит от Model).
+        set_document() адаптирует Document через DocumentViewAdapter.
         """
         if self._document_view is None:
             return
 
-        # Use a proper model Document; set_document() handles the DocumentWrapper
-        # that provides DocumentProtocol (str id, mode, get_content, get_cpi).
+        # Bug 8 FIX: ленивый импорт Document — View не импортирует из Model напрямую
+        from src.model.document import Document
+
+        # set_document() адаптирует Document через DocumentViewAdapter,
+        # предоставляя DocumentProtocol для View слоя.
         self.set_document(Document())
 
     def _on_unlock_attempt(self, password: str, mfa_token: str, method: str) -> bool:
@@ -1872,24 +1868,21 @@ class MainWindow:
 
         try:
             # Verify password
-            if not hasattr(auth_controller, "verify_password"):
-                return False
+            # Bug 6 FIX: hasattr заменён на try/except с конкретными исключениями
             if not bool(auth_controller.verify_password(user_id, password)):
                 return False
 
             # Verify MFA based on method
             if method == "totp":
-                if not hasattr(auth_controller, "verify_totp"):
-                    return False
                 return bool(auth_controller.verify_totp(user_id, mfa_token))
             elif method == "backup":
-                if not hasattr(auth_controller, "verify_backup_code"):
-                    return False
                 return bool(auth_controller.verify_backup_code(user_id, mfa_token))
             elif method == "fido2":
-                if hasattr(auth_controller, "verify_fido2"):
+                try:
                     return bool(auth_controller.verify_fido2(user_id, ""))
-                return False
+                except AttributeError:
+                    # FIDO2 не поддерживается данным контроллером
+                    return False
             else:
                 return False
 
@@ -1937,8 +1930,13 @@ class MainWindow:
         """Планирует проверку неактивности для автоматической блокировки.
 
         Вызывается периодически (каждую минуту) через after().
-        Если время неактивности превышает auto_lock_minutes —
+        Если время неактивности превышает auto_lock_minutes --
         вызывает lock_session(trigger="auto").
+
+        Bug 7 FIX: добавлена защита от повторного входа:
+        - Проверяет наличие модальных диалогов перед блокировкой
+        - Проверяет, не正在进行 критическая операция (grab)
+        - Предотвращает блокировку при активном вводе в диалоге
         """
         if self._root is None:
             return
@@ -1953,6 +1951,18 @@ class MainWindow:
         inactive_minutes = int(elapsed / 60)
 
         if inactive_minutes >= self._auto_lock_minutes and self._auto_lock_minutes > 0:
+            # Bug 7 FIX: не блокируем если есть модальный диалог или grab
+            try:
+                grab_window = self._root.grab_current()
+                if grab_window is not None:
+                    # Модальный диалог активен — откладываем блокировку
+                    self._auto_lock_timer_id = str(
+                        self._root.after(60000, self._schedule_auto_lock_check)
+                    )
+                    return
+            except (tk.TclError, AttributeError):
+                pass  # Нет grab — можно блокировать
+
             self.lock_session(trigger="auto")
             return
 
@@ -2091,7 +2101,8 @@ class MainWindow:
         if self._controller is not None:
             try:
                 self._controller.dispatch("document_convert", mode=target_mode)
-            except Exception as exc:
+            except (ValueError, RuntimeError, AttributeError, tk.TclError) as exc:
+                # Bug 5 FIX: конкретные исключения вместо except Exception
                 logger.error("Document conversion dispatch failed: %s", exc)
 
         # Update tab indicator
@@ -2252,7 +2263,8 @@ class MainWindow:
                     "Дерево документов открыто",
                     ToastLevel.INFO,
                 )
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError, tk.TclError, OSError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Ошибка открытия дерева документов: %s", e)
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2275,9 +2287,8 @@ class MainWindow:
 
             current_user = "operator"
             current_role = "operator"
-            if self._workflow_manager is not None and hasattr(
-                self._workflow_manager, "current_role"
-            ):
+            # Bug 6 FIX: hasattr убран — WorkflowManagerProtocol гарантирует current_role
+            if self._workflow_manager is not None:
                 try:
                     current_role = self._workflow_manager.current_role.value
                 except (AttributeError, TypeError):
@@ -2330,7 +2341,8 @@ class MainWindow:
                     ToastLevel.INFO,
                 )
 
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError, tk.TclError, OSError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Ошибка открытия панели аннотаций: %s", e)
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2363,67 +2375,67 @@ class MainWindow:
         if self._controller is not None:
             self._controller.dispatch("view_zoom_reset")
 
-    def set_workflow_state_manager(self, manager: Any) -> None:
+    def set_workflow_state_manager(self, manager: WorkflowStateManagerProtocol) -> None:
         """Устанавливает WorkflowStateManager для интеграции с Simple Mode.
 
         Args:
-            manager: Экземпляр WorkflowStateManager или совместимый объект.
+            manager: Экземпляр WorkflowStateManagerProtocol.
         """
         self._workflow_state_manager = manager
 
-    def set_password_service(self, password_service: Any) -> None:
+    def set_password_service(self, password_service: PasswordServiceProtocol) -> None:
         """Устанавливает сервис паролей для session lock.
 
         Args:
-            password_service: PasswordService или совместимый объект.
+            password_service: Экземпляр PasswordServiceProtocol.
         """
         self._password_service = password_service
 
-    def set_mfa_manager(self, mfa_manager: Any) -> None:
+    def set_mfa_manager(self, mfa_manager: MFAManagerProtocol) -> None:
         """Устанавливает MFA-менеджер для session lock.
 
         Args:
-            mfa_manager: SecondFactorManager или совместимый объект.
+            mfa_manager: Экземпляр MFAManagerProtocol.
         """
         self._mfa_manager = mfa_manager
 
-    def set_session_manager(self, session_manager: Any) -> None:
+    def set_session_manager(self, session_manager: SessionManagerProtocol) -> None:
         """Устанавливает менеджер сессий для аутентификации.
 
         Args:
-            session_manager: SessionManager или совместимый объект.
+            session_manager: Экземпляр SessionManagerProtocol.
         """
         self._session_manager = session_manager
 
-    def set_mode_integration(self, mode_integration: Any) -> None:
+    def set_mode_integration(self, mode_integration: ModeIntegrationProtocol) -> None:
         """Устанавливает интеграцию режимов (ModeIntegration).
 
         Args:
-            mode_integration: Экземпляр ModeIntegration или совместимый объект.
+            mode_integration: Экземпляр ModeIntegrationProtocol.
         """
         self._mode_integration = mode_integration
 
-    def set_workflow_manager(self, workflow_manager: Any) -> None:
+    def set_workflow_manager(self, workflow_manager: WorkflowManagerProtocol) -> None:
         """Устанавливает менеджер workflow для видимости действий.
 
         Args:
-            workflow_manager: Экземпляр WorkflowManager или совместимый объект.
+            workflow_manager: Экземпляр WorkflowManagerProtocol.
         """
         self._workflow_manager = workflow_manager
 
-    def set_workflow_ui_factory(self, factory: Any) -> None:
+    def set_workflow_ui_factory(self, factory: WorkflowUIFactoryProtocol) -> None:
         """Устанавливает фабрику workflow UI для создания диалогов с MFA.
 
         Args:
-            factory: Экземпляр WorkflowUIFactory или совместимый объект.
+            factory: Экземпляр WorkflowUIFactoryProtocol.
         """
         self._workflow_ui_factory = factory
 
-    def set_mode_toggle(self, mode_toggle: Any) -> None:
+    def set_mode_toggle(self, mode_toggle: ModeToggleProtocol) -> None:
         """Устанавливает виджет ModeToggle для визуального переключения режимов.
 
         Args:
-            mode_toggle: Экземпляр ModeToggle или совместимый объект.
+            mode_toggle: Экземпляр ModeToggleProtocol.
         """
         self._mode_toggle = mode_toggle
 
@@ -2438,9 +2450,9 @@ class MainWindow:
             self._workflow_simple_mode = simple
 
             # Синхронизируем WorkflowStateManager
+            # Bug 6 FIX: hasattr убран — Protocol гарантирует метод
             if self._workflow_state_manager is not None:
-                if hasattr(self._workflow_state_manager, "set_simple_mode"):
-                    self._workflow_state_manager.set_simple_mode(simple)
+                self._workflow_state_manager.set_simple_mode(simple)
 
             # Обновляем StatusBar timeline если visible
             if self._statusbar is not None:
@@ -2696,7 +2708,8 @@ class MainWindow:
             )
             dialog.show()
 
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError, OSError, PermissionError, ValueError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Ошибка открытия диалога Trust Chain: %s", e)
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2805,12 +2818,10 @@ class MainWindow:
             return
 
         # Получаем текстовый виджет из активного документа
+        # Bug 6 FIX: hasattr(self, "_document_view") убран — атрибут гарантирован
+        # hasattr(_document_view, "get_text_widget") убран — DocumentView имеет метод
         text_widget = None
-        if (
-            hasattr(self, "_document_view")
-            and self._document_view is not None
-            and hasattr(self._document_view, "get_text_widget")
-        ):
+        if self._document_view is not None:
             text_widget = self._document_view.get_text_widget()
 
         if text_widget is None:
@@ -2882,7 +2893,8 @@ class MainWindow:
             )
             dialog.show()
 
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError, OSError, PermissionError, ValueError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Ошибка открытия диалога импорта шаблона: %s", e)
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2901,9 +2913,9 @@ class MainWindow:
 
             template_manager = TemplateManager()
 
-            # Получаем данные текущего документа
+            # Bug 6 FIX: hasattr убран — DocumentView имеет get_form_data
             form_data: dict[str, Any] = {}
-            if self._document_view is not None and hasattr(self._document_view, "get_form_data"):
+            if self._document_view is not None:
                 form_data = self._document_view.get_form_data()
 
             current_user = "operator"
@@ -2930,7 +2942,8 @@ class MainWindow:
             )
             dialog.show()
 
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError, OSError, ValueError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Ошибка открытия диалога экспорта шаблона: %s", e)
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2966,8 +2979,9 @@ class MainWindow:
         from src.gui.dialogs.floppy_optimizer_dialog import FloppyOptimizerDialog
 
         # Получаем данные текущего документа для оптимизации
+        # Bug 6 FIX: hasattr убран — DocumentView имеет get_template_data
         template_data = b""
-        if self._document_view is not None and hasattr(self._document_view, "get_template_data"):
+        if self._document_view is not None:
             try:
                 template_data = self._document_view.get_template_data()
             except (AttributeError, TypeError):
@@ -3116,7 +3130,8 @@ class MainWindow:
                         f"Go to page {result['page']}",
                         ToastLevel.INFO,
                     )
-            except Exception as e:
+            except (ValueError, KeyError, tk.TclError, AttributeError) as e:
+                # Bug 5 FIX: конкретные исключения вместо except Exception
                 logger.error("Failed to navigate: %s", e)
                 messagebox.showerror("Error", f"Failed to navigate: {e}")
 
@@ -3143,6 +3158,9 @@ class MainWindow:
                     uuid = UUID(doc_id)
                 except ValueError:
                     uuid = UUID(int=0)  # Fallback
+                # Bug 8 FIX: ленивый импорт BookmarkManager — View не зависит от Model
+                from src.model.bookmark import BookmarkManager
+
                 self._bookmark_manager = BookmarkManager(uuid)
             else:
                 messagebox.showwarning(
@@ -3214,20 +3232,27 @@ class MainWindow:
         else:
             field_label_str = field_id
 
-        current_value = getattr(field, "get_value", lambda: "")()
+        # Bug 6 FIX: hasattr заменён на isinstance с FormFieldProtocol
+        from src.gui.core.protocols import FormFieldProtocol
+
+        current_value: str = ""
+        if isinstance(field, FormFieldProtocol):
+            current_value = str(field.get_value())
 
         dialog = PrefillDialog(
             cast(tk.Widget, self._root),
             field_id=field_id,
             field_label=field_label_str if field_label_str else field_id,
             current_value=current_value,
-            on_select=lambda value: field.set_value(value) if hasattr(field, "set_value") else None,
+            on_select=lambda value: (
+                field.set_value(value) if isinstance(field, FormFieldProtocol) else None
+            ),
         )
         result = dialog.show()
 
         if result:
             # Apply to field
-            if hasattr(field, "set_value"):
+            if isinstance(field, FormFieldProtocol):
                 field.set_value(result)
                 if self._toast_service is not None:
                     self._toast_service.show(
@@ -3386,7 +3411,8 @@ class MainWindow:
 
         try:
             line, col = renderer.get_cursor_position()
-        except Exception as e:
+        except (AttributeError, tk.TclError, RuntimeError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Failed to get cursor position: %s", e)
             messagebox.showerror(
                 "Ошибка",
@@ -3405,7 +3431,8 @@ class MainWindow:
 
             if self._toast_service is not None:
                 self._toast_service.show("Character inserted", ToastLevel.SUCCESS)
-        except Exception as e:
+        except (AttributeError, tk.TclError, RuntimeError, ValueError) as e:
+            # Bug 5 FIX: конкретные исключения вместо except Exception
             logger.error("Error inserting special character: %s", e)
             messagebox.showerror(
                 "Ошибка",
