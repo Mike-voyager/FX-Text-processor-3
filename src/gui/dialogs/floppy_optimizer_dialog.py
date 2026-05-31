@@ -539,7 +539,7 @@ class FloppyOptimizerDialog(BaseDialog):
             self._update_progress(100)
             self.destroy()
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, OSError) as e:
             logger.error("Optimization failed: %s", e)
             self._status_var.set(f"❌ Error: {e}")
             self._set_busy(False)
@@ -566,7 +566,7 @@ class FloppyOptimizerDialog(BaseDialog):
             try:
                 Path(filename).write_bytes(self._optimized_data)
                 self._status_var.set(f"✅ Saved to {Path(filename).name}")
-            except Exception as e:
+            except (OSError, PermissionError, ValueError) as e:
                 self._status_var.set(f"❌ Save failed: {e}")
 
     def _on_cancel(self) -> None:

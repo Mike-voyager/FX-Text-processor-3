@@ -356,9 +356,12 @@ class AuthOverlay(BaseWidget):
             factor_type = "backupcode"
             factor_credential = token
         elif method == MFAForm.METHOD_FIDO2:
-            # FIDO2 требует аппаратного security key — используйте Security → FIDO2 Setup
+            # FIDO2 обрабатывается через отдельный callback _on_fido2_request,
+            # который вызывается из MFAForm._perform_fido2_authentication.
+            # Если мы оказались здесь — значит callback не подключён.
             self.set_status(
-                "FIDO2: используйте диалог настройки FIDO2 (Security → FIDO2 Setup)", "error"
+                "FIDO2 requires hardware key setup. Use Security → FIDO2 Setup to register a key.",
+                "warning",
             )
             return False
 

@@ -235,7 +235,7 @@ class TemplatePreviewWidget(tk.Frame):
         if self._new_doc_callback is not None:
             try:
                 self._new_doc_callback()
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 logger.error("Ошибка в callback new_document: %s", exc)
 
     def _trigger_print_blank(self) -> None:
@@ -243,7 +243,7 @@ class TemplatePreviewWidget(tk.Frame):
         if self._print_blank_callback is not None:
             try:
                 self._print_blank_callback()
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 logger.error("Ошибка в callback print_blank: %s", exc)
 
 

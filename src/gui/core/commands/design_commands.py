@@ -649,7 +649,7 @@ class BatchCommand(Command):
             for cmd in self._commands:
                 cmd.execute()
                 executed.append(cmd)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — commands may raise any exception; re-raising
             # Rollback already executed commands
             for cmd in reversed(executed):
                 cmd.undo()

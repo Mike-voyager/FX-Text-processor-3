@@ -226,7 +226,7 @@ class KeyBindingsService:
 
         try:
             binding.callback()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.exception("Error in key binding callback id=%s: %s", binding.binding_id, e)
             return False
 

@@ -508,9 +508,9 @@ class MFAMethodSelectorDialog(tk.Toplevel):
             # Security: CRITICAL logging and generic UI alert
             logger.critical("MFA authentication failed: %s", e, exc_info=True)
             self._show_error("Ошибка верификации")
-        except Exception as e:
-            logger.error("Unexpected MFA verification error: %s", e, exc_info=True)
-            self._show_error("Произошла непредвиденная ошибка")
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+            logger.critical("Unexpected MFA verification error: %s", e, exc_info=True)
+            self._show_error("Ошибка верификации. Обратитесь к администратору.")
 
     def _on_verification_success(self) -> None:
         """Обработчик успешной верификации."""
@@ -684,8 +684,8 @@ class MFAGate:
                     e,
                     exc_info=True,
                 )
-            except Exception as e:
-                logger.warning("Failed to mark MFA satisfied: %s", e, exc_info=True)
+            except (ValueError, TypeError, AttributeError, RuntimeError, KeyError) as e:
+                logger.critical("Failed to mark MFA satisfied: %s", e, exc_info=True)
             self._log_mfa_success(
                 user_id=mfa_result.user_id,
                 method=mfa_result.method,
@@ -870,7 +870,7 @@ class MFAGate:
                         "audit_token": audit_token,
                     },
                 )
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error("Failed to log MFA success to audit: %s", e)
 
     def _log_mfa_error(
@@ -894,7 +894,7 @@ class MFAGate:
                         "error": error,
                     },
                 )
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error("Failed to log MFA error to audit: %s", e)
 
     def _log_mfa_failure(
@@ -917,7 +917,7 @@ class MFAGate:
                         "reason": "cancelled",
                     },
                 )
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error("Failed to log MFA cancellation to audit: %s", e)
 
 

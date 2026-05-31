@@ -553,7 +553,7 @@ class RejectDialog(BaseDialog):
                 logger.warning("MFA verification failed for reject operation")
                 return False
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("MFA dialog failed: %s", e)
             return False
 

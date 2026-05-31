@@ -293,6 +293,9 @@ class BarcodeTypeSelector(BaseDialog):
         self._preview_canvas.pack(fill=tk.X, expand=True)
         self._preview_renderer = SoftwareBarcodeRenderer(self._preview_canvas)
 
+        # Overlay item ID for hardware mode text (tracked for cleanup)
+        self._preview_overlay_id: Optional[int] = None
+
         # Buttons
         self._create_button_section(main_frame)
 
@@ -540,10 +543,23 @@ class BarcodeTypeSelector(BaseDialog):
         self._preview_btn.config(state=tk.NORMAL if (has_selection and has_data) else tk.DISABLED)
 
     def _on_preview(self) -> None:
-        """Обработчик кнопки предпросмотра."""
+        """Обработчик кнопки предпросмотра.
+
+        Рендерит штрих-код на canvas предпросмотра в диалоге.
+        В режиме Hardware добавляет текстовую метку поверх рендера.
+        Предыдущий оверлей корректно удаляется перед новым рендером.
+        """
         data = self._data_var.get().strip()
         if not data or not self._selected_type:
             return
+
+        # Удаляем предыдущий оверлей hardware-режима
+        if self._preview_overlay_id is not None:
+            try:
+                self._preview_canvas.delete(self._preview_overlay_id)
+            except tk.TclError:
+                pass
+            self._preview_overlay_id = None
 
         self._preview_renderer.clear()
         self._preview_renderer.render(
@@ -557,7 +573,7 @@ class BarcodeTypeSelector(BaseDialog):
         )
 
         if self._selected_mode == BarcodeMode.HARDWARE:
-            self._preview_canvas.create_text(
+            self._preview_overlay_id = self._preview_canvas.create_text(
                 180,
                 65,
                 text="Hardware (FX-890 ESC/P)",

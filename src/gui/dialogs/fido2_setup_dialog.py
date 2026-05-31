@@ -290,8 +290,7 @@ class FIDO2SetupDialog(BaseDialog):
 
         tk.Label(
             frame,
-            text="Insert your YubiKey or other FIDO2 compatible device\n"
-            "into a USB port on your computer.",
+            text="Insert your FIDO2 compatible security key\ninto a USB port on your computer.",
             font=("Arial", 10),
             bg=COLOR_BG,
             fg="#7f8c8d",
@@ -579,7 +578,7 @@ class FIDO2SetupDialog(BaseDialog):
                         cast(Callable[[], None], lambda msg=error_msg: self._on_device_error(msg)),
                     )
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
                 logger.error("Unexpected FIDO2 device detection error: %s", e, exc_info=True)
                 error_msg = str(e)
                 self._after_ids.append(
@@ -619,21 +618,25 @@ class FIDO2SetupDialog(BaseDialog):
 
             logger.info("FIDO2 device detected: %s", self._device_info.get("name"))
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("Error processing device info: %s", e)
             self._on_device_error(str(e))
 
     def _on_device_detected_simulated(self) -> None:
-        """Обработчик симулированного устройства (fallback)."""
+        """Обработчик симулированного устройства (fallback при отсутствии библиотеки fido2).
+
+        Отображает предупреждение о режиме симуляции без привязки
+        к конкретному бренду оборудования.
+        """
         self._device_info = {
-            "name": "YubiKey 5 NFC (Simulated)",
-            "model": "YubiKey 5",
-            "firmware": "5.4.3",
+            "name": "FIDO2 Simulator (no hardware)",
+            "model": "Software simulation",
+            "firmware": "N/A",
         }
 
         if hasattr(self, "_device_status_label"):
             self._device_status_label.config(
-                text="✓ Device detected! (Simulation mode)",
+                text="⚠ Simulation mode — FIDO2 library not available, using software fallback",
                 fg=COLOR_WARNING,
                 font=("Arial", 10, "bold"),
             )
@@ -709,7 +712,7 @@ class FIDO2SetupDialog(BaseDialog):
                         0, cast(Callable[[], None], lambda msg=error_msg: self._on_touch_error(msg))
                     )
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
                 logger.error("Unexpected FIDO2 registration error: %s", e, exc_info=True)
                 error_msg = str(e)
                 self._after_ids.append(
@@ -892,7 +895,7 @@ class FIDO2SetupDialog(BaseDialog):
                 "Codes copied to clipboard.\nClear the clipboard after use.",
                 parent=self,
             )
-        except Exception as e:
+        except (tk.TclError, OSError, ValueError) as e:
             logger.error("Не удалось скопировать коды: %s", e)
             messagebox.showerror("Error", "Failed to copy codes", parent=self)
 
@@ -921,7 +924,7 @@ class FIDO2SetupDialog(BaseDialog):
                 "Save it to removable media and delete it from the local disk.",
                 parent=self,
             )
-        except Exception as e:
+        except (OSError, ValueError, PermissionError) as e:
             logger.error("Не удалось сохранить коды: %s", e)
             messagebox.showerror("Error", f"Failed to save file:\n{e}", parent=self)
 

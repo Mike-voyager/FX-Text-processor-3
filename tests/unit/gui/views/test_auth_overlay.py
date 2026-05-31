@@ -572,6 +572,91 @@ class TestAuthOverlayWipeCredentials:
             mfa_form_mock.wipe_credentials.assert_called_once()
 
 
+@pytest.mark.skipif(not TKINTER_AVAILABLE, reason="Tkinter not available")
+class TestAuthOverlayFIDO2GracefulDegradation:
+    """Regression-тесты для корректной обработки FIDO2 в _on_mfa_submit.
+
+    Проверяет, что при выборе FIDO2 метода в _on_mfa_submit
+    не блокируется обработка с ошибкой, а показывается
+    user-friendly предупреждение (graceful degradation).
+    """
+
+    def test_fido2_method_returns_false_with_warning(self, mock_root: MagicMock, mock_auth_service: MagicMock) -> None:
+        """Выбор FIDO2 метода в _on_mfa_submit показывает warning, не error.
+
+        Regression: раньше FIDO2 метод в _on_mfa_submit показывал
+        error-сообщение и блокировал обработку. Теперь показывается
+        user-friendly warning с рекомендацией настроить FIDO2.
+        """
+        with patch('tkinter.Frame'), \
+             patch('tkinter.Label'), \
+             patch('tkinter.Entry'), \
+             patch('tkinter.Button'), \
+             patch('tkinter.Radiobutton'), \
+             patch('tkinter.StringVar'):
+
+            overlay = AuthOverlay(
+                parent=mock_root,
+                widget_id="auth_overlay",
+                auth_service=mock_auth_service,
+            )
+
+            overlay._status_label = MagicMock()
+
+            result = overlay._on_mfa_submit(
+                "test_user", "test_pass", MFAForm.METHOD_FIDO2, ""
+            )
+
+            # FIDO2 через _on_mfa_submit возвращает False (не блокирует)
+            assert result is False
+            # Статус должен быть установлен
+            overlay._status_label.config.assert_called()
+            call_args = overlay._status_label.config.call_args
+            # Проверяем что текст содержит рекомендацию настройки
+            text_value = call_args.kwargs.get("text", "")
+            assert "FIDO2" in text_value
+            # Проверяем что fg цвет warning (оранжевый), не error (красный)
+            fg_color = call_args.kwargs.get("fg", "")
+            assert fg_color == "#f39c12"  # WARNING_FG
+
+    def test_fido2_via_callback_still_works(self, mock_root: MagicMock, mock_auth_service: MagicMock) -> None:
+        """FIDO2 аутентификация через _on_fido2_request callback работает корректно."""
+        success_called = [False]
+
+        def on_success() -> None:
+            success_called[0] = True
+
+        with patch('tkinter.Frame'), \
+             patch('tkinter.Label'), \
+             patch('tkinter.Entry'), \
+             patch('tkinter.Button'), \
+             patch('tkinter.Radiobutton'), \
+             patch('tkinter.StringVar'):
+
+            overlay = AuthOverlay(
+                parent=mock_root,
+                widget_id="auth_overlay",
+                auth_service=mock_auth_service,
+                on_auth_success=on_success,
+            )
+
+            overlay._overlay_frame = MagicMock()
+            overlay._status_label = MagicMock()
+            overlay._is_visible = True
+
+            result = overlay._on_fido2_request("test_user", "test_pass")
+
+            # FIDO2 через callback успешно работает
+            assert result is True
+            mock_auth_service.authenticate.assert_called_once_with(
+                user_id="test_user",
+                password="test_pass",
+                factor_type="fido2",
+                factor_credential=None,
+            )
+            assert success_called[0] is True
+
+
 __all__ = [
     "TestAuthOverlayCreation",
     "TestAuthOverlayShowHide",
@@ -579,4 +664,5 @@ __all__ = [
     "TestAuthOverlayMethodSwitching",
     "TestAuthOverlayAuthentication",
     "TestAuthOverlayWipeCredentials",
+    "TestAuthOverlayFIDO2GracefulDegradation",
 ]

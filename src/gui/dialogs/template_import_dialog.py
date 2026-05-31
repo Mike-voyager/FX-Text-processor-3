@@ -36,7 +36,7 @@ from src.gui.components.tooltip import TooltipManager
 from src.gui.dialogs.base_dialog import BaseDialog
 from src.gui.dialogs.floppy_optimizer_dialog import FloppyOptimizerDialog
 from src.gui.dialogs.template_preview_panel import TemplatePreviewWidget
-from src.gui.dialogs.trust_chain_dialog import TrustChainDialog
+from src.gui.security.trust_chain_dialog import TrustChainDialog
 from src.security.crypto.core.exceptions import AuthError, CryptoError
 from src.security.crypto.utilities.floppy_optimizer import FloppyOptimizer
 from src.services.template_manager import FormTemplate, TemplateManager

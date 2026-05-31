@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Final, Optional
 
 from src.documents.constructor.form_constructor import ValidationReport
 from src.documents.constructor.form_status import FormStatus
+from src.documents.types.document_type import DocumentMode
 from src.documents.types.type_schema import FieldDefinition
 from src.gui.components.base.widget import BaseWidget
 from src.gui.core.commands.command import Command
@@ -631,3 +632,57 @@ class StructuredFormModeRenderer(BaseWidget):
         """
         if self._inner_renderer is not None:
             self._inner_renderer._show_page(index)
+
+    # ==========================================================================
+    # PROTOCOL COMPLIANCE: DocumentModeRendererProtocol
+    # ==========================================================================
+
+    def get_mode(self) -> DocumentMode:
+        """Возвращает режим документа, поддерживаемый рендерером.
+
+        Returns:
+            DocumentMode.STRUCTURED_FORM — данный рендерер работает
+            в режиме структурированной формы с workflow.
+        """
+        return DocumentMode.STRUCTURED_FORM
+
+    def supports_workflow(self) -> bool:
+        """Проверяет, поддерживает ли рендерер workflow-переходы.
+
+        StructuredForm режим поддерживает workflow переходы
+        с MFA-верификацией.
+
+        Returns:
+            True — STRUCTURED_FORM поддерживает MFA workflow transitions.
+        """
+        return True
+
+    def get_undo_manager(self) -> Any:
+        """Возвращает менеджер undo/redo операций.
+
+        Returns:
+            Экземпляр CommandStack.
+        """
+        return self._command_stack
+
+    def display_document(self, document: Any) -> None:
+        """Отображает документ с учётом SmartEdit режима.
+
+        Для StructuredForm режима делегирует render().
+
+        Args:
+            document: Документ для отображения.
+        """
+        self.render(document)
+
+    def get_editor_state(self) -> dict[str, Any]:
+        """Возвращает текущее состояние редактора.
+
+        Returns:
+            Словарь с состоянием StructuredForm редактора.
+        """
+        return {
+            "mode": "structured_form",
+            "snap_to_grid": self._snap_to_grid,
+            "command_stack_size": len(self._command_stack),
+        }

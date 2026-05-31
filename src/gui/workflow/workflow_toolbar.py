@@ -42,7 +42,7 @@ def _theme_color(key: str) -> str:
     """
     try:
         return ThemeRegistry.get_instance().get_current().get_color(key)
-    except Exception as e:
+    except (KeyError, AttributeError, ValueError) as e:
         logging.getLogger(__name__).exception("Theme color retrieval failed for key %s: %s", key, e)
         return "#3498db"  # fallback color
 

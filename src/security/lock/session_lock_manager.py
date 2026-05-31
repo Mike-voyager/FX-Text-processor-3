@@ -46,6 +46,14 @@ class LockReason(Enum):
     SECURITY_POLICY = "security_policy"
 
 
+DEFAULT_AUTO_LOCK_MINUTES: int = 15
+"""Таймаут автоблокировки по умолчанию (в минутах).
+
+Используется в LockConfig и GUI. Централизованное значение
+для предотвращения хардкода в разных модулях.
+"""
+
+
 @dataclass(frozen=True)
 class LockConfig:
     """Конфигурация блокировки сессии.
@@ -61,7 +69,7 @@ class LockConfig:
     """
 
     enabled: bool = True
-    auto_lock_minutes: int = 15
+    auto_lock_minutes: int = DEFAULT_AUTO_LOCK_MINUTES
     lock_on_sleep: bool = True
     lock_on_screensaver: bool = True
     require_mfa_to_unlock: bool = True

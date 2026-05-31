@@ -911,7 +911,7 @@ class StructuredFormRenderer(BaseWidget):
                 field_id = self._field_id_from_key(field_key)
                 try:
                     data[field_id] = widget.get_value()
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                     data[field_id] = None
                     logger.warning("Failed to get value for field %s: %s", field_id, e)
             return data
@@ -929,7 +929,7 @@ class StructuredFormRenderer(BaseWidget):
                     else:
                         data[field_id] = None
                         logger.warning("Widget for field %s has no get_value method", field_id)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                     data[field_id] = None
                     logger.warning("Failed to get value for field %s: %s", field_id, e)
 
@@ -958,7 +958,7 @@ class StructuredFormRenderer(BaseWidget):
                         error_msg = getattr(widget, "_error_message", None)
                         if error_msg:
                             report.add_field_error(field_id, str(error_msg))
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                     report.add_field_error(field_id, f"Ошибка валидации: {e}")
                     logger.warning("Validation failed for field %s: %s", field_id, e)
             return report
@@ -1016,7 +1016,7 @@ class StructuredFormRenderer(BaseWidget):
                             error_msg = getattr(widget, "_error_message", None)
                             if error_msg:
                                 report.add_field_error(field_id, str(error_msg))
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                     report.add_field_error(field_id, f"Ошибка валидации: {e}")
                     logger.warning("Validation failed for field %s: %s", field_id, e)
 
@@ -1124,7 +1124,7 @@ class StructuredFormRenderer(BaseWidget):
             )
             self._form_status = new_status
             return True
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as e:
             self._error_handler.handle_silent(
                 e,
                 {
@@ -2490,7 +2490,7 @@ class StructuredFormRenderer(BaseWidget):
                     operation_name=f"Переход в {new_status.value}",
                     requires_mfa=True,
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                 logger.warning("MFA transition failed: %s", e)
         else:
             self._do_transition(new_status)
@@ -2527,7 +2527,7 @@ class StructuredFormRenderer(BaseWidget):
                     new_status=new_status.value,
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as e:
             self._error_handler.handle_silent(
                 e,
                 {

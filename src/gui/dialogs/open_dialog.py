@@ -541,7 +541,7 @@ class OpenDialog(BaseDialog):
                                 created=getattr(service_result, "created", datetime.now()),
                                 subject=getattr(service_result, "subject", "") or "",
                             )
-                except Exception as exc:
+                except (AttributeError, ValueError, RuntimeError, ImportError) as exc:
                     logger.debug("Primary metadata extraction failed: %s", exc)
                     # Continue to fallback methods
 
@@ -568,7 +568,7 @@ class OpenDialog(BaseDialog):
         except (FileNotFoundError, OSError) as e:
             logger.error("File system error during metadata extraction: %s", e)
             return None
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError, RuntimeError) as e:
             logger.exception("Unexpected error during metadata extraction: %s", e)
             return None
 

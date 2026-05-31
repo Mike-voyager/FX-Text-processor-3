@@ -494,9 +494,9 @@ class TOTPSetupDialog(BaseDialog):
         except (AuthError, CryptoError) as e:
             logger.critical("TOTP verification security error: %s", e, exc_info=True)
             self._show_error("Security error during verification")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("Unexpected TOTP verification error: %s", e, exc_info=True)
-            self._show_error(f"Verification error: {e}")
+            self._show_error("Verification error. Please try again.")
 
     def _save_totp_secret(self) -> None:
         """Сохраняет TOTP секрет в KeyStore через сервис.
@@ -525,7 +525,7 @@ class TOTPSetupDialog(BaseDialog):
 
         except (AuthError, CryptoError) as e:
             logger.critical("Security error saving TOTP secret: %s", e, exc_info=True)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
             logger.error("Unexpected error saving TOTP secret: %s", e, exc_info=True)
             # Don't raise - setup can complete but secret won't persist
 

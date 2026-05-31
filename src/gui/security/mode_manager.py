@@ -273,7 +273,7 @@ class ModeManager:
                 )
                 return False
 
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
             LOG.error("MFA authentication error: %s", exc)
             return False
 
@@ -357,7 +357,7 @@ class ModeManager:
         for callback in callbacks:
             try:
                 callback(old_mode, new_mode)
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 LOG.warning("Mode change callback failed: %s", exc)
 
     # --------------------------------------------------------------------------

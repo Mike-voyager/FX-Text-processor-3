@@ -313,8 +313,9 @@ class MFAPanel(tk.Frame):
                     self.show_success("Код подтверждён")
                 else:
                     self.show_error("Неверный код")
-            except Exception as e:
-                self.show_error(f"Ошибка верификации: {e}")
+            except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+                logging.exception("MFA verification error: %s", e)
+                self.show_error("Ошибка верификации")
 
     def get_code(self) -> str:
         """Возвращает введённый код.

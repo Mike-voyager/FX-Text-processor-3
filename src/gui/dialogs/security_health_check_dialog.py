@@ -210,7 +210,7 @@ class SecurityHealthCheckDialog(BaseDialog):
                 # placeholder: если HealthChecker не настроен — считаем passed
                 passed = True
                 status = "pass"
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as exc:
             logger.debug("Health check %s failed: %s", name, exc)
             passed = False
             status = "fail"

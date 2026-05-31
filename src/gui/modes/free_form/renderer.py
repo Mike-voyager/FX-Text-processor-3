@@ -983,6 +983,51 @@ class FreeFormModeRenderer(BaseWidget):
         self._shadow_row_lines.clear()
         self._clear_row_styles()
 
+    # ==========================================================================
+    # PROTOCOL COMPLIANCE: DocumentModeRendererProtocol
+    # ==========================================================================
+
+    def supports_workflow(self) -> bool:
+        """Проверяет, поддерживает ли рендерер workflow-переходы.
+
+        FreeForm режим не поддерживает workflow переходы
+        (только STRUCTURED_FORM поддерживает).
+
+        Returns:
+            False — FreeForm не требует MFA для переходов.
+        """
+        return False
+
+    def get_undo_manager(self) -> Any:
+        """Возвращает менеджер undo/redo операций.
+
+        Returns:
+            Экземпляр CommandStack или None если не установлен.
+        """
+        return self._command_stack
+
+    def display_document(self, document: Any) -> None:
+        """Отображает документ с учётом SmartEdit режима.
+
+        Для FreeForm режима делегирует render().
+
+        Args:
+            document: Документ для отображения.
+        """
+        self.render(document)
+
+    def get_editor_state(self) -> dict[str, Any]:
+        """Возвращает текущее состояние редактора.
+
+        Returns:
+            Словарь с состоянием FreeForm редактора.
+        """
+        return {
+            "mode": DocumentMode.FREE_FORM.value,
+            "cpi": self._cpi,
+            "command_stack_size": len(self._command_stack) if self._command_stack else 0,
+        }
+
 
 __all__: list[str] = [
     "FreeFormModeRenderer",

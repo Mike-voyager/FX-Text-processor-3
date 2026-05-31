@@ -68,7 +68,11 @@ class FirstRunWizard:
         },
         "paranoid": {
             "name": "Paranoid",
-            "description": "Долгосрочное хранение. Ed25519 + ML-DSA-65 + AES-256-GCM + ChaCha20 + Argon2id (256 MB).",
+            "description": (
+                "Долгосрочное хранение. "
+                "Ed25519 + ML-DSA-65 + AES-256-GCM + ChaCha20 "
+                "+ Argon2id (256 MB)."
+            ),
             "signing": "Ed25519 + ML-DSA-65",
             "encryption": "AES-256-GCM + ChaCha20",
             "kdf_memory": "256 MB",
@@ -108,39 +112,43 @@ class FirstRunWizard:
             on_complete: Callback при завершении. Получает user_id.
             on_cancel: Callback при отмене.
         """
-        self._parent = parent
-        self._password_service = password_service
-        self._session_manager = session_manager
-        self._mfa_manager = mfa_manager
-        self._on_complete = on_complete
-        self._on_cancel = on_cancel
+        self._parent: tk.Tk = parent
+        self._password_service: Any = password_service
+        self._session_manager: Any = session_manager
+        self._mfa_manager: Any = mfa_manager
+        self._on_complete: Optional[Callable[[str], None]] = on_complete
+        self._on_cancel_callback: Optional[Callable[[], None]] = on_cancel
 
-        self._current_step = WizardStep.WELCOME
+        self._current_step: WizardStep = WizardStep.WELCOME
         self._theme_manager = get_theme_manager()
         self._window: Optional[tk.Toplevel] = None
 
         # Данные wizard
-        self._user_id = "operator"
-        self._password = ""
-        self._password_confirm = ""
-        self._selected_preset = "standard"
+        self._user_id: str = "operator"
+        self._password: str = ""
+        self._password_confirm: str = ""
+        self._selected_preset: str = "standard"
         self._backup_codes: list[str] = []
-        self._fido2_configured = False
-        self._totp_configured = False
+        self._fido2_configured: bool = False
+        self._totp_configured: bool = False
         self._totp_uri: Optional[str] = None
         self._totp_qr_data: Optional[bytes] = None
 
         # UI переменные
-        self._password_var = tk.StringVar(master=self._parent)
-        self._password_confirm_var = tk.StringVar(master=self._parent)
-        self._preset_var = tk.StringVar(master=self._parent, value="standard")
+        self._password_var: tk.StringVar = tk.StringVar(master=self._parent)
+        self._password_confirm_var: tk.StringVar = tk.StringVar(master=self._parent)
+        self._preset_var: tk.StringVar = tk.StringVar(master=self._parent, value="standard")
         self._error_label: Optional[tk.Label] = None
         self._content_frame: Optional[tk.Frame] = None
         self._step_title_label: Optional[tk.Label] = None
         self._step_desc_label: Optional[tk.Label] = None
+        self._progress_label: Optional[tk.Label] = None
+        self._back_btn: Optional[tk.Button] = None
+        self._next_btn: Optional[tk.Button] = None
+        self._cancel_btn: Optional[tk.Button] = None
 
         # Debug mode
-        self._debug_mode = os.getenv("FX_DEBUG_MODE", "0") == "1"
+        self._debug_mode: bool = os.getenv("FX_DEBUG_MODE", "0") == "1"
 
     def show(self) -> None:
         """Показывает окно wizard модально."""
@@ -306,13 +314,58 @@ class FirstRunWizard:
 
         # Обновляем заголовок и описание
         titles = {
-            WizardStep.WELCOME: ("Добро пожаловать!", "Это первый запуск FX Text Processor 3.\n\nДля работы необходимо создать учётную запись оператора и настроить параметры безопасности."),
-            WizardStep.MASTER_PASSWORD: ("Мастер-пароль", "Задайте мастер-пароль для защиты учётной записи.\n\nПароль будет хеширован с помощью Argon2id и никогда не хранится в открытом виде."),
-            WizardStep.SECURITY_PRESET: ("Пресет безопасности", "Выберите уровень криптографической защиты.\n\nКаждый пресет можно настроить индивидуально в Settings → Security."),
-            WizardStep.FIDO2_SETUP: ("FIDO2 Security Key", "Подключите FIDO2-устройство (YubiKey и др.)\nдля настройки второго фактора.\n\nЭтот шаг можно пропустить и настроить позже."),
-            WizardStep.TOTP_SETUP: ("TOTP Authenticator", "Настройте приложение-аутентификатор\n(KeePassXC, Aegis, и др.) как резервный фактор.\n\nЭтот шаг можно пропустить и настроить позже."),
-            WizardStep.BACKUP_CODES: ("Backup-коды", "Сохраните одноразовые backup-коды в безопасном месте.\n\nКаждый код можно использовать только один раз."),
-            WizardStep.COMPLETE: ("Настройка завершена!", "Учётная запись оператора создана.\n\nТеперь вы можете войти в систему."),
+            WizardStep.WELCOME: (
+                "Добро пожаловать!",
+                (
+                    "Это первый запуск FX Text Processor 3.\n\n"
+                    "Для работы необходимо создать учётную запись оператора "
+                    "и настроить параметры безопасности."
+                ),
+            ),
+            WizardStep.MASTER_PASSWORD: (
+                "Мастер-пароль",
+                (
+                    "Задайте мастер-пароль для защиты учётной записи.\n\n"
+                    "Пароль будет хеширован с помощью Argon2id "
+                    "и никогда не хранится в открытом виде."
+                ),
+            ),
+            WizardStep.SECURITY_PRESET: (
+                "Пресет безопасности",
+                (
+                    "Выберите уровень криптографической защиты.\n\n"
+                    "Каждый пресет можно настроить индивидуально "
+                    "в Settings → Security."
+                ),
+            ),
+            WizardStep.FIDO2_SETUP: (
+                "FIDO2 Security Key",
+                (
+                    "Подключите FIDO2-устройство (YubiKey и др.)\n"
+                    "для настройки второго фактора.\n\n"
+                    "Этот шаг можно пропустить и настроить позже."
+                ),
+            ),
+            WizardStep.TOTP_SETUP: (
+                "TOTP Authenticator",
+                (
+                    "Настройте приложение-аутентификатор\n"
+                    "(KeePassXC, Aegis, и др.) как резервный фактор.\n\n"
+                    "Этот шаг можно пропустить и настроить позже."
+                ),
+            ),
+            WizardStep.BACKUP_CODES: (
+                "Backup-коды",
+                (
+                    "Сохраните одноразовые backup-коды "
+                    "в безопасном месте.\n\n"
+                    "Каждый код можно использовать только один раз."
+                ),
+            ),
+            WizardStep.COMPLETE: (
+                "Настройка завершена!",
+                "Учётная запись оператора создана.\n\nТеперь вы можете войти в систему.",
+            ),
         }
 
         title, desc = titles.get(step, ("", ""))
@@ -329,19 +382,26 @@ class FirstRunWizard:
             self._progress_label.configure(text=f"Шаг {current_idx + 1} из {total}")
 
         # Управление кнопками
-        self._back_btn.configure(
-            state=tk.NORMAL if step != WizardStep.WELCOME else tk.DISABLED,
-        )
+        if self._back_btn is not None:
+            self._back_btn.configure(
+                state=tk.NORMAL if step != WizardStep.WELCOME else tk.DISABLED,
+            )
 
         if step == WizardStep.COMPLETE:
-            self._next_btn.configure(text="Войти")
-            self._cancel_btn.configure(state=tk.DISABLED)
+            if self._next_btn is not None:
+                self._next_btn.configure(text="Войти")
+            if self._cancel_btn is not None:
+                self._cancel_btn.configure(state=tk.DISABLED)
         elif step in (WizardStep.FIDO2_SETUP, WizardStep.TOTP_SETUP):
-            self._next_btn.configure(text="Пропустить →")
-            self._cancel_btn.configure(state=tk.NORMAL)
+            if self._next_btn is not None:
+                self._next_btn.configure(text="Пропустить →")
+            if self._cancel_btn is not None:
+                self._cancel_btn.configure(state=tk.NORMAL)
         else:
-            self._next_btn.configure(text="Далее →")
-            self._cancel_btn.configure(state=tk.NORMAL)
+            if self._next_btn is not None:
+                self._next_btn.configure(text="Далее →")
+            if self._cancel_btn is not None:
+                self._cancel_btn.configure(state=tk.NORMAL)
 
         # Рендерим контент шага
         builders = {
@@ -448,7 +508,7 @@ class FirstRunWizard:
         hint_label = tk.Label(
             self._content_frame,
             text="Минимум 8 символов. Рекомендуется ≥ 12 символов.\n"
-                 "Пароль никогда не хранится в открытом виде.",
+            "Пароль никогда не хранится в открытом виде.",
             font=(theme.font_family, theme.font_size - 2),
             bg=theme.bg_color,
             fg=theme.fg_color,
@@ -467,7 +527,9 @@ class FirstRunWizard:
             preset_frame = tk.Frame(
                 self._content_frame,
                 bg=theme.bg_color,
-                highlightbackground=theme.accent_color if self._preset_var.get() == preset_key else theme.fg_color,
+                highlightbackground=theme.accent_color
+                if self._preset_var.get() == preset_key
+                else theme.fg_color,
                 highlightthickness=2 if self._preset_var.get() == preset_key else 1,
                 padx=10,
                 pady=5,
@@ -612,7 +674,7 @@ class FirstRunWizard:
             tk.Label(
                 self._content_frame,
                 text="⚠ Не удалось сгенерировать backup-коды.\n"
-                     "Вы сможете сгенерировать их позже в Settings → Security.",
+                "Вы сможете сгенерировать их позже в Settings → Security.",
                 font=(theme.font_family, theme.font_size),
                 bg=theme.bg_color,
                 fg=theme.error_color,
@@ -622,8 +684,8 @@ class FirstRunWizard:
         tk.Label(
             self._content_frame,
             text="⚠ Сохраните эти коды в безопасном месте!\n"
-                 "Каждый код можно использовать только ОДИН раз.\n"
-                 "Коды больше НЕ будут показаны.",
+            "Каждый код можно использовать только ОДИН раз.\n"
+            "Коды больше НЕ будут показаны.",
             font=(theme.font_family, theme.font_size, "bold"),
             bg=theme.bg_color,
             fg=theme.error_color,
@@ -662,7 +724,7 @@ class FirstRunWizard:
 
         summary_lines = [
             f"✅ Оператор: {self._user_id}",
-            f"✅ Мастер-пароль: установлен",
+            "✅ Мастер-пароль: установлен",
             f"✅ Пресет: {self.PRESETS[self._selected_preset]['name']}",
         ]
 
@@ -690,7 +752,7 @@ class FirstRunWizard:
         warning_label = tk.Label(
             self._content_frame,
             text="⚠ Если вы потеряете мастер-пароль и все backup-коды,\n"
-                 "данные будут НЕВОССТАНОВИМЫ.",
+            "данные будут НЕВОССТАНОВИМЫ.",
             font=(theme.font_family, theme.font_size, "bold"),
             bg=theme.bg_color,
             fg=theme.error_color,
@@ -743,8 +805,8 @@ class FirstRunWizard:
     def _on_cancel(self) -> None:
         """Обработчик отмены."""
         self._clear_password_vars()
-        if self._on_cancel is not None:
-            self._on_cancel()
+        if self._on_cancel_callback is not None:
+            self._on_cancel_callback()
         self.destroy()
 
     def _validate_password(self) -> bool:
@@ -782,34 +844,86 @@ class FirstRunWizard:
         return True
 
     def _on_setup_fido2(self) -> None:
-        """Обработчик настройки FIDO2."""
-        # TODO: Открыть FIDO2SetupDialog когда он будет подключён
-        # Пока помечаем как настроенный в debug режиме
+        """Обработчик настройки FIDO2.
+
+        Открывает FIDO2SetupDialog для регистрации security-ключа.
+        В debug режиме помечает как настроенный без диалога.
+        """
         if self._debug_mode:
             self._fido2_configured = True
             self._show_step(WizardStep.FIDO2_SETUP)
             logger.info("FIDO2 setup bypassed in debug mode")
-        else:
-            self._show_error("Настройка FIDO2 пока недоступна — настройте позже")
+            return
+
+        # Используем окно wizard как родительское для диалога
+        dialog_parent = self._window if self._window is not None else self._parent
+
+        try:
+            from src.gui.dialogs.fido2_setup_dialog import FIDO2SetupDialog
+
+            def on_fido2_complete(result: dict[str, Any]) -> None:
+                """Callback после завершения настройки FIDO2."""
+                if result.get("success"):
+                    self._fido2_configured = True
+                    self._show_step(WizardStep.FIDO2_SETUP)
+                    logger.info("FIDO2 setup completed for user %s", self._user_id)
+                else:
+                    logger.info("FIDO2 setup cancelled for user %s", self._user_id)
+
+            dialog = FIDO2SetupDialog(
+                parent=dialog_parent,  # type: ignore[arg-type]
+                on_complete=on_fido2_complete,
+            )
+            dialog.show()
+
+        except (ImportError, tk.TclError) as e:
+            logger.warning("FIDO2SetupDialog not available: %s", e)
+            self._show_error("Настройка FIDO2 недоступна — настройте позже")
 
     def _on_setup_totp(self) -> None:
-        """Обработчик настройки TOTP."""
-        # TODO: Открыть TOTPSetupDialog когда он будет подключён
+        """Обработчик настройки TOTP.
+
+        Открывает TOTPSetupDialog для настройки аутентификатора.
+        В debug режиме помечает как настроенный без диалога.
+        """
         if self._debug_mode:
             self._totp_configured = True
             self._show_step(WizardStep.TOTP_SETUP)
             logger.info("TOTP setup bypassed in debug mode")
-        else:
-            self._show_error("Настройка TOTP пока недоступна — настройте позже")
+            return
+
+        # Используем окно wizard как родительское для диалога
+        dialog_parent = self._window if self._window is not None else self._parent
+
+        try:
+            from src.gui.dialogs.totp_setup_dialog import TOTPSetupDialog
+
+            def on_totp_complete(result: dict[str, Any]) -> None:
+                """Callback после завершения настройки TOTP."""
+                if result.get("verified"):
+                    self._totp_configured = True
+                    self._show_step(WizardStep.TOTP_SETUP)
+                    logger.info("TOTP setup completed for user %s", self._user_id)
+                else:
+                    logger.info("TOTP setup cancelled for user %s", self._user_id)
+
+            dialog = TOTPSetupDialog(
+                parent=dialog_parent,  # type: ignore[arg-type]
+                on_complete=on_totp_complete,
+            )
+            dialog.show()
+
+        except (ImportError, tk.TclError) as e:
+            logger.warning("TOTPSetupDialog not available: %s", e)
+            self._show_error("Настройка TOTP недоступна — настройте позже")
 
     def _generate_backup_codes(self) -> None:
         """Генерирует backup-коды."""
         if self._debug_mode:
             # В debug режиме генерируем простые тестовые коды
             import secrets
-            self._backup_codes = [
-                secrets.token_hex(4).upper() for _ in range(10)
-            ]
+
+            self._backup_codes = [secrets.token_hex(4).upper() for _ in range(10)]
             return
 
         # Используем CodeService если доступен
@@ -817,16 +931,13 @@ class FirstRunWizard:
             from src.security.auth.code_service import issue_backup_codes_for_user
 
             result = issue_backup_codes_for_user(self._user_id, count=10)
-            self._backup_codes = [
-                code.get("code", "") for code in result.get("codes", [])
-            ]
-        except (ImportError, Exception) as e:
+            self._backup_codes = [code.get("code", "") for code in result.get("codes", [])]
+        except (ImportError, ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
             logger.warning("Failed to generate backup codes via service: %s", e)
             # Fallback: генерируем локально
             import secrets
-            self._backup_codes = [
-                secrets.token_hex(4).upper() for _ in range(10)
-            ]
+
+            self._backup_codes = [secrets.token_hex(4).upper() for _ in range(10)]
 
     def _complete_wizard(self) -> None:
         """Завершает wizard и создаёт пользователя."""
@@ -835,7 +946,7 @@ class FirstRunWizard:
             try:
                 self._password_service.create_password(self._user_id, self._password)
                 logger.info("User '%s' created successfully", self._user_id)
-            except Exception as e:
+            except (ValueError, TypeError, OSError, RuntimeError) as e:
                 logger.error("Failed to create user: %s", e)
                 self._show_error(f"Ошибка создания пользователя: {e}")
                 return
@@ -900,7 +1011,9 @@ def is_first_run(password_service: Any = None) -> bool:
 
             password_service = PasswordService()
 
-        storage = password_service.storage  # type: ignore[union-attr]
+        storage = getattr(password_service, "storage", None)
+        if storage is None:
+            return True
         if hasattr(storage, "user_ids") and callable(storage.user_ids):
             return len(storage.user_ids()) == 0
         if hasattr(storage, "get_password_hash") and callable(
@@ -908,7 +1021,7 @@ def is_first_run(password_service: Any = None) -> bool:
         ):
             return storage.get_password_hash("operator") is None
         return True
-    except (ImportError, Exception) as e:
+    except (ImportError, ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
         logger.debug("First run check failed: %s", e)
         # Если сервис недоступен — считаем что первый запуск
         return True

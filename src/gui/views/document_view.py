@@ -48,7 +48,11 @@ from src.gui.components.paper_visualization import CodepageStatusWidget
 from src.gui.components.ruler import Ruler
 from src.gui.core.commands.command import Command
 from src.gui.core.commands.command_stack import CommandStack
-from src.gui.core.protocols import ControllerProtocol, DocumentControllerProtocol
+from src.gui.core.protocols import (
+    ControllerProtocol,
+    DocumentControllerProtocol,
+    WorkflowStateManagerProtocol,
+)
 from src.gui.form_designer.designer_tab import DesignerTab
 from src.gui.layout.layout_constants import PADDING_LARGE, PADDING_NORMAL
 from src.gui.renderers.factory import RendererFactory
@@ -134,26 +138,6 @@ class StatusBarProtocol(Protocol):
 
     def set_document_mode(self, mode: DocumentMode) -> None:
         """Устанавливает режим документа для управления видимостью виджетов."""
-        ...
-
-
-@runtime_checkable
-class WorkflowStateManagerProtocol(Protocol):
-    """Протокол для WorkflowStateManager, используемый DocumentView.
-
-    Определяет только методы, которые DocumentView вызывает на менеджер.
-    """
-
-    def request_transition_by_action(self, doc_id: UUID, action: str) -> Any:
-        """Запрашивает переход по действию workflow.
-
-        Args:
-            doc_id: ID документа.
-            action: Имя действия workflow.
-
-        Returns:
-            Результат перехода (TransitionResult или None).
-        """
         ...
 
 
@@ -354,8 +338,8 @@ class DocumentView(BaseWidget):
         # Codepage status widget
         self._codepage_status: Optional[CodepageStatusWidget] = None
 
-        # Saved document state for mode switching
-        self._saved_state: dict[str, Any] = {}
+        # Saved document state for mode switching, keyed by "doc_id:mode"
+        self._saved_state: dict[str, dict[str, Any]] = {}
 
     @property
     def _free_form_renderer(self) -> Optional[FreeFormRenderer]:
@@ -606,6 +590,9 @@ class DocumentView(BaseWidget):
         # Render current document if available
         if self._current_document is not None:
             self._render_current_document()
+
+        # Restore previously saved state (scroll position, cursor, etc.)
+        self._restore_current_state()
 
         # Notify controller
         if self._controller is not None:
@@ -882,7 +869,7 @@ class DocumentView(BaseWidget):
                     if hasattr(wc, "current_role"):
                         role = wc.current_role
                         self._statusbar.set_role_badge(role)
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError, ImportError) as e:
                 logger.debug("Failed to sync StatusBar workflow: %s", e)
 
     def _sync_statusbar_workflow_from_document(self, document: DocumentProtocol) -> None:
@@ -934,29 +921,97 @@ class DocumentView(BaseWidget):
     def _save_current_state(self) -> None:
         """Сохраняет состояние текущего документа перед переключением режима.
 
-        Сохраняет позицию скролла, позицию курсора и выделение
-        из текстового виджета текущего рендерера в ``self._saved_state``.
+        Сохраняет позицию скролла, позицию курсора, выделение
+        и масштаб в словарь ``self._saved_state``, ключом по
+        ``doc_id:mode``. Это позволяет восстановить состояние
+        при повторном переключении на тот же документ и режим.
         """
-        self._saved_state.clear()
+        doc_id = self._current_document_id or ""
+        mode_value = self._current_mode.value
+        state_key = f"{doc_id}:{mode_value}"
+
         renderer: Any = self._current_renderer
-        if renderer is None:
+        if renderer is None and not doc_id:
             return
+
+        state: dict[str, Any] = {}
+
+        # Сохраняем позицию скролла, курсора и выделение из текстового виджета
         text_widget: Optional[tk.Text] = None
         if hasattr(renderer, "_tk_text"):
             text_widget = cast(Optional[tk.Text], getattr(renderer, "_tk_text", None))
         if text_widget is not None:
             try:
-                self._saved_state["yview"] = text_widget.yview()
-                self._saved_state["xview"] = text_widget.xview()
-                self._saved_state["cursor"] = str(text_widget.index(tk.INSERT))
+                state["yview"] = text_widget.yview()
+                state["xview"] = text_widget.xview()
+                state["cursor"] = str(text_widget.index(tk.INSERT))
                 try:
                     sel_start = str(text_widget.index(tk.SEL_FIRST))
                     sel_end = str(text_widget.index(tk.SEL_LAST))
-                    self._saved_state["selection"] = (sel_start, sel_end)
+                    state["selection"] = (sel_start, sel_end)
                 except tk.TclError:
-                    self._saved_state["selection"] = None
+                    state["selection"] = None
             except tk.TclError as e:
                 logger.debug("State save interrupted: %s", e)
+
+        # Сохраняем масштаб (для ESC/P preview и других масштабируемых видов)
+        state["zoom"] = 1.0
+
+        # Сохраняем активное поле (для режима StructuredForm, если доступно)
+        if (
+            self._current_mode == DocumentMode.STRUCTURED_FORM
+            and self._current_renderer is not None
+            and hasattr(self._current_renderer, "get_active_field_id")
+        ):
+            active_field_id = getattr(self._current_renderer, "get_active_field_id", None)
+            if callable(active_field_id):
+                try:
+                    field_id = active_field_id()
+                    if field_id is not None:
+                        state["active_field"] = field_id
+                except (AttributeError, RuntimeError):
+                    pass
+
+        self._saved_state[state_key] = state
+
+    def _restore_current_state(self) -> None:
+        """Восстанавливает сохранённое состояние текущего документа.
+
+        Вызывается после переключения режима и рендеринга документа.
+        Восстанавливает позицию скролла, курсора и выделение
+        из ``self._saved_state``.
+        """
+        doc_id = self._current_document_id or ""
+        mode_value = self._current_mode.value
+        state_key = f"{doc_id}:{mode_value}"
+
+        state = self._saved_state.get(state_key)
+        if state is None:
+            return
+
+        # Восстанавливаем позицию скролла и курсора из текстового виджета
+        text_widget: Optional[tk.Text] = None
+        if hasattr(self._current_renderer, "_tk_text"):
+            text_widget = cast(
+                Optional[tk.Text],
+                getattr(self._current_renderer, "_tk_text", None),
+            )
+        if text_widget is not None:
+            try:
+                yview = state.get("yview")
+                if yview is not None:
+                    text_widget.yview_moveto(yview[0])
+
+                cursor = state.get("cursor")
+                if cursor is not None:
+                    text_widget.mark_set(tk.INSERT, cursor)
+
+                selection = state.get("selection")
+                if selection is not None:
+                    sel_start, sel_end = selection
+                    text_widget.tag_add(tk.SEL, sel_start, sel_end)
+            except tk.TclError as e:
+                logger.debug("State restore interrupted: %s", e)
 
     def _setup_mode_specific_ui(self) -> None:
         """Настраивает UI в зависимости от режима.
@@ -2358,6 +2413,90 @@ class DocumentView(BaseWidget):
         for field_id, value in values.items():
             results[field_id] = self.set_form_field_value(field_id, value)
         return results
+
+    def get_text_widget(self) -> Optional[tk.Text]:
+        """Возвращает текстовый виджет для поиска/замены.
+
+        Возвращает tk.Text виджет из FreeFormRenderer для использования
+        в диалогах поиска и замены. Если текущий режим не FREE_FORM
+        или виджет недоступен, возвращает None.
+
+        Returns:
+            tk.Text виджет или None.
+        """
+        if self._free_form_renderer is not None:
+            text_widget = getattr(self._free_form_renderer, "_tk_text", None)
+            if isinstance(text_widget, tk.Text):
+                return text_widget
+        return None
+
+    def get_form_data(self) -> dict[str, Any]:
+        """Возвращает данные формы для экспорта шаблона.
+
+        Собирает данные текущего документа в словарь для TemplateExportDialog.
+
+        Returns:
+            Словарь с данными формы (field_id -> value).
+        """
+        form_data: dict[str, Any] = {}
+        if self._current_document is not None:
+            form_data["doc_id"] = self._current_document.id
+            form_data["title"] = getattr(self._current_document, "title", "") or getattr(
+                getattr(self._current_document, "metadata", None),
+                "title",
+                "",
+            )
+            form_data["mode"] = self._current_mode.value
+
+        fields = self.get_form_fields()
+        if fields:
+            for field_id, field in fields.items():
+                if hasattr(field, "get_value"):
+                    form_data[field_id] = field.get_value()
+                elif hasattr(field, "_value"):
+                    form_data[field_id] = field._value
+
+        return form_data
+
+    def get_template_data(self) -> dict[str, Any]:
+        """Возвращает данные документа для создания шаблона.
+
+        Аналогично get_form_data(), но включает дополнительные
+        метаданные для создания нового документа из шаблона.
+
+        Returns:
+            Словарь с данными документа для шаблона.
+
+        Note:
+            Для передачи в FloppyOptimizerDialog необходимо сериализовать
+            результат в bytes через get_template_data_as_bytes().
+        """
+        template_data = self.get_form_data()
+        if self._current_document is not None:
+            template_data["doc_type"] = getattr(self._current_document, "doc_type", "")
+            template_data["pages"] = getattr(self._current_document, "pages", [])
+        return template_data
+
+    def get_template_data_as_bytes(self) -> bytes:
+        """Возвращает сериализованные данные документа для оптимизации.
+
+        Сериализует результат get_template_data() в JSON bytes
+        для передачи в FloppyOptimizerDialog и другие компоненты,
+        работающие с байтовым представлением шаблона.
+
+        Returns:
+            JSON-сериализованные данные документа в кодировке UTF-8.
+            Пустые bytes если документ не открыт.
+        """
+        import json
+
+        template_data = self.get_template_data()
+        if not template_data:
+            return b""
+        try:
+            return json.dumps(template_data, ensure_ascii=False).encode("utf-8")
+        except (TypeError, ValueError):
+            return b""
 
 
 # Module exports

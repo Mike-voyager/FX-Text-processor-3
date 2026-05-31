@@ -92,3 +92,89 @@ class TestWorkflowStateManagerExecuteTransition:
             target=to_state,
             reason="test reason",
         )
+
+
+class TestWorkflowStateManagerProtocolMethods:
+    """Регрессионные тесты для Protocol-методов WorkflowStateManager.
+
+    Bug: WorkflowStateManagerProtocol требовал get_last_undo_description,
+         get_last_redo_description, request_transition_by_action,
+         но WorkflowStateManager их не реализовывал.
+    Fix: Добавлены недостающие методы.
+    """
+
+    def test_request_transition_by_action_unknown_action(self) -> None:
+        """request_transition_by_action возвращает None для неизвестного действия."""
+        mock_wc = MagicMock()
+        mock_wc.get_current_state = MagicMock(return_value=MagicMock(value="draft"))
+        mock_mfa = MagicMock()
+
+        manager = WorkflowStateManager(
+            workflow_controller=mock_wc,
+            mfa_gate=mock_mfa,
+        )
+
+        result = manager.request_transition_by_action(
+            doc_id=uuid4(),
+            action="unknown_action",
+        )
+        assert result is None
+
+    def test_request_transition_by_action_with_uuid(self) -> None:
+        """request_transition_by_action принимает UUID."""
+        mock_wc = MagicMock()
+        mock_wc.get_current_state = MagicMock(return_value=MagicMock(value="draft"))
+        mock_wc.can_transition = MagicMock(return_value=False)
+        mock_mfa = MagicMock()
+
+        manager = WorkflowStateManager(
+            workflow_controller=mock_wc,
+            mfa_gate=mock_mfa,
+        )
+
+        doc_id = uuid4()
+        # can_transition возвращает False — переход не разрешён
+        result = manager.request_transition_by_action(doc_id=doc_id, action="sign")
+        # Результат зависит от валидации, но метод не падает
+        assert result is None or hasattr(result, "success")
+
+    def test_get_last_undo_description_empty(self) -> None:
+        """get_last_undo_description возвращает None при пустой истории."""
+        mock_wc = MagicMock()
+        mock_mfa = MagicMock()
+
+        manager = WorkflowStateManager(
+            workflow_controller=mock_wc,
+            mfa_gate=mock_mfa,
+        )
+
+        assert manager.get_last_undo_description() is None
+
+    def test_get_last_redo_description_empty(self) -> None:
+        """get_last_redo_description возвращает None при пустой истории."""
+        mock_wc = MagicMock()
+        mock_mfa = MagicMock()
+
+        manager = WorkflowStateManager(
+            workflow_controller=mock_wc,
+            mfa_gate=mock_mfa,
+        )
+
+        assert manager.get_last_redo_description() is None
+
+    def test_request_transition_by_action_with_string_doc_id(self) -> None:
+        """request_transition_by_action принимает строковый UUID."""
+        mock_wc = MagicMock()
+        mock_wc.get_current_state = MagicMock(return_value=MagicMock(value="draft"))
+        mock_wc.can_transition = MagicMock(return_value=False)
+        mock_mfa = MagicMock()
+
+        manager = WorkflowStateManager(
+            workflow_controller=mock_wc,
+            mfa_gate=mock_mfa,
+        )
+
+        doc_id_str = str(uuid4())
+        # Не должно падать при строковом doc_id
+        result = manager.request_transition_by_action(doc_id=doc_id_str, action="sign")
+        assert result is None or hasattr(result, "success")

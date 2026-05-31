@@ -466,7 +466,7 @@ class BackupCodesDialog(BaseDialog):
         except ImportError:
             logger.debug("code_service not available, using fallback")
             self._set_fallback_codes()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
             logger.error("Error loading codes: %s", e)
             self._set_fallback_codes()
 
@@ -758,17 +758,158 @@ class BackupCodesDialog(BaseDialog):
         """Обработчик печати резервных кодов.
 
         UI_SPEC §3.4: Print backup codes to default printer.
+
+        Формирует текстовое представление кодов и отправляет
+        на печать через системный диалог печати.
         """
         logger.info("Print backup codes requested for user %s", self._user_id)
-        self._show_status("Printing is not implemented yet", is_error=False)
+
+        available_codes = [code for code in self._codes if not code.is_used]
+        if not available_codes:
+            self._show_status("Нет доступных кодов для печати", is_error=True)
+            return
+
+        # Формируем текст для печати
+        lines: list[str] = [
+            "FX Text Processor 3 — Резервные коды",
+            "=" * 40,
+            f"Пользователь: {self._user_id}",
+            f"Дата генерации: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "",
+            "ВНИМАНИЕ: Храните коды в безопасном месте!",
+            "Никому не передавайте эти коды.",
+            "",
+            "Коды:",
+        ]
+        for i, code in enumerate(available_codes, 1):
+            lines.append(f"  {i:2d}. {code.masked_code}")
+
+        lines.append("")
+        lines.append("=" * 40)
+
+        # Отправляем на печать через системный диалог
+        try:
+            import shutil
+            import subprocess
+            import sys
+            import tempfile
+
+            print_text = "\n".join(lines)
+
+            # Создаём временное текстовое окно для печати
+            print_window = tk.Toplevel(self)
+            print_window.title("Backup Codes — Print Preview")
+            print_window.geometry("500x400")
+
+            text_widget = tk.Text(print_window, wrap=tk.WORD, font=("Courier", 11))
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            text_widget.insert(tk.END, print_text)
+            text_widget.config(state=tk.DISABLED)
+
+            button_frame = tk.Frame(print_window)
+            button_frame.pack(fill=tk.X, padx=10, pady=5)
+
+            def do_print() -> None:
+                """Отправляет текст на системный принтер."""
+                try:
+                    if sys.platform == "win32":
+                        # Windows: используем notepad для печати
+                        notepad_path = shutil.which("notepad")
+                        if notepad_path is None:
+                            notepad_path = "C:\\Windows\\notepad.exe"
+                        with tempfile.NamedTemporaryFile(
+                            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+                        ) as tmp:
+                            tmp.write(print_text)
+                            tmp_path = tmp.name
+                        subprocess.Popen([notepad_path, "/p", tmp_path])  # noqa: S603
+                    else:
+                        # Linux/macOS: используем lp или lpr
+                        lp_path = shutil.which("lp") or "/usr/bin/lp"
+                        with tempfile.NamedTemporaryFile(
+                            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+                        ) as tmp:
+                            tmp.write(print_text)
+                            tmp_path = tmp.name
+                        subprocess.run([lp_path, tmp_path], check=False)  # noqa: S603
+
+                    self._show_status("Коды отправлены на печать", is_error=False)
+                    print_window.destroy()
+                except (OSError, FileNotFoundError, subprocess.SubprocessError) as e:
+                    logger.error("Print failed: %s", e)
+                    self._show_status(f"Ошибка печати: {e}", is_error=True)
+
+            tk.Button(button_frame, text="Print", command=do_print).pack(side=tk.LEFT, padx=5)
+            tk.Button(button_frame, text="Cancel", command=print_window.destroy).pack(
+                side=tk.LEFT, padx=5
+            )
+
+        except tk.TclError as e:
+            logger.error("Failed to create print preview: %s", e)
+            self._show_status(f"Ошибка предпросмотра: {e}", is_error=True)
 
     def _on_save_to_file(self) -> None:
         """Обработчик сохранения резервных кодов в файл.
 
         UI_SPEC §3.4: Save backup codes to encrypted file.
+
+        Сохраняет коды в текстовый файл по выбору пользователя.
+        Файл содержит маскированные коды и метаданные.
         """
         logger.info("Save backup codes to file requested for user %s", self._user_id)
-        self._show_status("Save to file is not implemented yet", is_error=False)
+
+        available_codes = [code for code in self._codes if not code.is_used]
+        if not available_codes:
+            self._show_status("Нет доступных кодов для сохранения", is_error=True)
+            return
+
+        from pathlib import Path
+        from tkinter import filedialog
+
+        # Предлагаем пользователю выбрать файл для сохранения
+        file_path_str = filedialog.asksaveasfilename(
+            parent=self,
+            title="Сохранить резервные коды",
+            defaultextension=".txt",
+            filetypes=[
+                ("Text files", "*.txt"),
+                ("All files", "*.*"),
+            ],
+            initialfile=f"backup-codes-{self._user_id}.txt",
+        )
+
+        if not file_path_str:
+            # Пользователь отменил выбор файла
+            return
+
+        file_path = Path(file_path_str)
+
+        # Формируем содержимое файла
+        lines: list[str] = [
+            "FX Text Processor 3 — Резервные коды",
+            "=" * 40,
+            f"Пользователь: {self._user_id}",
+            f"Дата генерации: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "",
+            "ВНИМАНИЕ: Храните этот файл в безопасном месте!",
+            "После использования удалите этот файл.",
+            "Никому не передавайте эти коды.",
+            "",
+            "Коды:",
+        ]
+        for i, code in enumerate(available_codes, 1):
+            lines.append(f"  {i:2d}. {code.masked_code}")
+
+        lines.append("")
+        lines.append("=" * 40)
+
+        try:
+            file_path.write_text("\n".join(lines), encoding="utf-8")
+            self._show_status(f"Коды сохранены в {file_path.name}", is_error=False)
+            logger.info("Backup codes saved to %s for user %s", file_path, self._user_id)
+        except (OSError, PermissionError) as e:
+            logger.error("Failed to save backup codes: %s", e)
+            self._show_status(f"Ошибка сохранения: {e}", is_error=True)
 
     def _on_close(self) -> None:
         """Обработчик закрытия диалога."""

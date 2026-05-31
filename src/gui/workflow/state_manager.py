@@ -13,7 +13,7 @@ import logging
 import threading
 import tkinter as tk
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Dict, Final, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional, Set
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -52,6 +52,20 @@ _SIMPLE_MODE_ALLOWED_TRANSITIONS: Final[dict[str, list[str]]] = {
 # MFA требуется для перехода DRAFT → SIGNED в Simple Mode.
 _SIMPLE_MODE_MFA_TRANSITIONS: Final[set[tuple[str, str]]] = {
     ("draft", "signed"),
+}
+
+# Маппинг действий workflow в целевые состояния.
+# Ключи — имена действий, значения — строковые значения FormStatus.
+_ACTION_TO_STATE: Final[dict[str, str]] = {
+    "submit_for_validation": "filled",
+    "validate": "validated",
+    "approve": "approved",
+    "sign": "signed",
+    "reject": "rejected",
+    "fill_fields": "draft",
+    "save_draft": "draft",
+    "print": "printed",
+    "archive": "archived",
 }
 
 # Действия Full Mode по состояниям (модульная константа)
@@ -614,7 +628,7 @@ class WorkflowStateManager:
                 success=False,
                 error_message="Ошибка изменения состояния",
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as e:
             # Ловим только известные ошибки контроллера workflow
             if isinstance(
                 e,
@@ -899,6 +913,92 @@ class WorkflowStateManager:
             doc_id: ID документа.
         """
         self.clear_document_history(doc_id)
+
+    # -------------------------------------------------------------------------
+    # Protocol-adapter methods (WorkflowStateManagerProtocol)
+    # -------------------------------------------------------------------------
+
+    def get_last_undo_description(self) -> Optional[str]:
+        """Возвращает описание последнего undo действия.
+
+        Возвращает описание для последнего документа с историей команд.
+        Используется Protocol-адаптером для UI меню undo/redo.
+
+        Returns:
+            Описание действия или None.
+        """
+        for doc_id, history in self._command_histories.items():
+            desc = history.get_undo_description()
+            if desc is not None:
+                return desc
+        return None
+
+    def get_last_redo_description(self) -> Optional[str]:
+        """Возвращает описание последнего redo действия.
+
+        Возвращает описание для последнего документа с историей команд.
+        Используется Protocol-адаптером для UI меню undo/redo.
+
+        Returns:
+            Описание действия или None.
+        """
+        for doc_id, history in self._command_histories.items():
+            desc = history.get_redo_description()
+            if desc is not None:
+                return desc
+        return None
+
+    def request_transition_by_action(
+        self,
+        doc_id: Any,
+        action: str,
+    ) -> Optional[TransitionResult]:
+        """Запрашивает переход по действию workflow.
+
+        Маппит имя действия в целевое состояние и делегирует
+        в request_transition.
+
+        Args:
+            doc_id: ID документа (UUID или строка).
+            action: Имя действия workflow (например, "sign", "approve").
+
+        Returns:
+            Результат перехода или None если действие неизвестно.
+        """
+        self._assert_main_thread()
+
+        target_state_str = _ACTION_TO_STATE.get(action)
+        if target_state_str is None:
+            logger = logging.getLogger(__name__)
+            logger.warning("Неизвестное действие workflow: %s", action)
+            return None
+
+        # Преобразуем doc_id в UUID если это строка
+        uuid_doc_id: UUID
+        if isinstance(doc_id, UUID):
+            uuid_doc_id = doc_id
+        elif isinstance(doc_id, str):
+            uuid_doc_id = UUID(doc_id)
+        else:
+            logger = logging.getLogger(__name__)
+            logger.warning("Неверный тип doc_id: %s", type(doc_id))
+            return None
+
+        # Получаем FormStatus из строки состояния
+        from src.controller.workflow_controller import FormStatus
+
+        try:
+            target_state = FormStatus(target_state_str)
+        except (ValueError, KeyError):
+            logger = logging.getLogger(__name__)
+            logger.warning("Не удалось создать FormStatus из: %s", target_state_str)
+            return None
+
+        return self.request_transition(
+            doc_id=uuid_doc_id,
+            target_state=target_state,
+            reason=f"Действие: {action}",
+        )
 
 
 __all__ = [

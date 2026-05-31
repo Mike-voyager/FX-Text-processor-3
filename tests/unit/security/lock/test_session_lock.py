@@ -323,3 +323,42 @@ class TestLockExceptions:
         assert len(error.mfa_methods) == 3
         assert "totp" in error.mfa_methods
         assert "MFA" in str(error)
+
+
+class TestDefaultAutoLockMinutes:
+    """Regression-тесты для DEFAULT_AUTO_LOCK_MINUTES.
+
+    Проверяет, что значение по умолчанию для авто-блокировки
+    определено в одном месте (константа) и используется консистентно
+    во всех модулях, вместо хардкода числа 15.
+    """
+
+    def test_default_auto_lock_minutes_is_15(self) -> None:
+        """Константа DEFAULT_AUTO_LOCK_MINUTES должна быть равна 15."""
+        from src.security.lock.session_lock_manager import DEFAULT_AUTO_LOCK_MINUTES
+
+        assert DEFAULT_AUTO_LOCK_MINUTES == 15
+
+    def test_lock_config_default_uses_constant(self) -> None:
+        """LockConfig.auto_lock_minutes по умолчанию равен DEFAULT_AUTO_LOCK_MINUTES."""
+        from src.security.lock.session_lock_manager import (
+            DEFAULT_AUTO_LOCK_MINUTES,
+            LockConfig,
+        )
+
+        config = LockConfig()
+        assert config.auto_lock_minutes == DEFAULT_AUTO_LOCK_MINUTES
+
+    def test_lock_config_custom_value(self) -> None:
+        """LockConfig (session_lock_manager) может быть создан с произвольным значением таймаута."""
+        from src.security.lock.session_lock_manager import LockConfig as SessionLockConfig
+
+        config = SessionLockConfig(auto_lock_minutes=30)
+        assert config.auto_lock_minutes == 30
+        assert config.auto_lock_minutes != 15  # Не хардкод
+
+    def test_constant_exported_from_package(self) -> None:
+        """Константа экспортируется из пакета src.security.lock."""
+        from src.security.lock import DEFAULT_AUTO_LOCK_MINUTES
+
+        assert DEFAULT_AUTO_LOCK_MINUTES == 15

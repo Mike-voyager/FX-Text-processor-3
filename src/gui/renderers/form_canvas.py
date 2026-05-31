@@ -676,7 +676,7 @@ class FormCanvas:
         if self._on_field_select is not None:
             try:
                 self._on_field_select(current)
-            except Exception:
+            except (ValueError, TypeError, AttributeError, RuntimeError):
                 logger.debug("Field select callback failed", exc_info=True)
 
     def get_field_at(self, col: int, row: int) -> Optional[FormFieldWidget]:

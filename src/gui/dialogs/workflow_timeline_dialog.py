@@ -609,7 +609,7 @@ class WorkflowTimelineDialog(BaseDialog):
             self._update_status_label(current_state)
             self._update_timeline_timestamps()
             self._load_history()
-        except Exception as e:
+        except (ValueError, AttributeError, RuntimeError, ImportError) as e:
             logger.exception("Error loading workflow data: %s", e)
             self._show_error("Failed to load workflow data")
 
@@ -837,7 +837,7 @@ class WorkflowTimelineDialog(BaseDialog):
                 document_id=self._document_id,
             )
             dialog.wait_window()
-        except Exception as e:
+        except (ImportError, AttributeError, ValueError, RuntimeError) as e:
             logger.exception("Error opening comments: %s", e)
 
     def _is_state_before(self, status_code: str, current_code: str) -> bool:

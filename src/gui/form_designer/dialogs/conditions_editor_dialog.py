@@ -390,7 +390,7 @@ class ConditionsEditorDialog(tk.Toplevel):
             compile(condition, "<string>", "eval")
         except SyntaxError as e:
             return False, f"Syntax error: {e}"
-        except Exception as e:
+        except (ValueError, TypeError, OverflowError) as e:
             return False, f"Error: {e}"
 
         # Check for potentially dangerous operations

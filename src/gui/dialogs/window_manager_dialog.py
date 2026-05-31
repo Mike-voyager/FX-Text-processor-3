@@ -488,20 +488,169 @@ class WindowManagerDialog(BaseDialog):
                 self._load_window_list()  # Refresh the list
 
     def _tile_horizontal(self) -> None:
-        """Располагает окна горизонтально (stub)."""
-        logger.info("Tile Horizontally requested")
+        """Располагает окна горизонтально (мозаика по горизонтали).
+
+        Вычисляет размеры и позиции для всех зарегистрированных окон,
+        кроме главного, и размещает их мозаикой по горизонтали.
+        """
+        windows = [
+            w
+            for w in self._window_manager.get_window_list()
+            if not self._window_manager.is_main_window(w.window_id)
+        ]
+        if not windows:
+            return
+
+        # Определяем доступную область экрана
+        screen_width = self._parent.winfo_screenwidth()
+        screen_height = self._parent.winfo_screenheight()
+        taskbar_reserve = 40  # Резерв для панели задач
+
+        n = len(windows)
+        cols = n
+        rows = 1
+        # Если окон больше 3, разбиваем на строки
+        if n > 3:
+            cols = (n + 1) // 2
+            rows = 2
+
+        tile_width = max(screen_width // cols, 200)
+        tile_height = max((screen_height - taskbar_reserve) // rows, 150)
+
+        for i, window_info in enumerate(windows):
+            row = i // cols
+            col = i % cols
+            x = col * tile_width
+            y = row * tile_height
+
+            try:
+                window = window_info.toplevel
+                window.deiconify()
+                window.geometry(f"{tile_width}x{tile_height}+{x}+{y}")
+            except tk.TclError:
+                pass
+
+        self._load_window_list()
+        logger.info("Tile Horizontally: %d windows arranged", len(windows))
 
     def _tile_vertical(self) -> None:
-        """Располагает окна вертикально (stub)."""
-        logger.info("Tile Vertically requested")
+        """Располагает окна вертикально (мозаика по вертикали).
+
+        Вычисляет размеры и позиции для всех зарегистрированных окон,
+        кроме главного, и размещает их мозаикой по вертикали.
+        """
+        windows = [
+            w
+            for w in self._window_manager.get_window_list()
+            if not self._window_manager.is_main_window(w.window_id)
+        ]
+        if not windows:
+            return
+
+        # Определяем доступную область экрана
+        screen_width = self._parent.winfo_screenwidth()
+        screen_height = self._parent.winfo_screenheight()
+        taskbar_reserve = 40
+
+        n = len(windows)
+        rows = n
+        cols = 1
+        # Если окон больше 3, разбиваем на столбцы
+        if n > 3:
+            rows = (n + 1) // 2
+            cols = 2
+
+        tile_width = max(screen_width // cols, 300)
+        tile_height = max((screen_height - taskbar_reserve) // rows, 150)
+
+        for i, window_info in enumerate(windows):
+            col = i // rows
+            row = i % rows
+            x = col * tile_width
+            y = row * tile_height
+
+            try:
+                window = window_info.toplevel
+                window.deiconify()
+                window.geometry(f"{tile_width}x{tile_height}+{x}+{y}")
+            except tk.TclError:
+                pass
+
+        self._load_window_list()
+        logger.info("Tile Vertically: %d windows arranged", len(windows))
 
     def _cascade(self) -> None:
-        """Каскадное расположение окон (stub)."""
-        logger.info("Cascade requested")
+        """Каскадное расположение окон.
+
+        Размещает окна каскадом со смещением по диагонали.
+        """
+        windows = [
+            w
+            for w in self._window_manager.get_window_list()
+            if not self._window_manager.is_main_window(w.window_id)
+        ]
+        if not windows:
+            return
+
+        # Каскадное смещение
+        cascade_offset_x = 30
+        cascade_offset_y = 30
+        start_x = 50
+        start_y = 50
+
+        # Определяем базовый размер окна
+        screen_width = self._parent.winfo_screenwidth()
+        screen_height = self._parent.winfo_screenheight()
+        base_width = max(screen_width - start_x - cascade_offset_x * len(windows), 400)
+        base_height = max(screen_height - start_y - cascade_offset_y * len(windows) - 40, 300)
+
+        for i, window_info in enumerate(windows):
+            x = start_x + i * cascade_offset_x
+            y = start_y + i * cascade_offset_y
+
+            try:
+                window = window_info.toplevel
+                window.deiconify()
+                window.geometry(f"{base_width}x{base_height}+{x}+{y}")
+                window.lift()
+            except tk.TclError:
+                pass
+
+        self._load_window_list()
+        logger.info("Cascade: %d windows arranged", len(windows))
 
     def _new_window(self) -> None:
-        """Создаёт новое окно (stub)."""
-        logger.info("New Window requested")
+        """Создаёт новое окно документа.
+
+        Создаёт новый Toplevel и регистрирует его в WindowManager.
+        Новое окно получает пустой заголовок и становится активным.
+        """
+        try:
+            new_window = tk.Toplevel(self._parent)
+            new_window.title("New Document")
+
+            window_id = self._window_manager.register_window(
+                new_window,
+                title="New Document",
+            )
+
+            # Активируем новое окно
+            try:
+                self._window_manager.bring_to_front(window_id)
+            except KeyError:
+                pass
+
+            new_window.focus_force()
+            self._load_window_list()
+            logger.info("New window created: %s", window_id)
+
+        except (tk.TclError, RuntimeError) as e:
+            logger.error("Failed to create new window: %s", e)
+            messagebox.showerror(
+                "Error",
+                f"Cannot create new window: {e}",
+                parent=self,
+            )
 
     def _close(self) -> None:
         """Закрывает диалог."""

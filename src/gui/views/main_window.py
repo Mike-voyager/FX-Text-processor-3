@@ -88,7 +88,7 @@ from src.gui.services.sync_service import SyncService
 from src.gui.services.toast_service import ToastService
 from src.gui.services.window_manager import WindowManager
 from src.gui.views import SideBarMode, ToastLevel
-from src.gui.views.auth_overlay import AuthOverlay
+from src.gui.views.auth_overlay import AuthOverlay, AuthServiceProtocol
 from src.gui.views.card_file_tab_bar import CardFileTabBar
 from src.gui.views.document_view import DocumentView
 from src.gui.views.side_bar import SideBar
@@ -100,10 +100,12 @@ from src.gui.views.status_bar import StatusBar
 # Причина: MVC строго запрещает View знать о внутренней структуре Model.
 # См. src/gui/adapters/document_adapter.py
 from src.security.audit import AuditEventType, AuditLog
-from src.security.auth.auth_service import AuthService
+from src.security.lock.session_lock_manager import DEFAULT_AUTO_LOCK_MINUTES
 
 # Bug 8 FIX: SessionManager заменён на SessionManagerProtocol в типах.
 # Прямой импорт убран — View работает через Protocol.
+# Bug 8 FIX: AuthService заменён на AuthServiceProtocol — View не зависит
+# от конкретной реализации AuthService, только от Protocol.
 from src.security.monitoring.health_checker import HealthChecker
 
 # Phase 4: Dialog imports (lazy loaded in methods to avoid circular imports)
@@ -228,9 +230,9 @@ class MainWindow:
         self._notification_service: Optional[NotificationService] = notification_service
         self._drag_drop_service: Optional[DragDropService] = drag_drop_service
         self._mode_manager: Optional[ModeManager] = mode_manager
-        self._workflow_state_manager: Optional[
-            WorkflowStateManagerProtocol
-        ] = workflow_state_manager
+        self._workflow_state_manager: Optional[WorkflowStateManagerProtocol] = (
+            workflow_state_manager
+        )
         self._root: Optional[tk.Tk] = None
         self._audit_log: Optional["AuditLog"] = audit_log
         # Barcode controller
@@ -254,7 +256,7 @@ class MainWindow:
 
         # Auto-lock
         self._auto_lock_timer_id: Optional[str] = None
-        self._auto_lock_minutes: int = 15  # Default 15 min
+        self._auto_lock_minutes: int = DEFAULT_AUTO_LOCK_MINUTES
         self._last_activity_time: float = 0.0
 
         # State
@@ -271,6 +273,9 @@ class MainWindow:
 
         # Phase 4: Error handling
         self._error_handler: GUIErrorHandler = GUIErrorHandler()
+
+        # Phase 4: Lifecycle manager (lazy import, may not be available)
+        self._lifecycle_manager: Optional[Any] = None
 
         # Phase 4: Bookmark manager (lazy initialized per document)
         # Bug 8 FIX: тип Any вместо BookmarkManager — View не импортирует Model
@@ -354,19 +359,15 @@ class MainWindow:
                 self._root, APP_NAME, is_modal=False
             )
             self._window_manager.set_main_window_id(self._main_window_id)
-        # ToastService has no set_root method (root is set via constructor)
-        # SyncService, NotificationService, DragDropService, ModeManager,
-        # WorkflowStateManager already have their dependencies externally.
-
-        # Create ToastService if not injected
-        if self._toast_service is None:
-            self._toast_service = ToastService(self._root)
+        # All services are injected via DI (Bug FIX: View must NOT create services).
+        # ToastService, SyncService, NotificationService, DragDropService, ModeManager,
+        # and WorkflowStateManager must all be provided through constructor injection.
 
         # Create LifecycleManager for component lifecycle tracking
         try:
             from src.gui.core.lifecycle import LifecycleManager
 
-            self._lifecycle_manager: Optional[Any] = LifecycleManager()
+            self._lifecycle_manager = LifecycleManager()
         except (ImportError, AttributeError, TypeError) as _lifecycle_err:
             # Bug 5 FIX: конкретные исключения вместо молчащего except Exception
             logger.debug("LifecycleManager not available: %s", _lifecycle_err)
@@ -596,6 +597,22 @@ class MainWindow:
             Корневое окно или None если не инициализировано.
         """
         return self._root
+
+    def _root_widget(self) -> tk.Widget:
+        """Возвращает корневое окно как tk.Widget для передачи в диалоги.
+
+        tk.Tk не наследует tk.Widget в type stubs, но является
+        корректным родительским виджетом во время выполнения.
+
+        Returns:
+            Корневое окно, приведённое к tk.Widget.
+
+        Raises:
+            RuntimeError: Если корневое окно не инициализировано.
+        """
+        if self._root is None:
+            raise RuntimeError("Root window not initialized")
+        return cast(tk.Widget, self._root)
 
     def get_theme(self) -> str:
         """Возвращает текущую тему оформления.
@@ -925,7 +942,7 @@ class MainWindow:
         )
 
         dialog = SecurityHealthCheckDialog(
-            parent=cast(tk.Widget, self._root),
+            parent=self._root_widget(),
             health_checker=self._health_checker,
         )
         passed = dialog.show()
@@ -1000,7 +1017,7 @@ class MainWindow:
         if self._health_checker is None:
             self._health_checker = HealthChecker(version="3.0.0")
 
-        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+        from src.gui.security.health_check_dialog import HealthCheckDialog
 
         self._health_check_dialog = HealthCheckDialog(
             parent=self._root,
@@ -1108,11 +1125,11 @@ class MainWindow:
                 ToastLevel.INFO,
             )
 
-    def _get_auth_service(self) -> Optional[AuthService]:
+    def _get_auth_service(self) -> Optional[AuthServiceProtocol]:
         """Возвращает AuthService из контроллера или создаёт новый.
 
         Returns:
-            AuthService instance или None.
+            AuthServiceProtocol instance или None.
         """
         # Try to get from controller first
         if self._controller is not None:
@@ -1120,7 +1137,7 @@ class MainWindow:
                 auth_service = getattr(self._controller, "get_auth_service", None)
                 if auth_service is not None:
                     result = auth_service()
-                    if isinstance(result, AuthService):
+                    if isinstance(result, AuthServiceProtocol):
                         return result
             except (AttributeError, KeyError, tk.TclError) as _exc:
                 # Log error but continue - AuthOverlay will handle gracefully
@@ -1771,7 +1788,7 @@ class MainWindow:
             on_tree_select=self._on_tree_item_selected,
             sync_service=self._sync_service,
         )
-        self._sidebar.mount(cast(tk.Widget, self._root))
+        self._sidebar.mount(self._root_widget())
         self._main_layout.set_sidebar(self._sidebar.widget)
 
         # Create content area (frame with TabBar + DocumentView)
@@ -1798,7 +1815,7 @@ class MainWindow:
             mode_callback=self._on_statusbar_mode_click,
             paper_callback=self._on_page_setup,
         )
-        self._statusbar.mount(self._root)  # type: ignore[arg-type]
+        self._statusbar.mount(self._root_widget())
         self._main_layout.set_statusbar(self._statusbar.widget)
 
         # Create document view with StatusBar reference
@@ -1811,13 +1828,14 @@ class MainWindow:
         self._document_view.mount(content_frame)
         self._document_view.widget.grid(row=1, column=0, sticky="nsew")
         # Set workflow state manager
-        self._document_view.set_workflow_state_manager(self._workflow_state_manager)
+        if self._workflow_state_manager is not None:
+            self._document_view.set_workflow_state_manager(self._workflow_state_manager)
 
         # Initialize BarcodeController (lazy import to avoid circular import)
         from src.gui.controllers.barcode_controller import BarcodeController
 
         self._barcode_controller = BarcodeController(
-            parent=cast(tk.Widget, self._root),
+            parent=self._root_widget(),
             view=self._document_view,
         )
 
@@ -1953,7 +1971,7 @@ class MainWindow:
         if inactive_minutes >= self._auto_lock_minutes and self._auto_lock_minutes > 0:
             # Bug 7 FIX: не блокируем если есть модальный диалог или grab
             try:
-                grab_window = self._root.grab_current()
+                grab_window = self._root.grab_current()  # type: ignore[no-untyped-call]
                 if grab_window is not None:
                     # Модальный диалог активен — откладываем блокировку
                     self._auto_lock_timer_id = str(
@@ -2080,7 +2098,7 @@ class MainWindow:
 
         gate = MFAGate(auth_service=auth_controller, audit_log=self._audit_log)
         result = gate.execute(
-            parent=cast(tk.Widget, self._root),
+            parent=self._root_widget(),
             operation=lambda: self._perform_document_conversion(target_mode),
             operation_name=f"Convert to {target_mode.capitalize()} Mode",
             requires_mfa=True,
@@ -2132,7 +2150,7 @@ class MainWindow:
         if self._health_checker is None:
             self._health_checker = HealthChecker(version="3.0.0")
 
-        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+        from src.gui.security.health_check_dialog import HealthCheckDialog
 
         self._health_check_dialog = HealthCheckDialog(
             parent=self._root,
@@ -2192,34 +2210,70 @@ class MainWindow:
         dialog.show()
 
     def _on_edit_undo(self) -> None:
-        """Callback: Edit -> Undo."""
+        """Callback: Edit -> Undo.
+
+        При наличии контроллера делегирует ему, иначе вызывает
+        undo() напрямую у DocumentView через CommandStack.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_undo")
+        elif self._document_view is not None and self._document_view.can_undo():
+            self._document_view.undo()
 
     def _on_edit_redo(self) -> None:
-        """Callback: Edit -> Redo."""
+        """Callback: Edit -> Redo.
+
+        При наличии контроллера делегирует ему, иначе вызывает
+        redo() напрямую у DocumentView через CommandStack.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_redo")
+        elif self._document_view is not None and self._document_view.can_redo():
+            self._document_view.redo()
 
     def _on_edit_cut(self) -> None:
-        """Callback: Edit -> Cut."""
+        """Callback: Edit -> Cut.
+
+        При наличии контроллера делегирует ему, иначе вызывает
+        on_edit_cut() напрямую у DocumentView.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_cut")
+        elif self._document_view is not None:
+            self._document_view.on_edit_cut()
 
     def _on_edit_copy(self) -> None:
-        """Callback: Edit -> Copy."""
+        """Callback: Edit -> Copy.
+
+        При наличии контроллера делегирует ему, иначе вызывает
+        on_edit_copy() напрямую у DocumentView.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_copy")
+        elif self._document_view is not None:
+            self._document_view.on_edit_copy()
 
     def _on_edit_paste(self) -> None:
-        """Callback: Edit -> Paste."""
+        """Callback: Edit -> Paste.
+
+        При наличии контроллера делегирует ему, иначе вызывает
+        on_edit_paste() напрямую у DocumentView.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_paste")
+        elif self._document_view is not None:
+            self._document_view.on_edit_paste()
 
     def _on_edit_find(self) -> None:
-        """Callback: Edit -> Find."""
+        """Callback: Edit -> Find.
+
+        При наличии контроллера делегирует ему, иначе открывает
+        диалог поиска напрямую.
+        """
         if self._controller is not None:
             self._controller.dispatch("edit_find")
+        else:
+            self._on_edit_find_replace()
 
     def _on_view_toggle_sidebar(self) -> None:
         """Callback: View -> Toggle Sidebar."""
@@ -2254,7 +2308,7 @@ class MainWindow:
                     self._controller.dispatch("tree_item_activated", item_id=item_id)
 
             TreePanel(
-                parent=self._root,
+                parent=self._root_widget(),
                 on_select=on_select,
                 on_double_click=on_double_click,
             )
@@ -2324,7 +2378,7 @@ class MainWindow:
                 return None
 
             panel = WorkflowAnnotationPanel(
-                parent=self._root,
+                parent=self._root_widget(),
                 annotations=[],
                 current_user=current_user,
                 current_role=current_role,
@@ -2333,7 +2387,7 @@ class MainWindow:
                 on_reply=on_reply,
                 controller=self._controller,
             )
-            panel.mount(self._root)
+            panel.mount(self._root_widget())
 
             if self._toast_service is not None:
                 self._toast_service.show(
@@ -2499,7 +2553,7 @@ class MainWindow:
             return
 
         # Build notification list for display
-        lines = [f"Уведомлений в истории: {count}\n"]
+        lines: list[str] = [f"Уведомлений в истории: {count}\n"]
         for n in notifications[:10]:  # Show first 10
             # Map priority to emoji
             if n.priority.value >= 4:
@@ -2515,7 +2569,8 @@ class MainWindow:
             lines.append(f"\n... и ещё {count - 10} уведомлений")
 
         message = "\n".join(lines)
-        messagebox.showinfo("Notification history", message, parent=self._root)  # type: ignore[arg-type]
+        if self._root is not None:
+            messagebox.showinfo("Notification history", message, parent=self._root)
 
     def _on_notifications_mark_all_read(self) -> None:
         """Callback: Уведомления → Отметить все прочитанными."""
@@ -2566,15 +2621,23 @@ class MainWindow:
         if self._root is None:
             return
 
+        from src.app_context import get_app_context
         from src.gui.dialogs.crypto_profile_dialog import (
             CryptoProfileDialog,
             ProfileSelectionResult,
         )
         from src.security.crypto.service.profiles import CryptoProfile
 
+        # Определяем текущий профиль из AppContext (fallback на STANDARD)
+        try:
+            ctx = get_app_context()
+            current_profile: CryptoProfile = ctx.crypto_service.profile
+        except (RuntimeError, AttributeError):
+            current_profile = CryptoProfile.STANDARD
+
         dialog = CryptoProfileDialog(
             parent=self._root,
-            current_profile=CryptoProfile.STANDARD,
+            current_profile=current_profile,
         )
         result = dialog.show()
         if result is not None and isinstance(result, ProfileSelectionResult):
@@ -2595,7 +2658,7 @@ class MainWindow:
         )
         from src.security.lock.session_lock_manager import LockConfig
 
-        config = LockConfig(auto_lock_minutes=15)
+        config = LockConfig(auto_lock_minutes=self._auto_lock_minutes)
         dialog = AutoLockSettingsDialog(
             parent=self._root,
             current_config=config,
@@ -2655,7 +2718,7 @@ class MainWindow:
             return
 
         try:
-            from src.gui.dialogs.trust_chain_dialog import TrustChainDialog
+            from src.gui.security.trust_chain_dialog import TrustChainDialog
             from src.services.template_manager import TemplateManager
             from src.services.trust_chain_service import TrustChainService
 
@@ -2699,7 +2762,7 @@ class MainWindow:
                     )
 
             dialog = TrustChainDialog(
-                parent=self._root,
+                parent=self._root_widget(),
                 template=template,
                 trust_service=trust_service,
                 verification_mode=True,
@@ -2742,7 +2805,7 @@ class MainWindow:
                     )
 
         dialog = FIDO2SetupDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             on_complete=on_fido2_complete,
         )
         dialog.show()
@@ -2772,7 +2835,7 @@ class MainWindow:
                     )
 
         dialog = TOTPSetupDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             on_complete=on_totp_complete,
         )
         dialog.show()
@@ -2806,7 +2869,7 @@ class MainWindow:
                     )
 
         dialog = MFAVerificationDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             user_id=user_id,
             on_verify=on_verify,
         )
@@ -2835,7 +2898,7 @@ class MainWindow:
         from src.gui.dialogs.find_replace_dialog import FindReplaceDialog
 
         dialog = FindReplaceDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             text_widget=text_widget,
         )
         dialog.show()
@@ -2883,7 +2946,7 @@ class MainWindow:
                     self._controller.dispatch("print_blank", template_id=template_id)
 
             dialog = TemplateImportDialog(
-                parent=self._root,
+                parent=self._root_widget(),
                 template_manager=template_manager,
                 trust_chain_service=trust_chain_service,
                 floppy_optimizer=floppy_optimizer,
@@ -2935,7 +2998,7 @@ class MainWindow:
                     )
 
             dialog = TemplateExportDialog(
-                parent=self._root,
+                parent=self._root_widget(),
                 form_data=form_data,
                 template_manager=template_manager,
                 current_user=current_user,
@@ -2966,7 +3029,7 @@ class MainWindow:
                 )
 
         dialog = PaperProfileDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             on_select=on_select,
         )
         dialog.show()
@@ -2979,11 +3042,12 @@ class MainWindow:
         from src.gui.dialogs.floppy_optimizer_dialog import FloppyOptimizerDialog
 
         # Получаем данные текущего документа для оптимизации
-        # Bug 6 FIX: hasattr убран — DocumentView имеет get_template_data
+        # Bug FIX: get_template_data() возвращает dict, но FloppyOptimizerDialog
+        # ожидает bytes. Используем get_template_data_as_bytes() для сериализации.
         template_data = b""
         if self._document_view is not None:
             try:
-                template_data = self._document_view.get_template_data()
+                template_data = self._document_view.get_template_data_as_bytes()
             except (AttributeError, TypeError):
                 pass
 
@@ -2996,7 +3060,7 @@ class MainWindow:
             return
 
         dialog = FloppyOptimizerDialog(
-            parent=self._root,
+            parent=self._root_widget(),
             template_data=template_data,
         )
         dialog.show()
@@ -3115,7 +3179,7 @@ class MainWindow:
                 )
 
         dialog = GotoDialog(
-            cast(tk.Widget, self._root),
+            self._root_widget(),
             total_pages=total_pages,
             current_page=current_page,
             bookmarks=bookmarks if bookmarks else None,
@@ -3175,7 +3239,7 @@ class MainWindow:
         document_view = self._document_view
 
         dialog = BookmarksDialog(
-            cast(tk.Widget, self._root),
+            self._root_widget(),
             bookmark_manager=self._bookmark_manager,
             current_page=current_page,
             on_goto=lambda page, line: document_view.goto_page(page, line),
@@ -3240,7 +3304,7 @@ class MainWindow:
             current_value = str(field.get_value())
 
         dialog = PrefillDialog(
-            cast(tk.Widget, self._root),
+            self._root_widget(),
             field_id=field_id,
             field_label=field_label_str if field_label_str else field_id,
             current_value=current_value,
@@ -3329,14 +3393,18 @@ class MainWindow:
             return
 
         # Build window list message
-        window_names = []
+        window_names: list[str] = []
         for w in windows:
             status = "[свёрнуто]" if w.is_minimized else ""
-            marker = "✓" if self._window_manager.is_main_window(w.window_id) else " "
+            # is_main_window не определён в WindowManagerProtocol,
+            # сравниваем с _main_window_id напрямую
+            is_main = w.window_id == self._main_window_id if self._main_window_id else False
+            marker = "✓" if is_main else " "
             window_names.append(f"{marker} {w.title} {status}")
 
         message = "Открытые окна:\n" + "\n".join(window_names)
-        messagebox.showinfo("Window list", message, parent=self._root)  # type: ignore[arg-type]
+        if self._root is not None:
+            messagebox.showinfo("Window list", message, parent=self._root)
 
     def _on_window_minimize_all(self) -> None:
         """Callback: View → Window → Свернуть все.
@@ -3403,7 +3471,7 @@ class MainWindow:
                 )
             return
 
-        dialog = SpecialCharacterDialog(parent=cast(tk.Widget, self._root))
+        dialog = SpecialCharacterDialog(parent=self._root_widget())
         result: Optional[SpecialCharResult] = dialog.show()
 
         if result is None:

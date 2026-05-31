@@ -19,7 +19,7 @@ TransitionDialog: Any = None
 try:
     import tkinter as tk
 
-    from src.gui.dialogs.transition_dialog import (
+    from src.gui.workflow.transition_dialog import (
         COLOR_BG,
         COLOR_DANGER_BG,
         COLOR_DANGER_BORDER,
@@ -69,7 +69,7 @@ class TestTransitionDialog:
         assert MIN_DIALOG_WIDTH == 400
         assert MIN_DIALOG_HEIGHT == 350
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
     def test_init_basic(
         self,
         mock_viz: MagicMock,
@@ -88,8 +88,8 @@ class TestTransitionDialog:
         assert dialog._result is None
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_archived_warning")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_archived_warning")
     def test_init_archived_transition(
         self,
         mock_archived: MagicMock,
@@ -107,7 +107,7 @@ class TestTransitionDialog:
         assert dialog._is_archived is True
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
     def test_validate_confirmation_non_archived(
         self,
         mock_viz: MagicMock,
@@ -124,8 +124,8 @@ class TestTransitionDialog:
         assert dialog._validate_confirmation() is True
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_archived_warning")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_archived_warning")
     def test_validate_confirmation_archived_correct(
         self,
         mock_archived: MagicMock,
@@ -144,8 +144,8 @@ class TestTransitionDialog:
         assert dialog._validate_confirmation() is True
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_archived_warning")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_archived_warning")
     def test_validate_confirmation_archived_incorrect(
         self,
         mock_archived: MagicMock,
@@ -164,7 +164,7 @@ class TestTransitionDialog:
         assert dialog._validate_confirmation() is False
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
     def test_on_cancel(
         self,
         mock_viz: MagicMock,
@@ -182,7 +182,7 @@ class TestTransitionDialog:
         assert dialog._result is None
         dialog.destroy()
 
-    @patch("src.gui.dialogs.transition_dialog.TransitionDialog._create_status_visualization")
+    @patch("src.gui.workflow.transition_dialog.TransitionDialog._create_status_visualization")
     def test_confirm_var_initialized(
         self,
         mock_viz: MagicMock,

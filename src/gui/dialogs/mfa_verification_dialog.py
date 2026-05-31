@@ -370,9 +370,9 @@ class MFAVerificationDialog(BaseDialog):
                 self._show_error("Authentication service not available")
                 logger.error("MFAVerificationDialog: auth_controller is None")
 
-        except Exception as e:
-            logger.error("MFA verification error: %s", e)
-            self._show_error(f"Verification error: {e}")
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+            logger.error("MFA verification error: %s", e, exc_info=True)
+            self._show_error("Verification error. Please try again.")
 
     def _on_verification_success(self) -> None:
         """Обработчик успешной верификации."""
@@ -386,7 +386,7 @@ class MFAVerificationDialog(BaseDialog):
         if self._auth_controller is not None:
             try:
                 self._auth_controller.mark_mfa_satisfied()
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError, RuntimeError) as e:
                 logger.warning("Failed to mark MFA satisfied: %s", e)
 
         # Show success

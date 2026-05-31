@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 try:
     import tkinter as tk
     from tkinter import ttk
-    from src.gui.dialogs.health_check_dialog import (
+    from src.gui.security.health_check_dialog import (
         HealthCheckDialog,
         COLOR_CRITICAL,
         COLOR_WARNING,

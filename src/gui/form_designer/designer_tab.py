@@ -779,7 +779,13 @@ class DesignerTab(BaseWidget):
                 bg="#a0a0a0",
             )
             separator.pack(fill=tk.X, pady=5)
-            page.page_break_id = id(separator)
+            # DesignerPage frozen — создаём новый объект с page_break_id
+            page = replace(page, page_break_id=id(separator))
+            # Обновляем страницу в списке
+            for i, p in enumerate(self._pages):
+                if p.index == page_index:
+                    self._pages[i] = page
+                    break
 
         # Update scroll region
         if self._outer_canvas is not None:
@@ -894,7 +900,9 @@ class DesignerTab(BaseWidget):
 
         Note:
             Собирает все поля со всех страниц, создаёт FormTemplate,
-            валидирует через SchemaLinter (placeholder), сохраняет через TemplateSerializer.
+            валидирует через validate_form() (проверка дубликатов ID,
+            перекрытий и выхода за границы), сохраняет через
+            TemplateSerializer.
         """
         try:
             # Validate form before saving
@@ -917,7 +925,7 @@ class DesignerTab(BaseWidget):
 
             path.write_bytes(data)
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError, PermissionError) as e:
             self._error_handler.handle_silent(
                 e,
                 {"operation": "save_template", "path": str(path)},
@@ -958,7 +966,7 @@ class DesignerTab(BaseWidget):
             self._update_page_count_label()
 
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError, ImportError) as e:
             self._error_handler.handle_silent(
                 e,
                 {"operation": "load_template", "path": str(path)},

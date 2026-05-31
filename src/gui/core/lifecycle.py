@@ -451,7 +451,7 @@ class LifecycleManager:
         for handler in self._event_handlers.get("mount", []):
             try:
                 handler(info)
-            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110, BLE001
                 logging.exception(f"Error during mount callback: {e}")
                 pass  # noqa: S110
 
@@ -460,7 +460,7 @@ class LifecycleManager:
         for handler in self._event_handlers.get("unmount", []):
             try:
                 handler(info)
-            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110, BLE001
                 logging.exception(f"Error during unmount callback: {e}")
                 pass  # noqa: S110
 
@@ -469,7 +469,7 @@ class LifecycleManager:
         for handler in self._event_handlers.get("state_changed", []):
             try:
                 handler(info)
-            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110
+            except Exception as e:  # nosec B110 - callbacks should not crash manager  # noqa: S110, BLE001
                 logging.exception(f"Error during state change callback: {e}")
                 pass  # noqa: S110
 
@@ -525,13 +525,13 @@ def SafeMount(
                 manager.update_widget(widget_id, widget, str(parent))
                 manager.transition_to(widget_id, LifecycleState.MOUNTED)
                 registered = True
-            except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110
+            except Exception as e:  # nosec B110 - registration errors should not block mount  # noqa: S110, BLE001
                 logging.exception(f"Registration error for {widget_id or 'unknown'}: {e}")
                 pass  # noqa: S110
 
         yield widget
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # При ошибке пробрасываем исключение
         logging.exception(f"Critical lifecycle error: {e}")
         raise
@@ -543,12 +543,12 @@ def SafeMount(
                     widget_id = getattr(component, "widget_id", str(id(component)))
                     manager.transition_to(widget_id, LifecycleState.UNMOUNTED)
                     manager.unregister(widget_id)
-                except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
+                except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110, BLE001
                     logging.exception(f"Cleanup error for {widget_id or 'unknown'}: {e}")
                     pass  # noqa: S110
 
             component.unmount()
-        except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110
+        except Exception as e:  # nosec B110 - cleanup errors should not block  # noqa: S110, BLE001
             logging.exception(f"Critical cleanup error: {e}")
             pass  # Игнорируем ошибки при cleanup  # noqa: S110
 
@@ -620,7 +620,7 @@ class LifecycleCallbacks:
         for handler in self._mount_handlers:
             try:
                 handler()
-            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110
+            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110, BLE001
                 logging.exception(f"Mount callback failed: {e}")
                 pass  # noqa: S110
 
@@ -629,8 +629,9 @@ class LifecycleCallbacks:
         for handler in self._unmount_handlers:
             try:
                 handler()
-            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110
+            except Exception as e:  # nosec B110 - callbacks should not crash trigger  # noqa: S110, BLE001
                 logging.exception(f"Unmount callback failed: {e}")
+                pass  # noqa: S110
                 pass  # noqa: S110
 
 

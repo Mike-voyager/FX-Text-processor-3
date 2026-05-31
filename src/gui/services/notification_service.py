@@ -320,7 +320,7 @@ class NotificationService(NotificationServiceProtocol):
         for callback in self._badge_callbacks:
             try:
                 callback(count)
-            except Exception as e:  # noqa: S110
+            except Exception as e:  # noqa: S110, BLE001
                 # Игнорируем ошибки в callback для стабильности
                 logging.getLogger(__name__).exception("Exception ignored in badge callback: %s", e)
 

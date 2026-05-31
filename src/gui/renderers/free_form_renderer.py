@@ -1373,7 +1373,7 @@ class FreeFormRenderer(BaseWidget):
                 # Fallback если PhotoImage не создан
                 logger.warning("Barcode PhotoImage not generated, falling back to placeholder")
 
-            except Exception as e:
+            except (tk.TclError, ValueError, AttributeError, RuntimeError) as e:
                 logger.error("Barcode image insertion error: %s", e)
                 # Fallback к placeholder
 
@@ -1389,7 +1389,7 @@ class FreeFormRenderer(BaseWidget):
                 )
             )
             return True
-        except Exception as e:
+        except (ValueError, AttributeError, RuntimeError, tk.TclError) as e:
             logger.error("Barcode placeholder insertion error: %s", e)
             return False
 
@@ -1461,7 +1461,7 @@ class FreeFormRenderer(BaseWidget):
 
                 logger.warning("QR PhotoImage not generated, falling back to placeholder")
 
-            except Exception as e:
+            except (tk.TclError, ValueError, AttributeError, RuntimeError) as e:
                 logger.error("QR image insertion error: %s", e)
 
         # Variant A: placeholder текст
@@ -1476,7 +1476,7 @@ class FreeFormRenderer(BaseWidget):
                 )
             )
             return True
-        except Exception as e:
+        except (ValueError, AttributeError, RuntimeError, tk.TclError) as e:
             logger.error("QR placeholder insertion error: %s", e)
             return False
 

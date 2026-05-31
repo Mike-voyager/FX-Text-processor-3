@@ -84,6 +84,9 @@ from src.gui.workflow.transition_command import (
     WorkflowTransitionCommand,
 )
 
+# Transition Dialog (moved from dialogs/)
+from src.gui.workflow.transition_dialog import TransitionDialog
+
 # Undo/Redo menu (A4)
 from src.gui.workflow.undo_redo_menu import (
     UndoRedoMenuItems,
@@ -97,6 +100,14 @@ from src.gui.workflow.workflow_annotation_panel import (
     OnResolveAnnotationCallback,
     WorkflowAnnotation,
     WorkflowAnnotationPanel,
+)
+
+# Workflow Indicator (inline status indicator)
+from src.gui.workflow.workflow_indicator import (
+    DOT_SIZE,
+    FULL_MODE_STATUSES,
+    SIMPLE_MODE_STATUSES,
+    WorkflowIndicator,
 )
 
 # Workflow Manager (B4)
@@ -157,6 +168,8 @@ __all__ = [
     "WorkflowTransitionCommand",
     "WorkflowCommandFactory",
     "WorkflowCommandHistory",
+    # Transition Dialog
+    "TransitionDialog",
     # State Manager
     "WorkflowStateManager",
     "TransitionResult",
@@ -174,4 +187,9 @@ __all__ = [
     "OnAddAnnotationCallback",
     "OnResolveAnnotationCallback",
     "OnReplyAnnotationCallback",
+    # Workflow Indicator
+    "WorkflowIndicator",
+    "DOT_SIZE",
+    "SIMPLE_MODE_STATUSES",
+    "FULL_MODE_STATUSES",
 ]

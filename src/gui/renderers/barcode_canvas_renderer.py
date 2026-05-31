@@ -316,7 +316,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
             return self._render_placeholder(
                 barcode_type, data, x, y, width, height, error="Library not available"
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("Barcode render error: %s", e)
             return self._render_placeholder(barcode_type, data, x, y, width, height, error=str(e))
 
@@ -389,7 +389,7 @@ class SoftwareBarcodeRenderer(BarcodeCanvasRenderer):
 
             return img
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("Barcode generation error: %s", e)
             return None
 

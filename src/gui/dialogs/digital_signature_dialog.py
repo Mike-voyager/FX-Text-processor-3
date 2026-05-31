@@ -87,7 +87,7 @@ class DigitalSignatureDialog(BaseDialog):
             if algorithms:
                 return algorithms
             return ["Ed25519", "Ed448", "RSA-PSS-2048", "RSA-PSS-4096"]
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError):
             # Fallback if registry not available
             return ["Ed25519", "Ed448", "RSA-PSS-2048", "RSA-PSS-4096"]
 

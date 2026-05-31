@@ -322,7 +322,7 @@ class SoftwareQRRenderer(QRCanvasRenderer):
         except ImportError as e:
             logger.warning("qrcode library not available: %s", e)
             return self._render_placeholder(data, x, y, size, error="Library not available")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("QR render error: %s", e)
             return self._render_placeholder(data, x, y, size, error=str(e)[:50])
 
@@ -386,7 +386,7 @@ class SoftwareQRRenderer(QRCanvasRenderer):
 
             return img
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("QR generation error: %s", e)
             return None
 

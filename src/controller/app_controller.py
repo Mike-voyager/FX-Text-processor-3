@@ -934,7 +934,7 @@ class AppController:
         """Показывает диалог проверки здоровья безопасности."""
         if self._main_window is None:
             return
-        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+        from src.gui.security.health_check_dialog import HealthCheckDialog
 
         root = self._main_window.get_root()
         if root is None:

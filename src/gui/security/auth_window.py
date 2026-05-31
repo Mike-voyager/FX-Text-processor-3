@@ -25,9 +25,9 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from src.gui.security.components.secure_entry import SecureEntry
-from src.gui.security.components.wipe_button import WipeButton
 from src.gui.security.mfa_gate import MFAGate
 from src.gui.themes import get_theme_manager
+from src.security.crypto.core.exceptions import AuthError, CryptoError
 
 
 class MFASelection(Enum):
@@ -598,8 +598,12 @@ class AuthWindow:
             # Показываем MFA диалог
             self._perform_mfa_challenge(user_id, available_methods)
 
-        except Exception as e:
-            self._show_error(f"Ошибка аутентификации: {e}")
+        except (AuthError, CryptoError) as e:
+            logging.critical("Authentication security error: %s", e, exc_info=True)
+            self._show_error("Ошибка аутентификации")
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+            logging.exception("Unexpected authentication error: %s", e)
+            self._show_error("Ошибка аутентификации. Обратитесь к администратору.")
 
     def _get_available_mfa_methods(self, user_id: str) -> list[str]:
         """Получает список доступных MFA методов для пользователя.

@@ -415,7 +415,7 @@ class ModeToggle(tk.Frame):
             # Обновляем Canvas элементы
             self._update_track_color()
 
-        except Exception as exc:
+        except (tk.TclError, AttributeError, ValueError, RuntimeError) as exc:
             logger.warning("Failed to apply theme to ModeToggle: %s", exc)
 
     def _get_knob_position_x(self, mode: Mode) -> int:
@@ -714,7 +714,7 @@ class ModeToggle(tk.Frame):
                     )
                     return False
                 return True
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 logger.error("MFA challenge failed: %s", exc)
                 messagebox.showerror(
                     "Ошибка MFA",
@@ -757,19 +757,19 @@ class ModeToggle(tk.Frame):
                 # поэтому переключаем режим напрямую без повторной проверки.
                 try:
                     self._mode_manager.force_mode("special")
-                except Exception as exc:
+                except (AttributeError, ValueError, RuntimeError) as exc:
                     logger.warning("Failed to force special mode: %s", exc)
             elif hasattr(self._mode_manager, "exit_special"):
                 try:
                     self._mode_manager.exit_special(confirm=False)
-                except Exception as exc:
+                except (AttributeError, ValueError, RuntimeError) as exc:
                     logger.warning("Failed to exit special mode: %s", exc)
 
         # Callback
         if self._on_mode_changed is not None:
             try:
                 self._on_mode_changed(mode)
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 logger.error("Mode change callback failed: %s", exc)
 
         # Обновляем UI

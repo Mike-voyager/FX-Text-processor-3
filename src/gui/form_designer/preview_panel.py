@@ -339,7 +339,9 @@ class PreviewPanel(BaseWidget):
         """Диспетчирует событие печати тестового ESC/P output через контроллер.
 
         Отправляет команду "print_test" с текущими ESC/P байтами.
-        Фактическая печать зависит от реализации обработчика в контроллере.
+        Контроллер (AppController) обрабатывает эту команду, добавляя
+        задание в очередь печати через PrintQueueProtocol.add_job().
+        Если сервис печати недоступен, контроллер показывает предупреждение.
         """
         if self._current_data is None or self._controller is None:
             return

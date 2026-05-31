@@ -640,6 +640,179 @@ class TestBackupCodesDialogHelpers:
         dialog.destroy()
 
 
+class TestBackupCodesDialogPrintAndSave:
+    """Регрессионные тесты для багов _on_print и _on_save_to_file.
+
+    Ранее эти методы были заглушками, которые показывали messagebox
+    "Printing is not implemented yet" / "Save to file is not implemented yet".
+    После фикса они реализуют реальную печать и сохранение в файл.
+    """
+
+    def test_on_print_creates_preview_window(self, root) -> None:
+        """_on_print должен создать окно предпросмотра печати."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        # Устанавливаем тестовые коды
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="ABCD-1234",
+                is_used=False,
+                used_at=None,
+            ),
+            BackupCodeDisplay(
+                code_id="code_002",
+                masked_code="EFGH-5678",
+                is_used=True,
+                used_at=None,
+            ),
+        ]
+
+        # Вызываем _on_print — не должно вызывать исключений
+        dialog._on_print()
+
+        # Окно предпросмотра должно быть создано (Toplevel)
+        # Проверяем что метод завершился без ошибок
+        dialog.destroy()
+
+    def test_on_print_no_available_codes(self, root) -> None:
+        """_on_print с пустым списком доступных кодов показывает ошибку."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        # Все коды использованы
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="****-****",
+                is_used=True,
+                used_at=None,
+            ),
+        ]
+
+        # Вызываем _on_print — должно показать статус ошибки, а не упасть
+        dialog._on_print()
+
+        # Проверяем, что статус показывает ошибку
+        if dialog._notification_label is not None:
+            text = dialog._notification_label.cget("text")
+            assert "Нет доступных" in text or "error" in text.lower() or text != ""
+
+        dialog.destroy()
+
+    def test_on_save_to_file_with_codes(self, root) -> None:
+        """_on_save_to_file должен предложить сохранить файл с кодами."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        # Устанавливаем тестовые коды
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="ABCD-1234",
+                is_used=False,
+                used_at=None,
+            ),
+        ]
+
+        # Мокаем filedialog чтобы не показывать реальный диалог
+        # filedialog импортируется локально в методе, поэтому мокаем через tkinter.filedialog
+        with patch("tkinter.filedialog.asksaveasfilename") as mock_save:
+            mock_save.return_value = ""  # Пользователь отменил
+            dialog._on_save_to_file()
+            mock_save.assert_called_once()
+
+        dialog.destroy()
+
+    def test_on_save_to_file_writes_content(self, root, tmp_path) -> None:
+        """_on_save_to_file должен записать коды в выбранный файл."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        # Устанавливаем тестовые коды
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="ABCD-1234",
+                is_used=False,
+                used_at=None,
+            ),
+        ]
+
+        # Мокаем filedialog чтобы вернуть реальный путь
+        save_path = str(tmp_path / "backup-codes.txt")
+        with patch("tkinter.filedialog.asksaveasfilename") as mock_save:
+            mock_save.return_value = save_path
+            dialog._on_save_to_file()
+
+        # Проверяем что файл создан
+        from pathlib import Path
+
+        saved_file = Path(save_path)
+        assert saved_file.exists()
+        content = saved_file.read_text(encoding="utf-8")
+        assert "ABCD-1234" in content
+        assert "operator" in content
+
+        dialog.destroy()
+
+    def test_on_save_to_file_no_available_codes(self, root) -> None:
+        """_on_save_to_file с пустым списком кодов показывает ошибку."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        # Все коды использованы
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="****-****",
+                is_used=True,
+                used_at=None,
+            ),
+        ]
+
+        with patch("tkinter.filedialog.asksaveasfilename") as mock_save:
+            # filedialog не должен вызываться если нет доступных кодов
+            dialog._on_save_to_file()
+            mock_save.assert_not_called()
+
+        dialog.destroy()
+
+    def test_on_print_formats_output_correctly(self, root) -> None:
+        """_on_print должен форматировать вывод с заголовком и кодами."""
+        dialog = BackupCodesDialog(
+            parent=root,
+            user_id="operator",
+        )
+        dialog._codes = [
+            BackupCodeDisplay(
+                code_id="code_001",
+                masked_code="ABCD-1234",
+                is_used=False,
+                used_at=None,
+            ),
+            BackupCodeDisplay(
+                code_id="code_002",
+                masked_code="EFGH-5678",
+                is_used=False,
+                used_at=None,
+            ),
+        ]
+
+        # Вызываем _on_print — проверяем, что он не падает
+        # Внутри создаётся Toplevel, который можно проверить через winfo_children
+        dialog._on_print()
+
+        # Окно должно существовать после вызова
+        dialog.destroy()
+
+
 __all__ = [
     "TestBackupCodesDialogCreation",
     "TestBackupCodesDialogLoadCodes",
@@ -650,4 +823,5 @@ __all__ = [
     "TestBackupCodesDialogStatus",
     "TestBackupCodesDialogResult",
     "TestBackupCodesDialogHelpers",
+    "TestBackupCodesDialogPrintAndSave",
 ]

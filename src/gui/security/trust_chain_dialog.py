@@ -7,7 +7,7 @@
 - Интеграция с TrustChainServiceProtocol
 
 Example:
-    >>> from src.gui.dialogs.trust_chain_dialog import TrustChainDialog
+    >>> from src.gui.security.trust_chain_dialog import TrustChainDialog
     >>> from src.services.template_manager import FormTemplate
     >>> dialog = TrustChainDialog(
     ...     parent=root,
@@ -500,7 +500,7 @@ class TrustChainDialog(BaseDialog):
             # Run initial verification
             self._verify_chain(silent=True)
 
-        except Exception as e:
+        except (ImportError, AttributeError, ValueError, RuntimeError, OSError) as e:
             self._tree.insert(
                 "",
                 tk.END,
@@ -800,7 +800,14 @@ class TrustChainDialog(BaseDialog):
                         parent=self,
                     )
 
-        except Exception as e:
+        except (
+            ImportError,
+            AttributeError,
+            ValueError,
+            RuntimeError,
+            OSError,
+            PermissionError,
+        ) as e:
             if not silent:
                 messagebox.showerror(
                     "Verification Error",

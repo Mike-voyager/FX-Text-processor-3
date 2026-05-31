@@ -311,8 +311,9 @@ class SessionLockScreen(tk.Toplevel):
         except (AuthError, CryptoError) as e:
             logging.critical("Session unlock security error: %s", e, exc_info=True)
             result = False
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, KeyError) as e:
             logging.exception("Unexpected error during session unlock: %s", e)
+            result = False
             result = False
 
         if result:

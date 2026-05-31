@@ -151,7 +151,7 @@ class WorkflowTransitionCommand(Command):
             self._executed = True
             self._undone = False
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — re-raising after logging
             # Sanitized логирование: только тип исключения, без деталей.
             # Доступ к лог-файлам должен быть ограничен административным персоналом.
             _logger.error("Failed to execute transition: %s", type(e).__name__)
@@ -180,7 +180,7 @@ class WorkflowTransitionCommand(Command):
             self._undone = True
             self._executed = False
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — re-raising after logging
             # Sanitized логирование: только тип исключения, без деталей.
             # Доступ к лог-файлам должен быть ограничен административным персоналом.
             _logger.error("Failed to undo transition: %s", type(e).__name__)
@@ -326,7 +326,7 @@ class WorkflowCommandHistory:
             command.undo()
             self._redo_stack.append(command)
             return command
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — undo command pattern, restores state on failure
             # Sanitized логирование: только тип исключения.
             # Доступ к лог-файлам должен быть ограничен административным персоналом.
             _logger.exception("Undo failed: %s", type(e).__name__)
@@ -348,7 +348,7 @@ class WorkflowCommandHistory:
             command.redo()
             self._undo_stack.append(command)
             return command
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — redo command pattern, restores state on failure
             # Sanitized логирование: только тип исключения.
             # Доступ к лог-файлам должен быть ограничен административным персоналом.
             _logger.exception("Redo failed: %s", type(e).__name__)

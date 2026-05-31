@@ -521,7 +521,7 @@ class AutoLockSettingsDialog(BaseDialog):
                     for child in frame.winfo_children():
                         self._theme_manager.apply_to_widget(child)
 
-        except Exception as e:
+        except (tk.TclError, AttributeError, ValueError, RuntimeError) as e:
             logger.warning("Failed to apply theme: %s", e)
 
     def _format_timeout(self, minutes: int) -> str:
@@ -666,7 +666,7 @@ class AutoLockSettingsDialog(BaseDialog):
                 # Try to get idle time from lock manager
                 try:
                     idle_minutes = self._auto_lock_service._lock_manager.get_idle_time_minutes()
-                except Exception as e:
+                except (AttributeError, ValueError, RuntimeError) as e:
                     logging.getLogger(__name__).exception(
                         "Exception ignored during idle time retrieval: %s", e
                     )
@@ -685,7 +685,7 @@ class AutoLockSettingsDialog(BaseDialog):
 
             self._status_label.config(text=status_text)
 
-        except Exception as e:
+        except (tk.TclError, AttributeError, ValueError, RuntimeError) as e:
             logger.debug("Error updating idle display: %s", e)
             self._status_label.config(text="Status: Update error")
 
@@ -722,7 +722,7 @@ class AutoLockSettingsDialog(BaseDialog):
                 elif not new_config.enabled and self._auto_lock_service.is_running():
                     self._auto_lock_service.stop()
 
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError, AttributeError) as e:
                 logger.error("Failed to update auto-lock service: %s", e)
 
         self._result = AutoLockSettingsResult(

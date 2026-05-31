@@ -20,10 +20,18 @@ Version: 1.1
 
 from src.gui.security.auth_window import AuthWindow
 from src.gui.security.first_run_wizard import FirstRunWizard, WizardStep, is_first_run
+from src.gui.security.health_check_dialog import HealthCheckDialog
 from src.gui.security.mfa_gate import MFAGate, MFAMethod, MFAResult
 from src.gui.security.mode_manager import ModeManager
 from src.gui.security.mode_toggle import Mode, ModeToggle
 from src.gui.security.session_lock_screen import SessionLockScreen
+from src.gui.security.trust_chain_dialog import (
+    STATUS_EMOJIS,
+    STATUS_TO_TAG,
+    TrustChainDialog,
+    TrustChainDisplayHelper,
+    TrustChainVerificationDialog,
+)
 
 __all__ = [
     # Auth
@@ -32,6 +40,8 @@ __all__ = [
     "FirstRunWizard",
     "WizardStep",
     "is_first_run",
+    # Health Check
+    "HealthCheckDialog",
     # MFA
     "MFAGate",
     "MFAMethod",
@@ -42,4 +52,10 @@ __all__ = [
     "Mode",
     # Session lock
     "SessionLockScreen",
+    # Trust Chain
+    "TrustChainDialog",
+    "TrustChainDisplayHelper",
+    "TrustChainVerificationDialog",
+    "STATUS_EMOJIS",
+    "STATUS_TO_TAG",
 ]

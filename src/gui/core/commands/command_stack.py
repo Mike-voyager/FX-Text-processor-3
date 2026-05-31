@@ -135,7 +135,7 @@ class CommandStack:
         with self._lock:
             try:
                 cmd.execute()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — commands may raise any exception; re-raising
                 raise RuntimeError(f"Ошибка выполнения команды: {exc}") from exc
 
             self._undo_stack.append(cmd)
@@ -169,7 +169,7 @@ class CommandStack:
             cmd = self._undo_stack.pop()
             try:
                 cmd.undo()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — undo may raise any exception; re-raising
                 # Возвращаем команду обратно в стек при ошибке
                 self._undo_stack.append(cmd)
                 raise RuntimeError(f"Ошибка отмены команды: {exc}") from exc
@@ -201,7 +201,7 @@ class CommandStack:
             cmd = self._redo_stack.pop()
             try:
                 cmd.redo()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — redo may raise any exception; re-raising
                 # Возвращаем команду обратно в стек при ошибке
                 self._redo_stack.append(cmd)
                 raise RuntimeError(f"Ошибка повтора команды: {exc}") from exc

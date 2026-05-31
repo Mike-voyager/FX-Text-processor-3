@@ -552,7 +552,7 @@ class QRCodeSettingsDialog(BaseDialog):
                 self._show_placeholder("⚠️ Generation error\nCheck data")
                 self._status_var.set("Generation error")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as e:
             logger.error("QR preview generation error: %s", e)
             self._show_placeholder(f"Error:\n{str(e)[:50]}")
             self._status_var.set(f"Error: {e}")
@@ -629,7 +629,7 @@ class QRCodeSettingsDialog(BaseDialog):
             # qrcode library not available - show placeholder
             logger.warning("qrcode library not available for preview")
             return None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error("QR generation error: %s", e)
             return None
 
@@ -752,7 +752,7 @@ class QRCodeSettingsDialog(BaseDialog):
                     parent=self,
                 )
 
-        except Exception as e:
+        except (OSError, ValueError, PermissionError, RuntimeError) as e:
             logger.error("QR export error: %s", e)
             messagebox.showerror(
                 "Error",

@@ -18,8 +18,12 @@ Example:
 
 from __future__ import annotations
 
-from src.gui.controllers.barcode_controller import BarcodeController
+from src.gui.controllers.barcode_controller import (
+    BarcodeController,
+    BarcodeViewProtocol,
+)
 
 __all__ = [
     "BarcodeController",
+    "BarcodeViewProtocol",
 ]

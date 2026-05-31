@@ -725,7 +725,7 @@ class CryptoProfileDialog(BaseDialog):
                     )
                     return
                 mfa_verified = True
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                 logger.error("MFA challenge failed: %s", e)
                 messagebox.showerror(
                     "MFA Error",
@@ -784,7 +784,7 @@ class CryptoProfileDialog(BaseDialog):
         try:
             theme_manager = get_theme_manager()
             theme_manager.apply_to_widget(cast(tk.Widget, self))
-        except Exception as e:
+        except (tk.TclError, AttributeError, ValueError, RuntimeError) as e:
             logger.warning("Failed to apply theme: %s", e)
 
     def show(self) -> Optional[ProfileSelectionResult]:

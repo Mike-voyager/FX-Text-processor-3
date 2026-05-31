@@ -1517,6 +1517,18 @@ class WorkflowStateManagerProtocol(Protocol):
         """
         ...
 
+    def request_transition_by_action(self, doc_id: Any, action: str) -> Any:
+        """Запрашивает переход по действию workflow.
+
+        Args:
+            doc_id: ID документа (UUID).
+            action: Имя действия workflow.
+
+        Returns:
+            Результат перехода (TransitionResult или None).
+        """
+        ...
+
 
 # ==============================================================================
 # HEALTH CHECK DIALOG PROTOCOL
@@ -1553,11 +1565,21 @@ class UndoRedoMenuItemsProtocol(Protocol):
     в меню workflow.
     """
 
-    def add_to_menu(self, menu: tk.Menu) -> None:
+    def add_to_menu(
+        self,
+        menu: tk.Menu,
+        index: Optional[int] = None,
+        accelerator: bool = True,
+    ) -> tuple[int, int]:
         """Добавляет пункты undo/redo в меню.
 
         Args:
             menu: Tkinter Menu для добавления пунктов.
+            index: Позиция для вставки (None = в конец).
+            accelerator: Показывать ли shortcuts.
+
+        Returns:
+            Кортеж (undo_index, redo_index).
         """
         ...
 
@@ -1663,6 +1685,15 @@ class MainToolbarProtocol(Protocol):
 
     def mount(self, parent: Any) -> Any:
         """Монтирует тулбар в родительский контейнер."""
+        ...
+
+    def set_button_enabled(self, button_id: str, enabled: bool) -> None:
+        """Включает/выключает кнопку тулбара по идентификатору.
+
+        Args:
+            button_id: Идентификатор кнопки (например, "save", "print").
+            enabled: True для включения, False для выключения.
+        """
         ...
 
 

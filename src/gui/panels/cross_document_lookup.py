@@ -656,7 +656,7 @@ class CrossDocumentLookupPanel(BaseWidget):
                 len(results),
             )
 
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as exc:
             logger.error("Ошибка поиска: %s", exc)
             self._status_var.set(f"Ошибка поиска: {exc}")
 
@@ -726,7 +726,7 @@ class CrossDocumentLookupPanel(BaseWidget):
                     self._selected_result.field_id,
                     self._selected_result.document_index,
                 )
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 logger.error("Ошибка при использовании значения: %s", exc)
                 self._status_var.set(f"Ошибка: {exc}")
 
@@ -837,7 +837,7 @@ class CrossDocumentLookupPanel(BaseWidget):
                 limit=MAX_RESULTS,
             )
             return [(r.document_index, r.value) for r in results]
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as exc:
             logger.error("Ошибка поиска: %s", exc)
             return []
 
@@ -1095,7 +1095,7 @@ class CrossDocumentLookupDialog(tk.Toplevel):
                 pattern,
                 len(results),
             )
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, RuntimeError, ImportError) as exc:
             logger.error("Ошибка lookup: %s", exc)
             self._status_var.set(f"Ошибка: {exc}")
 

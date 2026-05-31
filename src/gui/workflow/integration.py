@@ -20,10 +20,10 @@ if TYPE_CHECKING:
         WorkflowRole,
     )
     from src.gui.dialogs.role_switch_dialog import RoleSwitchDialog
-    from src.gui.dialogs.transition_dialog import TransitionDialog
     from src.gui.security.mfa_gate import MFAGate
     from src.gui.workflow.protocols import WorkflowStateListener
     from src.gui.workflow.state_manager import TransitionResult, WorkflowStateManager
+    from src.gui.workflow.transition_dialog import TransitionDialog
 
 
 class WorkflowUIFactory:
@@ -84,8 +84,8 @@ class WorkflowUIFactory:
         Returns:
             Созданный диалог.
         """
-        from src.gui.dialogs.transition_dialog import TransitionDialog
         from src.gui.workflow.mfa_checker import MFARequirementChecker
+        from src.gui.workflow.transition_dialog import TransitionDialog
 
         # Check if MFA required
         checker = MFARequirementChecker()

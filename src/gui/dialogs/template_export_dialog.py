@@ -413,7 +413,7 @@ class TemplateExportDialog(BaseDialog):
 
             self._update_floppy_ui(analysis)
 
-        except Exception as e:
+        except (ValueError, TypeError, OSError, RuntimeError) as e:
             logger.warning("Failed to calculate template size: %s", e)
             self._original_size = 0
             self._optimized_size = 0
@@ -547,7 +547,7 @@ class TemplateExportDialog(BaseDialog):
             logger.info("Template exported: %s, signed=%s", saved_path, signed)
             self.destroy()
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError, PermissionError) as e:
             logger.error("Template export failed: %s", e)
             messagebox.showerror("Export Error", f"Failed to export template:\n{e}", parent=self)
 

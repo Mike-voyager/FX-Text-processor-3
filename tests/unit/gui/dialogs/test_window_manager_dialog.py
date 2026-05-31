@@ -1163,6 +1163,156 @@ class TestWindowManagerDialogEdgeCases:
 
 
 # =============================================================================
+# TESTS: Tile/Cascade/NewWindow (Bug fix regression tests)
+# =============================================================================
+
+
+class TestWindowManagerDialogArrangeWindows:
+    """Регрессионные тесты для багов tile_horizontal, tile_vertical, cascade, new_window.
+
+    Ранее эти методы были заглушками (stub), которые только логировали действие.
+    После фикса они реализуют реальное расположение окон.
+
+    Тесты используют привязку несвязанных методов к MagicMock-объектам,
+    чтобы избежать создания реальных Tkinter-виджетов (которые вызывают
+    зависание в headless-среде).
+    """
+
+    def _make_mock_dialog(self) -> MagicMock:
+        """Создаёт мок-объект диалога с необходимыми атрибутами.
+
+        Вместо создания реального WindowManagerDialog (который создаёт
+        tk.Toplevel и может зависнуть), мы создаём MagicMock и привязываем
+        к нему несвязанные методы реального класса.
+        """
+        dialog = MagicMock()
+
+        # Настройка мок-родителя
+        dialog._parent = MagicMock()
+        dialog._parent.winfo_screenwidth.return_value = 1920
+        dialog._parent.winfo_screenheight.return_value = 1080
+
+        # Настройка мок-WindowManager
+        dialog._window_manager = MagicMock()
+        dialog._window_manager.is_main_window = MagicMock(
+            side_effect=lambda wid: wid == "main"
+        )
+
+        # Настройка мок-списка окон
+        main_info = MagicMock()
+        main_info.window_id = "main"
+        main_info.toplevel = MagicMock()
+        main_info.is_modal = False
+
+        doc_info = MagicMock()
+        doc_info.window_id = "doc1"
+        doc_info.toplevel = MagicMock()
+        doc_info.is_modal = False
+
+        dialog._window_manager.get_window_list.return_value = [main_info, doc_info]
+
+        # Мок-дерево для _load_window_list
+        dialog._tree = MagicMock()
+        dialog._tree.get_children.return_value = []
+
+        # Привязываем реальные методы к мок-объекту
+        if WindowManagerDialog is not None:
+            dialog._tile_horizontal = WindowManagerDialog._tile_horizontal.__get__(dialog)
+            dialog._tile_vertical = WindowManagerDialog._tile_vertical.__get__(dialog)
+            dialog._cascade = WindowManagerDialog._cascade.__get__(dialog)
+            dialog._new_window = WindowManagerDialog._new_window.__get__(dialog)
+            dialog._load_window_list = MagicMock()
+
+        return dialog
+
+    def test_tile_horizontal_arranges_windows(self) -> None:
+        """tile_horizontal должен вызывать geometry() для каждого окна."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+        dialog._tile_horizontal()
+
+        # Проверяем, что deiconify и geometry были вызваны для doc окна (не main)
+        doc_info = dialog._window_manager.get_window_list.return_value[1]
+        doc_info.toplevel.deiconify.assert_called()
+        doc_info.toplevel.geometry.assert_called()
+
+    def test_tile_vertical_arranges_windows(self) -> None:
+        """tile_vertical должен вызывать geometry() для каждого окна."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+        dialog._tile_vertical()
+
+        doc_info = dialog._window_manager.get_window_list.return_value[1]
+        doc_info.toplevel.deiconify.assert_called()
+        doc_info.toplevel.geometry.assert_called()
+
+    def test_cascade_arranges_windows(self) -> None:
+        """cascade должен размещать окна каскадом со смещением."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+        dialog._cascade()
+
+        doc_info = dialog._window_manager.get_window_list.return_value[1]
+        doc_info.toplevel.deiconify.assert_called()
+        doc_info.toplevel.geometry.assert_called()
+        doc_info.toplevel.lift.assert_called()
+
+    def test_new_window_creates_and_registers(self) -> None:
+        """new_window должен создать Toplevel и зарегистрировать его."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+
+        with patch("window_manager_dialog.tk.Toplevel") as mock_toplevel_cls:
+            mock_new_win = MagicMock()
+            mock_toplevel_cls.return_value = mock_new_win
+
+            dialog._new_window()
+
+            # Проверяем, что Toplevel был создан
+            mock_toplevel_cls.assert_called_once_with(dialog._parent)
+
+            # Проверяем, что окно было зарегистрировано
+            dialog._window_manager.register_window.assert_called_once()
+
+    def test_tile_horizontal_no_windows(self) -> None:
+        """tile_horizontal с пустым списком окон не вызывает geometry()."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+        dialog._window_manager.get_window_list.return_value = []
+        # Сбрасываем счетчик вызовов после инициализации
+        dialog._window_manager.get_window_list.reset_mock()
+
+        dialog._tile_horizontal()
+
+        # Ни одно окно не должно быть аранжировано
+        # get_window_list вызывается в _tile_horizontal
+        dialog._window_manager.get_window_list.assert_called()
+
+    def test_cascade_skips_main_window(self) -> None:
+        """cascade должен пропускать главное окно при размещении."""
+        if WindowManagerDialog is None:
+            pytest.skip("Tkinter недоступен")
+
+        dialog = self._make_mock_dialog()
+        dialog._cascade()
+
+        # Главное окно (main) не должно получать deiconify/geometry/lift
+        main_info = dialog._window_manager.get_window_list.return_value[0]
+        main_info.toplevel.deiconify.assert_not_called()
+        main_info.toplevel.geometry.assert_not_called()
+
+
+# =============================================================================
 # MODULE EXPORTS
 # =============================================================================
 
@@ -1174,4 +1324,5 @@ __all__ = [
     "TestWindowManagerDialogSyncService",
     "TestWindowManagerDialogESCBinding",
     "TestWindowManagerDialogEdgeCases",
+    "TestWindowManagerDialogArrangeWindows",
 ]

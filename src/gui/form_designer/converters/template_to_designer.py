@@ -114,7 +114,7 @@ class TemplateToDesignerConverter:
                     profile = self._profile_service.get_profile(profile_name)
                     if profile is not None:
                         return profile
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     logging.getLogger(__name__).exception(
                         "Exception ignored during profile retrieval: %s",
                         e,

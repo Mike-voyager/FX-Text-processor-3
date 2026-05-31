@@ -518,7 +518,7 @@ class TreePanel:
             if self._cb_reorder is not None:
                 try:
                     self._cb_reorder(old_path, new_path)
-                except Exception as exc:
+                except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                     logger.error("Error in on_reorder callback: %s", exc)
 
         self._drag_source = None

@@ -495,7 +495,7 @@ class MFAForm(tk.Frame):
             logging.critical("MFA Authentication security error: %s", e, exc_info=True)
             self._show_error("Authentication error")
             self.wipe_credentials()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             # Log authentication error without exposing sensitive info
             logging.error("Unexpected authentication error occurred: %s", e, exc_info=True)
             self._show_error("Authentication error")
@@ -535,7 +535,7 @@ class MFAForm(tk.Frame):
             logging.critical("FIDO2 authentication security error: %s", e, exc_info=True)
             self._show_error("FIDO2 аутентификация не удалась")
             self.wipe_credentials()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logging.error("Unexpected FIDO2 error occurred: %s", e, exc_info=True)
             self._show_error("FIDO2 аутентификация не удалась")
             self.wipe_credentials()

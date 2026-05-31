@@ -22,8 +22,8 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 try:
-    from PIL import Image  # type: ignore[import-untyped]
     import PIL.ImageTk as ImageTk  # type: ignore[import-untyped]
+    from PIL import Image  # type: ignore[import-untyped]
 except ImportError:
     Image = None  # type: ignore[assignment,misc]
     ImageTk = None

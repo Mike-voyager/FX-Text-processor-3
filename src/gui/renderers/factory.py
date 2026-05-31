@@ -185,7 +185,7 @@ class RendererFactory:
         try:
             renderer = renderer_class(**constructor_args)
             renderer.mount(parent)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — re-raising as WidgetCreationError
             raise WidgetCreationError(
                 widget_type=renderer_class.__name__,
                 factory_name="RendererFactory.create",
@@ -217,7 +217,7 @@ class RendererFactory:
 
                 # Unmount to release resources
                 cls._current_renderer.unmount()
-            except Exception as e:
+            except (AttributeError, ValueError, RuntimeError) as e:
                 logger.warning("Renderer factory cleanup error: %s", e)
             finally:
                 cls._current_renderer = None

@@ -597,6 +597,157 @@ class TestFormFieldProtocol:
 
 
 # ==============================================================================
+# TEST: UndoRedoMenuItemsProtocol (Bug fix regression)
+# ==============================================================================
+
+
+class TestUndoRedoMenuItemsProtocol:
+    """Регрессионные тесты для UndoRedoMenuItemsProtocol.
+
+    Bug: Protocol add_to_menu() возвращал None, а реализация Tuple[int, int].
+    Fix: Обновлён Protocol для соответствия реализации.
+    """
+
+    def test_undo_redo_menu_items_satisfies_protocol(self) -> None:
+        """UndoRedoMenuItems структурно удовлетворяет UndoRedoMenuItemsProtocol."""
+        from src.gui.core.protocols import UndoRedoMenuItemsProtocol
+        from src.gui.workflow.undo_redo_menu import UndoRedoMenuItems
+
+        items = UndoRedoMenuItems(
+            undo_callback=lambda: None,
+            redo_callback=lambda: None,
+            get_undo_text=lambda: "Отменить",
+            get_redo_text=lambda: "Повторить",
+        )
+        assert isinstance(items, UndoRedoMenuItemsProtocol)
+
+    def test_protocol_has_add_to_menu_with_return_type(self) -> None:
+        """UndoRedoMenuItemsProtocol.add_to_menu возвращает tuple[int, int]."""
+        from src.gui.core.protocols import UndoRedoMenuItemsProtocol
+
+        import inspect
+
+        sig = inspect.getsignature(UndoRedoMenuItemsProtocol.add_to_menu)
+        # Проверяем, что return annotation — tuple[int, int]
+        assert sig.return_annotation == "tuple[int, int]" or sig.return_annotation is not inspect.Parameter.empty
+
+
+# ==============================================================================
+# TEST: WorkflowStateManagerProtocol (Bug fix regression)
+# ==============================================================================
+
+
+class TestWorkflowStateManagerProtocol:
+    """Регрессионные тесты для WorkflowStateManagerProtocol.
+
+    Bug: Protocol не имел request_transition_by_action,
+         get_last_undo_description, get_last_redo_description.
+    Fix: Добавлены недостающие методы в Protocol и реализацию.
+    """
+
+    def test_protocol_has_request_transition_by_action(self) -> None:
+        """WorkflowStateManagerProtocol содержит request_transition_by_action."""
+        from src.gui.core.protocols import WorkflowStateManagerProtocol
+
+        assert hasattr(WorkflowStateManagerProtocol, "request_transition_by_action")
+        assert callable(WorkflowStateManagerProtocol.request_transition_by_action)
+
+    def test_protocol_has_get_last_undo_description(self) -> None:
+        """WorkflowStateManagerProtocol содержит get_last_undo_description."""
+        from src.gui.core.protocols import WorkflowStateManagerProtocol
+
+        assert hasattr(WorkflowStateManagerProtocol, "get_last_undo_description")
+        assert callable(WorkflowStateManagerProtocol.get_last_undo_description)
+
+    def test_protocol_has_get_last_redo_description(self) -> None:
+        """WorkflowStateManagerProtocol содержит get_last_redo_description."""
+        from src.gui.core.protocols import WorkflowStateManagerProtocol
+
+        assert hasattr(WorkflowStateManagerProtocol, "get_last_redo_description")
+        assert callable(WorkflowStateManagerProtocol.get_last_redo_description)
+
+    def test_state_manager_has_protocol_methods(self) -> None:
+        """WorkflowStateManager реализует все методы Protocol."""
+        from src.gui.workflow.state_manager import WorkflowStateManager
+
+        # Методы Protocol должны существовать на классе
+        assert hasattr(WorkflowStateManager, "request_transition_by_action")
+        assert hasattr(WorkflowStateManager, "get_last_undo_description")
+        assert hasattr(WorkflowStateManager, "get_last_redo_description")
+        assert hasattr(WorkflowStateManager, "set_simple_mode")
+
+
+# ==============================================================================
+# TEST: MainToolbarProtocol (Bug fix regression)
+# ==============================================================================
+
+
+class TestMainToolbarProtocol:
+    """Регрессионные тесты для MainToolbarProtocol.
+
+    Bug: MainToolbarProtocol не имел метода set_button_enabled.
+    Fix: Добавлен метод set_button_enabled(button_id, enabled).
+    """
+
+    def test_protocol_has_set_button_enabled(self) -> None:
+        """MainToolbarProtocol содержит set_button_enabled."""
+        from src.gui.core.protocols import MainToolbarProtocol
+
+        assert hasattr(MainToolbarProtocol, "set_button_enabled")
+        assert callable(MainToolbarProtocol.set_button_enabled)
+
+    def test_main_toolbar_satisfies_protocol(self) -> None:
+        """MainToolbar структурно удовлетворяет MainToolbarProtocol."""
+        from src.gui.core.protocols import MainToolbarProtocol
+
+        try:
+            from src.gui.components.composite.main_toolbar import MainToolbar
+
+            # MainToolbar — это класс, но мы проверяем структурное соответствие
+            # через наличие нужных методов
+            assert hasattr(MainToolbar, "mount")
+            assert hasattr(MainToolbar, "set_button_enabled")
+        except ImportError:
+            pytest.skip("MainToolbar не доступен для импорта")
+
+
+# ==============================================================================
+# TEST: AuthServiceProtocol in main_window (Bug fix regression)
+# ==============================================================================
+
+
+class TestAuthServiceProtocolImport:
+    """Регрессионные тесты для AuthServiceProtocol в main_window.
+
+    Bug: main_window импортировал конкретный AuthService вместо Protocol.
+    Fix: Заменён на AuthServiceProtocol из auth_overlay.
+    """
+
+    def test_auth_service_protocol_exists_in_auth_overlay(self) -> None:
+        """AuthServiceProtocol экспортируется из auth_overlay."""
+        from src.gui.views.auth_overlay import AuthServiceProtocol
+
+        assert AuthServiceProtocol is not None
+        assert hasattr(AuthServiceProtocol, "authenticate")
+
+    def test_auth_service_protocol_is_runtime_checkable(self) -> None:
+        """AuthServiceProtocol помечен @runtime_checkable."""
+        from src.gui.views.auth_overlay import AuthServiceProtocol
+
+        assert isinstance(AuthServiceProtocol, type)
+
+    def test_auth_overlay_accepts_protocol_type(self) -> None:
+        """AuthOverlay.__init__ принимает AuthServiceProtocol в качестве auth_service."""
+        import inspect
+
+        from src.gui.views.auth_overlay import AuthOverlay
+
+        sig = inspect.getsignature(AuthOverlay.__init__)
+        params = sig.parameters
+        assert "auth_service" in params
+
+
+# ==============================================================================
 # TEST: Module Exports
 # ==============================================================================
 

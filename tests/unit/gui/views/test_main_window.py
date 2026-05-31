@@ -416,7 +416,7 @@ class TestDocumentConvertMode:
         self, initialized_window: MainWindow
     ) -> None:
         """_show_health_check_dialog_for_special_mode создаёт диалог."""
-        from src.gui.dialogs.health_check_dialog import HealthCheckDialog
+        from src.gui.security.health_check_dialog import HealthCheckDialog
 
         mock_hc = MagicMock()
         initialized_window._health_checker = mock_hc
@@ -426,6 +426,142 @@ class TestDocumentConvertMode:
 
         assert initialized_window._health_check_dialog is not None
         assert isinstance(initialized_window._health_check_dialog, HealthCheckDialog)
+
+
+# =============================================================================
+# TEST: Undo/Redo Fallback (Bug Fix Regression)
+# =============================================================================
+
+
+@pytest.mark.gui
+class TestEditUndoRedoFallback:
+    """Регрессионные тесты для бага: undo/redo не работал без контроллера.
+
+    Root cause: _on_edit_undo() и _on_edit_redo() делегировали
+    только controller.dispatch(), без fallback на DocumentView.undo()/redo().
+    Когда controller=None, Ctrl+Z/Ctrl+Y ничего не делали.
+    """
+
+    def test_undo_with_controller_dispatches(self, mock_controller: MagicMock) -> None:
+        """При наличии контроллера undo делегирует dispatch."""
+        window = MainWindow(controller=mock_controller)
+        window._on_edit_undo()
+        mock_controller.dispatch.assert_called_once_with("edit_undo")
+
+    def test_redo_with_controller_dispatches(self, mock_controller: MagicMock) -> None:
+        """При наличии контроллера redo делегирует dispatch."""
+        window = MainWindow(controller=mock_controller)
+        window._on_edit_redo()
+        mock_controller.dispatch.assert_called_once_with("edit_redo")
+
+    def test_undo_without_controller_calls_document_view(self) -> None:
+        """Без контроллера undo вызывает DocumentView.undo()."""
+        window = MainWindow()
+        assert window._controller is None
+        mock_doc_view = MagicMock()
+        mock_doc_view.can_undo.return_value = True
+        window._document_view = mock_doc_view
+
+        window._on_edit_undo()
+        mock_doc_view.can_undo.assert_called_once()
+        mock_doc_view.undo.assert_called_once()
+
+    def test_undo_without_controller_and_no_document_view(self) -> None:
+        """Без контроллера и DocumentView undo не падает (no-op)."""
+        window = MainWindow()
+        assert window._controller is None
+        assert window._document_view is None
+
+        # Не должно вызывать исключение
+        window._on_edit_undo()
+
+    def test_undo_without_controller_cannot_undo(self) -> None:
+        """Без контроллера, если DocumentView.can_undo() = False, undo не вызывается."""
+        window = MainWindow()
+        mock_doc_view = MagicMock()
+        mock_doc_view.can_undo.return_value = False
+        window._document_view = mock_doc_view
+
+        window._on_edit_undo()
+        mock_doc_view.can_undo.assert_called_once()
+        mock_doc_view.undo.assert_not_called()
+
+    def test_redo_without_controller_calls_document_view(self) -> None:
+        """Без контроллера redo вызывает DocumentView.redo()."""
+        window = MainWindow()
+        assert window._controller is None
+        mock_doc_view = MagicMock()
+        mock_doc_view.can_redo.return_value = True
+        window._document_view = mock_doc_view
+
+        window._on_edit_redo()
+        mock_doc_view.can_redo.assert_called_once()
+        mock_doc_view.redo.assert_called_once()
+
+    def test_redo_without_controller_and_no_document_view(self) -> None:
+        """Без контроллера и DocumentView redo не падает (no-op)."""
+        window = MainWindow()
+        assert window._controller is None
+        assert window._document_view is None
+
+        # Не должно вызывать исключение
+        window._on_edit_redo()
+
+    def test_redo_without_controller_cannot_redo(self) -> None:
+        """Без контроллера, если DocumentView.can_redo() = False, redo не вызывается."""
+        window = MainWindow()
+        mock_doc_view = MagicMock()
+        mock_doc_view.can_redo.return_value = False
+        window._document_view = mock_doc_view
+
+        window._on_edit_redo()
+        mock_doc_view.can_redo.assert_called_once()
+        mock_doc_view.redo.assert_not_called()
+
+    def test_edit_cut_without_controller_calls_document_view(self) -> None:
+        """Без контроллера cut вызывает DocumentView.on_edit_cut()."""
+        window = MainWindow()
+        mock_doc_view = MagicMock()
+        window._document_view = mock_doc_view
+
+        window._on_edit_cut()
+        mock_doc_view.on_edit_cut.assert_called_once()
+
+    def test_edit_copy_without_controller_calls_document_view(self) -> None:
+        """Без контроллера copy вызывает DocumentView.on_edit_copy()."""
+        window = MainWindow()
+        mock_doc_view = MagicMock()
+        window._document_view = mock_doc_view
+
+        window._on_edit_copy()
+        mock_doc_view.on_edit_copy.assert_called_once()
+
+    def test_edit_paste_without_controller_calls_document_view(self) -> None:
+        """Без контроллера paste вызывает DocumentView.on_edit_paste()."""
+        window = MainWindow()
+        mock_doc_view = MagicMock()
+        window._document_view = mock_doc_view
+
+        window._on_edit_paste()
+        mock_doc_view.on_edit_paste.assert_called_once()
+
+    def test_edit_cut_with_controller_dispatches(self, mock_controller: MagicMock) -> None:
+        """При наличии контроллера cut делегирует dispatch."""
+        window = MainWindow(controller=mock_controller)
+        window._on_edit_cut()
+        mock_controller.dispatch.assert_called_once_with("edit_cut")
+
+    def test_edit_copy_with_controller_dispatches(self, mock_controller: MagicMock) -> None:
+        """При наличии контроллера copy делегирует dispatch."""
+        window = MainWindow(controller=mock_controller)
+        window._on_edit_copy()
+        mock_controller.dispatch.assert_called_once_with("edit_copy")
+
+    def test_edit_paste_with_controller_dispatches(self, mock_controller: MagicMock) -> None:
+        """При наличии контроллера paste делегирует dispatch."""
+        window = MainWindow(controller=mock_controller)
+        window._on_edit_paste()
+        mock_controller.dispatch.assert_called_once_with("edit_paste")
 
 
 if __name__ == "__main__":

@@ -210,7 +210,7 @@ class QRWidget(BaseFieldWidget):
 
         try:
             self._render_real_qr(data)
-        except Exception as e:
+        except (ValueError, ImportError, AttributeError, RuntimeError) as e:
             self._render_placeholder(data)
             logger.debug("QR render failed, using placeholder: %s", e)
 

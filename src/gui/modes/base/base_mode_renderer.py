@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from abc import ABC, abstractmethod
-from typing import Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 from src.documents.types.document_type import DocumentMode
 from src.gui.core.commands.command import Command
@@ -524,6 +524,68 @@ class BaseModeRenderer(ABC, Generic[DocumentT, ContentT]):
         """
         self._ensure_mounted()
         # Переопределяется в наследниках при необходимости
+
+    # ======================================================================
+    # PROTOCOL COMPLIANCE: DocumentModeRendererProtocol
+    # ======================================================================
+
+    def supports_workflow(self) -> bool:
+        """Проверяет, поддерживает ли рендерер workflow-переходы.
+
+        Базовая реализация возвращает False.
+        StructuredFormRenderer переопределяет и возвращает True.
+
+        Returns:
+            True если рендерер поддерживает MFA workflow transitions.
+        """
+        return False
+
+    def get_undo_manager(self) -> Any:
+        """Возвращает менеджер undo/redo операций.
+
+        Returns:
+            Экземпляр CommandStack или None если не установлен.
+
+        Note:
+            Возвращает внутренний _command_stack, который устанавливается
+            через set_command_stack().
+        """
+        return self._command_stack
+
+    def display_document(self, document: Any) -> None:
+        """Отображает документ с учётом SmartEdit режима.
+
+        Делегирует render(), защищая от перезаписи пользовательского ввода
+        в активном режиме редактирования.
+
+        Args:
+            document: Документ для отображения.
+
+        Raises:
+            LifecycleError: Если рендерер не смонтирован.
+        """
+        self.render(document)
+
+    def get_editor_state(self) -> dict[str, Any]:
+        """Возвращает текущее состояние редактора.
+
+        Returns:
+            Словарь с состоянием редактора:
+            - mode: DocumentMode
+            - is_dirty: флаг изменений
+            - command_stack_size: размер стека команд
+            - mounted: флаг смонтированности
+
+        Raises:
+            LifecycleError: Если рендерер не смонтирован.
+        """
+        self._ensure_mounted()
+        return {
+            "mode": self.get_mode().value,
+            "is_dirty": self._context.is_dirty,
+            "command_stack_size": len(self._command_stack) if self._command_stack else 0,
+            "mounted": self._mounted,
+        }
 
 
 __all__: list[str] = [

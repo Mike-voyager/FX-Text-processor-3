@@ -9,12 +9,20 @@
 - Штрих-коды (barcode, QR)
 - Навигация (goto, bookmarks)
 
+Note:
+    HealthCheckDialog, TrustChainDialog и TransitionDialog перемещены
+    в архитектурно корректные модули:
+    - HealthCheckDialog -> src.gui.security
+    - TrustChainDialog -> src.gui.security
+    - TransitionDialog -> src.gui.workflow
+    Эти классы доступны через lazy import для обратной совместимости.
+
 Example:
     >>> from src.gui.dialogs import MFAVerificationDialog, TemplateImportDialog
     >>> dialog = MFAVerificationDialog(parent, auth_controller)
 
-Version: 1.0
-Date: April 2026
+Version: 1.1
+Date: May 2026
 """
 
 from __future__ import annotations
@@ -55,7 +63,6 @@ from src.gui.dialogs.floppy_optimizer_dialog import (
     FloppyOptimizerDialog,
     OptimizationOptions,
 )
-from src.gui.dialogs.health_check_dialog import HealthCheckDialog
 from src.gui.dialogs.integrity_dialog import IntegrityDialog
 
 # Security dialogs
@@ -103,14 +110,6 @@ from src.gui.dialogs.template_import_dialog import (
 )
 from src.gui.dialogs.template_preview_panel import TemplatePreviewWidget
 from src.gui.dialogs.totp_setup_dialog import TOTPSetupDialog
-from src.gui.dialogs.transition_dialog import TransitionDialog
-from src.gui.dialogs.trust_chain_dialog import (
-    STATUS_EMOJIS,
-    STATUS_TO_TAG,
-    TrustChainDialog,
-    TrustChainDisplayHelper,
-    TrustChainVerificationDialog,  # backward compatibility alias
-)
 from src.gui.dialogs.workflow_dialogs import (
     AddCommentDialog,
     CommentData,
@@ -195,3 +194,50 @@ __all__: list[str] = [
     # Utility
     "FindReplaceDialog",
 ]
+
+# Lazy imports for moved modules (architectural relocation)
+# HealthCheckDialog -> src.gui.security.health_check_dialog
+# TrustChainDialog -> src.gui.security.trust_chain_dialog
+# TransitionDialog -> src.gui.workflow.transition_dialog
+# These are loaded on demand to avoid circular imports with dialogs.base_dialog
+_MOVED_IMPORTS: dict[str, tuple[str, str]] = {
+    "HealthCheckDialog": (
+        "src.gui.security.health_check_dialog",
+        "HealthCheckDialog",
+    ),
+    "TrustChainDialog": (
+        "src.gui.security.trust_chain_dialog",
+        "TrustChainDialog",
+    ),
+    "TrustChainDisplayHelper": (
+        "src.gui.security.trust_chain_dialog",
+        "TrustChainDisplayHelper",
+    ),
+    "TrustChainVerificationDialog": (
+        "src.gui.security.trust_chain_dialog",
+        "TrustChainVerificationDialog",
+    ),
+    "STATUS_EMOJIS": (
+        "src.gui.security.trust_chain_dialog",
+        "STATUS_EMOJIS",
+    ),
+    "STATUS_TO_TAG": (
+        "src.gui.security.trust_chain_dialog",
+        "STATUS_TO_TAG",
+    ),
+    "TransitionDialog": (
+        "src.gui.workflow.transition_dialog",
+        "TransitionDialog",
+    ),
+}
+
+
+def __getattr__(name: str) -> object:
+    """Lazy import for moved modules to avoid circular imports."""
+    import importlib
+
+    if name in _MOVED_IMPORTS:
+        module_path, class_name = _MOVED_IMPORTS[name]
+        module = importlib.import_module(module_path)
+        return getattr(module, class_name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
